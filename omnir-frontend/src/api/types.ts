@@ -275,6 +275,30 @@ export interface CreateNoteRequest {
   deal_id?: string
 }
 
+// ---- Reports ----
+
+export interface DealStageMetric {
+  stage: DealStage
+  count: number
+  total_value_cents: number
+}
+
+export interface ContactMonthlyMetric {
+  month: string // "YYYY-MM"
+  count: number
+}
+
+export interface ActivityTypeMetric {
+  type: ActivityType
+  count: number
+}
+
+export interface ReportsSummary {
+  deals_by_stage: DealStageMetric[]
+  contacts_monthly: ContactMonthlyMetric[]
+  activities_by_type: ActivityTypeMetric[]
+}
+
 // ---- Search ----
 
 export interface SearchResult {
