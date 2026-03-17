@@ -74,7 +74,60 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 func (r *DealRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, error) {
 	row := r.db.QueryRow(ctx,
 		`SELECT `+dealCols+` FROM deals WHERE id=$1 AND deleted_at IS NULL`, id)
-	return scanDeal(row)
+	deal, err := scanDeal(row)
+	if err != nil {
+		return nil, err
+	}
+	contacts, err := r.ListContacts(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	deal.Contacts = contacts
+	return deal, nil
+}
+
+// AddContact inserts a row into deal_contacts (upsert on conflict to allow role updates).
+func (r *DealRepo) AddContact(ctx context.Context, dealID, contactID uuid.UUID, role string) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO deal_contacts (deal_id, contact_id, role)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (deal_id, contact_id) DO UPDATE SET role = EXCLUDED.role
+	`, dealID, contactID, role)
+	return err
+}
+
+// ListContacts returns all contacts linked to a deal via deal_contacts.
+func (r *DealRepo) ListContacts(ctx context.Context, dealID uuid.UUID) ([]domain.Contact, error) {
+	const contactCols = `
+		c.id, c.first_name, c.last_name, c.email, c.phone,
+		c.account_id, c.owner_id, c.lead_source, c.stage, c.tags,
+		c.custom_fields, c.created_at, c.updated_at, c.deleted_at
+	`
+	rows, err := r.db.Query(ctx, `
+		SELECT `+contactCols+`
+		FROM contacts c
+		JOIN deal_contacts dc ON dc.contact_id = c.id
+		WHERE dc.deal_id = $1 AND c.deleted_at IS NULL
+		ORDER BY dc.created_at ASC
+	`, dealID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contacts []domain.Contact
+	for rows.Next() {
+		var c domain.Contact
+		if err := rows.Scan(
+			&c.ID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
+			&c.AccountID, &c.OwnerID, &c.LeadSource, &c.Stage, &c.Tags,
+			&c.CustomFields, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		contacts = append(contacts, c)
+	}
+	return contacts, rows.Err()
 }
 
 func (r *DealRepo) Update(ctx context.Context, id uuid.UUID, patch domain.DealPatch) (*domain.Deal, error) {
