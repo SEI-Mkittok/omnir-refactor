@@ -16,7 +16,7 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-const AUTH_BASE = import.meta.env.VITE_AUTH_URL || 'http://localhost:8080/api'
+const AUTH_BASE = import.meta.env.VITE_AUTH_URL || '/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
