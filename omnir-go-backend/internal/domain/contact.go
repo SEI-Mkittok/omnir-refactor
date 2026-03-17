@@ -64,6 +64,12 @@ func (c *Contact) Validate() error {
 	if c.FirstName == "" {
 		return fmt.Errorf("%w: first_name is required", ErrValidation)
 	}
+	if c.LastName == "" {
+		return fmt.Errorf("%w: last_name is required", ErrValidation)
+	}
+	if c.OwnerID == uuid.Nil {
+		return fmt.Errorf("%w: owner_id is required", ErrValidation)
+	}
 	if c.Email != nil && *c.Email != "" {
 		if !isValidEmail(*c.Email) {
 			return fmt.Errorf("%w: invalid email format", ErrValidation)
