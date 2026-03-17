@@ -92,6 +92,11 @@ jobs:
       url: http://100.73.134.90
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync prod compose to deploy dir
+        run: cp $GITHUB_WORKSPACE/infra/docker-compose.prod.yml ~/omnir-crm/docker-compose.prod.yml
+
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
