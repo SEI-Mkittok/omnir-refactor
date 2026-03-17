@@ -52,6 +52,13 @@ func (h *AccountHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.OwnerID = &id
 		}
 	}
+	if v := q.Get("industry"); v != "" {
+		filter.Industry = &v
+	}
+	if v := q.Get("size"); v != "" {
+		s := domain.AccountSize(v)
+		filter.Size = &s
+	}
 
 	if filter.Limit == 0 {
 		filter.Limit = 50
