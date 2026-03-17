@@ -39,18 +39,20 @@ func (h *SetupHandler) Status(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"setup_required": count == 0})
+	writeJSON(w, http.StatusOK, map[string]bool{"setupRequired": count == 0})
 }
 
 type setupRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	AdminName   string `json:"adminName"`
+	CompanyName string `json:"companyName"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
 }
 
 type setupResponse struct {
-	Token string      `json:"token"`
-	User  *domain.User `json:"user"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	User         *domain.User `json:"user"`
 }
 
 // Setup creates the first admin user and seeds the default org.
@@ -63,10 +65,10 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate required fields.
-	req.Name = strings.TrimSpace(req.Name)
+	req.AdminName = strings.TrimSpace(req.AdminName)
 	req.Email = strings.TrimSpace(req.Email)
-	if req.Name == "" {
-		writeError(w, http.StatusUnprocessableEntity, "validation error: name is required")
+	if req.AdminName == "" {
+		writeError(w, http.StatusUnprocessableEntity, "validation error: adminName is required")
 		return
 	}
 	if req.Email == "" {
@@ -100,7 +102,7 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 	user := &domain.User{
 		OrgID: domain.DefaultOrgID,
 		Email: req.Email,
-		Name:  req.Name,
+		Name:  req.AdminName,
 		Role:  domain.UserRoleAdmin,
 	}
 	created, err := h.users.Create(r.Context(), user, string(hash))
@@ -109,16 +111,22 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Issue a JWT for immediate login.
-	token, err := h.jwtSvc.Issue(auth.Claims{
+	// Issue access and refresh JWTs for immediate login.
+	claims := auth.Claims{
 		UserID: created.ID,
 		OrgID:  created.OrgID,
 		Role:   string(created.Role),
-	}, 24*time.Hour)
+	}
+	accessToken, err := h.jwtSvc.Issue(claims, 24*time.Hour)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	refreshToken, err := h.jwtSvc.Issue(claims, 7*24*time.Hour)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, setupResponse{Token: token, User: created})
+	writeJSON(w, http.StatusCreated, setupResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: created})
 }
