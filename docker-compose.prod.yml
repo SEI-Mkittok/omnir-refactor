@@ -1,0 +1,70 @@
+version: "3.9"
+
+# Production compose — used on staging/prod servers
+# Images pulled from GHCR (set REGISTRY and IMAGE_TAG in environment)
+# Secrets injected from environment or Docker secrets
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not exposed externally in prod
+    expose:
+      - "5432"
+
+  api:
+    image: ${REGISTRY:-ghcr.io}/${API_IMAGE}:${IMAGE_TAG:-develop}
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      SERVER_PORT: 8080
+      ENV: production
+      LOG_LEVEL: info
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/${FRONTEND_IMAGE}:${IMAGE_TAG:-develop}
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro  # mount TLS certs
+
+  # Migrations run as a one-shot container on deploy
+  migrate:
+    image: ${REGISTRY:-ghcr.io}/${API_IMAGE}:${IMAGE_TAG:-develop}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    command: ["goose", "-dir", "db/migrations", "postgres", "${DATABASE_URL}", "up"]
+    restart: "no"
+
+volumes:
+  postgres_data:
