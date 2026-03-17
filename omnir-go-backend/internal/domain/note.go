@@ -28,6 +28,7 @@ func (t NoteEntityType) IsValid() bool {
 // Note is a free-text note attached to a CRM record.
 type Note struct {
 	ID         uuid.UUID      `json:"id"`
+	OrgID      uuid.UUID      `json:"org_id"`
 	Content    string         `json:"content"`
 	EntityType NoteEntityType `json:"entity_type"`
 	EntityID   uuid.UUID      `json:"entity_id"`
@@ -56,6 +57,7 @@ func (n *Note) Validate() error {
 
 // NoteFilter holds query parameters for listing notes on an entity.
 type NoteFilter struct {
+	OrgID      uuid.UUID
 	EntityType NoteEntityType
 	EntityID   uuid.UUID
 	Page       int

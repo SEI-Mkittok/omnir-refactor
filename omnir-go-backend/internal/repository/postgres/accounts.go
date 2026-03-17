@@ -22,14 +22,14 @@ func NewAccountRepo(db *pgxpool.Pool) *AccountRepo {
 }
 
 const accountCols = `
-	id, name, domain, industry, size,
+	id, org_id, name, domain, industry, size,
 	owner_id, tags, custom_fields, created_at, updated_at, deleted_at
 `
 
 func scanAccount(row pgx.Row) (*domain.Account, error) {
 	var a domain.Account
 	err := row.Scan(
-		&a.ID, &a.Name, &a.Domain, &a.Industry, &a.Size,
+		&a.ID, &a.OrgID, &a.Name, &a.Domain, &a.Industry, &a.Size,
 		&a.OwnerID, &a.Tags, &a.CustomFields, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
 	if err != nil {
@@ -45,25 +45,35 @@ func (r *AccountRepo) Create(ctx context.Context, a *domain.Account) (*domain.Ac
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		a.OrgID = orgID
+	}
 	now := time.Now().UTC()
 	a.CreatedAt = now
 	a.UpdatedAt = now
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO accounts
-			(id, name, domain, industry, size,
+			(id, org_id, name, domain, industry, size,
 			 owner_id, tags, custom_fields, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		RETURNING `+accountCols,
-		a.ID, a.Name, a.Domain, a.Industry, a.Size,
+		a.ID, a.OrgID, a.Name, a.Domain, a.Industry, a.Size,
 		a.OwnerID, a.Tags, a.CustomFields, a.CreatedAt, a.UpdatedAt,
 	)
 	return scanAccount(row)
 }
 
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT `+accountCols+` FROM accounts WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `SELECT ` + accountCols + ` FROM accounts WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	row := r.db.QueryRow(ctx, q, args...)
 	return scanAccount(row)
 }
 
@@ -100,18 +110,33 @@ func (r *AccountRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Acc
 		addArg("custom_fields", patch.CustomFields)
 	}
 
+	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)
 	args = append(args, id)
+	i++
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
+		args = append(args, orgID)
+	}
+
 	query := fmt.Sprintf(
-		`UPDATE accounts SET %s WHERE id=$%d AND deleted_at IS NULL RETURNING %s`,
-		strings.Join(sets, ", "), i, accountCols,
+		`UPDATE accounts SET %s WHERE %s RETURNING %s`,
+		strings.Join(sets, ", "), whereClause, accountCols,
 	)
 	row := r.db.QueryRow(ctx, query, args...)
 	return scanAccount(row)
 }
 
 func (r *AccountRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.Exec(ctx,
-		`UPDATE accounts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `UPDATE accounts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -138,6 +163,15 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
 		args = append(args, val)
 		i++
+	}
+
+	// Always scope by org_id: prefer context, fall back to filter field.
+	orgID, hasCtxOrg := domain.OrgIDFromContext(ctx)
+	if !hasCtxOrg {
+		orgID = f.OrgID
+	}
+	if orgID != uuid.Nil {
+		addWhere("org_id", orgID)
 	}
 
 	if f.OwnerID != nil {
@@ -194,7 +228,7 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 	for rows.Next() {
 		var a domain.Account
 		if err := rows.Scan(
-			&a.ID, &a.Name, &a.Domain, &a.Industry, &a.Size,
+			&a.ID, &a.OrgID, &a.Name, &a.Domain, &a.Industry, &a.Size,
 			&a.OwnerID, &a.Tags, &a.CustomFields, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 		); err != nil {
 			return nil, 0, err

@@ -29,6 +29,7 @@ func (t ActivityType) IsValid() bool {
 // Activity represents a logged interaction or scheduled task linked to CRM entities.
 type Activity struct {
 	ID          uuid.UUID    `json:"id"`
+	OrgID       uuid.UUID    `json:"org_id"`
 	Type        ActivityType `json:"type"`
 	Subject     string       `json:"subject"`
 	Description *string      `json:"description,omitempty"`
@@ -72,6 +73,7 @@ type ActivityPatch struct {
 
 // ActivityFilter holds query parameters for listing activities.
 type ActivityFilter struct {
+	OrgID     uuid.UUID
 	Q         string
 	Type      *ActivityType
 	OwnerID   *uuid.UUID

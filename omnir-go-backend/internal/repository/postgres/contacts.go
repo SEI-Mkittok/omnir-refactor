@@ -22,7 +22,7 @@ func NewContactRepo(db *pgxpool.Pool) *ContactRepo {
 }
 
 const contactCols = `
-	id, first_name, last_name, email, phone,
+	id, org_id, first_name, last_name, email, phone,
 	account_id, owner_id, lead_source, stage, tags,
 	custom_fields, created_at, updated_at, deleted_at
 `
@@ -30,7 +30,7 @@ const contactCols = `
 func scanContact(row pgx.Row) (*domain.Contact, error) {
 	var c domain.Contact
 	err := row.Scan(
-		&c.ID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
+		&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
 		&c.AccountID, &c.OwnerID, &c.LeadSource, &c.Stage, &c.Tags,
 		&c.CustomFields, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 	)
@@ -47,18 +47,21 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		c.OrgID = orgID
+	}
 	now := time.Now().UTC()
 	c.CreatedAt = now
 	c.UpdatedAt = now
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO contacts
-			(id, first_name, last_name, email, phone,
+			(id, org_id, first_name, last_name, email, phone,
 			 account_id, owner_id, lead_source, stage, tags,
 			 custom_fields, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		RETURNING `+contactCols,
-		c.ID, c.FirstName, c.LastName, c.Email, c.Phone,
+		c.ID, c.OrgID, c.FirstName, c.LastName, c.Email, c.Phone,
 		c.AccountID, c.OwnerID, c.LeadSource, c.Stage, c.Tags,
 		c.CustomFields, c.CreatedAt, c.UpdatedAt,
 	)
@@ -66,8 +69,15 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 }
 
 func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contact, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT `+contactCols+` FROM contacts WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `SELECT ` + contactCols + ` FROM contacts WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	row := r.db.QueryRow(ctx, q, args...)
 	return scanContact(row)
 }
 
@@ -113,18 +123,33 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 		addArg("custom_fields", patch.CustomFields)
 	}
 
+	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)
 	args = append(args, id)
+	i++
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
+		args = append(args, orgID)
+	}
+
 	query := fmt.Sprintf(
-		`UPDATE contacts SET %s WHERE id=$%d AND deleted_at IS NULL RETURNING %s`,
-		strings.Join(sets, ", "), i, contactCols,
+		`UPDATE contacts SET %s WHERE %s RETURNING %s`,
+		strings.Join(sets, ", "), whereClause, contactCols,
 	)
 	row := r.db.QueryRow(ctx, query, args...)
 	return scanContact(row)
 }
 
 func (r *ContactRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.Exec(ctx,
-		`UPDATE contacts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `UPDATE contacts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -151,6 +176,15 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
 		args = append(args, val)
 		i++
+	}
+
+	// Always scope by org_id: prefer context, fall back to filter field.
+	orgID, hasCtxOrg := domain.OrgIDFromContext(ctx)
+	if !hasCtxOrg {
+		orgID = f.OrgID
+	}
+	if orgID != uuid.Nil {
+		addWhere("org_id", orgID)
 	}
 
 	if f.OwnerID != nil {
@@ -205,7 +239,7 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	for rows.Next() {
 		var c domain.Contact
 		if err := rows.Scan(
-			&c.ID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
+			&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
 			&c.AccountID, &c.OwnerID, &c.LeadSource, &c.Stage, &c.Tags,
 			&c.CustomFields, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 		); err != nil {

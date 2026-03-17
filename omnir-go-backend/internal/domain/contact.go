@@ -20,6 +20,7 @@ const (
 
 type Contact struct {
 	ID           uuid.UUID       `json:"id"`
+	OrgID        uuid.UUID       `json:"org_id"`
 	FirstName    string          `json:"first_name"`
 	LastName     string          `json:"last_name"`
 	Email        *string         `json:"email,omitempty"`
@@ -85,6 +86,7 @@ func isValidEmail(email string) bool {
 
 // ContactFilter holds query parameters for listing contacts.
 type ContactFilter struct {
+	OrgID   uuid.UUID
 	Q       string
 	OwnerID *uuid.UUID
 	Stage   *ContactStage

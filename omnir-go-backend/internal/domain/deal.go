@@ -27,6 +27,7 @@ type DealContact struct {
 
 type Deal struct {
 	ID                uuid.UUID       `json:"id"`
+	OrgID             uuid.UUID       `json:"org_id"`
 	Title             string          `json:"title"`
 	ValueCents        int64           `json:"value_cents"`
 	Currency          string          `json:"currency"`
@@ -61,6 +62,7 @@ type DealPatch struct {
 
 // DealFilter holds query parameters for listing deals.
 type DealFilter struct {
+	OrgID      uuid.UUID
 	Q          string
 	OwnerID    *uuid.UUID
 	Stage      *DealStage
