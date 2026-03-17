@@ -68,6 +68,16 @@ type NotificationRepository interface {
 	GenerateReminders(ctx context.Context) error
 }
 
+// ReportsRepository defines aggregation queries for the analytics dashboard.
+type ReportsRepository interface {
+	// DealsByStage returns deal count and total value grouped by stage, org-scoped.
+	DealsByStage(ctx context.Context) ([]domain.DealStageMetric, error)
+	// ContactsMonthly returns new contact counts per month for the last 12 months.
+	ContactsMonthly(ctx context.Context) ([]domain.ContactMonthlyMetric, error)
+	// ActivitiesByType returns activity counts grouped by type.
+	ActivitiesByType(ctx context.Context) ([]domain.ActivityTypeMetric, error)
+}
+
 // UserRepository defines the persistence contract for users.
 type UserRepository interface {
 	// CountAll returns the total number of non-deleted users across all orgs.
