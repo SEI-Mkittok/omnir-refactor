@@ -36,11 +36,11 @@ func SeedContact(ownerID uuid.UUID) *domain.Contact {
 
 // SeedAccount returns a minimal valid Account for use in tests.
 func SeedAccount(ownerID uuid.UUID) *domain.Account {
-	domain_ := "acme.example.com"
+	accountDomain := "acme.example.com"
 	return &domain.Account{
 		ID:        uuid.New(),
 		Name:      "Acme Corp",
-		Domain:    &domain_,
+		Domain:    &accountDomain,
 		OwnerID:   ownerID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

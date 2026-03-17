@@ -14,8 +14,8 @@ import (
 // NoteHandler serves notes nested under a parent entity
 // (e.g. /contacts/:id/notes, /accounts/:id/notes, /deals/:id/notes).
 type NoteHandler struct {
-	repo       repository.NoteRepository
-	entityType domain.NoteEntityType
+	repo        repository.NoteRepository
+	entityType  domain.NoteEntityType
 	parentParam string // chi URL param name for the parent entity ID
 }
 

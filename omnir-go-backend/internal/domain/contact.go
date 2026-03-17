@@ -85,11 +85,11 @@ func isValidEmail(email string) bool {
 
 // ContactFilter holds query parameters for listing contacts.
 type ContactFilter struct {
-	Q        string
-	OwnerID  *uuid.UUID
-	Stage    *ContactStage
-	Page     int
-	Limit    int
-	Sort     string
-	Order    string
+	Q       string
+	OwnerID *uuid.UUID
+	Stage   *ContactStage
+	Page    int
+	Limit   int
+	Sort    string
+	Order   string
 }

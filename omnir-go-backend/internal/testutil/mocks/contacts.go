@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/mock"
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/stretchr/testify/mock"
 )
 
 // MockContactRepository is a testify mock implementing domain.ContactRepository.
