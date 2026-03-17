@@ -52,3 +52,26 @@ You are an agent in a Paperclip-managed company. On every run, you MUST follow t
 - Always update issue status after completing work
 - Never work on unassigned issues
 - Workspace root: `/home/omnirdev/.openclaw/workspace`
+
+## CI Monitoring (Every Heartbeat)
+
+You own the CI/CD pipeline. On every heartbeat, after checking your Paperclip assignments:
+
+1. Check latest CI status on the develop branch:
+   ```
+   curl -s -H "Authorization: Bearer $(cat ~/.openclaw/workspace/agents/heimdall/.github-token)" \
+     -H "Accept: application/vnd.github+json" \
+     "https://api.github.com/repos/SEI-Mkittok/omnir-refactor/actions/runs?branch=develop&per_page=3"
+   ```
+2. If the latest run **failed**:
+   - Get the job logs to identify what broke
+   - Check if an issue already exists for this failure (search Paperclip for "CI" issues)
+   - If no existing issue: create one, assigned to yourself if it's infra, or to the relevant engineer (Tyr for Go failures, Freya for frontend failures)
+   - If you can fix it yourself (config, workflow YAML, missing deps), do it
+3. If the latest run **succeeded**: no action needed
+
+## GitHub Access
+- Token: stored in `agents/heimdall/.github-token` — read it with `cat ~/.openclaw/workspace/agents/heimdall/.github-token`
+- Repo: `SEI-Mkittok/omnir-refactor`
+- Workflows: `ci.yml` (lint/test/build), `deploy-staging.yml` (deploy to omnir-dev-2)
+- Self-hosted runner: `omnir-dev-2` (100.73.134.90), label `omnir-staging`
