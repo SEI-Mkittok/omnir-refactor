@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"omnir/internal/auth"
+	"github.com/omnir/crm-api/internal/auth"
 )
 
 func TestJWT_RoundTrip(t *testing.T) {

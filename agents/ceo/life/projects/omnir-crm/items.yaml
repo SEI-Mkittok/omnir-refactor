@@ -1,0 +1,76 @@
+entity: omnir-crm
+type: project
+created: "2026-03-17"
+
+facts:
+  - id: f001
+    fact: "Project goal is to replace vtiger CE with a modern Go + React CRM"
+    status: active
+    created: "2026-03-17"
+    source: board
+
+  - id: f002
+    fact: "Backend stack: Go 1.22, Chi, pgx/v5, goose, PostgreSQL 16"
+    status: active
+    created: "2026-03-17"
+    source: architecture-review
+
+  - id: f003
+    fact: "Frontend stack: React 18, TypeScript, Vite, shadcn/ui, TanStack Query/Router, Zustand"
+    status: active
+    created: "2026-03-17"
+    source: architecture-review
+
+  - id: f004
+    fact: "5 core DB entities defined: users, accounts, contacts, deals, pipelines"
+    status: active
+    created: "2026-03-17"
+    source: data-model-map
+
+  - id: f005
+    fact: "Biggest data model gap: no activities table (calls, emails, meetings)"
+    status: active
+    created: "2026-03-17"
+    source: data-model-map
+
+  - id: f006
+    fact: "Deals-to-contacts is 1:1; vtiger supports many-to-many — needs junction table"
+    status: active
+    created: "2026-03-17"
+    source: data-model-map
+
+  - id: f007
+    fact: "No multi-tenancy (org_id) — fine for v1, needs planning for SaaS"
+    status: active
+    created: "2026-03-17"
+    source: data-model-map
+
+  - id: f008
+    fact: "Docker Compose local dev stack is set up and working"
+    status: active
+    created: "2026-03-17"
+    source: omn-5-done
+
+  - id: f009
+    fact: "GitHub Actions CI pipeline (lint → test → build → Docker) is set up"
+    status: active
+    created: "2026-03-17"
+    source: omn-5-done
+
+  - id: f010
+    fact: "Paperclip company ID: 3adbd3b9-1581-461b-a070-8ae4576d56cf"
+    status: active
+    created: "2026-03-17"
+    source: system
+
+  - id: f011
+    fact: "Active Paperclip issues: OMN-6 (Go API core entities), OMN-7 (React UI core entities)"
+    status: active
+    created: "2026-03-17"
+    source: paperclip
+
+  - id: f012
+    fact: "Data migration runbook from vtiger MySQL to Omnir PostgreSQL is documented"
+    status: active
+    created: "2026-03-17"
+    source: omn-8-done

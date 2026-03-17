@@ -2,6 +2,8 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,6 +47,40 @@ type ContactPatch struct {
 	Stage        *ContactStage   `json:"stage,omitempty"`
 	Tags         []string        `json:"tags,omitempty"`
 	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
+}
+
+// IsValid returns true if the stage is a known value.
+func (s ContactStage) IsValid() bool {
+	switch s {
+	case ContactStageLead, ContactStageProspect, ContactStageCustomer, ContactStageChurned:
+		return true
+	}
+	return false
+}
+
+// Validate checks required fields and value constraints on a Contact.
+func (c *Contact) Validate() error {
+	if c.FirstName == "" {
+		return fmt.Errorf("%w: first_name is required", ErrValidation)
+	}
+	if c.Email != nil && *c.Email != "" {
+		if !isValidEmail(*c.Email) {
+			return fmt.Errorf("%w: invalid email format", ErrValidation)
+		}
+	}
+	if c.Stage != "" && !c.Stage.IsValid() {
+		return fmt.Errorf("%w: invalid stage %q", ErrValidation, c.Stage)
+	}
+	return nil
+}
+
+func isValidEmail(email string) bool {
+	atIdx := strings.Index(email, "@")
+	if atIdx < 1 {
+		return false
+	}
+	domain := email[atIdx+1:]
+	return strings.Contains(domain, ".")
 }
 
 // ContactFilter holds query parameters for listing contacts.

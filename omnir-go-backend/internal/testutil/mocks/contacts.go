@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
-	"omnir/internal/domain"
+	"github.com/omnir/crm-api/internal/domain"
 )
 
 // MockContactRepository is a testify mock implementing domain.ContactRepository.

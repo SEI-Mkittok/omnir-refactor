@@ -1,0 +1,29 @@
+entity: matthias
+type: person
+created: "2026-03-17"
+
+facts:
+  - id: f001
+    fact: "Co-founder of Omnir CRM"
+    status: active
+    created: "2026-03-17"
+
+  - id: f002
+    fact: "Timezone: CDT (America/Chicago)"
+    status: active
+    created: "2026-03-17"
+
+  - id: f003
+    fact: "Primary contact via Telegram"
+    status: active
+    created: "2026-03-17"
+
+  - id: f004
+    fact: "Technical co-founder — wants modern, opinionated decisions. Not afraid of big refactors."
+    status: active
+    created: "2026-03-17"
+
+  - id: f005
+    fact: "Prefers direct communication — lead with answers, not questions"
+    status: active
+    created: "2026-03-17"

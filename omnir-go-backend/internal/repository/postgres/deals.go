@@ -1,0 +1,234 @@
+package postgres
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/omnir/crm-api/internal/domain"
+)
+
+type DealRepo struct {
+	db *pgxpool.Pool
+}
+
+func NewDealRepo(db *pgxpool.Pool) *DealRepo {
+	return &DealRepo{db: db}
+}
+
+const dealCols = `
+	id, title, value_cents, currency, stage, probability,
+	expected_close_date, contact_id, account_id,
+	owner_id, pipeline_id, custom_fields,
+	created_at, updated_at, deleted_at
+`
+
+func scanDeal(row pgx.Row) (*domain.Deal, error) {
+	var d domain.Deal
+	err := row.Scan(
+		&d.ID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
+		&d.ExpectedCloseDate, &d.ContactID, &d.AccountID,
+		&d.OwnerID, &d.PipelineID, &d.CustomFields,
+		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &d, nil
+}
+
+func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, error) {
+	if d.ID == uuid.Nil {
+		d.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	d.CreatedAt = now
+	d.UpdatedAt = now
+
+	if d.Currency == "" {
+		d.Currency = "USD"
+	}
+
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO deals
+			(id, title, value_cents, currency, stage, probability,
+			 expected_close_date, contact_id, account_id,
+			 owner_id, pipeline_id, custom_fields, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		RETURNING `+dealCols,
+		d.ID, d.Title, d.ValueCents, d.Currency, d.Stage, d.Probability,
+		d.ExpectedCloseDate, d.ContactID, d.AccountID,
+		d.OwnerID, d.PipelineID, d.CustomFields, d.CreatedAt, d.UpdatedAt,
+	)
+	return scanDeal(row)
+}
+
+func (r *DealRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, error) {
+	row := r.db.QueryRow(ctx,
+		`SELECT `+dealCols+` FROM deals WHERE id=$1 AND deleted_at IS NULL`, id)
+	return scanDeal(row)
+}
+
+func (r *DealRepo) Update(ctx context.Context, id uuid.UUID, patch domain.DealPatch) (*domain.Deal, error) {
+	sets := []string{"updated_at = NOW()"}
+	args := []any{}
+	i := 1
+
+	addArg := func(col string, val any) {
+		sets = append(sets, fmt.Sprintf("%s = $%d", col, i))
+		args = append(args, val)
+		i++
+	}
+
+	if patch.Title != nil {
+		addArg("title", *patch.Title)
+	}
+	if patch.ValueCents != nil {
+		addArg("value_cents", *patch.ValueCents)
+	}
+	if patch.Currency != nil {
+		addArg("currency", *patch.Currency)
+	}
+	if patch.Stage != nil {
+		addArg("stage", *patch.Stage)
+	}
+	if patch.Probability != nil {
+		addArg("probability", *patch.Probability)
+	}
+	if patch.ExpectedCloseDate != nil {
+		addArg("expected_close_date", *patch.ExpectedCloseDate)
+	}
+	if patch.ContactID != nil {
+		addArg("contact_id", *patch.ContactID)
+	}
+	if patch.AccountID != nil {
+		addArg("account_id", *patch.AccountID)
+	}
+	if patch.OwnerID != nil {
+		addArg("owner_id", *patch.OwnerID)
+	}
+	if patch.PipelineID != nil {
+		addArg("pipeline_id", *patch.PipelineID)
+	}
+	if patch.CustomFields != nil {
+		addArg("custom_fields", patch.CustomFields)
+	}
+
+	args = append(args, id)
+	query := fmt.Sprintf(
+		`UPDATE deals SET %s WHERE id=$%d AND deleted_at IS NULL RETURNING %s`,
+		strings.Join(sets, ", "), i, dealCols,
+	)
+	row := r.db.QueryRow(ctx, query, args...)
+	return scanDeal(row)
+}
+
+func (r *DealRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	result, err := r.db.Exec(ctx,
+		`UPDATE deals SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Deal, int, error) {
+	if f.Limit <= 0 {
+		f.Limit = 50
+	}
+	if f.Page <= 0 {
+		f.Page = 1
+	}
+	offset := (f.Page - 1) * f.Limit
+
+	where := []string{"deleted_at IS NULL"}
+	args := []any{}
+	i := 1
+
+	addWhere := func(expr string, val any) {
+		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
+		args = append(args, val)
+		i++
+	}
+
+	if f.OwnerID != nil {
+		addWhere("owner_id", *f.OwnerID)
+	}
+	if f.Stage != nil {
+		addWhere("stage", *f.Stage)
+	}
+	if f.AccountID != nil {
+		addWhere("account_id", *f.AccountID)
+	}
+	if f.ContactID != nil {
+		addWhere("contact_id", *f.ContactID)
+	}
+	if f.PipelineID != nil {
+		addWhere("pipeline_id", *f.PipelineID)
+	}
+	if f.Q != "" {
+		where = append(where, fmt.Sprintf(`title ILIKE $%d`, i))
+		args = append(args, "%"+f.Q+"%")
+		i++
+	}
+
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM deals WHERE `+whereClause, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	sortCol := "created_at"
+	allowedSorts := map[string]bool{
+		"created_at": true, "updated_at": true,
+		"title": true, "value_cents": true, "expected_close_date": true,
+	}
+	if allowedSorts[f.Sort] {
+		sortCol = f.Sort
+	}
+	order := "DESC"
+	if strings.ToUpper(f.Order) == "ASC" {
+		order = "ASC"
+	}
+
+	rows, err := r.db.Query(ctx,
+		fmt.Sprintf(
+			`SELECT %s FROM deals WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
+			dealCols, whereClause, sortCol, order, i, i+1,
+		),
+		append(args, f.Limit, offset)...,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var deals []*domain.Deal
+	for rows.Next() {
+		var d domain.Deal
+		if err := rows.Scan(
+			&d.ID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
+			&d.ExpectedCloseDate, &d.ContactID, &d.AccountID,
+			&d.OwnerID, &d.PipelineID, &d.CustomFields,
+			&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		deals = append(deals, &d)
+	}
+	return deals, total, rows.Err()
+}
