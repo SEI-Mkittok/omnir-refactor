@@ -6,6 +6,8 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 )
 
+func strPtr(s string) *string { return &s }
+
 func TestContact_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -19,22 +21,22 @@ func TestContact_Validate(t *testing.T) {
 		},
 		{
 			name:    "valid contact all fields",
-			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", Email: "ada@example.com"},
+			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", Email: strPtr("ada@example.com")},
 			wantErr: false,
 		},
 		{
 			name:    "missing first name",
-			input:   domain.Contact{Email: "ada@example.com"},
+			input:   domain.Contact{Email: strPtr("ada@example.com")},
 			wantErr: true,
 		},
 		{
 			name:    "invalid email format",
-			input:   domain.Contact{FirstName: "Ada", Email: "not-an-email"},
+			input:   domain.Contact{FirstName: "Ada", Email: strPtr("not-an-email")},
 			wantErr: true,
 		},
 		{
 			name:    "empty email is allowed",
-			input:   domain.Contact{FirstName: "Ada", Email: ""},
+			input:   domain.Contact{FirstName: "Ada", Email: strPtr("")},
 			wantErr: false,
 		},
 		{
