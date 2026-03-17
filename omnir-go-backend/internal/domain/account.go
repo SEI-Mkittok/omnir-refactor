@@ -44,10 +44,12 @@ type AccountPatch struct {
 
 // AccountFilter holds query parameters for listing accounts.
 type AccountFilter struct {
-	Q       string
-	OwnerID *uuid.UUID
-	Page    int
-	Limit   int
-	Sort    string
-	Order   string
+	Q        string
+	OwnerID  *uuid.UUID
+	Industry *string
+	Size     *AccountSize
+	Page     int
+	Limit    int
+	Sort     string
+	Order    string
 }

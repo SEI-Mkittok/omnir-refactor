@@ -143,6 +143,12 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)
 	}
+	if f.Industry != nil {
+		addWhere("industry", *f.Industry)
+	}
+	if f.Size != nil {
+		addWhere("size", *f.Size)
+	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
 			`(name ILIKE $%d OR domain ILIKE $%d)`, i, i,
