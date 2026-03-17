@@ -1,5 +1,5 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     ./cmd/api
 
 # ── Dev stage (hot reload via air) ───────────────────────────────────────────
-FROM golang:1.22-alpine AS dev
+FROM golang:1.24-alpine AS dev
 
 WORKDIR /app
 
