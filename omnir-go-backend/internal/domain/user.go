@@ -16,6 +16,7 @@ const (
 
 type User struct {
 	ID        uuid.UUID  `json:"id"`
+	OrgID     uuid.UUID  `json:"org_id"`
 	Email     string     `json:"email"`
 	Name      string     `json:"name"`
 	Role      UserRole   `json:"role"`

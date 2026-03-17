@@ -23,7 +23,7 @@ func NewActivityRepo(db *pgxpool.Pool) *ActivityRepo {
 }
 
 const activityCols = `
-	id, type, subject, description, due_date, completed_at,
+	id, org_id, type, subject, description, due_date, completed_at,
 	contact_id, account_id, deal_id, owner_id,
 	created_at, updated_at, deleted_at
 `
@@ -31,7 +31,7 @@ const activityCols = `
 func scanActivity(row pgx.Row) (*domain.Activity, error) {
 	var a domain.Activity
 	err := row.Scan(
-		&a.ID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
+		&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
 		&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID,
 		&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
@@ -48,25 +48,35 @@ func (r *ActivityRepo) Create(ctx context.Context, a *domain.Activity) (*domain.
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
 	}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		a.OrgID = orgID
+	}
 	now := time.Now().UTC()
 	a.CreatedAt = now
 	a.UpdatedAt = now
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO activities
-			(id, type, subject, description, due_date, completed_at,
+			(id, org_id, type, subject, description, due_date, completed_at,
 			 contact_id, account_id, deal_id, owner_id, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		RETURNING `+activityCols,
-		a.ID, a.Type, a.Subject, a.Description, a.DueDate, a.CompletedAt,
+		a.ID, a.OrgID, a.Type, a.Subject, a.Description, a.DueDate, a.CompletedAt,
 		a.ContactID, a.AccountID, a.DealID, a.OwnerID, a.CreatedAt, a.UpdatedAt,
 	)
 	return scanActivity(row)
 }
 
 func (r *ActivityRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Activity, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT `+activityCols+` FROM activities WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `SELECT ` + activityCols + ` FROM activities WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	row := r.db.QueryRow(ctx, q, args...)
 	return scanActivity(row)
 }
 
@@ -109,18 +119,33 @@ func (r *ActivityRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Ac
 		addArg("owner_id", *patch.OwnerID)
 	}
 
+	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)
 	args = append(args, id)
+	i++
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
+		args = append(args, orgID)
+	}
+
 	query := fmt.Sprintf(
-		`UPDATE activities SET %s WHERE id=$%d AND deleted_at IS NULL RETURNING %s`,
-		strings.Join(sets, ", "), i, activityCols,
+		`UPDATE activities SET %s WHERE %s RETURNING %s`,
+		strings.Join(sets, ", "), whereClause, activityCols,
 	)
 	row := r.db.QueryRow(ctx, query, args...)
 	return scanActivity(row)
 }
 
 func (r *ActivityRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.Exec(ctx,
-		`UPDATE activities SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `UPDATE activities SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -147,6 +172,15 @@ func (r *ActivityRepo) List(ctx context.Context, f domain.ActivityFilter) ([]*do
 		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
 		args = append(args, val)
 		i++
+	}
+
+	// Always scope by org_id: prefer context, fall back to filter field.
+	orgID, hasCtxOrg := domain.OrgIDFromContext(ctx)
+	if !hasCtxOrg {
+		orgID = f.OrgID
+	}
+	if orgID != uuid.Nil {
+		addWhere("org_id", orgID)
 	}
 
 	if f.Type != nil {
@@ -208,7 +242,7 @@ func (r *ActivityRepo) List(ctx context.Context, f domain.ActivityFilter) ([]*do
 	for rows.Next() {
 		var a domain.Activity
 		if err := rows.Scan(
-			&a.ID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
+			&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
 			&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID,
 			&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 		); err != nil {

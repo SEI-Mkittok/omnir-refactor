@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
@@ -45,6 +46,9 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("database connected")
+
+	// JWT service
+	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
 
 	// Repositories
 	contactRepo := postgres.NewContactRepo(db)
@@ -85,8 +89,9 @@ func main() {
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + Version + `"}`))
 	})
 
-	// API v1
+	// API v1 (all routes require authentication + org scoping)
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(middleware.Authenticate(jwtSvc))
 		r.Mount("/contacts", contactHandler.Router())
 		r.Route("/contacts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", contactNoteHandler.Router())

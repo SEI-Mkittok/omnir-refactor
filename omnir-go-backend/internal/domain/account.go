@@ -19,6 +19,7 @@ const (
 
 type Account struct {
 	ID           uuid.UUID       `json:"id"`
+	OrgID        uuid.UUID       `json:"org_id"`
 	Name         string          `json:"name"`
 	Domain       *string         `json:"domain,omitempty"`
 	Industry     *string         `json:"industry,omitempty"`
@@ -44,6 +45,7 @@ type AccountPatch struct {
 
 // AccountFilter holds query parameters for listing accounts.
 type AccountFilter struct {
+	OrgID    uuid.UUID
 	Q        string
 	OwnerID  *uuid.UUID
 	Industry *string

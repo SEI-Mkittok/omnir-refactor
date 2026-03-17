@@ -22,7 +22,7 @@ func NewDealRepo(db *pgxpool.Pool) *DealRepo {
 }
 
 const dealCols = `
-	id, title, value_cents, currency, stage, probability,
+	id, org_id, title, value_cents, currency, stage, probability,
 	expected_close_date, contact_id, account_id,
 	owner_id, pipeline_id, custom_fields,
 	created_at, updated_at, deleted_at
@@ -31,7 +31,7 @@ const dealCols = `
 func scanDeal(row pgx.Row) (*domain.Deal, error) {
 	var d domain.Deal
 	err := row.Scan(
-		&d.ID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
+		&d.ID, &d.OrgID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
 		&d.ExpectedCloseDate, &d.ContactID, &d.AccountID,
 		&d.OwnerID, &d.PipelineID, &d.CustomFields,
 		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
@@ -49,6 +49,9 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 	if d.ID == uuid.Nil {
 		d.ID = uuid.New()
 	}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		d.OrgID = orgID
+	}
 	now := time.Now().UTC()
 	d.CreatedAt = now
 	d.UpdatedAt = now
@@ -59,12 +62,12 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO deals
-			(id, title, value_cents, currency, stage, probability,
+			(id, org_id, title, value_cents, currency, stage, probability,
 			 expected_close_date, contact_id, account_id,
 			 owner_id, pipeline_id, custom_fields, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING `+dealCols,
-		d.ID, d.Title, d.ValueCents, d.Currency, d.Stage, d.Probability,
+		d.ID, d.OrgID, d.Title, d.ValueCents, d.Currency, d.Stage, d.Probability,
 		d.ExpectedCloseDate, d.ContactID, d.AccountID,
 		d.OwnerID, d.PipelineID, d.CustomFields, d.CreatedAt, d.UpdatedAt,
 	)
@@ -72,9 +75,15 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 }
 
 func (r *DealRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT `+dealCols+` FROM deals WHERE id=$1 AND deleted_at IS NULL`, id)
-	deal, err := scanDeal(row)
+	q := `SELECT ` + dealCols + ` FROM deals WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	deal, err := scanDeal(r.db.QueryRow(ctx, q, args...))
 	if err != nil {
 		return nil, err
 	}
@@ -98,13 +107,13 @@ func (r *DealRepo) AddContact(ctx context.Context, dealID, contactID uuid.UUID, 
 
 // ListContacts returns all contacts linked to a deal via deal_contacts.
 func (r *DealRepo) ListContacts(ctx context.Context, dealID uuid.UUID) ([]domain.Contact, error) {
-	const contactCols = `
-		c.id, c.first_name, c.last_name, c.email, c.phone,
+	const cols = `
+		c.id, c.org_id, c.first_name, c.last_name, c.email, c.phone,
 		c.account_id, c.owner_id, c.lead_source, c.stage, c.tags,
 		c.custom_fields, c.created_at, c.updated_at, c.deleted_at
 	`
 	rows, err := r.db.Query(ctx, `
-		SELECT `+contactCols+`
+		SELECT `+cols+`
 		FROM contacts c
 		JOIN deal_contacts dc ON dc.contact_id = c.id
 		WHERE dc.deal_id = $1 AND c.deleted_at IS NULL
@@ -119,7 +128,7 @@ func (r *DealRepo) ListContacts(ctx context.Context, dealID uuid.UUID) ([]domain
 	for rows.Next() {
 		var c domain.Contact
 		if err := rows.Scan(
-			&c.ID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
+			&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
 			&c.AccountID, &c.OwnerID, &c.LeadSource, &c.Stage, &c.Tags,
 			&c.CustomFields, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 		); err != nil {
@@ -175,18 +184,33 @@ func (r *DealRepo) Update(ctx context.Context, id uuid.UUID, patch domain.DealPa
 		addArg("custom_fields", patch.CustomFields)
 	}
 
+	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)
 	args = append(args, id)
+	i++
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
+		args = append(args, orgID)
+	}
+
 	query := fmt.Sprintf(
-		`UPDATE deals SET %s WHERE id=$%d AND deleted_at IS NULL RETURNING %s`,
-		strings.Join(sets, ", "), i, dealCols,
+		`UPDATE deals SET %s WHERE %s RETURNING %s`,
+		strings.Join(sets, ", "), whereClause, dealCols,
 	)
 	row := r.db.QueryRow(ctx, query, args...)
 	return scanDeal(row)
 }
 
 func (r *DealRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.Exec(ctx,
-		`UPDATE deals SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`, id)
+	q := `UPDATE deals SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -213,6 +237,15 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
 		args = append(args, val)
 		i++
+	}
+
+	// Always scope by org_id: prefer context, fall back to filter field.
+	orgID, hasCtxOrg := domain.OrgIDFromContext(ctx)
+	if !hasCtxOrg {
+		orgID = f.OrgID
+	}
+	if orgID != uuid.Nil {
+		addWhere("org_id", orgID)
 	}
 
 	if f.OwnerID != nil {
@@ -274,7 +307,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	for rows.Next() {
 		var d domain.Deal
 		if err := rows.Scan(
-			&d.ID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
+			&d.ID, &d.OrgID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
 			&d.ExpectedCloseDate, &d.ContactID, &d.AccountID,
 			&d.OwnerID, &d.PipelineID, &d.CustomFields,
 			&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,

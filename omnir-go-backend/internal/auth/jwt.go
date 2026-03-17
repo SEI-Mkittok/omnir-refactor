@@ -17,6 +17,7 @@ var (
 // Claims holds the data embedded in a JWT.
 type Claims struct {
 	UserID    uuid.UUID `json:"user_id"`
+	OrgID     uuid.UUID `json:"org_id"`
 	Role      string    `json:"role"`
 	CompanyID uuid.UUID `json:"company_id,omitempty"`
 }
@@ -24,6 +25,7 @@ type Claims struct {
 type jwtClaims struct {
 	jwt.RegisteredClaims
 	UserID    string `json:"user_id"`
+	OrgID     string `json:"org_id"`
 	Role      string `json:"role"`
 	CompanyID string `json:"company_id,omitempty"`
 }
@@ -46,6 +48,7 @@ func (s *JWTService) Issue(c Claims, ttl time.Duration) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 		},
 		UserID:    c.UserID.String(),
+		OrgID:     c.OrgID.String(),
 		Role:      c.Role,
 		CompanyID: c.CompanyID.String(),
 	}
@@ -77,10 +80,12 @@ func (s *JWTService) Verify(tokenStr string) (*Claims, error) {
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
+	orgID, _ := uuid.Parse(tc.OrgID)
 	companyID, _ := uuid.Parse(tc.CompanyID)
 
 	return &Claims{
 		UserID:    userID,
+		OrgID:     orgID,
 		Role:      tc.Role,
 		CompanyID: companyID,
 	}, nil
