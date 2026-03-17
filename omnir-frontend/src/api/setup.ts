@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { User } from './types'
 
 const BASE_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:8080/api'
 
@@ -16,14 +17,7 @@ export interface SetupRequest {
 export interface SetupResponse {
   access_token: string
   refresh_token: string
-  user: {
-    id: string
-    email: string
-    name: string
-    role: 'admin' | 'user' | 'viewer'
-    created_at: string
-    updated_at: string
-  }
+  user: User
 }
 
 export async function getSetupStatus(): Promise<SetupStatusResponse> {
