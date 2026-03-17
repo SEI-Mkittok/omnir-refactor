@@ -22,6 +22,7 @@ import (
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository/postgres"
+	"github.com/omnir/crm-api/internal/worker"
 )
 
 var Version = "dev"
@@ -57,6 +58,13 @@ func main() {
 	activityRepo := postgres.NewActivityRepo(db)
 	noteRepo := postgres.NewNoteRepo(db)
 	userRepo := postgres.NewUserRepo(db)
+	notificationRepo := postgres.NewNotificationRepo(db)
+
+	// Background workers
+	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
+	workerCtx, cancelWorker := context.WithCancel(context.Background())
+	defer cancelWorker()
+	reminderWorker.Start(workerCtx)
 
 	// Handlers
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
@@ -66,6 +74,7 @@ func main() {
 	accountHandler := handler.NewAccountHandler(accountRepo)
 	dealHandler := handler.NewDealHandler(dealRepo)
 	activityHandler := handler.NewActivityHandler(activityRepo)
+	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
@@ -115,6 +124,7 @@ func main() {
 			r.Mount("/", dealNoteHandler.Router())
 		})
 		r.Mount("/activities", activityHandler.Router())
+		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/users", userHandler.Router())
 	})
 
