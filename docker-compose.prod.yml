@@ -48,7 +48,8 @@ services:
     image: ${REGISTRY:-ghcr.io}/${FRONTEND_IMAGE}:${IMAGE_TAG:-develop}
     restart: always
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
