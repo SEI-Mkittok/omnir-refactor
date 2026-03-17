@@ -9,13 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const defaultTestDSN = "postgres://omnir:omnir_dev@localhost:5433/omnir_crm_test?sslmode=disable" //nolint:gosec // test-only default DSN
+const defaultTestDSN = "postgres://localhost/omnir_crm_test?sslmode=disable"
 
 // NewTestDB returns a pgxpool connected to the test database.
 // It registers cleanup to close the pool when the test finishes.
+// Set TEST_DATABASE_URL to override the default localhost DSN.
 func NewTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		dsn = defaultTestDSN
 	}
