@@ -45,6 +45,28 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User, passwordHash stri
 	return scanUser(row)
 }
 
+// FindByEmail returns the user and bcrypt password hash for the given email.
+// Returns nil user (not error) when not found.
+func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, string, error) {
+	var u domain.User
+	var passwordHash string
+	err := r.db.QueryRow(ctx, `
+		SELECT id, org_id, email, name, role, avatar_url, created_at, updated_at, deleted_at, password_hash
+		FROM users
+		WHERE email = $1 AND deleted_at IS NULL
+	`, email).Scan(
+		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Role,
+		&u.AvatarURL, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt, &passwordHash,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, "", nil
+		}
+		return nil, "", err
+	}
+	return &u, passwordHash, nil
+}
+
 func scanUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
 	err := row.Scan(

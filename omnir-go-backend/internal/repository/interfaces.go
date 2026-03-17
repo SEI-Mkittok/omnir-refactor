@@ -62,4 +62,7 @@ type UserRepository interface {
 	CountAll(ctx context.Context) (int, error)
 	// Create inserts a new user with a bcrypt password hash.
 	Create(ctx context.Context, u *domain.User, passwordHash string) (*domain.User, error)
+	// FindByEmail returns the user and their bcrypt password hash by email.
+	// Returns nil user (not error) when not found.
+	FindByEmail(ctx context.Context, email string) (*domain.User, string, error)
 }
