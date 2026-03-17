@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+// OrgMode controls multi-tenancy behaviour.
+type OrgMode string
+
+const (
+	OrgModeSingle      OrgMode = "single"      // one org, no tenant isolation
+	OrgModeMultitenant OrgMode = "multitenant" // SaaS — org_id required in JWT, RLS enforced
+	OrgModeEnterprise  OrgMode = "enterprise"  // enterprise — same as multitenant with stricter isolation
+)
+
 // Config holds all runtime configuration loaded from environment variables.
 type Config struct {
 	Env         string
@@ -13,6 +22,7 @@ type Config struct {
 	JWTSecret   string
 	CORSOrigins []string
 	LogLevel    string
+	OrgMode     OrgMode
 }
 
 // Load reads configuration from environment variables.
@@ -25,6 +35,7 @@ func Load() *Config {
 		JWTSecret:   getEnv("JWT_SECRET", "dev-secret-change-in-production"),
 		CORSOrigins: splitCSV(getEnv("CORS_ORIGINS", "http://localhost:5173")),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
+		OrgMode:     OrgMode(getEnv("ORG_MODE", string(OrgModeSingle))),
 	}
 }
 
