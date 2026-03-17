@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
+import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { Deal, DealStage } from '@/api/types'
 
@@ -62,7 +63,7 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
       open
       title={deal.title}
       onClose={onClose}
-      width="md"
+      width="lg"
       actions={
         <Button
           variant="destructive"
@@ -140,6 +141,9 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
             </div>
           </div>
         )}
+
+        {/* Activity Timeline */}
+        <ActivityTimeline dealId={deal.id} />
       </div>
     </SidePanel>
   )

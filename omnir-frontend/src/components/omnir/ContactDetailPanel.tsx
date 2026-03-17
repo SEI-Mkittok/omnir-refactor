@@ -26,6 +26,7 @@ import {
   useContactNotes,
   useAddContactNote,
 } from '@/hooks/useContacts'
+import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import type { Contact, ContactStage, UpdateContactRequest } from '@/api/types'
 
 // ── Editable field ──────────────────────────────────────────────────────────
@@ -477,6 +478,9 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             <span className="ml-3">Updated {formatRelativeTime(contact.updated_at)}</span>
           )}
         </div>
+
+        {/* Activity Timeline */}
+        <ActivityTimeline contactId={contactId} />
 
         {/* Notes */}
         <NotesSection contactId={contactId} />
