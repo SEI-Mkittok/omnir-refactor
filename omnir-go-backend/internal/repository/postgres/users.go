@@ -36,6 +36,9 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User, passwordHash stri
 	if u.ID == uuid.Nil {
 		u.ID = uuid.New()
 	}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		u.OrgID = orgID
+	}
 	now := time.Now().UTC()
 	u.CreatedAt = now
 	u.UpdatedAt = now
