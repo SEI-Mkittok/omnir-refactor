@@ -59,6 +59,7 @@ func main() {
 	noteRepo := postgres.NewNoteRepo(db)
 	userRepo := postgres.NewUserRepo(db)
 	notificationRepo := postgres.NewNotificationRepo(db)
+	reportsRepo := postgres.NewReportsRepo(db)
 
 	// Background workers
 	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
@@ -78,6 +79,8 @@ func main() {
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
+	searchHandler := handler.NewSearchHandler(contactRepo, accountRepo, dealRepo)
+	reportsHandler := handler.NewReportsHandler(reportsRepo)
 
 	r := chi.NewRouter()
 
@@ -126,6 +129,8 @@ func main() {
 		r.Mount("/activities", activityHandler.Router())
 		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/users", userHandler.Router())
+		r.Mount("/search", searchHandler.Router())
+		r.Mount("/reports", reportsHandler.Router())
 	})
 
 	srv := &http.Server{
