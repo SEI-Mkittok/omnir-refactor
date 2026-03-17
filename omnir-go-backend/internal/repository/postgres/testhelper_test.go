@@ -8,9 +8,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/require"
+
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 var (

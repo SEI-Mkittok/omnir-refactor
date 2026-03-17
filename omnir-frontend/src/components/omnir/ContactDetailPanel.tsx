@@ -2,8 +2,6 @@ import { useState, useRef, useCallback } from 'react'
 import {
   User,
   Mail,
-  Phone,
-  Briefcase,
   Building2,
   Tag,
   TrendingUp,
