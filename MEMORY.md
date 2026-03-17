@@ -30,8 +30,15 @@ Design decisions:
 ## Issue Tracker (Paperclip)
 Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 API URL: http://127.0.0.1:3100
-API key: `pcp_8053e847af2c9ac2175b9537296381221a50949befe2a310` (keyId: a31b819d)
+API key: `pcp_8053e847af2c9ac2175b9537296381221a50949befe2a310` (keyId: a31b819d) — Völundr/CTO only
 My agent ID (Völundr/CTO): `8fd0b89e-218e-48eb-a5b6-6347fc2ae85b`
+
+Individual agent API keys (each agent authenticates as themselves):
+- Odin (CEO):    agents/ceo/paperclip-api-key.json
+- Tyr:           agents/tyr/paperclip-api-key.json
+- Freya:         agents/freya/paperclip-api-key.json
+- Heimdall:      agents/heimdall/paperclip-api-key.json
+- Skadi:         agents/skadi/paperclip-api-key.json
 
 Issue status:
 - OMN-1 through OMN-13: ✅ Done

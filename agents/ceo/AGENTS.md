@@ -22,3 +22,9 @@ These files are essential. Read them.
 - `$AGENT_HOME/HEARTBEAT.md` -- execution and extraction checklist. Run every heartbeat.
 - `$AGENT_HOME/SOUL.md` -- who you are and how you should act.
 - `$AGENT_HOME/TOOLS.md` -- tools you have access to
+
+## Paperclip API Key
+Your personal Paperclip API key is at: `agents/ceo/paperclip-api-key.json`
+Load it with: `cat ~/.openclaw/workspace/agents/ceo/paperclip-api-key.json`
+Use the `token` field as your `PAPERCLIP_API_KEY` for all API calls.
+
