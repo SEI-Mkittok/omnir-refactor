@@ -91,7 +91,7 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
         </div>
 
         {/* Details */}
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
           {deal.probability !== undefined && (
             <>
               <dt className="font-medium text-slate-500">Probability</dt>

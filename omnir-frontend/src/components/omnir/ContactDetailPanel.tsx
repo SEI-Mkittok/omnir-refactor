@@ -335,7 +335,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             <User className="h-4 w-4" />
             Details
           </h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
             <EditableField
               label="First Name"
               value={contact.first_name}
@@ -367,7 +367,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             <Mail className="h-4 w-4" />
             Contact
           </h3>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
             <EditableField
               label="Email"
               value={contact.email}

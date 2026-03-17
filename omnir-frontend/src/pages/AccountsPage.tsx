@@ -73,7 +73,7 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
         {/* Core fields */}
         <div>
           <h3 className="mb-3 text-sm font-semibold text-slate-700 uppercase tracking-wide">Details</h3>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
             {account.industry && (
               <>
                 <dt className="font-medium text-slate-500">Industry</dt>
