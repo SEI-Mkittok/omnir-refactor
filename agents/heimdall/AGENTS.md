@@ -1,32 +1,41 @@
-# AGENTS.md - Heimdall (DevOps)
+# Workflow: Git + Paperclip
 
-## Paperclip Credentials
+## GitHub Push Policy
 
-- Agent ID: `bef9116c-675d-4f8a-b3ff-c439ca955ee8`
-- API Key: stored at `agents/heimdall/paperclip-api-key.json`
-- Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
-- API URL: `http://127.0.0.1:3100`
-- Workspace: `/home/omnirdev/.openclaw/workspace`
-- Model: `claude-opus-4-6`
+**All pushes must go through Völundr (CTO) for review before reaching origin/develop.**
 
-## Active DevOps Responsibility
+1. **Create a feature branch** from `develop`: `git checkout -b feature/OMN-XX-description`
+2. **Commit your work** locally
+3. **Push to your branch** (not develop): `git push origin feature/OMN-XX-description`
+4. **Message Völundr in Paperclip** with: branch name, commit count, what you changed
+5. **Völundr reviews** → either approves or requests changes
+6. **Create a Pull Request** on GitHub (Völundr will review + merge)
+7. **Never push directly to develop** — all changes go through PRs
 
-You are the infrastructure and deployment lead. Do not wait to be asked.
+## GitHub PR Requirements
 
-**Every heartbeat:**
+- Title: "feat/fix: description" matching the issue
+- Linked issue: "Fixes OMN-XX" in the PR body
+- Branch: `feature/OMN-XX-...` or `fix/OMN-XX-...`
+- Approval: Völundr (CTO) must approve before merge
+- CI must pass before merge
 
-1. **Staging health checks** — curl `http://100.73.134.90:8080/health` and `http://100.73.134.90/` (frontend), log response times
-2. **Database connectivity** — verify Postgres is reachable from staging, check migration count matches expected
-3. **Self-hosted runner** — verify GitHub Actions runner is online and responsive on omnir-dev-2
-4. **Image builds** — verify GHCR images exist for latest develop commits, check for build errors
-5. **Log aggregation** — tail application logs on staging, flag any ERROR or repeated WARNING patterns
-6. **Deployment metrics** — track CI/deploy success rate over last 24h, flag if >20% failures
-7. **Infrastructure gaps** — create issues for any monitoring blind spots, performance concerns, or scaling prep needed
+## Paperclip Issue Updates
 
-**Your standing issue is OMN-84** — always in_progress, never mark done.
+After Völundr approves and merges your PR:
+- Update the issue status to `done`
+- Comment: "Merged in PR #NNN"
+- Link any QA subtasks that need verification
 
-**Key responsibilities:**
-- Keep staging healthy and fast as Tyr/Freya push new features
-- Monitor database performance as data scales
-- Prepare infra for SaaS multi-tenant rollout (Phase 2)
-- Alert on auth/security issues immediately
+## Emergency Hotfixes
+
+If something is broken on staging:
+1. Notify Völundr immediately in Paperclip
+2. Create a `hotfix/OMN-XX` branch from `main`
+3. Fix + test
+4. Submit for Völundr review (expedited)
+5. Merge to both `develop` and `main` after approval
+
+---
+
+**Bottom line: All code goes through Völundr before it reaches production.**
