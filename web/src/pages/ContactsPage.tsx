@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Users } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useContacts } from '@/hooks/useContacts'
@@ -28,11 +29,12 @@ const SORT_OPTIONS = [
 // ---- Main page ----
 
 export function ContactsPage() {
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
 
   const debouncedSearch = useDebounce(search, 300)
 

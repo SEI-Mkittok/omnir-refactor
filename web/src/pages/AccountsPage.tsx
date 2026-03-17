@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Building2, Globe, Users, TrendingUp } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAccounts, useAccount, useAccountContacts, useAccountDeals, useDeleteAccount } from '@/hooks/useAccounts'
@@ -188,11 +189,12 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
 // ---- Main page ----
 
 export function AccountsPage() {
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [industry, setIndustry] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
 
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
