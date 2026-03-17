@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, TrendingUp, LayoutGrid, List } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal } from '@/hooks/useDeals'
@@ -154,11 +155,12 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
 type ViewMode = 'kanban' | 'list'
 
 export function DealsPage() {
+  const [searchParams] = useSearchParams()
   const [viewMode, setViewMode] = useState<ViewMode>('kanban')
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
 
   const debouncedSearch = useDebounce(search, 300)
 
