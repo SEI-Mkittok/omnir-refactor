@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/omnir/crm-api/internal/domain"
-	"github.com/omnir/crm-api/internal/repository/postgres"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/repository/postgres"
 )
 
 func TestAccountRepo_Create(t *testing.T) {

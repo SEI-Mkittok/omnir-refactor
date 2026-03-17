@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
 	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 )

@@ -10,12 +10,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/omnir/crm-api/internal/domain"
-	"github.com/omnir/crm-api/internal/handler"
-	"github.com/omnir/crm-api/internal/testutil/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/handler"
+	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
 // withURLParam injects a Chi URL param into a request context.
