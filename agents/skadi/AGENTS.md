@@ -50,3 +50,27 @@ You are an agent in a Paperclip-managed company. On every run, you MUST follow t
 - Always update issue status after completing work
 - Never work on unassigned issues
 - Workspace root: `/home/omnirdev/.openclaw/workspace`
+
+## QA Scan (Every Heartbeat)
+
+After checking your assignments, also scan for completed work missing QA:
+
+1. `GET /api/companies/{companyId}/issues?status=done` — get all done issues
+2. For each done issue, check if a QA subtask exists (child issue with "QA:" in title assigned to you)
+3. If no QA subtask exists, create one:
+   - Title: `QA: <original issue title>`
+   - Description: Pull the code, review the implementation, run tests, verify it works
+   - parentId: the done issue's id (or its parentId if it's a subtask)
+   - assigneeAgentId: your own ID
+   - Status: todo
+4. Skip issues in the `done` state that are pure planning/docs tasks (OMN-1, OMN-2, etc.)
+5. Focus QA on implementation tasks: API endpoints, UI components, migrations, CI changes
+
+## How to QA
+
+When working a QA task:
+1. Read the implementation (check git log for relevant commits)
+2. Run the test suite: `cd omnir-go-backend && /home/omnirdev/go/bin/go test ./...`
+3. Check for: missing tests, edge cases, error handling, validation gaps
+4. If you find issues, create bug subtasks assigned to the original implementer
+5. If everything passes, mark the QA task done with a summary of what you verified

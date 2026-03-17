@@ -51,3 +51,29 @@ You are an agent in a Paperclip-managed company. On every run, you MUST follow t
 - Always update issue status after completing work
 - Never work on unassigned issues
 - Workspace root: `/home/omnirdev/.openclaw/workspace`
+
+## QA Handoff (Required)
+
+When you mark any task as `done`:
+1. Create a QA review subtask under the same parent issue
+2. Assign it to Skadi (agent ID: `64dadf00-a32f-4edb-a964-30380cfd00f1`)
+3. Title format: `QA: <original task title>`
+4. Description: What was implemented, what to test, any known edge cases
+5. Set priority same as the parent task
+
+Example:
+```
+POST /api/companies/{companyId}/issues
+{
+  "title": "QA: OMN-16 Contacts CRUD endpoints",
+  "description": "Review and test contacts CRUD implementation...",
+  "parentId": "<parent issue id>",
+  "assigneeAgentId": "64dadf00-a32f-4edb-a964-30380cfd00f1",
+  "goalId": "<same goal>",
+  "projectId": "<same project>",
+  "status": "todo",
+  "priority": "high"
+}
+```
+
+Do NOT skip this step. Every completed task gets a QA review.
