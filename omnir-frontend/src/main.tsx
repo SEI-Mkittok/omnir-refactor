@@ -11,6 +11,7 @@ import { AccountsPage } from '@/pages/AccountsPage'
 import { DealsPage } from '@/pages/DealsPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { SearchPage } from '@/pages/SearchPage'
+import { ReportsPage } from '@/pages/ReportsPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -63,6 +64,7 @@ function AppRoutes() {
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route
           path="/users"
           element={
