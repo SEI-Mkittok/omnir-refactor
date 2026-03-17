@@ -62,6 +62,10 @@ test: test-api test-frontend
 test-api:
 	cd omnir-go-backend && go test ./... -v -count=1 -race
 
+test-integration:
+	cd omnir-go-backend && TEST_DATABASE_URL=$${TEST_DATABASE_URL:-postgres://localhost/omnir_crm_test?sslmode=disable} \
+		go test -tags integration ./internal/repository/postgres/... -v -count=1
+
 test-frontend:
 	cd omnir-frontend && npm run test -- --run
 
