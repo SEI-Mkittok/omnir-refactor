@@ -26,6 +26,7 @@ func (h *DealHandler) Router() chi.Router {
 	r.Get("/{id}", h.GetByID)
 	r.Patch("/{id}", h.Update)
 	r.Delete("/{id}", h.Delete)
+	r.Post("/{id}/contacts", h.AddContact)
 	return r
 }
 
@@ -165,4 +166,40 @@ func (h *DealHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// AddContact links a contact to a deal (POST /deals/:id/contacts).
+// Body: {"contact_id": "<uuid>", "role": "optional string"}
+func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
+	dealID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid deal id")
+		return
+	}
+
+	var body struct {
+		ContactID uuid.UUID `json:"contact_id"`
+		Role      string    `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if body.ContactID == uuid.Nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "contact_id is required")
+		return
+	}
+
+	if err := h.repo.AddContact(r.Context(), dealID, body.ContactID, body.Role); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+
+	// Return the updated deal so the caller gets the full contacts slice.
+	deal, err := h.repo.GetByID(r.Context(), dealID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, deal)
 }

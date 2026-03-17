@@ -18,6 +18,13 @@ const (
 	DealStageClosedLost  DealStage = "closed_lost"
 )
 
+// DealContact represents a contact linked to a deal with an optional role.
+type DealContact struct {
+	ContactID uuid.UUID `json:"contact_id"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Deal struct {
 	ID                uuid.UUID       `json:"id"`
 	Title             string          `json:"title"`
@@ -26,11 +33,12 @@ type Deal struct {
 	Stage             DealStage       `json:"stage"`
 	Probability       int             `json:"probability"`
 	ExpectedCloseDate *time.Time      `json:"expected_close_date,omitempty"`
-	ContactID         *uuid.UUID      `json:"contact_id,omitempty"`
+	ContactID         *uuid.UUID      `json:"contact_id,omitempty"` // legacy; kept for backwards compat
 	AccountID         *uuid.UUID      `json:"account_id,omitempty"`
 	OwnerID           uuid.UUID       `json:"owner_id"`
 	PipelineID        uuid.UUID       `json:"pipeline_id"`
 	CustomFields      json.RawMessage `json:"custom_fields,omitempty"`
+	Contacts          []Contact       `json:"contacts,omitempty"` // populated on GetByID
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 	DeletedAt         *time.Time      `json:"deleted_at,omitempty"`

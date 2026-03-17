@@ -32,6 +32,10 @@ type DealRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.DealPatch) (*domain.Deal, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.DealFilter) ([]*domain.Deal, int, error)
+
+	// Many-to-many contact management.
+	AddContact(ctx context.Context, dealID, contactID uuid.UUID, role string) error
+	ListContacts(ctx context.Context, dealID uuid.UUID) ([]domain.Contact, error)
 }
 
 // ActivityRepository defines the persistence contract for activities.
