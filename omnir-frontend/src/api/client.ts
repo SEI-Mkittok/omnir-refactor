@@ -2,6 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+const AUTH_BASE = import.meta.env.VITE_AUTH_URL || 'http://localhost:8080/api'
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -66,7 +67,7 @@ apiClient.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const response = await axios.post(`${BASE_URL}/auth/refresh`, {
+        const response = await axios.post(`${AUTH_BASE}/auth/refresh`, {
           refresh_token: refreshToken,
         })
         const { access_token, refresh_token } = response.data
