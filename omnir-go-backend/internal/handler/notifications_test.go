@@ -12,14 +12,8 @@ import (
 	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
-	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
-
-// withClaims injects JWT claims into the request context, mimicking the Authenticate middleware.
-func withClaims(r *http.Request, claims *auth.Claims) *http.Request {
-	return r.WithContext(middleware.WithClaims(r.Context(), claims))
-}
 
 func TestNotificationHandler_List(t *testing.T) {
 	userID := uuid.New()
