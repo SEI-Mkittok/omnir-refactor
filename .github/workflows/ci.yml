@@ -42,7 +42,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache: true
           cache-dependency-path: omnir-go-backend/go.sum
 
@@ -50,7 +50,7 @@ jobs:
         uses: golangci/golangci-lint-action@v4
         continue-on-error: true
         with:
-          version: v1.62
+          version: v1.64
           working-directory: omnir-go-backend
           args: --timeout 5m
 
