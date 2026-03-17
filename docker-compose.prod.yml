@@ -36,8 +36,8 @@ services:
       ENV: production
       LOG_LEVEL: info
       CORS_ORIGINS: ${CORS_ORIGINS}
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 15s
