@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const defaultTestDSN = "postgres://localhost/omnir_crm_test?sslmode=disable"
+const defaultTestDSN = "postgres://localhost/omnir_crm_test?sslmode=disable" //nolint:gosec // test-only default DSN, no real credentials
 
 // NewTestDB returns a pgxpool connected to the test database.
 // It registers cleanup to close the pool when the test finishes.
