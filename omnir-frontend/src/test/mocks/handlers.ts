@@ -60,12 +60,12 @@ export const handlers = [
   }),
 
   http.post('/api/v1/contacts', async ({ request }) => {
-    const body = await request.json()
+    const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...mockContact, ...body, id: 'new-contact-id' }, { status: 201 })
   }),
 
   http.patch('/api/v1/contacts/:id', async ({ request }) => {
-    const body = await request.json()
+    const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...mockContact, ...body })
   }),
 
@@ -82,7 +82,7 @@ export const handlers = [
   }),
 
   http.post('/api/v1/accounts', async ({ request }) => {
-    const body = await request.json()
+    const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...mockAccount, ...body, id: 'new-account-id' }, { status: 201 })
   }),
 
@@ -92,7 +92,7 @@ export const handlers = [
   ),
 
   http.post('/api/v1/deals', async ({ request }) => {
-    const body = await request.json()
+    const body = (await request.json()) as Record<string, unknown>
     return HttpResponse.json({ ...mockDeal, ...body, id: 'new-deal-id' }, { status: 201 })
   }),
 
