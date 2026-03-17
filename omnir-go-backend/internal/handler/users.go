@@ -145,7 +145,6 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := &domain.User{
-		OrgID: domain.DefaultOrgID,
 		Email: req.Email,
 		Name:  req.Name,
 		Role:  req.Role,

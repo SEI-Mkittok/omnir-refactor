@@ -132,6 +132,23 @@ func TestUserHandler_Create(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
+			name:   "does not hardcode DefaultOrgID — leaves org_id unset for repo to populate from context",
+			claims: adminClaims(adminID),
+			body: map[string]any{
+				"name":     "Bob",
+				"email":    "bob@example.com",
+				"password": "secret123",
+				"role":     "user",
+			},
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {
+					return u.OrgID == uuid.Nil
+				}), mock.AnythingOfType("string")).
+					Return(makeUser(uuid.New()), nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
 			name:   "returns 422 for missing name",
 			claims: adminClaims(adminID),
 			body:   map[string]any{"email": "alice@example.com", "password": "secret"},
