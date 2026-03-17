@@ -1,15 +1,14 @@
 import { useState, useCallback } from 'react'
 import { Plus, Users } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useContacts, useContact, useDeleteContact } from '@/hooks/useContacts'
+import { useContacts } from '@/hooks/useContacts'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
-import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Spinner } from '@/components/ui/Spinner'
 import { formatDate } from '@/lib/utils'
 import { stageBadgeVariant, stageLabel } from '@/components/omnir/ContactCard'
+import { ContactDetailPanel } from '@/components/omnir/ContactDetailPanel'
 import type { Contact, ContactStage } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -25,119 +24,6 @@ const SORT_OPTIONS = [
   { label: 'Newest', value: 'created_at:desc' },
   { label: 'Oldest', value: 'created_at:asc' },
 ]
-
-// ---- Contact detail panel ----
-
-function ContactDetail({ contactId, onClose }: { contactId: string; onClose: () => void }) {
-  const { data: contact, isLoading } = useContact(contactId)
-  const deleteContact = useDeleteContact()
-
-  if (isLoading) {
-    return (
-      <SidePanel open title="Contact" onClose={onClose}>
-        <div className="flex items-center justify-center py-12">
-          <Spinner size="lg" />
-        </div>
-      </SidePanel>
-    )
-  }
-
-  if (!contact) return null
-
-  return (
-    <SidePanel
-      open
-      title={`${contact.first_name} ${contact.last_name}`}
-      onClose={onClose}
-      width="md"
-      actions={
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={async () => {
-            if (confirm('Delete this contact?')) {
-              await deleteContact.mutateAsync(contact.id)
-              onClose()
-            }
-          }}
-        >
-          Delete
-        </Button>
-      }
-    >
-      <div className="space-y-5">
-        {/* Stage badge */}
-        <div>
-          <Badge variant={stageBadgeVariant[contact.stage]} className="text-sm px-3 py-1">
-            {stageLabel[contact.stage]}
-          </Badge>
-        </div>
-
-        {/* Core fields */}
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          {contact.title && (
-            <>
-              <dt className="font-medium text-slate-500">Title</dt>
-              <dd className="text-slate-900">{contact.title}</dd>
-            </>
-          )}
-          {contact.department && (
-            <>
-              <dt className="font-medium text-slate-500">Department</dt>
-              <dd className="text-slate-900">{contact.department}</dd>
-            </>
-          )}
-          <dt className="font-medium text-slate-500">Email</dt>
-          <dd className="text-slate-900 break-all">{contact.email}</dd>
-
-          {contact.phone && (
-            <>
-              <dt className="font-medium text-slate-500">Phone</dt>
-              <dd className="text-slate-900">{contact.phone}</dd>
-            </>
-          )}
-          {contact.account?.name && (
-            <>
-              <dt className="font-medium text-slate-500">Account</dt>
-              <dd className="text-slate-900">{contact.account.name}</dd>
-            </>
-          )}
-          <dt className="font-medium text-slate-500">Created</dt>
-          <dd className="text-slate-900">{formatDate(contact.created_at)}</dd>
-        </dl>
-
-        {/* Tags */}
-        {contact.tags && contact.tags.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-slate-500">Tags</p>
-            <div className="flex flex-wrap gap-1.5">
-              {contact.tags.map((tag) => (
-                <Badge key={tag} variant="default">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Linked deals */}
-        {contact.deals && contact.deals.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-slate-500">Deals</p>
-            <ul className="space-y-1.5">
-              {contact.deals.map((d) => (
-                <li key={d.id} className="rounded-md border border-slate-200 px-3 py-2 text-sm">
-                  <span className="font-medium text-slate-900">{d.title}</span>
-                  <span className="ml-2 text-slate-500">{d.stage}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </SidePanel>
-  )
-}
 
 // ---- Main page ----
 
@@ -300,7 +186,7 @@ export function ContactsPage() {
 
       {/* Detail panel */}
       {selectedId && (
-        <ContactDetail contactId={selectedId} onClose={() => setSelectedId(null)} />
+        <ContactDetailPanel contactId={selectedId} onClose={() => setSelectedId(null)} />
       )}
     </div>
   )
