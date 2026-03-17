@@ -1,12 +1,17 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Building2, TrendingUp, X } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth'
 
-const navItems = [
+const baseNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/deals', icon: TrendingUp, label: 'Deals' },
+]
+
+const adminNavItems = [
+  { to: '/users', icon: UserCog, label: 'Users' },
 ]
 
 interface SidebarProps {
@@ -15,6 +20,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems
   return (
     <>
       {/* Mobile overlay */}

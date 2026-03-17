@@ -65,4 +65,12 @@ type UserRepository interface {
 	// FindByEmail returns the user and their bcrypt password hash by email.
 	// Returns nil user (not error) when not found.
 	FindByEmail(ctx context.Context, email string) (*domain.User, string, error)
+	// GetByID returns a single user by ID, scoped to the org in context.
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	// Update applies a partial patch to a user.
+	Update(ctx context.Context, id uuid.UUID, patch domain.UserPatch) (*domain.User, error)
+	// Delete soft-deletes a user.
+	Delete(ctx context.Context, id uuid.UUID) error
+	// List returns users matching the filter along with the total count.
+	List(ctx context.Context, filter domain.UserFilter) ([]*domain.User, int, error)
 }

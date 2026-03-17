@@ -27,13 +27,38 @@ export interface AuthTokens {
   expires_in: number
 }
 
+export type UserRole = 'admin' | 'user' | 'viewer'
+
 export interface User {
   id: string
   email: string
   name: string
-  role: string
+  role: UserRole
+  avatar_url?: string
   created_at: string
   updated_at: string
+}
+
+export interface CreateUserRequest {
+  name: string
+  email: string
+  password: string
+  role?: UserRole
+}
+
+export interface UpdateUserRequest {
+  name?: string
+  email?: string
+  role?: UserRole
+}
+
+export interface UserListParams {
+  page?: number
+  limit?: number
+  q?: string
+  role?: UserRole
+  sort?: string
+  order?: 'asc' | 'desc'
 }
 
 // ---- Contact ----

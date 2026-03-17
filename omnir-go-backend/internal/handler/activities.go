@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
@@ -24,10 +25,13 @@ func NewActivityHandler(repo repository.ActivityRepository) *ActivityHandler {
 func (h *ActivityHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
-	r.Post("/", h.Create)
 	r.Get("/{id}", h.GetByID)
-	r.Patch("/{id}", h.Update)
-	r.Delete("/{id}", h.Delete)
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleUser))
+		r.Post("/", h.Create)
+		r.Patch("/{id}", h.Update)
+		r.Delete("/{id}", h.Delete)
+	})
 	return r
 }
 

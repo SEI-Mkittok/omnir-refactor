@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
@@ -29,8 +30,11 @@ func NewNoteHandler(repo repository.NoteRepository, entityType domain.NoteEntity
 func (h *NoteHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
-	r.Post("/", h.Create)
-	r.Delete("/{noteID}", h.Delete)
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleUser))
+		r.Post("/", h.Create)
+		r.Delete("/{noteID}", h.Delete)
+	})
 	return r
 }
 

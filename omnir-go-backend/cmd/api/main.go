@@ -61,6 +61,7 @@ func main() {
 	// Handlers
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc)
+	userHandler := handler.NewUserHandler(userRepo)
 	contactHandler := handler.NewContactHandler(contactRepo)
 	accountHandler := handler.NewAccountHandler(accountRepo)
 	dealHandler := handler.NewDealHandler(dealRepo)
@@ -114,6 +115,7 @@ func main() {
 			r.Mount("/", dealNoteHandler.Router())
 		})
 		r.Mount("/activities", activityHandler.Router())
+		r.Mount("/users", userHandler.Router())
 	})
 
 	srv := &http.Server{
