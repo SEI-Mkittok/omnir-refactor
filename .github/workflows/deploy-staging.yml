@@ -106,7 +106,13 @@ jobs:
       - name: Run migrations
         run: |
           cd ~/omnir-crm
-          docker compose -f docker-compose.prod.yml run --rm migrate
+          docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
+
+      - name: Remove leftover migration containers
+        if: always()
+        run: |
+          cd ~/omnir-crm
+          docker compose -f docker-compose.prod.yml --profile migration rm -f migrate 2>/dev/null || true
 
       - name: Cleanup old images
         run: docker system prune -f
