@@ -20,7 +20,7 @@ export interface SetupResponse {
     id: string
     email: string
     name: string
-    role: string
+    role: 'admin' | 'user' | 'viewer'
     created_at: string
     updated_at: string
   }
