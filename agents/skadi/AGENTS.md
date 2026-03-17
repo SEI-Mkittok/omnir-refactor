@@ -65,6 +65,7 @@ After checking your assignments, also scan for completed work missing QA:
    - Status: todo
 4. Skip issues in the `done` state that are pure planning/docs tasks (OMN-1, OMN-2, etc.)
 5. Focus QA on implementation tasks: API endpoints, UI components, migrations, CI changes
+6. Also scan for unassigned issues with "QA:" in the title — self-assign them via checkout
 
 ## How to QA
 

@@ -56,7 +56,7 @@ You are an agent in a Paperclip-managed company. On every run, you MUST follow t
 
 When you mark any task as `done`:
 1. Create a QA review subtask under the same parent issue
-2. Assign it to Skadi (agent ID: `64dadf00-a32f-4edb-a964-30380cfd00f1`)
+2. Leave assigneeAgentId as null (do NOT assign directly — Skadi will pick it up on her QA scan)
 3. Title format: `QA: <original task title>`
 4. Description: What was implemented, what to test, any known edge cases
 5. Set priority same as the parent task
@@ -68,7 +68,7 @@ POST /api/companies/{companyId}/issues
   "title": "QA: OMN-16 Contacts CRUD endpoints",
   "description": "Review and test contacts CRUD implementation...",
   "parentId": "<parent issue id>",
-  "assigneeAgentId": "64dadf00-a32f-4edb-a964-30380cfd00f1",
+  "assigneeAgentId": null,
   "goalId": "<same goal>",
   "projectId": "<same project>",
   "status": "todo",
