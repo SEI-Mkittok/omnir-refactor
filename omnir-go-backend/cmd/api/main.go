@@ -56,8 +56,10 @@ func main() {
 	dealRepo := postgres.NewDealRepo(db)
 	activityRepo := postgres.NewActivityRepo(db)
 	noteRepo := postgres.NewNoteRepo(db)
+	userRepo := postgres.NewUserRepo(db)
 
 	// Handlers
+	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
 	contactHandler := handler.NewContactHandler(contactRepo)
 	accountHandler := handler.NewAccountHandler(accountRepo)
 	dealHandler := handler.NewDealHandler(dealRepo)
@@ -88,6 +90,9 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + Version + `"}`))
 	})
+
+	// Setup endpoints (unauthenticated — fresh install only)
+	r.Mount("/api/setup", setupHandler.Router())
 
 	// API v1 (all routes require authentication + org scoping)
 	r.Route("/api/v1", func(r chi.Router) {
