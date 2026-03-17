@@ -33,10 +33,18 @@ RUN go install github.com/pressly/goose/v3/cmd/goose@latest
 EXPOSE 8080
 # Command is set in docker-compose.yml
 
+# ── Migration stage ───────────────────────────────────────────────────────────
+FROM golang:1.24-alpine AS migrator
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+
 # ── Production stage ──────────────────────────────────────────────────────────
-FROM gcr.io/distroless/static-debian12 AS production
+FROM alpine:3.19 AS production
+
+RUN apk add --no-cache ca-certificates curl
 
 COPY --from=builder /build/server /server
+COPY --from=migrator /root/go/bin/goose /goose
+COPY db/migrations /db/migrations
 
 EXPOSE 8080
 ENTRYPOINT ["/server"]
