@@ -4,6 +4,7 @@ _Last updated: 2026-03-17_
 
 ## Project: Omnir CRM
 - **Repo:** https://github.com/SEI-Mkittok/omnir-refactor
+- **Branch:** `develop` (active), `main` (legacy vtiger)
 - Goal: Replace vtiger CE with modern Go + React CRM
 - Stack: Go 1.22, Chi, pgx/v5, goose, PostgreSQL 16 / React 18, TypeScript, Vite, shadcn/ui, TanStack Query+Router, Zustand
 - Docs: `docs/`, `plans/`, `omnir-go-backend/ARCHITECTURE.md`, `docs/frontend-architecture.md`
@@ -30,30 +31,29 @@ Design decisions:
 ## Issue Tracker (Paperclip)
 Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 API URL: http://127.0.0.1:3100
-API key: `pcp_8053e847af2c9ac2175b9537296381221a50949befe2a310` (keyId: a31b819d) — Völundr/CTO only
-My agent ID (Völundr/CTO): `8fd0b89e-218e-48eb-a5b6-6347fc2ae85b`
+My API key (Völundr/CTO): `pcp_8053e847af2c9ac2175b9537296381221a50949befe2a310`
+My agent ID: `8fd0b89e-218e-48eb-a5b6-6347fc2ae85b`
+Goal ID: `5c93e45b-32b8-44a3-a09a-0e11814abd3d`
+Project ID: `224df1f1-39f9-4f1c-b08c-e963fb819349`
 
-Individual agent API keys (each agent authenticates as themselves):
-- Odin (CEO):    agents/ceo/paperclip-api-key.json
-- Tyr:           agents/tyr/paperclip-api-key.json
-- Freya:         agents/freya/paperclip-api-key.json
-- Heimdall:      agents/heimdall/paperclip-api-key.json
-- Skadi:         agents/skadi/paperclip-api-key.json
-
-Issue status:
-- OMN-1 through OMN-13: ✅ Done
-- OMN-14: Multi-tenancy — 🔄 Todo (assigned: Tyr/backend)
-- OMN-6, OMN-7: Tyr + Freya called out for not updating Paperclip after committing
+Individual agent API keys stored at `agents/<name>/paperclip-api-key.json`
+Paperclip comment API uses `body` field (not `content`)
 
 ## Agent Roster (Paperclip)
-| Agent    | Role     | ID (short) |
-|----------|----------|------------|
-| Odin     | CEO      | ce4ce802   |
-| Völundr  | CTO (me) | 8fd0b89e   |
-| Tyr      | Backend  | d6474c23   |
-| Freya    | Frontend | ec21a603   |
-| Heimdall | DevOps   | bef9116c   |
-| Skadi    | QA       | 64dadf00   |
+| Agent    | Role     | ID (short) | Adapter        | Model           |
+|----------|----------|------------|----------------|-----------------|
+| Odin     | CEO      | ce4ce802   | claude_local   | sonnet-4-6      |
+| Völundr  | CTO (me) | 8fd0b89e   | openclaw_gw    | sonnet-4-6      |
+| Tyr      | Backend  | d6474c23   | claude_local   | sonnet-4-6      |
+| Freya    | Frontend | ec21a603   | claude_local   | sonnet-4-6      |
+| Heimdall | DevOps   | bef9116c   | claude_local   | sonnet-4-5      |
+| Skadi    | QA       | 64dadf00   | claude_local   | sonnet-4-5      |
+
+## Agent Workflows
+- **Tyr/Freya:** When marking task done → create unassigned `QA: <task>` subtask
+- **Skadi:** Each heartbeat scans for unassigned QA tasks + self-assigns
+- **Heimdall:** Each heartbeat checks GitHub Actions CI status, creates issues for failures
+- **All agents use:** `scripts/claude-wrapper.sh` (bakes in ANTHROPIC_API_KEY + --dangerously-skip-permissions)
 
 ## Infrastructure
 ### omnir-claw (this machine)
@@ -63,12 +63,13 @@ Issue status:
   - Config: `~/.paperclip/instances/default/config.json`
   - Mode: `authenticated`, host: `0.0.0.0`
   - Logs: `/tmp/paperclip.log`
+  - Heartbeat scheduler: 300000ms (5min)
 - Go binary: `/home/omnirdev/go/bin/go`
+- Claude Code: `/home/omnirdev/.npm-global/bin/claude` v2.1.77
 
 ### omnir-dev-2 (staging)
 - Tailscale IP: `100.73.134.90`
-- SSH user: `omnirdev`
-- Sudo password: `suits-beginner-SCAM-forceful`
+- SSH user: `omnirdev`, sudo pw: `suits-beginner-SCAM-forceful`
 - GitHub Actions self-hosted runner: systemd service, label `omnir-staging`
   - Repo: SEI-Mkittok/omnir-refactor
   - Install path: `~/actions-runner`
@@ -88,9 +89,10 @@ Issue status:
   - Build+push images to GHCR (GitHub's runners)
   - Deploy job runs on `[self-hosted, omnir-staging]` (omnir-dev-2)
   - Pulls images, runs migrations, smoke tests `/health`
+- **CI is currently failing:** goimports formatting, missing ESLint config, lock file sync — OMN-15
 
 ## Cron Jobs (OpenClaw)
-- `paperclip-monitor` (id: 550c4373): every 30min, checks Paperclip health, restarts if down, notifies Matthias
+- `paperclip-monitor` (id: 550c4373): every 30min, checks Paperclip health, restarts if down
 
 ## PARA Memory
 CEO agent PARA structure: `~/.openclaw/workspace/agents/ceo/life/`
@@ -110,3 +112,9 @@ Roadmap: `plans/2026-03-17-omnir-crm-roadmap.md`
 - Gateway congestion: multiple agents starting simultaneously can block Telegram access
 - `local_trusted` mode locks Paperclip to loopback — use `authenticated` for Tailscale access
 - Self-hosted runner needs sudo to install as systemd service
+- OpenClaw gateway is single-agent by design — don't run 6 agents through it
+- adapter-claude-local only passes plain string env values — use wrapper script to bake in secrets
+- Claude Code needs `--dangerously-skip-permissions` for autonomous Paperclip heartbeats
+- GitHub push protection blocks tokens in code — use gitignored files for secrets
+- All Paperclip issues need projectId set or workspace resolution fails
+- Paperclip checkout requires the agent's own API key (can't checkout as another agent)
