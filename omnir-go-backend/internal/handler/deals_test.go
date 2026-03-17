@@ -8,12 +8,12 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDealHandler_GetByID_IncludesContacts(t *testing.T) {
@@ -141,7 +141,7 @@ func TestDealHandler_AddContact_InvalidDealID(t *testing.T) {
 	h := handler.NewDealHandler(mockRepo)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/deals/not-a-uuid/contacts",
-		bytes.NewReader([]byte(`{"contact_id":"` + uuid.New().String() + `"}`)))
+		bytes.NewReader([]byte(`{"contact_id":"`+uuid.New().String()+`"}`)))
 	req.Header.Set("Content-Type", "application/json")
 	req = withURLParam(req, "id", "not-a-uuid")
 	w := httptest.NewRecorder()

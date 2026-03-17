@@ -10,16 +10,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // withURLParam injects a Chi URL param into a request context.
-func withURLParam(r *http.Request, key, value string) *http.Request {
+func withURLParam(r *http.Request, key, value string) *http.Request { //nolint:unparam // key is always "id" in current tests, but keeping generic for future use
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add(key, value)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
