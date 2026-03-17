@@ -213,11 +213,13 @@ export function DealsPage() {
     {
       key: 'account',
       header: 'Account',
+      hideOnMobile: true,
       render: (d) => <span className="text-slate-600">{d.account?.name ?? '—'}</span>,
     },
     {
       key: 'probability',
       header: 'Probability',
+      hideOnMobile: true,
       render: (d) =>
         d.probability !== undefined ? (
           <span className="text-slate-600">{d.probability}%</span>
@@ -229,6 +231,7 @@ export function DealsPage() {
       key: 'close_date',
       header: 'Close Date',
       sortable: true,
+      hideOnMobile: true,
       render: (d) => (
         <span className="text-slate-500 text-xs">{formatDate(d.close_date)}</span>
       ),
@@ -238,14 +241,14 @@ export function DealsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Deals</h1>
           <p className="mt-0.5 text-sm text-slate-500">
             {totalDeals !== undefined ? `${totalDeals} total` : 'Loading…'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {/* View toggle */}
           <div className="flex rounded-md border border-slate-200 bg-white overflow-hidden">
             <button
