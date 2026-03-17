@@ -13,10 +13,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"github.com/omnir/crm-api/internal/config"
+	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/middleware"
+	"github.com/omnir/crm-api/internal/repository/postgres"
 )
 
 var Version = "dev"
@@ -27,6 +31,36 @@ func main() {
 
 	cfg := config.Load()
 	logger := setupLogger(cfg.Env)
+
+	// Connect to PostgreSQL
+	db, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("failed to connect to database", "err", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.Ping(context.Background()); err != nil {
+		logger.Error("database ping failed", "err", err)
+		os.Exit(1)
+	}
+	logger.Info("database connected")
+
+	// Repositories
+	contactRepo := postgres.NewContactRepo(db)
+	accountRepo := postgres.NewAccountRepo(db)
+	dealRepo := postgres.NewDealRepo(db)
+	activityRepo := postgres.NewActivityRepo(db)
+	noteRepo := postgres.NewNoteRepo(db)
+
+	// Handlers
+	contactHandler := handler.NewContactHandler(contactRepo)
+	accountHandler := handler.NewAccountHandler(accountRepo)
+	dealHandler := handler.NewDealHandler(dealRepo)
+	activityHandler := handler.NewActivityHandler(activityRepo)
+	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
+	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
+	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
 
 	r := chi.NewRouter()
 
@@ -53,9 +87,19 @@ func main() {
 
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
-		// TODO: mount route handlers here as they're built
-		// r.Mount("/auth", auth.NewRouter(db, cfg))
-		// r.Mount("/contacts", contacts.NewRouter(db, cfg))
+		r.Mount("/contacts", contactHandler.Router())
+		r.Route("/contacts/{id}/notes", func(r chi.Router) {
+			r.Mount("/", contactNoteHandler.Router())
+		})
+		r.Mount("/accounts", accountHandler.Router())
+		r.Route("/accounts/{id}/notes", func(r chi.Router) {
+			r.Mount("/", accountNoteHandler.Router())
+		})
+		r.Mount("/deals", dealHandler.Router())
+		r.Route("/deals/{id}/notes", func(r chi.Router) {
+			r.Mount("/", dealNoteHandler.Router())
+		})
+		r.Mount("/activities", activityHandler.Router())
 	})
 
 	srv := &http.Server{

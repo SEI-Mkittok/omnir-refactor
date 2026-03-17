@@ -2,21 +2,31 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"omnir/internal/domain"
-	"omnir/internal/handler"
-	"omnir/internal/testutil/mocks"
+	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/handler"
+	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
+// withURLParam injects a Chi URL param into a request context.
+func withURLParam(r *http.Request, key, value string) *http.Request {
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add(key, value)
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}
+
 func TestContactHandler_Create(t *testing.T) {
+	ownerID := uuid.New()
 	tests := []struct {
 		name       string
 		body       map[string]any
@@ -26,32 +36,36 @@ func TestContactHandler_Create(t *testing.T) {
 		{
 			name: "creates contact successfully",
 			body: map[string]any{
-				"firstName": "Ada",
-				"lastName":  "Lovelace",
-				"email":     "ada@example.com",
+				"first_name": "Ada",
+				"last_name":  "Lovelace",
+				"email":      "ada@example.com",
+				"owner_id":   ownerID.String(),
+				"stage":      "lead",
 			},
 			setupMock: func(m *mocks.MockContactRepository) {
+				email := "ada@example.com"
 				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.Contact")).
 					Return(&domain.Contact{
 						ID:        uuid.New(),
 						FirstName: "Ada",
 						LastName:  "Lovelace",
-						Email:     "ada@example.com",
+						Email:     &email,
+						OwnerID:   ownerID,
 					}, nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
 		{
-			name:       "returns 400 for missing firstName",
-			body:       map[string]any{"email": "ada@example.com"},
+			name:       "returns 422 for missing first_name",
+			body:       map[string]any{"last_name": "Lovelace", "owner_id": ownerID.String()},
 			setupMock:  func(m *mocks.MockContactRepository) {},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
-			name:       "returns 400 for invalid email",
-			body:       map[string]any{"firstName": "Ada", "email": "not-an-email"},
+			name:       "returns 422 for missing owner_id",
+			body:       map[string]any{"first_name": "Ada", "last_name": "Lovelace"},
 			setupMock:  func(m *mocks.MockContactRepository) {},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}
 
@@ -120,10 +134,10 @@ func TestContactHandler_GetByID(t *testing.T) {
 			h := handler.NewContactHandler(mockRepo)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/"+tt.contactID, nil)
+			req = withURLParam(req, "id", tt.contactID)
 			w := httptest.NewRecorder()
 
-			// Inject URL param (Chi router context would normally do this)
-			h.GetByID(w, req, tt.contactID)
+			h.GetByID(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			mockRepo.AssertExpectations(t)

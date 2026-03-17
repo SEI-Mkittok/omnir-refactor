@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"omnir/internal/domain"
+	"github.com/omnir/crm-api/internal/domain"
 )
 
 // SeedUser returns a minimal valid User for use in tests.
@@ -21,11 +21,12 @@ func SeedUser() *domain.User {
 
 // SeedContact returns a minimal valid Contact for use in tests.
 func SeedContact(ownerID uuid.UUID) *domain.Contact {
+	email := "ada@omnir.test"
 	return &domain.Contact{
 		ID:        uuid.New(),
 		FirstName: "Ada",
 		LastName:  "Lovelace",
-		Email:     "ada@omnir.test",
+		Email:     &email,
 		OwnerID:   ownerID,
 		Stage:     domain.ContactStageProspect,
 		CreatedAt: time.Now(),
@@ -35,10 +36,11 @@ func SeedContact(ownerID uuid.UUID) *domain.Contact {
 
 // SeedAccount returns a minimal valid Account for use in tests.
 func SeedAccount(ownerID uuid.UUID) *domain.Account {
+	domain_ := "acme.example.com"
 	return &domain.Account{
 		ID:        uuid.New(),
 		Name:      "Acme Corp",
-		Domain:    "acme.example.com",
+		Domain:    &domain_,
 		OwnerID:   ownerID,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

@@ -3,7 +3,7 @@ package domain_test
 import (
 	"testing"
 
-	"omnir/internal/domain"
+	"github.com/omnir/crm-api/internal/domain"
 )
 
 func TestContact_Validate(t *testing.T) {
