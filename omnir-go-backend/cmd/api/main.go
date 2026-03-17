@@ -60,6 +60,7 @@ func main() {
 
 	// Handlers
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
+	authHandler := handler.NewAuthHandler(userRepo, jwtSvc)
 	contactHandler := handler.NewContactHandler(contactRepo)
 	accountHandler := handler.NewAccountHandler(accountRepo)
 	dealHandler := handler.NewDealHandler(dealRepo)
@@ -93,6 +94,9 @@ func main() {
 
 	// Setup endpoints (unauthenticated — fresh install only)
 	r.Mount("/api/setup", setupHandler.Router())
+
+	// Auth endpoints (unauthenticated)
+	r.Mount("/api/auth", authHandler.Router())
 
 	// API v1 (all routes require authentication + org scoping)
 	r.Route("/api/v1", func(r chi.Router) {

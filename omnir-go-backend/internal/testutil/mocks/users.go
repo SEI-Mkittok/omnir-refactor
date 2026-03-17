@@ -25,3 +25,11 @@ func (m *MockUserRepository) Create(ctx context.Context, u *domain.User, passwor
 	}
 	return args.Get(0).(*domain.User), args.Error(1)
 }
+
+func (m *MockUserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, string, error) {
+	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.String(1), args.Error(2)
+	}
+	return args.Get(0).(*domain.User), args.String(1), args.Error(2)
+}

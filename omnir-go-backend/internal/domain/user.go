@@ -25,3 +25,21 @@ type User struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 }
+
+// UserPatch holds optional fields for partial user updates.
+type UserPatch struct {
+	Name  *string   `json:"name,omitempty"`
+	Email *string   `json:"email,omitempty"`
+	Role  *UserRole `json:"role,omitempty"`
+}
+
+// UserFilter holds query parameters for listing users.
+type UserFilter struct {
+	OrgID uuid.UUID
+	Q     string
+	Role  *UserRole
+	Page  int
+	Limit int
+	Sort  string
+	Order string
+}
