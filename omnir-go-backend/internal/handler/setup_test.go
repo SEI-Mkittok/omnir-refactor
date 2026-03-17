@@ -26,20 +26,20 @@ func TestSetupHandler_Status(t *testing.T) {
 		wantBody   map[string]bool
 	}{
 		{
-			name: "returns setup_required true when no users exist",
+			name: "returns setupRequired true when no users exist",
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("CountAll", mock.Anything).Return(0, nil)
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   map[string]bool{"setup_required": true},
+			wantBody:   map[string]bool{"setupRequired": true},
 		},
 		{
-			name: "returns setup_required false when users exist",
+			name: "returns setupRequired false when users exist",
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("CountAll", mock.Anything).Return(1, nil)
 			},
 			wantStatus: http.StatusOK,
-			wantBody:   map[string]bool{"setup_required": false},
+			wantBody:   map[string]bool{"setupRequired": false},
 		},
 	}
 
@@ -83,9 +83,9 @@ func TestSetupHandler_Setup(t *testing.T) {
 		{
 			name: "creates first admin user and returns token",
 			body: map[string]any{
-				"name":     "Admin",
-				"email":    "admin@example.com",
-				"password": "securepassword",
+				"adminName": "Admin",
+				"email":     "admin@example.com",
+				"password":  "securepassword",
 			},
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("CountAll", mock.Anything).Return(0, nil)
@@ -97,9 +97,9 @@ func TestSetupHandler_Setup(t *testing.T) {
 		{
 			name: "returns 409 when setup already completed",
 			body: map[string]any{
-				"name":     "Admin",
-				"email":    "admin@example.com",
-				"password": "securepassword",
+				"adminName": "Admin",
+				"email":     "admin@example.com",
+				"password":  "securepassword",
 			},
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("CountAll", mock.Anything).Return(1, nil)
@@ -118,8 +118,8 @@ func TestSetupHandler_Setup(t *testing.T) {
 		{
 			name: "returns 422 for missing email",
 			body: map[string]any{
-				"name":     "Admin",
-				"password": "securepassword",
+				"adminName": "Admin",
+				"password":  "securepassword",
 			},
 			setupMock:  func(m *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
@@ -127,9 +127,9 @@ func TestSetupHandler_Setup(t *testing.T) {
 		{
 			name: "returns 422 for password too short",
 			body: map[string]any{
-				"name":     "Admin",
-				"email":    "admin@example.com",
-				"password": "short",
+				"adminName": "Admin",
+				"email":     "admin@example.com",
+				"password":  "short",
 			},
 			setupMock:  func(m *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
@@ -168,7 +168,8 @@ func TestSetupHandler_Setup(t *testing.T) {
 			if tt.wantStatus == http.StatusCreated {
 				var resp map[string]any
 				require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-				assert.NotEmpty(t, resp["token"])
+				assert.NotEmpty(t, resp["access_token"])
+				assert.NotEmpty(t, resp["refresh_token"])
 				assert.NotNil(t, resp["user"])
 			}
 
