@@ -80,11 +80,13 @@ export function ContactsPage() {
     {
       key: 'title',
       header: 'Title',
+      hideOnMobile: true,
       render: (c) => <span className="text-slate-600">{c.title ?? '—'}</span>,
     },
     {
       key: 'account',
       header: 'Account',
+      hideOnMobile: true,
       render: (c) => <span className="text-slate-600">{c.account?.name ?? '—'}</span>,
     },
     {
@@ -99,6 +101,7 @@ export function ContactsPage() {
       key: 'created_at',
       header: 'Created',
       sortable: true,
+      hideOnMobile: true,
       render: (c) => <span className="text-slate-500 text-xs">{formatDate(c.created_at)}</span>,
     },
   ]
@@ -106,7 +109,7 @@ export function ContactsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
           <p className="mt-0.5 text-sm text-slate-500">

@@ -9,6 +9,7 @@ export interface Column<T> {
   header: string
   sortable?: boolean
   className?: string
+  hideOnMobile?: boolean
   render: (row: T) => React.ReactNode
 }
 
@@ -69,6 +70,7 @@ export function Table<T>({
                 className={cn(
                   'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500',
                   col.sortable && onSort && 'cursor-pointer select-none hover:text-slate-900',
+                  col.hideOnMobile && 'hidden sm:table-cell',
                   col.className
                 )}
                 onClick={() => col.sortable && onSort && onSort(col.key)}
@@ -106,7 +108,7 @@ export function Table<T>({
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={cn('px-4 py-3 text-sm text-slate-700', col.className)}
+                  className={cn('px-4 py-3 text-sm text-slate-700', col.hideOnMobile && 'hidden sm:table-cell', col.className)}
                 >
                   {col.render(row)}
                 </td>

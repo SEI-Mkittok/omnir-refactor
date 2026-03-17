@@ -234,6 +234,7 @@ export function AccountsPage() {
     {
       key: 'domain',
       header: 'Domain',
+      hideOnMobile: true,
       render: (a) => a.domain ? (
         <span className="flex items-center gap-1 text-slate-600">
           <Globe className="h-3.5 w-3.5" />
@@ -250,6 +251,7 @@ export function AccountsPage() {
     {
       key: 'size',
       header: 'Size',
+      hideOnMobile: true,
       render: (a) => a.size ? (
         <span className="flex items-center gap-1 text-slate-600">
           <Users className="h-3.5 w-3.5" />
@@ -261,6 +263,7 @@ export function AccountsPage() {
       key: 'created_at',
       header: 'Created',
       sortable: true,
+      hideOnMobile: true,
       render: (a) => <span className="text-slate-500 text-xs">{formatDate(a.created_at)}</span>,
     },
   ]
@@ -268,7 +271,7 @@ export function AccountsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Accounts</h1>
           <p className="mt-0.5 text-sm text-slate-500">
