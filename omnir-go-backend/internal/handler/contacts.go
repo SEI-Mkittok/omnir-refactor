@@ -79,16 +79,12 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if c.FirstName == "" || c.LastName == "" {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "first_name and last_name are required")
-		return
-	}
-	if c.OwnerID == uuid.Nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "owner_id is required")
-		return
-	}
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
+	}
+	if err := c.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
 	}
 
 	created, err := h.repo.Create(r.Context(), &c)

@@ -82,12 +82,8 @@ func (h *AccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.Name == "" {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "name is required")
-		return
-	}
-	if a.OwnerID == uuid.Nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "owner_id is required")
+	if err := a.Validate(); err != nil {
+		handleDomainErr(w, err)
 		return
 	}
 

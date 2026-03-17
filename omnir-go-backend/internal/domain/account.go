@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,29 @@ type Account struct {
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 	DeletedAt    *time.Time      `json:"deleted_at,omitempty"`
+}
+
+// IsValid returns true if the size is a known value.
+func (s AccountSize) IsValid() bool {
+	switch s {
+	case AccountSize1_10, AccountSize11_50, AccountSize51_200, AccountSize201_500, AccountSize501Plus:
+		return true
+	}
+	return false
+}
+
+// Validate checks required fields and value constraints on an Account.
+func (a *Account) Validate() error {
+	if a.Name == "" {
+		return fmt.Errorf("%w: name is required", ErrValidation)
+	}
+	if a.OwnerID == uuid.Nil {
+		return fmt.Errorf("%w: owner_id is required", ErrValidation)
+	}
+	if a.Size != nil && !a.Size.IsValid() {
+		return fmt.Errorf("%w: invalid size %q", ErrValidation, *a.Size)
+	}
+	return nil
 }
 
 // AccountPatch holds optional fields for partial updates.

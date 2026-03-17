@@ -3,6 +3,7 @@ package domain_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/omnir/crm-api/internal/domain"
 )
 
@@ -16,12 +17,12 @@ func TestContact_Validate(t *testing.T) {
 	}{
 		{
 			name:    "valid contact minimum fields",
-			input:   domain.Contact{FirstName: "Ada"},
+			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", OwnerID: uuid.New()},
 			wantErr: false,
 		},
 		{
 			name:    "valid contact all fields",
-			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", Email: strPtr("ada@example.com")},
+			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", OwnerID: uuid.New(), Email: strPtr("ada@example.com")},
 			wantErr: false,
 		},
 		{
@@ -31,17 +32,17 @@ func TestContact_Validate(t *testing.T) {
 		},
 		{
 			name:    "invalid email format",
-			input:   domain.Contact{FirstName: "Ada", Email: strPtr("not-an-email")},
+			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", OwnerID: uuid.New(), Email: strPtr("not-an-email")},
 			wantErr: true,
 		},
 		{
 			name:    "empty email is allowed",
-			input:   domain.Contact{FirstName: "Ada", Email: strPtr("")},
+			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", OwnerID: uuid.New(), Email: strPtr("")},
 			wantErr: false,
 		},
 		{
 			name:    "invalid stage",
-			input:   domain.Contact{FirstName: "Ada", Stage: "unknown_stage"},
+			input:   domain.Contact{FirstName: "Ada", LastName: "Lovelace", OwnerID: uuid.New(), Stage: "unknown_stage"},
 			wantErr: true,
 		},
 	}

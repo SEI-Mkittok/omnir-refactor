@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,6 +44,36 @@ type Deal struct {
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 	DeletedAt         *time.Time      `json:"deleted_at,omitempty"`
+}
+
+// IsValid returns true if the stage is a known value.
+func (s DealStage) IsValid() bool {
+	switch s {
+	case DealStageLead, DealStageQualified, DealStageProposal,
+		DealStageNegotiation, DealStageClosedWon, DealStageClosedLost:
+		return true
+	}
+	return false
+}
+
+// Validate checks required fields and value constraints on a Deal.
+func (d *Deal) Validate() error {
+	if d.Title == "" {
+		return fmt.Errorf("%w: title is required", ErrValidation)
+	}
+	if d.OwnerID == uuid.Nil {
+		return fmt.Errorf("%w: owner_id is required", ErrValidation)
+	}
+	if d.PipelineID == uuid.Nil {
+		return fmt.Errorf("%w: pipeline_id is required", ErrValidation)
+	}
+	if d.Stage != "" && !d.Stage.IsValid() {
+		return fmt.Errorf("%w: invalid stage %q", ErrValidation, d.Stage)
+	}
+	if d.Probability < 0 || d.Probability > 100 {
+		return fmt.Errorf("%w: probability must be between 0 and 100", ErrValidation)
+	}
+	return nil
 }
 
 // DealPatch holds optional fields for partial updates.

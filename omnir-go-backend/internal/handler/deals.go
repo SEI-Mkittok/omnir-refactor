@@ -95,23 +95,15 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if d.Title == "" {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "title is required")
-		return
-	}
-	if d.OwnerID == uuid.Nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "owner_id is required")
-		return
-	}
-	if d.PipelineID == uuid.Nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "pipeline_id is required")
-		return
-	}
 	if d.Stage == "" {
 		d.Stage = domain.DealStageLead
 	}
 	if d.Currency == "" {
 		d.Currency = "USD"
+	}
+	if err := d.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
 	}
 
 	created, err := h.repo.Create(r.Context(), &d)
