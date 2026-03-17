@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { User } from './types'
 
-const BASE_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:8080/api'
+const BASE_URL = import.meta.env.VITE_AUTH_URL || '/api'
 
 export interface SetupStatusResponse {
   setupRequired: boolean
