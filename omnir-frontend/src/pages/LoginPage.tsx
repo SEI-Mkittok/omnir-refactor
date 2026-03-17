@@ -16,7 +16,7 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+const AUTH_BASE = import.meta.env.VITE_AUTH_URL || 'http://localhost:8080/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -34,7 +34,7 @@ export function LoginPage() {
   async function onSubmit(data: LoginForm) {
     setError(null)
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, data)
+      const res = await axios.post(`${AUTH_BASE}/auth/login`, data)
       const { access_token, refresh_token, user } = res.data
       setTokens(access_token, refresh_token)
       if (user) setUser(user)
