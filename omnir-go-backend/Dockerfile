@@ -1,5 +1,5 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ RUN wget -qO /build/goose \
     chmod +x /build/goose
 
 # ── Dev stage (hot reload via air) ───────────────────────────────────────────
-FROM golang:1.24-alpine AS dev
+FROM golang:1.25-alpine AS dev
 
 WORKDIR /app
 
