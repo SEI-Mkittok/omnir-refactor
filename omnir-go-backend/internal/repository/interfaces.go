@@ -55,3 +55,11 @@ type NoteRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListByEntity(ctx context.Context, filter domain.NoteFilter) ([]*domain.Note, int, error)
 }
+
+// UserRepository defines the persistence contract for users.
+type UserRepository interface {
+	// CountAll returns the total number of non-deleted users across all orgs.
+	CountAll(ctx context.Context) (int, error)
+	// Create inserts a new user with a bcrypt password hash.
+	Create(ctx context.Context, u *domain.User, passwordHash string) (*domain.User, error)
+}
