@@ -47,3 +47,8 @@ func ClaimsFromContext(r *http.Request) (*auth.Claims, bool) {
 	c, ok := r.Context().Value(claimsKey).(*auth.Claims)
 	return c, ok
 }
+
+// WithClaims injects claims into a context. Intended for use in tests.
+func WithClaims(ctx context.Context, c *auth.Claims) context.Context {
+	return context.WithValue(ctx, claimsKey, c)
+}

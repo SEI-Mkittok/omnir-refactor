@@ -56,6 +56,18 @@ type NoteRepository interface {
 	ListByEntity(ctx context.Context, filter domain.NoteFilter) ([]*domain.Note, int, error)
 }
 
+// NotificationRepository defines the persistence contract for notifications.
+type NotificationRepository interface {
+	// Create inserts a single notification. Duplicates (same activity + type) are silently ignored.
+	Create(ctx context.Context, n *domain.Notification) (*domain.Notification, error)
+	// MarkRead sets read_at for a notification owned by userID.
+	MarkRead(ctx context.Context, id, userID uuid.UUID) error
+	// ListByUser returns notifications for a user, with optional unread filter.
+	ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, int, error)
+	// GenerateReminders scans due activities and inserts missing reminder notifications.
+	GenerateReminders(ctx context.Context) error
+}
+
 // UserRepository defines the persistence contract for users.
 type UserRepository interface {
 	// CountAll returns the total number of non-deleted users across all orgs.
