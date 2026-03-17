@@ -1,0 +1,30 @@
+# Environment secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+omnir-go-backend/.env
+omnir-frontend/.env.local
+
+# Go
+omnir-go-backend/tmp/
+omnir-go-backend/vendor/
+omnir-go-backend/*.out
+omnir-go-backend/build-errors.log
+
+# Node / Frontend
+omnir-frontend/node_modules/
+omnir-frontend/dist/
+omnir-frontend/.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker volumes (if bind-mounted locally)
+.postgres-data/

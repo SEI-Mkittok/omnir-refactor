@@ -1,0 +1,1537 @@
+openapi: 3.1.0
+info:
+  title: Omnir CRM API
+  version: 0.1.0
+  description: |
+    REST API for Omnir CRM — the modern replacement for vtiger CE.
+    Built in Go, PostgreSQL-backed, JWT-authenticated.
+  contact:
+    name: Omnir Engineering
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local dev
+  - url: https://api.omnir.io/api/v1
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: contacts
+    description: CRM contacts
+  - name: accounts
+    description: Company accounts
+  - name: deals
+    description: Sales deals / pipeline
+  - name: activities
+    description: Tasks, calls, meetings, emails
+  - name: pipelines
+    description: Deal pipeline configuration
+  - name: search
+    description: Unified search
+
+paths:
+
+  # ─── AUTH ──────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Log in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke refresh token
+      responses:
+        '204':
+          description: Logged out
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # ─── USERS ─────────────────────────────────────────────────────────────────
+
+  /users:
+    get:
+      tags: [users]
+      summary: List users
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+
+  /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [users]
+      summary: Get user by ID
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [users]
+      summary: Update user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatch'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      tags: [users]
+      summary: Delete user
+      responses:
+        '204':
+          description: Deleted
+
+  # ─── CONTACTS ──────────────────────────────────────────────────────────────
+
+  /contacts:
+    get:
+      tags: [contacts]
+      summary: List contacts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/OwnerId'
+        - name: stage
+          in: query
+          schema:
+            $ref: '#/components/schemas/ContactStage'
+        - name: account_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated contacts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+    post:
+      tags: [contacts]
+      summary: Create contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactCreate'
+      responses:
+        '201':
+          description: Created contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /contacts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [contacts]
+      summary: Get contact
+      responses:
+        '200':
+          description: Contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [contacts]
+      summary: Update contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactPatch'
+      responses:
+        '200':
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    delete:
+      tags: [contacts]
+      summary: Delete contact
+      responses:
+        '204':
+          description: Deleted
+
+  /contacts/{id}/activities:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [contacts]
+      summary: List activities for a contact
+      responses:
+        '200':
+          description: Activity list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityList'
+
+  /contacts/{id}/deals:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [contacts]
+      summary: List deals for a contact
+      responses:
+        '200':
+          description: Deal list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealList'
+
+  /contacts/{id}/notes:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [contacts]
+      summary: List notes for a contact
+      responses:
+        '200':
+          description: Note list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteList'
+    post:
+      tags: [contacts]
+      summary: Add a note to a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        '201':
+          description: Created note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+  # ─── ACCOUNTS ──────────────────────────────────────────────────────────────
+
+  /accounts:
+    get:
+      tags: [accounts]
+      summary: List accounts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/OwnerId'
+      responses:
+        '200':
+          description: Paginated accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountList'
+    post:
+      tags: [accounts]
+      summary: Create account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreate'
+      responses:
+        '201':
+          description: Created account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+
+  /accounts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [accounts]
+      summary: Get account
+      responses:
+        '200':
+          description: Account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [accounts]
+      summary: Update account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountPatch'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+    delete:
+      tags: [accounts]
+      summary: Delete account
+      responses:
+        '204':
+          description: Deleted
+
+  /accounts/{id}/contacts:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [accounts]
+      summary: List contacts for an account
+      responses:
+        '200':
+          description: Contact list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactList'
+
+  /accounts/{id}/deals:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [accounts]
+      summary: List deals for an account
+      responses:
+        '200':
+          description: Deal list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealList'
+
+  /accounts/{id}/notes:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [accounts]
+      summary: List notes for an account
+      responses:
+        '200':
+          description: Note list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteList'
+    post:
+      tags: [accounts]
+      summary: Add a note to an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        '201':
+          description: Created note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+  # ─── DEALS ─────────────────────────────────────────────────────────────────
+
+  /deals:
+    get:
+      tags: [deals]
+      summary: List deals
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/OwnerId'
+        - name: stage
+          in: query
+          schema:
+            $ref: '#/components/schemas/DealStage'
+        - name: pipeline_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated deals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealList'
+    post:
+      tags: [deals]
+      summary: Create deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DealCreate'
+      responses:
+        '201':
+          description: Created deal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deal'
+
+  /deals/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [deals]
+      summary: Get deal
+      responses:
+        '200':
+          description: Deal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deal'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [deals]
+      summary: Update deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DealPatch'
+      responses:
+        '200':
+          description: Updated deal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deal'
+    delete:
+      tags: [deals]
+      summary: Delete deal
+      responses:
+        '204':
+          description: Deleted
+
+  /deals/{id}/activities:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [deals]
+      summary: List activities for a deal
+      responses:
+        '200':
+          description: Activity list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityList'
+
+  /deals/{id}/notes:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [deals]
+      summary: List notes for a deal
+      responses:
+        '200':
+          description: Note list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteList'
+    post:
+      tags: [deals]
+      summary: Add a note to a deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        '201':
+          description: Created note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+
+  # ─── ACTIVITIES ────────────────────────────────────────────────────────────
+
+  /activities:
+    get:
+      tags: [activities]
+      summary: List activities
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/OwnerId'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ActivityType'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ActivityStatus'
+      responses:
+        '200':
+          description: Paginated activities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityList'
+    post:
+      tags: [activities]
+      summary: Create activity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityCreate'
+      responses:
+        '201':
+          description: Created activity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
+
+  /activities/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [activities]
+      summary: Get activity
+      responses:
+        '200':
+          description: Activity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
+    patch:
+      tags: [activities]
+      summary: Update activity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityPatch'
+      responses:
+        '200':
+          description: Updated activity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Activity'
+    delete:
+      tags: [activities]
+      summary: Delete activity
+      responses:
+        '204':
+          description: Deleted
+
+  # ─── PIPELINES ─────────────────────────────────────────────────────────────
+
+  /pipelines:
+    get:
+      tags: [pipelines]
+      summary: List pipelines
+      responses:
+        '200':
+          description: All pipelines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pipeline'
+    post:
+      tags: [pipelines]
+      summary: Create pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelineCreate'
+      responses:
+        '201':
+          description: Created pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+
+  /pipelines/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [pipelines]
+      summary: Get pipeline
+      responses:
+        '200':
+          description: Pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+    patch:
+      tags: [pipelines]
+      summary: Update pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PipelinePatch'
+      responses:
+        '200':
+          description: Updated pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pipeline'
+    delete:
+      tags: [pipelines]
+      summary: Delete pipeline
+      responses:
+        '204':
+          description: Deleted
+
+  /pipelines/{id}/deals:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [pipelines]
+      summary: Get deals grouped by stage for a pipeline
+      responses:
+        '200':
+          description: Deals by stage
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Deal'
+
+  # ─── SEARCH ────────────────────────────────────────────────────────────────
+
+  /search:
+    get:
+      tags: [search]
+      summary: Unified search across entities
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+        - name: types
+          in: query
+          description: Comma-separated entity types to include
+          schema:
+            type: string
+            example: contacts,accounts,deals
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+
+# ─── COMPONENTS ──────────────────────────────────────────────────────────────
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    Q:
+      name: q
+      in: query
+      schema:
+        type: string
+    OwnerId:
+      name: owner_id
+      in: query
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableEntity:
+      description: Validation error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+
+    Problem:
+      type: object
+      description: RFC 7807 Problem Details
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    # ── Auth ────────────────────────────────────────────────────────────────
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    AuthTokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          default: Bearer
+        expires_in:
+          type: integer
+          description: Seconds until access token expires
+
+    # ── User ────────────────────────────────────────────────────────────────
+
+    UserRole:
+      type: string
+      enum: [admin, user, viewer]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        avatar_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserPatch:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        avatar_url:
+          type: string
+          nullable: true
+
+    UserList:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+
+    # ── Contact ─────────────────────────────────────────────────────────────
+
+    ContactStage:
+      type: string
+      enum: [lead, prospect, customer, churned]
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        lead_source:
+          type: string
+          nullable: true
+        stage:
+          $ref: '#/components/schemas/ContactStage'
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ContactCreate:
+      type: object
+      required: [first_name, last_name]
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        account_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        lead_source:
+          type: string
+        stage:
+          $ref: '#/components/schemas/ContactStage'
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    ContactPatch:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        lead_source:
+          type: string
+          nullable: true
+        stage:
+          $ref: '#/components/schemas/ContactStage'
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    ContactList:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Contact'
+
+    # ── Account ─────────────────────────────────────────────────────────────
+
+    AccountSize:
+      type: string
+      enum: [1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5000+]
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        domain:
+          type: string
+          nullable: true
+        industry:
+          type: string
+          nullable: true
+        size:
+          $ref: '#/components/schemas/AccountSize'
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AccountCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        industry:
+          type: string
+        size:
+          $ref: '#/components/schemas/AccountSize'
+        owner_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    AccountPatch:
+      type: object
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+          nullable: true
+        industry:
+          type: string
+          nullable: true
+        size:
+          $ref: '#/components/schemas/AccountSize'
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    AccountList:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Account'
+
+    # ── Deal ────────────────────────────────────────────────────────────────
+
+    DealStage:
+      type: string
+      enum: [lead, qualified, proposal, negotiation, closed_won, closed_lost]
+
+    Deal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        value_cents:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          example: USD
+        stage:
+          $ref: '#/components/schemas/DealStage'
+        probability:
+          type: integer
+          minimum: 0
+          maximum: 100
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        contact_id:
+          type: string
+          format: uuid
+          nullable: true
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        pipeline_id:
+          type: string
+          format: uuid
+        custom_fields:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DealCreate:
+      type: object
+      required: [title, pipeline_id]
+      properties:
+        title:
+          type: string
+        value_cents:
+          type: integer
+          format: int64
+          default: 0
+        currency:
+          type: string
+          default: USD
+        stage:
+          $ref: '#/components/schemas/DealStage'
+        probability:
+          type: integer
+          minimum: 0
+          maximum: 100
+        expected_close_date:
+          type: string
+          format: date
+        contact_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        pipeline_id:
+          type: string
+          format: uuid
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    DealPatch:
+      type: object
+      properties:
+        title:
+          type: string
+        value_cents:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        stage:
+          $ref: '#/components/schemas/DealStage'
+        probability:
+          type: integer
+          minimum: 0
+          maximum: 100
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        contact_id:
+          type: string
+          format: uuid
+          nullable: true
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        pipeline_id:
+          type: string
+          format: uuid
+        custom_fields:
+          type: object
+          additionalProperties: true
+
+    DealList:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Deal'
+
+    # ── Activity ────────────────────────────────────────────────────────────
+
+    ActivityType:
+      type: string
+      enum: [call, meeting, task, email, note]
+
+    ActivityStatus:
+      type: string
+      enum: [pending, completed, cancelled]
+
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ActivityType'
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ActivityStatus'
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        contact_id:
+          type: string
+          format: uuid
+          nullable: true
+        account_id:
+          type: string
+          format: uuid
+          nullable: true
+        deal_id:
+          type: string
+          format: uuid
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ActivityCreate:
+      type: object
+      required: [type, title]
+      properties:
+        type:
+          $ref: '#/components/schemas/ActivityType'
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/ActivityStatus'
+        due_at:
+          type: string
+          format: date-time
+        contact_id:
+          type: string
+          format: uuid
+        account_id:
+          type: string
+          format: uuid
+        deal_id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+
+    ActivityPatch:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ActivityStatus'
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ActivityList:
+      allOf:
+        - $ref: '#/components/schemas/Pagination'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Activity'
+
+    # ── Pipeline ────────────────────────────────────────────────────────────
+
+    PipelineStage:
+      type: object
+      required: [id, name, order]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        order:
+          type: integer
+        win_probability:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStage'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PipelineCreate:
+      type: object
+      required: [name, stages]
+      properties:
+        name:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStage'
+
+    PipelinePatch:
+      type: object
+      properties:
+        name:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStage'
+
+    # ── Notes ────────────────────────────────────────────────────────────────
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        author_id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+          enum: [contact, account, deal, activity]
+        entity_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    NoteCreate:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+
+    NoteList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Note'
+
+    # ── Search ───────────────────────────────────────────────────────────────
+
+    SearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [contact, account, deal, activity]
+        title:
+          type: string
+        subtitle:
+          type: string
+          nullable: true
+        url:
+          type: string
+
+    SearchResults:
+      type: object
+      properties:
+        query:
+          type: string
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+    # ── Shared ───────────────────────────────────────────────────────────────
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        total_pages:
+          type: integer

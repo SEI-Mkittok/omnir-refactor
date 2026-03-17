@@ -1,0 +1,90 @@
+version: "3.9"
+
+# Omnir CRM — Local Dev Stack
+# Usage: docker compose up
+# First run: docker compose up --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: omnir-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omnir
+      POSTGRES_PASSWORD: omnir_dev
+      POSTGRES_DB: omnir_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/db-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnir -d omnir_crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./omnir-go-backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: omnir-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://omnir:omnir_dev@postgres:5432/omnir_crm?sslmode=disable
+      JWT_SECRET: dev-jwt-secret-change-in-prod
+      SERVER_PORT: 8080
+      ENV: development
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./omnir-go-backend:/app
+      - go_cache:/root/.cache/go-build
+      - go_mod_cache:/go/pkg/mod
+    command: ["air", "-c", ".air.toml"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./omnir-frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: omnir-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://localhost:8080/api/v1
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./omnir-frontend:/app
+      - node_modules_cache:/app/node_modules
+
+  # Optional: pgAdmin for DB inspection
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: omnir-pgadmin
+    restart: unless-stopped
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@omnir.local
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_dev
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+  go_cache:
+  go_mod_cache:
+  node_modules_cache:
