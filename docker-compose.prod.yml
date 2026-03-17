@@ -57,8 +57,10 @@ services:
       - ./ssl:/etc/nginx/ssl:ro  # mount TLS certs
 
   # Migrations run as a one-shot container on deploy
+  # Use: docker compose --profile migration run --rm migrate
   migrate:
     image: ${REGISTRY:-ghcr.io}/${API_IMAGE}:${IMAGE_TAG:-develop}
+    profiles: ["migration"]
     depends_on:
       postgres:
         condition: service_healthy
