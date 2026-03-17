@@ -4,6 +4,8 @@
 
 .PHONY: help up down build logs shell-api shell-db migrate seed test test-api test-frontend lint fmt
 
+COMPOSE := docker compose -f infra/docker-compose.yml
+
 # Default target
 help:
 	@echo ""
@@ -25,63 +27,63 @@ help:
 	@echo ""
 
 up:
-	docker compose up
+	$(COMPOSE) up
 
 up-d:
-	docker compose up -d
+	$(COMPOSE) up -d
 
 down:
-	docker compose down -v
+	$(COMPOSE) down -v
 
 build:
-	docker compose build --no-cache
+	$(COMPOSE) build --no-cache
 
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
 # Shell access
 shell-api:
-	docker compose exec api sh
+	$(COMPOSE) exec api sh
 
 shell-db:
-	docker compose exec postgres psql -U omnir -d omnir_crm
+	$(COMPOSE) exec postgres psql -U omnir -d omnir_crm
 
 # Migrations
 migrate:
-	docker compose exec api goose -dir db/migrations postgres "$$DATABASE_URL" up
+	$(COMPOSE) exec api goose -dir migrations postgres "$$DATABASE_URL" up
 
 migrate-down:
-	docker compose exec api goose -dir db/migrations postgres "$$DATABASE_URL" down
+	$(COMPOSE) exec api goose -dir migrations postgres "$$DATABASE_URL" down
 
 migrate-status:
-	docker compose exec api goose -dir db/migrations postgres "$$DATABASE_URL" status
+	$(COMPOSE) exec api goose -dir migrations postgres "$$DATABASE_URL" status
 
 # Testing
 test: test-api test-frontend
 
 test-api:
-	cd omnir-go-backend && go test ./... -v -count=1 -race
+	cd api && go test ./... -v -count=1 -race
 
 test-integration:
-	cd omnir-go-backend && TEST_DATABASE_URL=$${TEST_DATABASE_URL:-postgres://localhost/omnir_crm_test?sslmode=disable} \
+	cd api && TEST_DATABASE_URL=$${TEST_DATABASE_URL:-postgres://localhost/omnir_crm_test?sslmode=disable} \
 		go test -tags integration ./internal/repository/postgres/... -v -count=1
 
 test-frontend:
-	cd omnir-frontend && npm run test -- --run
+	cd web && npm run test -- --run
 
 # Code quality
 lint:
-	cd omnir-go-backend && golangci-lint run ./...
-	cd omnir-frontend && npm run lint
+	cd api && golangci-lint run ./...
+	cd web && npm run lint
 
 fmt:
-	cd omnir-go-backend && gofmt -w .
-	cd omnir-frontend && npm run fmt
+	cd api && gofmt -w .
+	cd web && npm run fmt
 
 # Setup for first-time clone
 setup:
 	@echo "→ Copying .env files..."
 	@cp -n .env.example .env 2>/dev/null && echo "  Created .env" || echo "  .env already exists, skipping"
-	@cp -n omnir-go-backend/.env.example omnir-go-backend/.env 2>/dev/null && echo "  Created omnir-go-backend/.env" || echo "  omnir-go-backend/.env already exists"
-	@cp -n omnir-frontend/.env.example omnir-frontend/.env.local 2>/dev/null && echo "  Created omnir-frontend/.env.local" || echo "  omnir-frontend/.env.local already exists"
+	@cp -n api/.env.example api/.env 2>/dev/null && echo "  Created api/.env" || echo "  api/.env already exists"
+	@cp -n web/.env.example web/.env.local 2>/dev/null && echo "  Created web/.env.local" || echo "  web/.env.local already exists"
 	@echo "→ Done. Run 'make up' to start the stack."
