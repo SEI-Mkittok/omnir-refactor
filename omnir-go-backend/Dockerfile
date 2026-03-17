@@ -17,9 +17,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /build/server \
     ./cmd/api
 
-# Build goose for migrations
-RUN CGO_ENABLED=0 GOOS=linux go install github.com/pressly/goose/v3/cmd/goose@v3.19.2 && \
-    cp /root/go/bin/goose /build/goose
+# Download pre-built goose binary for migrations
+RUN wget -qO /build/goose \
+    https://github.com/pressly/goose/releases/download/v3.19.2/goose_linux_x86_64 && \
+    chmod +x /build/goose
 
 # ── Dev stage (hot reload via air) ───────────────────────────────────────────
 FROM golang:1.24-alpine AS dev
