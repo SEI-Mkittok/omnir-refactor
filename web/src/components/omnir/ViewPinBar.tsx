@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -71,7 +71,7 @@ interface ViewPinBarProps {
   currentFilters: ViewFilters
   onSelectView: (view: SavedView) => void
   onClearView: () => void
-  onViewSaved: (viewId: string) => void
+  onViewSaved: (view: SavedView) => void
   onUpdateView?: (viewId: string) => void
 }
 
@@ -98,12 +98,11 @@ export function ViewPinBar({
 
   const [localOrder, setLocalOrder] = useState<string[]>([])
 
-  // Sync localOrder when pinned views change
+  // Sync localOrder when pinned views change (useEffect to avoid render-phase setState)
   const serverOrder = pinnedViews.map((v) => v.id).join(',')
-  const localOrderStr = localOrder.join(',')
-  if (serverOrder !== localOrderStr && localOrder.length !== pinnedViews.length) {
+  useEffect(() => {
     setLocalOrder(pinnedViews.map((v) => v.id))
-  }
+  }, [serverOrder]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const orderedViews =
     localOrder.length > 0
@@ -175,7 +174,13 @@ export function ViewPinBar({
   return (
     <>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <Tabs value={activeViewId ?? ''} onValueChange={() => {}}>
+        <Tabs
+          value={activeViewId ?? ''}
+          onValueChange={(id) => {
+            const view = orderedViews.find((v) => v.id === id)
+            if (view) onSelectView(view)
+          }}
+        >
           <TabsList className="flex-wrap gap-0 border-b-0 px-0">
             <SortableContext
               items={orderedViews.map((v) => v.id)}

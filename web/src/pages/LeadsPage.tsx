@@ -207,7 +207,6 @@ export function LeadsPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const updateView = useUpdateView()
-
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
@@ -222,6 +221,8 @@ export function LeadsPage() {
   const currentFilters = {
     search: debouncedSearch || undefined,
     status: status || undefined,
+    source: source || undefined,
+    score_range: scoreRange || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   }
@@ -231,6 +232,8 @@ export function LeadsPage() {
     setHasUnsavedChanges(false)
     setSearch((view.filters.search as string) ?? '')
     setStatus((view.filters.status as string) ?? '')
+    setSource((view.filters.source as string) ?? '')
+    setScoreRange((view.filters.score_range as string) ?? '')
     setSortKey(view.filters.sort_by ? `${view.filters.sort_by}:${view.filters.sort_dir ?? 'asc'}` : 'created_at:desc')
     setPage(1)
   }
@@ -265,7 +268,8 @@ export function LeadsPage() {
       if (prevKey === key) return `${key}:${prevDir === 'asc' ? 'desc' : 'asc'}`
       return `${key}:asc`
     })
-  }, [])
+    markChanged()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns: Column<Lead>[] = [
     {
@@ -360,7 +364,7 @@ export function LeadsPage() {
         currentFilters={currentFilters}
         onSelectView={applyViewFilters}
         onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
-        onViewSaved={(id) => setActiveView((v) => v ? { ...v, id } : null)}
+        onViewSaved={(view) => setActiveView(view)}
         onUpdateView={handleUpdateView}
       />
 
@@ -380,13 +384,13 @@ export function LeadsPage() {
             label: 'Source',
             value: source,
             options: sourceOptions,
-            onChange: (v) => { setSource(v); setPage(1) },
+            onChange: (v) => { setSource(v); setPage(1); markChanged() },
           },
           {
             label: 'Score',
             value: scoreRange,
             options: SCORE_RANGE_OPTIONS,
-            onChange: (v) => { setScoreRange(v); setPage(1) },
+            onChange: (v) => { setScoreRange(v); setPage(1); markChanged() },
           },
           {
             label: 'Sort',
