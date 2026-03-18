@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"strings"
+	texttemplate "text/template"
 )
 
 // TicketAssignedData is passed to the assigned email templates.
@@ -44,14 +44,14 @@ var assignedHTML = template.Must(template.New("assigned_html").Parse(`<!DOCTYPE 
 </body>
 </html>`))
 
-var assignedText = `Hi {{.AssigneeName}},
+var assignedText = texttemplate.Must(texttemplate.New("assigned_text").Parse(`Hi {{.AssigneeName}},
 
 Ticket #{{.TicketID}} has been assigned to you:
 
   {{.Subject}}
 
 View ticket: {{.AppURL}}/tickets/{{.TicketID}}
-`
+`))
 
 var resolvedHTML = template.Must(template.New("resolved_html").Parse(`<!DOCTYPE html>
 <html>
@@ -73,14 +73,14 @@ var resolvedHTML = template.Must(template.New("resolved_html").Parse(`<!DOCTYPE 
 </body>
 </html>`))
 
-var resolvedText = `Hi {{.ReporterName}},
+var resolvedText = texttemplate.Must(texttemplate.New("resolved_text").Parse(`Hi {{.ReporterName}},
 
 Your ticket #{{.TicketID}} has been marked as {{.Status}}:
 
   {{.Subject}}
 
 View ticket: {{.AppURL}}/portal/tickets/{{.TicketID}}
-`
+`))
 
 // RenderAssigned returns HTML and plaintext email bodies for the "assigned" event.
 func RenderAssigned(data TicketAssignedData) (html, text string, err error) {
@@ -88,12 +88,7 @@ func RenderAssigned(data TicketAssignedData) (html, text string, err error) {
 	if err != nil {
 		return
 	}
-	text = renderText(assignedText, map[string]string{
-		"AssigneeName": data.AssigneeName,
-		"TicketID":     data.TicketID,
-		"Subject":      data.Subject,
-		"AppURL":       data.AppURL,
-	})
+	text, err = renderText(assignedText, data)
 	return
 }
 
@@ -103,13 +98,7 @@ func RenderResolved(data TicketResolvedData) (html, text string, err error) {
 	if err != nil {
 		return
 	}
-	text = renderText(resolvedText, map[string]string{
-		"ReporterName": data.ReporterName,
-		"TicketID":     data.TicketID,
-		"Subject":      data.Subject,
-		"Status":       data.Status,
-		"AppURL":       data.AppURL,
-	})
+	text, err = renderText(resolvedText, data)
 	return
 }
 
@@ -121,10 +110,10 @@ func renderHTML(t *template.Template, data any) (string, error) {
 	return buf.String(), nil
 }
 
-func renderText(tmpl string, vars map[string]string) string {
-	s := tmpl
-	for k, v := range vars {
-		s = strings.ReplaceAll(s, "{{."+k+"}}", v)
+func renderText(t *texttemplate.Template, data any) (string, error) {
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("render email template %s: %w", t.Name(), err)
 	}
-	return s
+	return buf.String(), nil
 }
