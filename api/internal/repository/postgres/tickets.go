@@ -125,6 +125,9 @@ func (r *TicketRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Tick
 	if patch.Source != nil {
 		addArg("source", *patch.Source)
 	}
+	if len(patch.CustomFields) > 0 {
+		addArg("custom_fields", []byte(patch.CustomFields))
+	}
 
 	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)
 	args = append(args, id)
