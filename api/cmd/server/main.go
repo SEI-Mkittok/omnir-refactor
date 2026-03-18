@@ -113,6 +113,7 @@ func main() {
 		WithEmailNotifications(userRepo, notifPrefRepo, emailNotifier)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
+	webhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, cfg.WebhookSecret, cfg.OrgMode, logger)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
@@ -152,6 +153,9 @@ func main() {
 
 	// Auth endpoints (unauthenticated)
 	r.Mount("/api/auth", authHandler.Router())
+
+	// Inbound email webhooks (unauthenticated — provider-level HMAC/Basic auth)
+	r.Mount("/webhooks/email", webhookHandler.Router())
 
 	// API v1 (all routes require authentication + org scoping)
 	r.Route("/api/v1", func(r chi.Router) {

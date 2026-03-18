@@ -12,6 +12,7 @@ import (
 type ContactRepository interface {
 	Create(ctx context.Context, c *domain.Contact) (*domain.Contact, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Contact, error)
+	GetByEmail(ctx context.Context, email string) (*domain.Contact, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.ContactPatch) (*domain.Contact, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.ContactFilter) ([]*domain.Contact, int, error)
@@ -119,6 +120,7 @@ type LeadRepository interface {
 type TicketRepository interface {
 	Create(ctx context.Context, t *domain.Ticket) (*domain.Ticket, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.TicketFilter) ([]*domain.Ticket, int, error)
