@@ -203,10 +203,12 @@ func (r *LeadRepo) List(ctx context.Context, f domain.LeadFilter) ([]*domain.Lea
 		addWhere("owner_id", *f.OwnerID)
 	}
 	if f.Q != "" {
+		// Use the GIN FTS index (idx_leads_fts) rather than ILIKE with a
+		// leading wildcard, which cannot use btree indexes and causes seq scans.
 		where = append(where, fmt.Sprintf(
-			`(first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d OR company ILIKE $%d)`, i, i, i, i,
+			`to_tsvector('english', first_name || ' ' || last_name || ' ' || coalesce(email, '') || ' ' || coalesce(company, '')) @@ plainto_tsquery('english', $%d)`, i,
 		))
-		args = append(args, "%"+f.Q+"%")
+		args = append(args, f.Q)
 		i++
 	}
 
