@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, TrendingUp, LayoutGrid, List, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useDeals, useDeal, useDeleteDeal } from '@/hooks/useDeals'
+import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
-import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { downloadExportCsv } from '@/api/importExport'
@@ -49,6 +49,7 @@ const stageLabel: Record<DealStage, string> = {
 function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }) {
   const { data: deal, isLoading } = useDeal(dealId)
   const deleteDeal = useDeleteDeal()
+  const updateDeal = useUpdateDeal()
   const { data: customFields = [] } = useCustomFieldDefinitions('deal')
 
   if (isLoading) {
@@ -148,14 +149,11 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
         )}
 
         {/* Custom Fields */}
-        {customFields.length > 0 && deal.custom_fields && (
-          <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-2">
-            <CustomFieldDisplaySection
-              fields={customFields}
-              values={deal.custom_fields as CustomFieldValues}
-            />
-          </div>
-        )}
+        <CustomFieldEditableSection
+          fields={customFields}
+          values={deal.custom_fields as CustomFieldValues | undefined}
+          onSave={async (cf) => { await updateDeal.mutateAsync({ id: dealId, payload: { custom_fields: cf as Record<string, unknown> } }) }}
+        />
 
         {/* Activity Timeline */}
         <ActivityTimeline dealId={deal.id} />

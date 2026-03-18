@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
 import type { CustomFieldDefinition, CustomFieldValues } from '@/api/types'
 
 // ── Input renderer ───────────────────────────────────────────────────────────
@@ -199,6 +201,99 @@ export function CustomFieldDisplaySection({
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ── Editable section — display + inline edit toggle ──────────────────────────
+
+interface CustomFieldEditableSectionProps {
+  fields: CustomFieldDefinition[]
+  values: CustomFieldValues | undefined | null
+  onSave: (values: CustomFieldValues) => Promise<void>
+}
+
+export function CustomFieldEditableSection({
+  fields,
+  values,
+  onSave,
+}: CustomFieldEditableSectionProps) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<CustomFieldValues>({})
+  const [saving, setSaving] = useState(false)
+
+  if (fields.length === 0) return null
+
+  const handleEdit = () => {
+    setDraft({ ...(values ?? {}) })
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await onSave(draft)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-3">
+        <CustomFieldFormSection fields={fields} values={draft} onChange={setDraft} />
+        <div className="flex gap-2 pt-1">
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const populated = fields.filter((f) => {
+    const v = (values ?? {})[f.id]
+    return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0)
+  })
+
+  return (
+    <div className="rounded-lg border border-slate-200 px-4 py-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Custom Fields</p>
+        <button
+          onClick={handleEdit}
+          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+        >
+          Edit
+        </button>
+      </div>
+      {populated.length === 0 ? (
+        <p className="text-xs text-slate-400">No values set.</p>
+      ) : (
+        <div className="space-y-2">
+          {populated.map((field) => {
+            const v = values![field.id]
+            let displayValue: string
+            if (field.field_type === 'checkbox') {
+              displayValue = v ? 'Yes' : 'No'
+            } else if (field.field_type === 'multiselect' && Array.isArray(v)) {
+              displayValue = v.join(', ')
+            } else {
+              displayValue = String(v)
+            }
+            return (
+              <div key={field.id} className="flex justify-between gap-4 text-sm">
+                <span className="text-slate-500">{field.label}</span>
+                <span className="font-medium text-slate-800 text-right">{displayValue}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

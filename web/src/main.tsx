@@ -104,7 +104,7 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/custom-fields"
+          path="/settings/custom-fields"
           element={
             <AdminRoute>
               <CustomFieldsPage />
