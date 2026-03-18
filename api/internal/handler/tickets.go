@@ -119,7 +119,7 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if t.Status != "" && !t.Status.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, pending, resolved, closed")
+		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, in_progress, pending, resolved, closed")
 		return
 	}
 	if t.Priority != "" && !t.Priority.IsValid() {
@@ -161,7 +161,7 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if patch.Status != nil && !(*patch.Status).IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, pending, resolved, closed")
+		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, in_progress, pending, resolved, closed")
 		return
 	}
 	if patch.Priority != nil && !(*patch.Priority).IsValid() {
