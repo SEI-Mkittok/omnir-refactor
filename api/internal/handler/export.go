@@ -15,6 +15,7 @@ import (
 )
 
 const exportPageSize = 500
+const exportMaxRecords = 50_000
 
 // ExportHandler handles CSV export endpoints.
 type ExportHandler struct {
@@ -58,9 +59,12 @@ func (h *ExportHandler) Contacts(w http.ResponseWriter, r *http.Request) {
 		Page:  1,
 	}
 	if v := q.Get("owner_id"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			filter.OwnerID = &id
+		id, err := uuid.Parse(v)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid owner_id: must be a UUID")
+			return
 		}
+		filter.OwnerID = &id
 	}
 	if v := q.Get("stage"); v != "" {
 		s := domain.ContactStage(v)
@@ -70,19 +74,23 @@ func (h *ExportHandler) Contacts(w http.ResponseWriter, r *http.Request) {
 	setCsvHeaders(w, "contacts.csv")
 	cw := csv.NewWriter(w)
 
-	_ = cw.Write([]string{
+	if err := cw.Write([]string{
 		"id", "first_name", "last_name", "email", "phone",
 		"account_id", "owner_id", "stage", "lead_source",
 		"tags", "created_at", "updated_at",
-	})
+	}); err != nil {
+		return
+	}
 
+	total := 0
 	for {
 		rows, _, err := h.contacts.List(r.Context(), filter)
 		if err != nil {
+			_ = cw.Write([]string{"#error", err.Error(), "", "", "", "", "", "", "", "", "", ""})
 			break
 		}
 		for _, c := range rows {
-			_ = cw.Write([]string{
+			if err := cw.Write([]string{
 				c.ID.String(),
 				c.FirstName,
 				c.LastName,
@@ -95,9 +103,13 @@ func (h *ExportHandler) Contacts(w http.ResponseWriter, r *http.Request) {
 				strings.Join(c.Tags, ";"),
 				c.CreatedAt.Format("2006-01-02T15:04:05Z"),
 				c.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-			})
+			}); err != nil {
+				cw.Flush()
+				return
+			}
 		}
-		if len(rows) < exportPageSize {
+		total += len(rows)
+		if len(rows) < exportPageSize || total >= exportMaxRecords {
 			break
 		}
 		filter.Page++
@@ -116,9 +128,12 @@ func (h *ExportHandler) Accounts(w http.ResponseWriter, r *http.Request) {
 		Page:  1,
 	}
 	if v := q.Get("owner_id"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			filter.OwnerID = &id
+		id, err := uuid.Parse(v)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid owner_id: must be a UUID")
+			return
 		}
+		filter.OwnerID = &id
 	}
 	if v := q.Get("industry"); v != "" {
 		filter.Industry = &v
@@ -127,14 +142,18 @@ func (h *ExportHandler) Accounts(w http.ResponseWriter, r *http.Request) {
 	setCsvHeaders(w, "accounts.csv")
 	cw := csv.NewWriter(w)
 
-	_ = cw.Write([]string{
+	if err := cw.Write([]string{
 		"id", "name", "domain", "industry", "size",
 		"owner_id", "tags", "created_at", "updated_at",
-	})
+	}); err != nil {
+		return
+	}
 
+	total := 0
 	for {
 		rows, _, err := h.accounts.List(r.Context(), filter)
 		if err != nil {
+			_ = cw.Write([]string{"#error", err.Error(), "", "", "", "", "", "", ""})
 			break
 		}
 		for _, a := range rows {
@@ -142,7 +161,7 @@ func (h *ExportHandler) Accounts(w http.ResponseWriter, r *http.Request) {
 			if a.Size != nil {
 				size = string(*a.Size)
 			}
-			_ = cw.Write([]string{
+			if err := cw.Write([]string{
 				a.ID.String(),
 				a.Name,
 				derefStr(a.Domain),
@@ -152,9 +171,13 @@ func (h *ExportHandler) Accounts(w http.ResponseWriter, r *http.Request) {
 				strings.Join(a.Tags, ";"),
 				a.CreatedAt.Format("2006-01-02T15:04:05Z"),
 				a.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-			})
+			}); err != nil {
+				cw.Flush()
+				return
+			}
 		}
-		if len(rows) < exportPageSize {
+		total += len(rows)
+		if len(rows) < exportPageSize || total >= exportMaxRecords {
 			break
 		}
 		filter.Page++
@@ -173,38 +196,51 @@ func (h *ExportHandler) Deals(w http.ResponseWriter, r *http.Request) {
 		Page:  1,
 	}
 	if v := q.Get("owner_id"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			filter.OwnerID = &id
+		id, err := uuid.Parse(v)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid owner_id: must be a UUID")
+			return
 		}
+		filter.OwnerID = &id
 	}
 	if v := q.Get("stage"); v != "" {
 		s := domain.DealStage(v)
 		filter.Stage = &s
 	}
 	if v := q.Get("account_id"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			filter.AccountID = &id
+		id, err := uuid.Parse(v)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid account_id: must be a UUID")
+			return
 		}
+		filter.AccountID = &id
 	}
 	if v := q.Get("pipeline_id"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			filter.PipelineID = &id
+		id, err := uuid.Parse(v)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid pipeline_id: must be a UUID")
+			return
 		}
+		filter.PipelineID = &id
 	}
 
 	setCsvHeaders(w, "deals.csv")
 	cw := csv.NewWriter(w)
 
-	_ = cw.Write([]string{
+	if err := cw.Write([]string{
 		"id", "title", "stage", "value_cents", "currency",
 		"probability", "expected_close_date",
 		"account_id", "owner_id", "pipeline_id",
 		"created_at", "updated_at",
-	})
+	}); err != nil {
+		return
+	}
 
+	total := 0
 	for {
 		rows, _, err := h.deals.List(r.Context(), filter)
 		if err != nil {
+			_ = cw.Write([]string{"#error", err.Error(), "", "", "", "", "", "", "", "", "", ""})
 			break
 		}
 		for _, d := range rows {
@@ -212,7 +248,7 @@ func (h *ExportHandler) Deals(w http.ResponseWriter, r *http.Request) {
 			if d.ExpectedCloseDate != nil {
 				closeDate = d.ExpectedCloseDate.Format("2006-01-02")
 			}
-			_ = cw.Write([]string{
+			if err := cw.Write([]string{
 				d.ID.String(),
 				d.Title,
 				string(d.Stage),
@@ -225,9 +261,13 @@ func (h *ExportHandler) Deals(w http.ResponseWriter, r *http.Request) {
 				d.PipelineID.String(),
 				d.CreatedAt.Format("2006-01-02T15:04:05Z"),
 				d.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-			})
+			}); err != nil {
+				cw.Flush()
+				return
+			}
 		}
-		if len(rows) < exportPageSize {
+		total += len(rows)
+		if len(rows) < exportPageSize || total >= exportMaxRecords {
 			break
 		}
 		filter.Page++
@@ -235,7 +275,7 @@ func (h *ExportHandler) Deals(w http.ResponseWriter, r *http.Request) {
 	cw.Flush()
 }
 
-// Reports exports the current report summary as CSV (deals by stage + contacts monthly).
+// Reports exports the current report summary as CSV (deals by stage + contacts monthly + activities by type).
 func (h *ExportHandler) Reports(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -243,41 +283,58 @@ func (h *ExportHandler) Reports(w http.ResponseWriter, r *http.Request) {
 	cw := csv.NewWriter(w)
 
 	// Section: deals by stage
-	_ = cw.Write([]string{"section", "stage", "count", "total_value_cents"})
+	if err := cw.Write([]string{"section", "stage", "count", "total_value_cents"}); err != nil {
+		return
+	}
 	if rows, err := h.reports.DealsByStage(ctx); err == nil {
 		for _, m := range rows {
-			_ = cw.Write([]string{
+			if err := cw.Write([]string{
 				"deals_by_stage",
 				string(m.Stage),
 				strconv.Itoa(m.Count),
 				fmt.Sprintf("%d", m.TotalValueCents),
-			})
+			}); err != nil {
+				cw.Flush()
+				return
+			}
 		}
 	}
 
 	// Section: contacts monthly (last 12 months)
-	_ = cw.Write([]string{"section", "month", "count", ""})
+	if err := cw.Write([]string{"section", "month", "count", ""}); err != nil {
+		cw.Flush()
+		return
+	}
 	if rows, err := h.reports.ContactsMonthly(ctx); err == nil {
 		for _, m := range rows {
-			_ = cw.Write([]string{
+			if err := cw.Write([]string{
 				"contacts_monthly",
 				m.Month,
 				strconv.Itoa(m.Count),
 				"",
-			})
+			}); err != nil {
+				cw.Flush()
+				return
+			}
 		}
 	}
 
 	// Section: activities by type
-	_ = cw.Write([]string{"section", "type", "count", ""})
+	if err := cw.Write([]string{"section", "type", "count", ""}); err != nil {
+		cw.Flush()
+		return
+	}
 	if rows, err := h.reports.ActivitiesByType(ctx); err == nil {
 		for _, m := range rows {
-			_ = cw.Write([]string{
+			if err := cw.Write([]string{
 				"activities_by_type",
 				string(m.Type),
 				strconv.Itoa(m.Count),
 				"",
-			})
+			}); err != nil {
+				cw.Flush()
+				return
+			}
 		}
 	}
 
