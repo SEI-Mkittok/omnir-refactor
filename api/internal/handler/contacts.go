@@ -16,8 +16,8 @@ import (
 
 type ContactHandler struct {
 	repo       repository.ContactRepository
-	dispatcher chan<- worker.WebhookEvent
 	cfDefs     repository.CustomFieldDefinitionRepository
+	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewContactHandler(repo repository.ContactRepository) *ContactHandler {
@@ -148,6 +148,18 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
+	}
+	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
+		et := domain.CustomFieldEntityContact
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := domain.ValidateCustomFields(patch.CustomFields, defs); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 	}
 	c, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {

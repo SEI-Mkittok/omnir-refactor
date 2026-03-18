@@ -114,12 +114,11 @@ func ValidateCustomFields(rawFields []byte, defs []*CustomFieldDefinition) error
 		}
 	}
 
-	// Type-check provided values.
+	// Type-check provided values; reject unknown field names.
 	for key, raw := range fields {
 		def, ok := defsByName[key]
 		if !ok {
-			// Unknown fields are allowed (forward compat); skip.
-			continue
+			return &ValidationError{Field: key, Message: fmt.Sprintf("unknown custom field %q", key)}
 		}
 		if err := validateFieldValue(def, raw); err != nil {
 			return err
@@ -129,6 +128,11 @@ func ValidateCustomFields(rawFields []byte, defs []*CustomFieldDefinition) error
 }
 
 func validateFieldValue(def *CustomFieldDefinition, raw json.RawMessage) error {
+	// null JSON value means "clear this field" — always valid.
+	if string(raw) == "null" {
+		return nil
+	}
+
 	makeErr := func(msg string) *ValidationError {
 		return &ValidationError{Field: def.Name, Message: fmt.Sprintf("custom field %q: %s", def.Name, msg)}
 	}

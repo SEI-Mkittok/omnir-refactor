@@ -20,7 +20,8 @@ BEGIN
 END $$;
 -- +goose StatementEnd
 
--- Migrate existing self_hosted rows BEFORE adding the constraint.
+-- Migrate existing self_hosted rows to the new 'single' plan value BEFORE
+-- adding the constraint (constraint check would fail on existing rows otherwise).
 UPDATE orgs SET plan = 'single' WHERE plan = 'self_hosted';
 
 -- 'single' is the new default plan for self-hosted/single-tenant deployments.

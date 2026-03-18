@@ -138,6 +138,18 @@ func (h *AccountHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
+		et := domain.CustomFieldEntityAccount
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := domain.ValidateCustomFields(patch.CustomFields, defs); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
 	a, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
