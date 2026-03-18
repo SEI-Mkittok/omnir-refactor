@@ -21,7 +21,7 @@ func TestUserRepo_Create_OrgScoping(t *testing.T) {
 		u := &domain.User{
 			Email: "alice@omnir.test",
 			Name:  "Alice",
-			Role:  domain.UserRoleUser,
+			Role:  domain.UserRoleAgent,
 		}
 		got, err := repo.Create(ctx, u, "hashed-pw")
 		require.NoError(t, err)
@@ -34,7 +34,7 @@ func TestUserRepo_Create_OrgScoping(t *testing.T) {
 		u := &domain.User{
 			Email: "bob@omnir.test",
 			Name:  "Bob",
-			Role:  domain.UserRoleUser,
+			Role:  domain.UserRoleAgent,
 			OrgID: otherOrgID,
 		}
 		got, err := repo.Create(ctx, u, "hashed-pw")

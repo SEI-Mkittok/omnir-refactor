@@ -31,7 +31,7 @@ func (h *NoteHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleUser))
+		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
 		r.Post("/", h.Create)
 		r.Delete("/{noteID}", h.Delete)
 	})
