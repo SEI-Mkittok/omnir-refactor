@@ -30,7 +30,7 @@ import {
 import { useTickets } from '@/hooks/useTickets'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import { EmailTimeline } from '@/components/omnir/EmailTimeline'
-import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import type { Contact, ContactStage, UpdateContactRequest, CustomFieldValues } from '@/api/types'
 
@@ -530,14 +530,11 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
         )}
 
         {/* Custom fields */}
-        {customFields.length > 0 && contact.custom_fields && (
-          <div className="rounded-lg border border-slate-200 px-4 py-3">
-            <CustomFieldDisplaySection
-              fields={customFields}
-              values={contact.custom_fields as CustomFieldValues}
-            />
-          </div>
-        )}
+        <CustomFieldEditableSection
+          fields={customFields}
+          values={contact.custom_fields as CustomFieldValues | undefined}
+          onSave={async (cf) => { await patch({ custom_fields: cf as Record<string, unknown> }) }}
+        />
 
         {/* Metadata */}
         <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">
