@@ -5,7 +5,6 @@ import type {
   CreateLeadRequest,
   UpdateLeadRequest,
   ConvertLeadRequest,
-  CreateNoteRequest,
 } from '@/api/types'
 
 export const leadKeys = {
@@ -14,7 +13,6 @@ export const leadKeys = {
   list: (params?: LeadListParams) => [...leadKeys.lists(), params] as const,
   details: () => [...leadKeys.all, 'detail'] as const,
   detail: (id: string) => [...leadKeys.details(), id] as const,
-  notes: (id: string) => [...leadKeys.detail(id), 'notes'] as const,
 }
 
 export function useLeads(params?: LeadListParams) {
@@ -29,15 +27,6 @@ export function useLead(id: string) {
   return useQuery({
     queryKey: leadKeys.detail(id),
     queryFn: () => leadsApi.get(id),
-    staleTime: 30_000,
-    enabled: !!id,
-  })
-}
-
-export function useLeadNotes(id: string) {
-  return useQuery({
-    queryKey: leadKeys.notes(id),
-    queryFn: () => leadsApi.getNotes(id),
     staleTime: 30_000,
     enabled: !!id,
   })
@@ -87,18 +76,3 @@ export function useConvertLead() {
   })
 }
 
-export function useAddLeadNote() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({
-      leadId,
-      payload,
-    }: {
-      leadId: string
-      payload: Omit<CreateNoteRequest, 'lead_id'>
-    }) => leadsApi.addNote(leadId, payload),
-    onSuccess: (_, { leadId }) => {
-      qc.invalidateQueries({ queryKey: leadKeys.notes(leadId) })
-    },
-  })
-}
