@@ -39,3 +39,20 @@ If something is broken on staging:
 ---
 
 **Bottom line: All code goes through Völundr before it reaches production.**
+
+## Pre-Push Validation (MANDATORY)
+
+Before pushing ANY branch to GitHub, you MUST run:
+```bash
+cd /home/omnirdev/.openclaw/workspace
+bash scripts/pre-push-check.sh
+```
+
+If it fails, FIX the issue before pushing. Do NOT push code that does not compile or pass tests.
+
+Common failures to watch for:
+- Interface not fully implemented (missing methods)
+- Import cycle or unused imports
+- go.mod version mismatch with CI Go version
+- Test assertions using wrong field names after schema changes
+

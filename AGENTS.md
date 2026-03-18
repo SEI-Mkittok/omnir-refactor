@@ -259,3 +259,20 @@ All agent pushes to GitHub go through Völundr (CTO) for review. This is non-neg
 - The Phase 3/4 situation that just happened (agents committing without CI validation)
 
 Add this to your OMN-58 standing task — code review is part of your hourly responsibility.
+
+## Pre-Push Validation (MANDATORY)
+
+Before pushing ANY branch to GitHub, you MUST run:
+```bash
+cd /home/omnirdev/.openclaw/workspace
+bash scripts/pre-push-check.sh
+```
+
+If it fails, FIX the issue before pushing. Do NOT push code that does not compile or pass tests.
+
+Common failures to watch for:
+- Interface not fully implemented (missing methods)
+- Import cycle or unused imports
+- go.mod version mismatch with CI Go version
+- Test assertions using wrong field names after schema changes
+
