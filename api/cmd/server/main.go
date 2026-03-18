@@ -71,6 +71,7 @@ func main() {
 	ticketRepo := postgres.NewTicketRepo(db)
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
+	leadRepo := postgres.NewLeadRepo(db)
 
 	// Background workers
 	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
@@ -93,6 +94,7 @@ func main() {
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
 	searchHandler := handler.NewSearchHandler(contactRepo, accountRepo, dealRepo)
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
+	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 
 	r := chi.NewRouter()
 
@@ -128,6 +130,7 @@ func main() {
 		r.Use(middleware.Authenticate(jwtSvc))
 		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
+		r.Mount("/leads", leadHandler.Router())
 		r.Route("/contacts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", contactNoteHandler.Router())
 		})
