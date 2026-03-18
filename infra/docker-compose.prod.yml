@@ -23,12 +23,23 @@ services:
     expose:
       - "5432"
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: omnir-mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025"   # MailHog web UI — http://staging.omnir.local:8025
+    expose:
+      - "1025"        # SMTP (internal only)
+
   api:
     image: ${REGISTRY:-ghcr.io}/${API_IMAGE}:${IMAGE_TAG:-develop}
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     environment:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
@@ -36,6 +47,10 @@ services:
       ENV: production
       LOG_LEVEL: info
       CORS_ORIGINS: ${CORS_ORIGINS}
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASS: ""
     ports:
       - "8080:8080"
     healthcheck:
