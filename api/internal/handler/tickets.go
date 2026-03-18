@@ -31,23 +31,25 @@ func NewTicketHandler(
 func (h *TicketHandler) Router() chi.Router {
 	r := chi.NewRouter()
 
-	// All ticket routes require at least agent role.
-	r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
+	// agentOnly restricts mutation operations to admin and agent roles.
+	// Read operations and comment creation are also open to client role,
+	// with per-handler logic filtering what clients can see/do.
+	agentOnly := middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent)
 
 	r.Get("/", h.List)
-	r.Post("/", h.Create)
+	r.With(agentOnly).Post("/", h.Create)
 	r.Get("/{id}", h.GetByID)
-	r.Patch("/{id}", h.Update)
-	r.Delete("/{id}", h.Delete)
+	r.With(agentOnly).Patch("/{id}", h.Update)
+	r.With(agentOnly).Delete("/{id}", h.Delete)
 
 	// Nested sub-resources
-	r.Get("/{id}/comments", h.ListComments)
-	r.Post("/{id}/comments", h.CreateComment)
-	r.Delete("/{id}/comments/{commentID}", h.DeleteComment)
+	r.Get("/{id}/comments", h.ListComments)        // clients see public comments only (filtered in handler)
+	r.Post("/{id}/comments", h.CreateComment)      // clients can comment but not mark internal (enforced in handler)
+	r.With(agentOnly).Delete("/{id}/comments/{commentID}", h.DeleteComment)
 
 	r.Get("/{id}/attachments", h.ListAttachments)
-	r.Post("/{id}/attachments", h.CreateAttachment)
-	r.Delete("/{id}/attachments/{attachmentID}", h.DeleteAttachment)
+	r.With(agentOnly).Post("/{id}/attachments", h.CreateAttachment)
+	r.With(agentOnly).Delete("/{id}/attachments/{attachmentID}", h.DeleteAttachment)
 
 	return r
 }
