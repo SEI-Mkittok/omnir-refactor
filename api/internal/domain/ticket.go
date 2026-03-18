@@ -15,6 +15,15 @@ const (
 	TicketStatusClosed   TicketStatus = "closed"
 )
 
+// IsValid returns true if the status value is recognised.
+func (s TicketStatus) IsValid() bool {
+	switch s {
+	case TicketStatusOpen, TicketStatusPending, TicketStatusResolved, TicketStatusClosed:
+		return true
+	}
+	return false
+}
+
 type TicketPriority string
 
 const (
@@ -23,6 +32,15 @@ const (
 	TicketPriorityHigh     TicketPriority = "high"
 	TicketPriorityCritical TicketPriority = "critical"
 )
+
+// IsValid returns true if the priority value is recognised.
+func (p TicketPriority) IsValid() bool {
+	switch p {
+	case TicketPriorityLow, TicketPriorityMedium, TicketPriorityHigh, TicketPriorityCritical:
+		return true
+	}
+	return false
+}
 
 // Ticket represents a help-desk support ticket.
 type Ticket struct {

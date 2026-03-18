@@ -118,6 +118,14 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "subject is required")
 		return
 	}
+	if t.Status != "" && !t.Status.IsValid() {
+		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, pending, resolved, closed")
+		return
+	}
+	if t.Priority != "" && !t.Priority.IsValid() {
+		writeError(w, http.StatusUnprocessableEntity, "invalid priority: must be one of low, medium, high, critical")
+		return
+	}
 
 	created, err := h.tickets.Create(r.Context(), &t)
 	if err != nil {
@@ -150,6 +158,14 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var patch domain.TicketPatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if patch.Status != nil && !(*patch.Status).IsValid() {
+		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, pending, resolved, closed")
+		return
+	}
+	if patch.Priority != nil && !(*patch.Priority).IsValid() {
+		writeError(w, http.StatusUnprocessableEntity, "invalid priority: must be one of low, medium, high, critical")
 		return
 	}
 	t, err := h.tickets.Update(r.Context(), id, patch)
