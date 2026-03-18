@@ -5,6 +5,10 @@ import {
   flexRender,
   createColumnHelper,
   type SortingState,
+  type HeaderGroup,
+  type Header,
+  type Row,
+  type Cell,
 } from '@tanstack/react-table'
 import { useState } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown, Ticket as TicketIcon } from 'lucide-react'
@@ -140,9 +144,9 @@ export function TicketList({
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200">
           <thead className="bg-slate-50">
-            {table.getHeaderGroups().map((hg) => (
+            {table.getHeaderGroups().map((hg: HeaderGroup<Ticket>) => (
               <tr key={hg.id}>
-                {hg.headers.map((header) => (
+                {hg.headers.map((header: Header<Ticket, unknown>) => (
                   <th
                     key={header.id}
                     className="px-4 py-3 text-left text-xs text-slate-500"
@@ -173,13 +177,13 @@ export function TicketList({
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row: Row<Ticket>) => (
                 <tr
                   key={row.id}
                   onClick={() => onRowClick(row.original)}
                   className="cursor-pointer transition-colors hover:bg-slate-50"
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getVisibleCells().map((cell: Cell<Ticket, unknown>) => (
                     <td key={cell.id} className="px-4 py-3 text-sm">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
