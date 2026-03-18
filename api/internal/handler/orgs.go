@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/omnir/crm-api/internal/auth"
@@ -79,6 +81,10 @@ func (h *OrgHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "validation error: email is required")
 		return
 	}
+	if !strings.Contains(req.Email, "@") {
+		writeError(w, http.StatusUnprocessableEntity, "validation error: email is invalid")
+		return
+	}
 	if len(req.Password) < 8 {
 		writeError(w, http.StatusUnprocessableEntity, "validation error: password must be at least 8 characters")
 		return
@@ -121,6 +127,10 @@ func (h *OrgHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := h.users.Create(ctx, user, string(hash))
 	if err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+			writeError(w, http.StatusConflict, "email is already in use")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
@@ -174,19 +184,7 @@ func (h *OrgHandler) uniqueSlug(ctx context.Context, base string) (string, error
 		if !exists {
 			return candidate, nil
 		}
-		candidate = base + "-" + itoa(i)
+		candidate = base + "-" + strconv.Itoa(i)
 	}
 }
 
-func itoa(n int) string {
-	const digits = "0123456789"
-	if n == 0 {
-		return "0"
-	}
-	buf := make([]byte, 0, 10)
-	for n > 0 {
-		buf = append([]byte{digits[n%10]}, buf...)
-		n /= 10
-	}
-	return string(buf)
-}
