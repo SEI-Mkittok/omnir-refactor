@@ -18,7 +18,9 @@ import { Input } from '@/components/ui/Input'
 import { formatDate } from '@/lib/utils'
 import { leadStatusBadgeVariant, leadStatusLabel } from '@/components/omnir/LeadDetailPanel'
 import { LeadDetailPanel } from '@/components/omnir/LeadDetailPanel'
-import type { Lead, LeadStatus, CreateLeadRequest } from '@/api/types'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import type { Lead, LeadStatus, CreateLeadRequest, CustomFieldValues } from '@/api/types'
 
 // ── Create lead form ─────────────────────────────────────────────────────────
 
@@ -40,7 +42,9 @@ interface LeadFormProps {
 function LeadForm({ open, onClose }: LeadFormProps) {
   const [form, setForm] = useState<CreateLeadRequest>(INITIAL_FORM)
   const [errors, setErrors] = useState<Partial<Record<keyof CreateLeadRequest, string>>>({})
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const createLead = useCreateLead()
+  const { data: customFields = [] } = useCustomFieldDefinitions('lead')
 
   const set = (field: keyof CreateLeadRequest) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -64,14 +68,16 @@ function LeadForm({ open, onClose }: LeadFormProps) {
       phone: form.phone || undefined,
       company: form.company || undefined,
       lead_source: form.lead_source || undefined,
-    })
+      ...(Object.keys(customFieldValues).length ? { custom_fields: customFieldValues } : {}),
+    } as CreateLeadRequest & { custom_fields?: CustomFieldValues })
     setForm(INITIAL_FORM)
     setErrors({})
+    setCustomFieldValues({})
     onClose()
   }
 
   const handleOpenChange = (o: boolean) => {
-    if (!o) { setForm(INITIAL_FORM); setErrors({}); onClose() }
+    if (!o) { setForm(INITIAL_FORM); setErrors({}); setCustomFieldValues({}); onClose() }
   }
 
   return (
@@ -136,6 +142,12 @@ function LeadForm({ open, onClose }: LeadFormProps) {
               </select>
             </div>
           </div>
+
+          <CustomFieldFormSection
+            fields={customFields}
+            values={customFieldValues}
+            onChange={setCustomFieldValues}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>

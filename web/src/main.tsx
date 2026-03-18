@@ -11,6 +11,7 @@ import { LeadsPage } from '@/pages/LeadsPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { DealsPage } from '@/pages/DealsPage'
 import { UsersPage } from '@/pages/UsersPage'
+import { CustomFieldsPage } from '@/pages/CustomFieldsPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { getSetupStatus } from '@/api/setup'
@@ -72,6 +73,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <UsersPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/custom-fields"
+          element={
+            <AdminRoute>
+              <CustomFieldsPage />
             </AdminRoute>
           }
         />
