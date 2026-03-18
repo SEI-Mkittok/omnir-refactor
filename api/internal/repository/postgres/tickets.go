@@ -223,8 +223,10 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		addWhere("submitted_by_user_id", *f.SubmittedByUserID)
 	}
 	if f.Q != "" {
-		where = append(where, fmt.Sprintf(`subject ILIKE $%d`, i))
-		args = append(args, "%"+f.Q+"%")
+		where = append(where, fmt.Sprintf(
+			`to_tsvector('english', subject || ' ' || coalesce(description, '')) @@ plainto_tsquery('english', $%d)`, i,
+		))
+		args = append(args, f.Q)
 		i++
 	}
 
