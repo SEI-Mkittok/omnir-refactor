@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, UserRound, Loader2 } from 'lucide-react'
+import { Plus, UserRound, Loader2, Upload } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useLeads, useCreateLead } from '@/hooks/useLeads'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -20,6 +20,7 @@ import { leadStatusBadgeVariant, leadStatusLabel } from '@/components/omnir/Lead
 import { LeadDetailPanel } from '@/components/omnir/LeadDetailPanel'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import { ImportModal } from '@/components/omnir/ImportModal'
 import type { Lead, LeadStatus, CreateLeadRequest, CustomFieldValues } from '@/api/types'
 
 // ── Create lead form ─────────────────────────────────────────────────────────
@@ -188,6 +189,7 @@ export function LeadsPage() {
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
@@ -267,10 +269,16 @@ export function LeadsPage() {
             {meta ? `${meta.total} total` : 'Loading…'}
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4" />
-          Add Lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" />
+            Add Lead
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -335,6 +343,14 @@ export function LeadsPage() {
 
       {/* Create form */}
       <LeadForm open={showForm} onClose={() => setShowForm(false)} />
+
+      {/* Import modal */}
+      <ImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        entity="leads"
+        entityLabel="Leads"
+      />
     </div>
   )
 }
