@@ -4,7 +4,7 @@
 -- The plaintext key is only returned on creation; only the SHA-256 hash is stored.
 CREATE TABLE api_keys (
     id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id       UUID         REFERENCES organizations(id),
+    org_id       UUID         REFERENCES orgs(id),
     created_by   UUID         REFERENCES users(id),
     name         TEXT         NOT NULL,
     key_hash     TEXT         NOT NULL UNIQUE,
