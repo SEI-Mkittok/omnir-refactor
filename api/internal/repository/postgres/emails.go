@@ -98,9 +98,10 @@ func (r *EmailRepo) List(ctx context.Context, f domain.EmailFilter) ([]*domain.C
 	if !hasCtxOrg {
 		orgID = f.OrgID
 	}
-	if orgID != uuid.Nil {
-		addWhere("org_id", orgID)
+	if orgID == uuid.Nil {
+		return nil, 0, fmt.Errorf("org_id is required for email listing")
 	}
+	addWhere("org_id", orgID)
 
 	if f.ContactID != nil {
 		addWhere("contact_id", *f.ContactID)
