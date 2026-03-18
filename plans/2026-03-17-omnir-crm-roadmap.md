@@ -125,6 +125,74 @@ _Deferred: Advanced analytics (high cost, low immediate need), Mobile-responsive
 
 ---
 
+---
+
+## Phase 7: Notifications, Enhanced Reporting, Custom Fields ✅ COMPLETE
+
+_Completed: 2026-03-18_
+
+| Feature | Issues |
+|---------|--------|
+| Custom field definitions API + admin UI | OMN-286, OMN-288 |
+| Custom field values read/write on entities | OMN-287 |
+| Notifications system + bell UI | OMN-289, OMN-290 |
+| Reporting API: pipeline funnel, conversion rates, revenue projections | OMN-291 |
+| Dashboard analytics widgets | OMN-292 |
+
+---
+
+## Phase 8: Lead Management, Saved Views, Security 🔜 PLANNED
+
+_Defined: 2026-03-18 | Scoped by: Völundr (CTO) | Parent issue: OMN-311_
+
+**Selected areas (ranked by value/cost):**
+1. **Lead management** — Core CRM differentiator. Builds on existing `stage='lead'` model. High ROI.
+2. **Saved searches + views** — High UX value, low backend cost. Deferred from Phase 7.
+3. **API rate limiting + audit log** — Security hygiene required before SaaS launch.
+
+_Deferred: Email sequences (needs workflow engine, too heavy for Phase 8), Calendar view (activities timeline partially covers this)._
+
+### Area 1: Lead Management
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Lead API: scoring, source tracking, conversion endpoint | Tyr | OMN-312 |
+| Lead UI: leads list, score widget, conversion modal | Freya | OMN-313 |
+
+**Key decisions:**
+- Leads = contacts with `stage='lead'` (no new table, extend existing schema)
+- `lead_score` is manual Phase 8; automated scoring is Phase 9+
+- Conversion is non-destructive: changes stage, records `converted_at/by/deal_id`
+
+### Area 2: Saved Searches + Views
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Views API: CRUD, pin, share | Tyr | OMN-314 |
+| Views UI: pin bar, view manager, filter persistence | Freya | OMN-315 |
+
+**Key decisions:**
+- Filters stored as opaque JSONB (frontend-interpreted)
+- Shared views visible to all org members
+- Drag-to-reorder pinned views via `@dnd-kit/sortable`
+
+### Area 3: API Rate Limiting + Audit Log
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Rate limiter middleware + audit log schema + admin API | Tyr | OMN-316 |
+| Audit log admin UI | Freya | OMN-317 |
+
+**Key decisions:**
+- In-process sliding window rate limiter (no Redis Phase 8)
+- Default: 300 req/min auth, 60 req/min writes, 30 req/min unauth
+- Audit log captures before/after diffs for all CRUD on tracked entities
+- Admin-only access to audit endpoints
+
+**Exit criteria:** Users can manage leads through full lifecycle (capture → score → convert). Teams can save and share filter views. Admins have rate-limit protection and full mutation audit trail.
+
+---
+
 ## Open Questions / Decisions Needed
 
 1. **Multi-tenancy:** Add `org_id` now or wait? If targeting SaaS, add it in Phase 2.
