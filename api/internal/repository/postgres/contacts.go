@@ -82,6 +82,19 @@ func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contac
 	return scanContact(row)
 }
 
+func (r *ContactRepo) GetByEmail(ctx context.Context, email string) (*domain.Contact, error) {
+	q := `SELECT ` + contactCols + ` FROM contacts WHERE email=$1 AND deleted_at IS NULL`
+	args := []any{email}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	row := r.db.QueryRow(ctx, q, args...)
+	return scanContact(row)
+}
+
 func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.ContactPatch) (*domain.Contact, error) {
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
