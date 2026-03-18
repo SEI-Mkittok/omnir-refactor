@@ -2,11 +2,16 @@
 package email
 
 import (
+	"bytes"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
+	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
 	"net/smtp"
-	"strings"
+	"net/textproto"
 
 	"github.com/omnir/crm-api/internal/config"
 )
@@ -85,35 +90,46 @@ func (s *Sender) Send(msg Message) error {
 	return c.Quit()
 }
 
-// buildMIME assembles a multipart/alternative MIME message.
+// buildMIME assembles a multipart/alternative MIME message with proper
+// quoted-printable encoding and a cryptographically random boundary.
 func buildMIME(from string, msg Message) string {
-	boundary := "omnir_email_boundary_42"
-	var b strings.Builder
+	// Random boundary satisfying RFC 2046.
+	randBytes := make([]byte, 12)
+	_, _ = rand.Read(randBytes)
+	boundary := "omnir_" + hex.EncodeToString(randBytes)
 
-	b.WriteString("MIME-Version: 1.0\r\n")
-	b.WriteString(fmt.Sprintf("From: %s\r\n", from))
-	b.WriteString(fmt.Sprintf("To: %s\r\n", msg.To))
-	b.WriteString(fmt.Sprintf("Subject: %s\r\n", msg.Subject))
-	b.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=%q\r\n", boundary))
-	b.WriteString("\r\n")
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.SetBoundary(boundary)
 
-	// Plaintext part
-	b.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
-	b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
-	b.WriteString("\r\n")
-	b.WriteString(msg.Text)
-	b.WriteString("\r\n")
+	// Plaintext part — QP-encoded.
+	ph := make(textproto.MIMEHeader)
+	ph.Set("Content-Type", "text/plain; charset=UTF-8")
+	ph.Set("Content-Transfer-Encoding", "quoted-printable")
+	pw, _ := mw.CreatePart(ph)
+	qpw := quotedprintable.NewWriter(pw)
+	_, _ = qpw.Write([]byte(msg.Text))
+	_ = qpw.Close()
 
-	// HTML part
-	b.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-	b.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
-	b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
-	b.WriteString("\r\n")
-	b.WriteString(msg.HTML)
-	b.WriteString("\r\n")
+	// HTML part — QP-encoded.
+	hh := make(textproto.MIMEHeader)
+	hh.Set("Content-Type", "text/html; charset=UTF-8")
+	hh.Set("Content-Transfer-Encoding", "quoted-printable")
+	hw, _ := mw.CreatePart(hh)
+	qpwh := quotedprintable.NewWriter(hw)
+	_, _ = qpwh.Write([]byte(msg.HTML))
+	_ = qpwh.Close()
 
-	b.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+	_ = mw.Close()
 
-	return b.String()
+	var out bytes.Buffer
+	fmt.Fprintf(&out, "MIME-Version: 1.0\r\n")
+	fmt.Fprintf(&out, "From: %s\r\n", from)
+	fmt.Fprintf(&out, "To: %s\r\n", msg.To)
+	fmt.Fprintf(&out, "Subject: %s\r\n", msg.Subject)
+	fmt.Fprintf(&out, "Content-Type: multipart/alternative; boundary=%q\r\n", boundary)
+	fmt.Fprintf(&out, "\r\n")
+	out.Write(body.Bytes())
+
+	return out.String()
 }
