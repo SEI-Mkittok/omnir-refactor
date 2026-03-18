@@ -74,6 +74,7 @@ func main() {
 	apiKeyRepo := postgres.NewAPIKeyRepo(db)
 	emailRepo := postgres.NewEmailRepo(db)
 	outboundWebhookRepo := postgres.NewOutboundWebhookRepo(db)
+	portalLinkRepo := postgres.NewPortalLinkRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -127,6 +128,7 @@ func main() {
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
 	inboundEmailHandler := handler.NewInboundEmailHandler(emailRepo, contactRepo, cfg.WebhookSecret, cfg.OrgMode)
+	dealPortalLinksHandler := handler.NewDealPortalLinksHandler(portalLinkRepo, dealRepo, noteRepo, orgRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -152,6 +154,8 @@ func main() {
 	r.Mount("/api/auth", authHandler.Router())
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
+	// Public deal portal — token IS the credential, no JWT required.
+	r.Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(30 * time.Second))
@@ -172,6 +176,8 @@ func main() {
 		r.Route("/accounts/{id}/notes", func(r chi.Router) { r.Mount("/", accountNoteHandler.Router()) })
 		r.Mount("/deals", dealHandler.Router())
 		r.Route("/deals/{id}/notes", func(r chi.Router) { r.Mount("/", dealNoteHandler.Router()) })
+		r.Route("/deals/{dealId}/portal-links", func(r chi.Router) { r.Mount("/", dealPortalLinksHandler.AuthRouter()) })
+		r.Mount("/portal-links", dealPortalLinksHandler.RevokeRouter())
 		r.Mount("/activities", activityHandler.Router())
 		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/tickets", ticketHandler.Router())
