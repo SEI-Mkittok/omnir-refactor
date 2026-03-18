@@ -113,7 +113,7 @@ func main() {
 		WithEmailNotifications(userRepo, notifPrefRepo, emailNotifier)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
-	webhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, cfg.WebhookSecret, cfg.OrgMode, logger)
+	webhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")

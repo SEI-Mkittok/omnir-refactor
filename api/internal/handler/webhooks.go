@@ -30,6 +30,7 @@ type WebhookHandler struct {
 	tickets  repository.TicketRepository
 	comments repository.TicketCommentRepository
 	contacts repository.ContactRepository
+	users    repository.UserRepository
 	secret   string
 	orgMode  config.OrgMode
 	logger   *slog.Logger
@@ -39,6 +40,7 @@ func NewWebhookHandler(
 	tickets repository.TicketRepository,
 	comments repository.TicketCommentRepository,
 	contacts repository.ContactRepository,
+	users repository.UserRepository,
 	secret string,
 	orgMode config.OrgMode,
 	logger *slog.Logger,
@@ -47,6 +49,7 @@ func NewWebhookHandler(
 		tickets:  tickets,
 		comments: comments,
 		contacts: contacts,
+		users:    users,
 		secret:   secret,
 		orgMode:  orgMode,
 		logger:   logger,
@@ -198,6 +201,7 @@ func (h *WebhookHandler) ingest(ctx context.Context, e *parsedEmail) error {
 	}
 
 	// Resolve contact from the From address.
+	// If no existing contact matches, auto-create one as a new lead.
 	var contactID *uuid.UUID
 	if fromEmail := parseEmailAddress(e.From); fromEmail != "" {
 		c, err := h.contacts.GetByEmail(ctx, fromEmail)
@@ -206,6 +210,14 @@ func (h *WebhookHandler) ingest(ctx context.Context, e *parsedEmail) error {
 		}
 		if c != nil {
 			contactID = &c.ID
+		} else {
+			created, err := h.autoCreateContact(ctx, fromEmail, e.From)
+			if err != nil {
+				h.logger.Warn("failed to auto-create contact for unknown sender",
+					"from", fromEmail, "err", err)
+			} else {
+				contactID = &created.ID
+			}
 		}
 	}
 
@@ -273,6 +285,49 @@ func (h *WebhookHandler) ingest(ctx context.Context, e *parsedEmail) error {
 }
 
 // ───────────────────────── Helpers ─────────────────────────
+
+// autoCreateContact creates a new lead contact for an unknown inbound email sender.
+// It assigns the contact to the first user found in the org.
+func (h *WebhookHandler) autoCreateContact(ctx context.Context, email, rawFrom string) (*domain.Contact, error) {
+	users, _, err := h.users.List(ctx, domain.UserFilter{Limit: 1})
+	if err != nil {
+		return nil, fmt.Errorf("owner lookup: %w", err)
+	}
+	if len(users) == 0 {
+		return nil, fmt.Errorf("no users found to assign contact owner")
+	}
+	firstName, lastName := parseFromName(rawFrom, email)
+	leadSource := "email"
+	c := &domain.Contact{
+		FirstName:  firstName,
+		LastName:   lastName,
+		Email:      &email,
+		OwnerID:    users[0].ID,
+		Stage:      domain.ContactStageLead,
+		LeadSource: &leadSource,
+	}
+	return h.contacts.Create(ctx, c)
+}
+
+// parseFromName extracts a first and last name from an RFC 5322 From value.
+// If no display name is present, the local part of the email is used as first name.
+func parseFromName(rawFrom, email string) (firstName, lastName string) {
+	addr, err := mail.ParseAddress(rawFrom)
+	if err == nil && addr.Name != "" {
+		parts := strings.SplitN(strings.TrimSpace(addr.Name), " ", 2)
+		firstName = parts[0]
+		if len(parts) > 1 {
+			lastName = parts[1]
+		}
+		return
+	}
+	if at := strings.Index(email, "@"); at > 0 {
+		firstName = email[:at]
+	} else {
+		firstName = email
+	}
+	return
+}
 
 // scopedContext returns a context with org_id set for DB calls.
 // In single-tenant mode the default org is used.
