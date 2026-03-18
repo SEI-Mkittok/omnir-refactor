@@ -15,7 +15,7 @@ export const apiClient = axios.create({
 // Track if a refresh is in-flight to avoid parallel refreshes
 let isRefreshing = false
 let failedQueue: Array<{
-  resolve: () => void
+  resolve: (value: unknown) => void
   reject: (reason?: unknown) => void
 }> = []
 
@@ -24,7 +24,7 @@ function processQueue(error: unknown) {
     if (error) {
       prom.reject(error)
     } else {
-      prom.resolve()
+      prom.resolve(undefined)
     }
   })
   failedQueue = []
