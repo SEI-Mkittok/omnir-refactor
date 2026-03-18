@@ -2,12 +2,9 @@ import { useState, useRef, useCallback } from 'react'
 import {
   User,
   Mail,
-  Building2,
-  StickyNote,
   Pencil,
   Check,
   X,
-  Plus,
   Loader2,
   ArrowRightLeft,
 } from 'lucide-react'
@@ -17,7 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
-import { useLead, useUpdateLead, useDeleteLead, useLeadNotes, useAddLeadNote } from '@/hooks/useLeads'
+import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads'
 import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
 import type { Lead, LeadStatus, UpdateLeadRequest } from '@/api/types'
 
@@ -28,6 +25,7 @@ export const leadStatusBadgeVariant: Record<LeadStatus, 'default' | 'blue' | 'ye
   contacted: 'yellow',
   qualified: 'green',
   unqualified: 'red',
+  converted: 'gray',
 }
 
 export const leadStatusLabel: Record<LeadStatus, string> = {
@@ -35,6 +33,7 @@ export const leadStatusLabel: Record<LeadStatus, string> = {
   contacted: 'Contacted',
   qualified: 'Qualified',
   unqualified: 'Unqualified',
+  converted: 'Converted',
 }
 
 // ── Editable field (reused from ContactDetailPanel pattern) ──────────────────
@@ -135,69 +134,6 @@ function StatusSelector({ current, onSave }: { current: LeadStatus; onSave: (s: 
   )
 }
 
-// ── Notes section ────────────────────────────────────────────────────────────
-
-function NotesSection({ leadId }: { leadId: string }) {
-  const { data: notes, isLoading } = useLeadNotes(leadId)
-  const addNote = useAddLeadNote()
-  const [draft, setDraft] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!draft.trim()) return
-    setSubmitting(true)
-    try {
-      await addNote.mutateAsync({ leadId, payload: { content: draft.trim() } })
-      setDraft('')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div>
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-700">
-        <StickyNote className="h-4 w-4" />
-        Notes
-      </h3>
-      <form onSubmit={handleSubmit} className="mb-4">
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a note…"
-          rows={2}
-          className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(e as unknown as React.FormEvent)
-          }}
-        />
-        <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-xs text-slate-400">⌘↵ to save</span>
-          <Button type="submit" size="sm" disabled={!draft.trim() || submitting}>
-            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            Add Note
-          </Button>
-        </div>
-      </form>
-      {isLoading ? (
-        <Spinner />
-      ) : notes && notes.length > 0 ? (
-        <ul className="space-y-2">
-          {notes.map((note) => (
-            <li key={note.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
-              <p className="text-sm text-slate-800 whitespace-pre-wrap">{note.content}</p>
-              <p className="mt-1 text-xs text-slate-400">{formatRelativeTime(note.created_at)}</p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-slate-400">No notes yet.</p>
-      )}
-    </div>
-  )
-}
-
 // ── Main panel ───────────────────────────────────────────────────────────────
 
 interface LeadDetailPanelProps {
@@ -231,7 +167,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
   if (!lead) return null
 
   const fullName = `${lead.first_name} ${lead.last_name}`
-  const isConverted = !!lead.converted_at
+  const isConverted = !!lead.converted_contact_id
 
   return (
     <>
@@ -268,7 +204,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
           {isConverted && (
             <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
               <ArrowRightLeft className="h-4 w-4 shrink-0" />
-              Converted to contact on {formatDate(lead.converted_at!)}
+              Converted to contact
             </div>
           )}
 
@@ -298,7 +234,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
               <EditableField label="First Name" value={lead.first_name} onSave={(v) => patch({ first_name: v })} />
               <EditableField label="Last Name" value={lead.last_name} onSave={(v) => patch({ last_name: v })} />
               <EditableField label="Company" value={lead.company} onSave={(v) => patch({ company: v })} placeholder="No company" />
-              <EditableField label="Source" value={lead.source} onSave={(v) => patch({ source: v })} placeholder="No source" />
+              <EditableField label="Source" value={lead.lead_source} onSave={(v) => patch({ lead_source: v })} placeholder="No source" />
             </div>
           </div>
 
@@ -322,8 +258,6 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
             )}
           </div>
 
-          {/* Notes */}
-          <NotesSection leadId={leadId} />
         </div>
       </SidePanel>
 

@@ -28,7 +28,7 @@ const INITIAL_FORM: CreateLeadRequest = {
   email: '',
   phone: '',
   company: '',
-  source: '',
+  lead_source: '',
   status: 'new',
 }
 
@@ -63,7 +63,7 @@ function LeadForm({ open, onClose }: LeadFormProps) {
       ...form,
       phone: form.phone || undefined,
       company: form.company || undefined,
-      source: form.source || undefined,
+      lead_source: form.lead_source || undefined,
     })
     setForm(INITIAL_FORM)
     setErrors({})
@@ -113,7 +113,7 @@ function LeadForm({ open, onClose }: LeadFormProps) {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Source</label>
-              <Input value={form.source ?? ''} onChange={set('source')} placeholder="Website, Referral…" />
+              <Input value={form.lead_source ?? ''} onChange={set('lead_source')} placeholder="Website, Referral…" />
             </div>
           </div>
 
@@ -223,10 +223,10 @@ export function LeadsPage() {
       render: (l) => <span className="text-slate-600">{l.company ?? '—'}</span>,
     },
     {
-      key: 'source',
+      key: 'lead_source',
       header: 'Source',
       hideOnMobile: true,
-      render: (l) => <span className="text-slate-500 text-xs">{l.source ?? '—'}</span>,
+      render: (l) => <span className="text-slate-500 text-xs">{l.lead_source ?? '—'}</span>,
     },
     {
       key: 'status',
