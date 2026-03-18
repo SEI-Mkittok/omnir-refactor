@@ -186,9 +186,9 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
-			`(name ILIKE $%d OR domain ILIKE $%d)`, i, i,
+			`to_tsvector('english', name || ' ' || coalesce(domain, '') || ' ' || coalesce(industry, '')) @@ plainto_tsquery('english', $%d)`, i,
 		))
-		args = append(args, "%"+f.Q+"%")
+		args = append(args, f.Q)
 		i++
 	}
 
