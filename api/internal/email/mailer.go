@@ -32,6 +32,17 @@ func (m *Mailer) SendAssigned(toEmail, assigneeName, ticketID, subject string) e
 	})
 }
 
+// SendDirect sends a plain-text/HTML email directly from the CRM compose UI.
+// If SMTP is disabled the call is a no-op and returns nil.
+func (m *Mailer) SendDirect(toEmail, subject, body string) error {
+	return m.sender.Send(Message{
+		To:      toEmail,
+		Subject: subject,
+		HTML:    fmt.Sprintf("<p>%s</p>", body),
+		Text:    body,
+	})
+}
+
 // SendResolved sends an email notifying the reporter that ticket was resolved or closed.
 func (m *Mailer) SendResolved(toEmail, reporterName, ticketID, subject, status string) error {
 	html, text, err := RenderResolved(TicketResolvedData{

@@ -78,6 +78,7 @@ func main() {
 	slaPolicyRepo := postgres.NewSLAPolicyRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 	apiKeyRepo := postgres.NewAPIKeyRepo(db)
+	emailRepo := postgres.NewEmailRepo(db)
 
 	// Email delivery
 	smtpSender := email.NewSender(cfg.SMTP)
@@ -126,6 +127,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
+	emailHandler := handler.NewEmailHandler(emailRepo, mailer, cfg.SMTP.From)
 
 	r := chi.NewRouter()
 
@@ -174,6 +176,9 @@ func main() {
 		r.Route("/contacts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", contactNoteHandler.Router())
 		})
+		r.Route("/contacts/{id}/emails", func(r chi.Router) {
+			r.Mount("/", emailHandler.ContactEmailRouter())
+		})
 		r.Mount("/accounts", accountHandler.Router())
 		r.Route("/accounts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", accountNoteHandler.Router())
@@ -195,6 +200,7 @@ func main() {
 		r.Mount("/reports", reportsHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
 		r.Mount("/api-keys", apiKeyHandler.Router())
+		r.Mount("/emails", emailHandler.Router())
 	})
 
 	srv := &http.Server{
