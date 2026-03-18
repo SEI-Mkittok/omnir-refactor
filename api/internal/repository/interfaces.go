@@ -128,3 +128,15 @@ type TicketAttachmentRepository interface {
 	List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error)
 	Delete(ctx context.Context, id, ticketID uuid.UUID) error
 }
+
+// SLAPolicyRepository defines the persistence contract for SLA policies.
+type SLAPolicyRepository interface {
+	Create(ctx context.Context, p *domain.SLAPolicy) (*domain.SLAPolicy, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.SLAPolicy, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.SLAPolicyPatch) (*domain.SLAPolicy, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, orgID uuid.UUID) ([]*domain.SLAPolicy, error)
+	// MatchByPriority returns the first SLA policy whose priority_filter includes
+	// the given priority, scoped to the org in context. Returns nil, nil when none match.
+	MatchByPriority(ctx context.Context, priority domain.TicketPriority) (*domain.SLAPolicy, error)
+}

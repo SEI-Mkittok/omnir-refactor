@@ -45,21 +45,23 @@ func (p TicketPriority) IsValid() bool {
 
 // Ticket represents a help-desk support ticket.
 type Ticket struct {
-	ID           uuid.UUID      `json:"id"`
-	OrgID        uuid.UUID      `json:"org_id"`
-	Subject      string         `json:"subject"`
-	Description  *string        `json:"description,omitempty"`
-	Status       TicketStatus   `json:"status"`
-	Priority     TicketPriority `json:"priority"`
-	AssigneeID   *uuid.UUID     `json:"assignee_id,omitempty"`
-	ContactID    *uuid.UUID     `json:"contact_id,omitempty"`
-	AccountID    *uuid.UUID     `json:"account_id,omitempty"`
-	Source       *string        `json:"source,omitempty"`
-	Tags         []string       `json:"tags"`
-	CustomFields []byte         `json:"custom_fields,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    *time.Time     `json:"deleted_at,omitempty"`
+	ID               uuid.UUID      `json:"id"`
+	OrgID            uuid.UUID      `json:"org_id"`
+	Subject          string         `json:"subject"`
+	Description      *string        `json:"description,omitempty"`
+	Status           TicketStatus   `json:"status"`
+	Priority         TicketPriority `json:"priority"`
+	AssigneeID       *uuid.UUID     `json:"assignee_id,omitempty"`
+	ContactID        *uuid.UUID     `json:"contact_id,omitempty"`
+	AccountID        *uuid.UUID     `json:"account_id,omitempty"`
+	Source           *string        `json:"source,omitempty"`
+	Tags             []string       `json:"tags"`
+	CustomFields     []byte         `json:"custom_fields,omitempty"`
+	SLAPolicyID      *uuid.UUID     `json:"sla_policy_id,omitempty"`
+	FirstRespondedAt *time.Time     `json:"first_responded_at,omitempty"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        *time.Time     `json:"deleted_at,omitempty"`
 }
 
 // TicketPatch holds optional fields for partial ticket updates.

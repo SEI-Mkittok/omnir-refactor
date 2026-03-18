@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -18,14 +19,22 @@ type TicketHandler struct {
 	tickets     repository.TicketRepository
 	comments    repository.TicketCommentRepository
 	attachments repository.TicketAttachmentRepository
+	slaPolicies repository.SLAPolicyRepository
 }
 
 func NewTicketHandler(
 	tickets repository.TicketRepository,
 	comments repository.TicketCommentRepository,
 	attachments repository.TicketAttachmentRepository,
+	slaPolicies repository.SLAPolicyRepository,
 ) *TicketHandler {
-	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments}
+	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments, slaPolicies: slaPolicies}
+}
+
+// ticketResponse wraps a Ticket with computed SLA status for API responses.
+type ticketResponse struct {
+	*domain.Ticket
+	SLA *domain.SLAStatus `json:"sla,omitempty"`
 }
 
 func (h *TicketHandler) Router() chi.Router {
@@ -146,7 +155,22 @@ func (h *TicketHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, t)
+
+	resp := &ticketResponse{Ticket: t}
+	if t.SLAPolicyID != nil && h.slaPolicies != nil {
+		if policy, err := h.slaPolicies.GetByID(r.Context(), *t.SLAPolicyID); err == nil {
+			responseDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResponseTimeHours))
+			breached := time.Now().UTC().After(responseDue) && t.FirstRespondedAt == nil
+			resp.SLA = &domain.SLAStatus{
+				PolicyID:         t.SLAPolicyID,
+				ResponseDueAt:    &responseDue,
+				ResponseBreached: breached,
+				FirstRespondedAt: t.FirstRespondedAt,
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
