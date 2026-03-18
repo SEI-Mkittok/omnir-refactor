@@ -98,6 +98,7 @@ func TestCustomFieldHandler_Create_Valid(t *testing.T) {
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
+	repo.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{}, nil)
 	repo.On("Create", mock.Anything, mock.Anything).Return(def, nil)
 
 	req := cfdAdminReq(t, http.MethodPost, "/custom-fields", map[string]any{
@@ -138,6 +139,46 @@ func TestCustomFieldHandler_Create_InvalidEntityType(t *testing.T) {
 		"entity_type": "invoice",
 		"name":        "tier",
 		"label":       "Tier",
+		"field_type":  "text",
+	})
+	w := httptest.NewRecorder()
+	cfdRouter(h).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+func TestCustomFieldHandler_Create_InvalidName(t *testing.T) {
+	cases := []string{"TitleCase", "123start", "has-hyphen", "has space", ""}
+	for _, name := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := handler.NewCustomFieldHandler(&cfdMock{})
+			req := cfdAdminReq(t, http.MethodPost, "/custom-fields", map[string]any{
+				"entity_type": "contact",
+				"name":        name,
+				"label":       "Label",
+				"field_type":  "text",
+			})
+			w := httptest.NewRecorder()
+			cfdRouter(h).ServeHTTP(w, req)
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code, "name=%q should be rejected", name)
+		})
+	}
+}
+
+func TestCustomFieldHandler_Create_MaxFieldsExceeded(t *testing.T) {
+	repo := &cfdMock{}
+	h := handler.NewCustomFieldHandler(repo)
+
+	existing := make([]*domain.CustomFieldDefinition, 50)
+	for i := range existing {
+		existing[i] = &domain.CustomFieldDefinition{ID: uuid.New()}
+	}
+	repo.On("List", mock.Anything, mock.Anything).Return(existing, nil)
+
+	req := cfdAdminReq(t, http.MethodPost, "/custom-fields", map[string]any{
+		"entity_type": "contact",
+		"name":        "overflow_field",
+		"label":       "Overflow",
 		"field_type":  "text",
 	})
 	w := httptest.NewRecorder()
