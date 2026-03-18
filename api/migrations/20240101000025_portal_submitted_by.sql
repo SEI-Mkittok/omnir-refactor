@@ -5,7 +5,7 @@
 ALTER TABLE tickets
     ADD COLUMN IF NOT EXISTS submitted_by_user_id UUID REFERENCES users(id);
 
-CREATE INDEX idx_tickets_submitted_by ON tickets (submitted_by_user_id)
+CREATE INDEX IF NOT EXISTS idx_tickets_submitted_by ON tickets (submitted_by_user_id)
     WHERE submitted_by_user_id IS NOT NULL;
 
 -- +goose Down
