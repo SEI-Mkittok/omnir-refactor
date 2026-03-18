@@ -33,17 +33,19 @@ const mockDeal = {
 
 export const handlers = [
   // Auth
-  http.post('/api/v1/auth/login', async ({ request }) => {
+  http.post('/api/auth/login', async ({ request }) => {
     const body = (await request.json()) as { email: string; password: string }
     if (body.email === 'admin@omnir.test' && body.password === 'testpassword') {
       return HttpResponse.json({
-        accessToken: 'mock.access.token',
-        refreshToken: 'mock.refresh.token',
-        expiresIn: 900,
+        user: { id: 'user-1', email: 'admin@omnir.test', name: 'Admin', role: 'admin' },
       })
     }
     return HttpResponse.json({ error: 'Invalid credentials' }, { status: 401 })
   }),
+
+  http.post('/api/auth/refresh', () => new HttpResponse(null, { status: 204 })),
+
+  http.post('/api/auth/logout', () => new HttpResponse(null, { status: 204 })),
 
   http.get('/api/v1/auth/me', () =>
     HttpResponse.json({ id: 'user-1', email: 'admin@omnir.test', name: 'Admin', role: 'admin' })
