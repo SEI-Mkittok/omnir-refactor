@@ -135,7 +135,7 @@ func TestCustomFieldHandler_Create_InvalidEntityType(t *testing.T) {
 	h := handler.NewCustomFieldHandler(&cfdMock{})
 
 	req := cfdAdminReq(t, http.MethodPost, "/custom-fields", map[string]any{
-		"entity_type": "deal",
+		"entity_type": "invoice",
 		"name":        "tier",
 		"label":       "Tier",
 		"field_type":  "text",
