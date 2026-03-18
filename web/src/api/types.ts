@@ -645,3 +645,32 @@ export interface OrgListParams {
   per_page?: number
   q?: string
 }
+
+// ---- Contact Emails ----
+
+export type EmailDirection = 'inbound' | 'outbound'
+
+export interface ContactEmail {
+  id: string
+  org_id: string
+  contact_id?: string
+  deal_id?: string
+  direction: EmailDirection
+  from_addr: string
+  to_addr: string
+  subject: string
+  body: string
+  thread_id: string
+  message_id?: string
+  sent_at: string
+  created_at: string
+}
+
+export interface SendEmailRequest {
+  contact_id?: string
+  deal_id?: string
+  to: string
+  subject: string
+  body: string
+  thread_id?: string
+}
