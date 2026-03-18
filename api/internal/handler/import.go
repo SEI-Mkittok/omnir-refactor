@@ -193,6 +193,13 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 
 		email := getField(row, idx, "email")
 
+		// Validate email format when provided.
+		if email != "" && !strings.Contains(email, "@") {
+			result.Failed++
+			result.Errors = append(result.Errors, ImportError{Row: rowNum, Error: "invalid email format"})
+			continue
+		}
+
 		// Upsert by email when present.
 		if email != "" {
 			existing, lookupErr := h.contacts.GetByEmail(r.Context(), email)
@@ -238,7 +245,7 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := http.StatusOK
-	if result.Failed > 0 && result.Created == 0 && result.Updated == 0 {
+	if result.Failed > 0 {
 		status = http.StatusUnprocessableEntity
 	}
 	writeJSON(w, status, result)
@@ -285,7 +292,8 @@ func (h *ImportHandler) ImportAccounts(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Upsert by name.
+		// Upsert by name (exact match within org). Note: accounts with the same name but
+		// different domains are treated as duplicates — intentional Phase 6 limitation.
 		existing, lookupErr := h.accounts.GetByName(r.Context(), name)
 		if lookupErr == nil && existing != nil {
 			patch := domain.AccountPatch{
@@ -325,7 +333,7 @@ func (h *ImportHandler) ImportAccounts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := http.StatusOK
-	if result.Failed > 0 && result.Created == 0 && result.Updated == 0 {
+	if result.Failed > 0 {
 		status = http.StatusUnprocessableEntity
 	}
 	writeJSON(w, status, result)
@@ -339,6 +347,8 @@ func (h *ImportHandler) ImportLeads(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "could not parse upload: "+err.Error())
 		return
 	}
+
+	ownerID := callerUserID(r)
 
 	headers, err := csvReader.Read()
 	if err != nil {
@@ -379,6 +389,7 @@ func (h *ImportHandler) ImportLeads(w http.ResponseWriter, r *http.Request) {
 			Company:    strPtr(getField(row, idx, "company")),
 			LeadSource: strPtr(getField(row, idx, "lead_source")),
 			Status:     domain.LeadStatusNew,
+			OwnerID:    &ownerID,
 		}
 
 		if _, createErr := h.leads.Create(r.Context(), l); createErr != nil {
@@ -390,7 +401,7 @@ func (h *ImportHandler) ImportLeads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := http.StatusOK
-	if result.Failed > 0 && result.Created == 0 {
+	if result.Failed > 0 {
 		status = http.StatusUnprocessableEntity
 	}
 	writeJSON(w, status, result)
