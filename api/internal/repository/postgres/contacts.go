@@ -64,12 +64,12 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 		INSERT INTO contacts
 			(id, org_id, first_name, last_name, email, phone,
 			 account_id, owner_id, lead_source, stage, tags,
-			 custom_fields, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+			 custom_fields, converted_from_lead_id, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING `+contactCols,
 		c.ID, c.OrgID, c.FirstName, c.LastName, c.Email, c.Phone,
 		c.AccountID, c.OwnerID, c.LeadSource, c.Stage, c.Tags,
-		c.CustomFields, c.CreatedAt, c.UpdatedAt,
+		c.CustomFields, c.ConvertedFromLeadID, c.CreatedAt, c.UpdatedAt,
 	)
 	return scanContact(row)
 }
