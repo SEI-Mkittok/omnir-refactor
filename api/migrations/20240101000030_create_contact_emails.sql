@@ -1,3 +1,4 @@
+-- +goose Up
 -- contact_emails stores inbound and outbound emails linked to CRM contacts/deals.
 CREATE TABLE contact_emails (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -18,3 +19,7 @@ CREATE TABLE contact_emails (
 CREATE INDEX idx_contact_emails_contact_id ON contact_emails(contact_id);
 CREATE INDEX idx_contact_emails_org_id     ON contact_emails(org_id);
 CREATE INDEX idx_contact_emails_thread_id  ON contact_emails(thread_id);
+
+-- +goose Down
+
+DROP TABLE IF EXISTS contact_emails;
