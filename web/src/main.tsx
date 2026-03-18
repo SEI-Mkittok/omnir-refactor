@@ -7,6 +7,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { SetupPage } from '@/pages/SetupPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ContactsPage } from '@/pages/ContactsPage'
+import { LeadsPage } from '@/pages/LeadsPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { DealsPage } from '@/pages/DealsPage'
 import { UsersPage } from '@/pages/UsersPage'
@@ -61,6 +62,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/leads" element={<LeadsPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/search" element={<SearchPage />} />
