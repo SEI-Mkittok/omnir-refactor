@@ -25,7 +25,7 @@ func NewTicketRepo(db *pgxpool.Pool) *TicketRepo {
 
 const ticketCols = `
 	id, org_id, subject, description, status, priority,
-	assignee_id, contact_id, account_id, source, tags,
+	assignee_id, contact_id, account_id, source, email_message_id, tags,
 	custom_fields, sla_policy_id, first_responded_at, submitted_by_user_id, created_at, updated_at, deleted_at
 `
 
@@ -33,7 +33,7 @@ func scanTicket(row pgx.Row) (*domain.Ticket, error) {
 	var t domain.Ticket
 	err := row.Scan(
 		&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
-		&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.Tags,
+		&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.EmailMessageID, &t.Tags,
 		&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.SubmittedByUserID, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 	)
 	if err != nil {
@@ -85,12 +85,12 @@ func (r *TicketRepo) Create(ctx context.Context, t *domain.Ticket) (*domain.Tick
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO tickets
 			(id, org_id, subject, description, status, priority,
-			 assignee_id, contact_id, account_id, source, tags,
+			 assignee_id, contact_id, account_id, source, email_message_id, tags,
 			 custom_fields, sla_policy_id, submitted_by_user_id, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		RETURNING `+ticketCols,
 		t.ID, t.OrgID, t.Subject, t.Description, t.Status, t.Priority,
-		t.AssigneeID, t.ContactID, t.AccountID, t.Source, t.Tags,
+		t.AssigneeID, t.ContactID, t.AccountID, t.Source, t.EmailMessageID, t.Tags,
 		t.CustomFields, slaID, t.SubmittedByUserID, t.CreatedAt, t.UpdatedAt,
 	)
 	return scanTicket(row)
@@ -104,6 +104,18 @@ func (r *TicketRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket,
 		q += ` AND org_id=$2`
 		args = append(args, orgID)
 	}
+	return scanTicket(r.db.QueryRow(ctx, q, args...))
+}
+
+func (r *TicketRepo) GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error) {
+	q := `SELECT ` + ticketCols + ` FROM tickets WHERE email_message_id=$1 AND deleted_at IS NULL`
+	args := []any{messageID}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
 	return scanTicket(r.db.QueryRow(ctx, q, args...))
 }
 
@@ -268,7 +280,7 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		var t domain.Ticket
 		if err := rows.Scan(
 			&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
-			&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.Tags,
+			&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.EmailMessageID, &t.Tags,
 			&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.SubmittedByUserID, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 		); err != nil {
 			return nil, 0, err

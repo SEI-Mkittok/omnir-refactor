@@ -30,6 +30,14 @@ func (m *MockContactRepository) GetByID(ctx context.Context, id uuid.UUID) (*dom
 	return args.Get(0).(*domain.Contact), args.Error(1)
 }
 
+func (m *MockContactRepository) GetByEmail(ctx context.Context, email string) (*domain.Contact, error) {
+	args := m.Called(ctx, email)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Contact), args.Error(1)
+}
+
 func (m *MockContactRepository) Update(ctx context.Context, id uuid.UUID, patch domain.ContactPatch) (*domain.Contact, error) {
 	args := m.Called(ctx, id, patch)
 	if args.Get(0) == nil {

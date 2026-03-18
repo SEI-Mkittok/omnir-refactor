@@ -16,14 +16,15 @@ const (
 
 // Config holds all runtime configuration loaded from environment variables.
 type Config struct {
-	Env         string
-	Port        string
-	DatabaseURL string
-	JWTSecret   string
-	CORSOrigins []string
-	LogLevel    string
-	OrgMode     OrgMode
-	SMTP        SMTPConfig
+	Env           string
+	Port          string
+	DatabaseURL   string
+	JWTSecret     string
+	CORSOrigins   []string
+	LogLevel      string
+	OrgMode       OrgMode
+	SMTP          SMTPConfig
+	WebhookSecret string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -55,6 +56,7 @@ func Load() *Config {
 			Password: getEnv("SMTP_PASSWORD", ""),
 			From:     getEnv("SMTP_FROM", "noreply@omnir.io"),
 		},
+		WebhookSecret: getEnv("WEBHOOK_SECRET", ""),
 	}
 }
 
