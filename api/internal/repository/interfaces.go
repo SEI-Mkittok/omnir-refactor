@@ -105,3 +105,26 @@ type LeadRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.LeadFilter) ([]*domain.Lead, int, error)
 }
+
+// TicketRepository defines the persistence contract for help-desk tickets.
+type TicketRepository interface {
+	Create(ctx context.Context, t *domain.Ticket) (*domain.Ticket, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.TicketFilter) ([]*domain.Ticket, int, error)
+}
+
+// TicketCommentRepository defines the persistence contract for ticket comments.
+type TicketCommentRepository interface {
+	Create(ctx context.Context, c *domain.TicketComment) (*domain.TicketComment, error)
+	List(ctx context.Context, filter domain.TicketCommentFilter) ([]*domain.TicketComment, error)
+	Delete(ctx context.Context, id, ticketID uuid.UUID) error
+}
+
+// TicketAttachmentRepository defines the persistence contract for ticket attachments.
+type TicketAttachmentRepository interface {
+	Create(ctx context.Context, a *domain.TicketAttachment) (*domain.TicketAttachment, error)
+	List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error)
+	Delete(ctx context.Context, id, ticketID uuid.UUID) error
+}
