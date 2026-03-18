@@ -20,7 +20,7 @@ const AUTH_BASE = import.meta.env.VITE_AUTH_URL || '/api'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { setTokens, setUser } = useAuthStore()
+  const { setUser } = useAuthStore()
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -34,9 +34,8 @@ export function LoginPage() {
   async function onSubmit(data: LoginForm) {
     setError(null)
     try {
-      const res = await axios.post(`${AUTH_BASE}/auth/login`, data)
-      const { access_token, refresh_token, user } = res.data
-      setTokens(access_token, refresh_token)
+      const res = await axios.post(`${AUTH_BASE}/auth/login`, data, { withCredentials: true })
+      const { user } = res.data
       if (user) setUser(user)
       navigate('/contacts')
     } catch (err: unknown) {

@@ -33,14 +33,14 @@ var okHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 func TestRequireRole(t *testing.T) {
 	jwtSvc := auth.NewJWTService("test-secret")
 
-	// Helper: build a request with a real JWT so Authenticate + RequireRole work.
+	// Helper: build a request with a real JWT in an httpOnly cookie.
 	makeAuthedRequest := func(role string) *http.Request {
 		token, err := jwtSvc.Issue(auth.Claims{Role: role}, 60*1000000000 /* 1 min */)
 		if err != nil {
 			t.Fatalf("issue token: %v", err)
 		}
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
 		return req
 	}
 

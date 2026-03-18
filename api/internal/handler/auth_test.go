@@ -39,7 +39,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name: "returns tokens on valid credentials",
+			name: "sets cookies on valid credentials",
 			body: map[string]any{"email": "user@example.com", "password": password},
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("FindByEmail", mock.Anything, "user@example.com").Return(user, string(hash), nil)
@@ -106,11 +106,23 @@ func TestAuthHandler_Login(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, rr.Code)
 
 			if tt.wantStatus == http.StatusOK {
+				// Tokens must be in httpOnly cookies, not the response body
+				cookies := rr.Result().Cookies()
+				cookieMap := make(map[string]*http.Cookie)
+				for _, c := range cookies {
+					cookieMap[c.Name] = c
+				}
+				require.Contains(t, cookieMap, "access_token", "access_token cookie must be set")
+				assert.True(t, cookieMap["access_token"].HttpOnly, "access_token must be httpOnly")
+				assert.Equal(t, http.SameSiteStrictMode, cookieMap["access_token"].SameSite)
+				require.Contains(t, cookieMap, "refresh_token", "refresh_token cookie must be set")
+				assert.True(t, cookieMap["refresh_token"].HttpOnly, "refresh_token must be httpOnly")
+
 				var resp map[string]any
 				require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-				assert.NotEmpty(t, resp["access_token"])
-				assert.NotEmpty(t, resp["refresh_token"])
 				assert.NotNil(t, resp["user"])
+				assert.Nil(t, resp["access_token"], "tokens must not be in response body")
+				assert.Nil(t, resp["refresh_token"], "tokens must not be in response body")
 			}
 
 			mockRepo.AssertExpectations(t)
@@ -132,34 +144,33 @@ func TestAuthHandler_Refresh(t *testing.T) {
 	expiredToken, _ := expiredJwtSvc.Issue(validClaims, -1*time.Second)
 
 	tests := []struct {
-		name       string
-		body       any
-		wantStatus int
+		name        string
+		cookieValue string
+		setCookie   bool
+		wantStatus  int
 	}{
 		{
-			name:       "returns new access token for valid refresh token",
-			body:       map[string]any{"refresh_token": validToken},
-			wantStatus: http.StatusOK,
+			name:        "rotates cookies for valid refresh token",
+			cookieValue: validToken,
+			setCookie:   true,
+			wantStatus:  http.StatusNoContent,
 		},
 		{
-			name:       "returns 401 for expired token",
-			body:       map[string]any{"refresh_token": expiredToken},
+			name:        "returns 401 for expired token",
+			cookieValue: expiredToken,
+			setCookie:   true,
+			wantStatus:  http.StatusUnauthorized,
+		},
+		{
+			name:        "returns 401 for invalid token",
+			cookieValue: "not.a.token",
+			setCookie:   true,
+			wantStatus:  http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 401 for missing cookie",
+			setCookie:  false,
 			wantStatus: http.StatusUnauthorized,
-		},
-		{
-			name:       "returns 401 for invalid token",
-			body:       map[string]any{"refresh_token": "not.a.token"},
-			wantStatus: http.StatusUnauthorized,
-		},
-		{
-			name:       "returns 422 for missing refresh_token",
-			body:       map[string]any{},
-			wantStatus: http.StatusUnprocessableEntity,
-		},
-		{
-			name:       "returns 400 for invalid JSON",
-			body:       nil,
-			wantStatus: http.StatusBadRequest,
 		},
 	}
 
@@ -168,29 +179,49 @@ func TestAuthHandler_Refresh(t *testing.T) {
 			mockRepo := new(mocks.MockUserRepository)
 			h := handler.NewAuthHandler(mockRepo, jwtSvc)
 
-			var body []byte
-			if tt.body != nil {
-				body, _ = json.Marshal(tt.body)
-			} else {
-				body = []byte("not-json")
+			req := httptest.NewRequest(http.MethodPost, "/refresh", nil)
+			if tt.setCookie {
+				req.AddCookie(&http.Cookie{Name: "refresh_token", Value: tt.cookieValue})
 			}
-
-			req := httptest.NewRequest(http.MethodPost, "/refresh", bytes.NewReader(body))
-			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
 
 			h.Router().ServeHTTP(rr, req)
 
 			assert.Equal(t, tt.wantStatus, rr.Code)
 
-			if tt.wantStatus == http.StatusOK {
-				var resp map[string]any
-				require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-				assert.NotEmpty(t, resp["access_token"])
-				assert.Nil(t, resp["refresh_token"])
+			if tt.wantStatus == http.StatusNoContent {
+				cookies := rr.Result().Cookies()
+				cookieMap := make(map[string]*http.Cookie)
+				for _, c := range cookies {
+					cookieMap[c.Name] = c
+				}
+				require.Contains(t, cookieMap, "access_token", "new access_token cookie must be set")
+				assert.True(t, cookieMap["access_token"].HttpOnly)
+				require.Contains(t, cookieMap, "refresh_token", "new refresh_token cookie must be set")
 			}
-
-			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestAuthHandler_Logout(t *testing.T) {
+	mockRepo := new(mocks.MockUserRepository)
+	jwtSvc := auth.NewJWTService("test-secret")
+	h := handler.NewAuthHandler(mockRepo, jwtSvc)
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	rr := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusNoContent, rr.Code)
+
+	cookies := rr.Result().Cookies()
+	cookieMap := make(map[string]*http.Cookie)
+	for _, c := range cookies {
+		cookieMap[c.Name] = c
+	}
+	require.Contains(t, cookieMap, "access_token")
+	assert.Equal(t, -1, cookieMap["access_token"].MaxAge)
+	require.Contains(t, cookieMap, "refresh_token")
+	assert.Equal(t, -1, cookieMap["refresh_token"].MaxAge)
 }

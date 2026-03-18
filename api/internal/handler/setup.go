@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -49,11 +48,6 @@ type setupRequest struct {
 	Password    string `json:"password"`
 }
 
-type setupResponse struct {
-	AccessToken  string       `json:"access_token"`
-	RefreshToken string       `json:"refresh_token"`
-	User         *domain.User `json:"user"`
-}
 
 // Setup creates the first admin user and seeds the default org.
 // POST /api/setup → {token, user} or 409 if already set up.
@@ -111,22 +105,26 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Issue access and refresh JWTs for immediate login.
+	// Issue access and refresh JWTs via httpOnly cookies for immediate login.
 	claims := auth.Claims{
 		UserID: created.ID,
 		OrgID:  created.OrgID,
 		Role:   string(created.Role),
 	}
-	accessToken, err := h.jwtSvc.Issue(claims, 24*time.Hour)
+	accessToken, err := h.jwtSvc.Issue(claims, accessTokenTTL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	refreshToken, err := h.jwtSvc.Issue(claims, 7*24*time.Hour)
+	refreshToken, err := h.jwtSvc.Issue(claims, refreshTokenTTL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, setupResponse{AccessToken: accessToken, RefreshToken: refreshToken, User: created})
+	secure := r.TLS != nil
+	setAccessCookie(w, accessToken, secure)
+	setRefreshCookie(w, refreshToken, secure)
+
+	writeJSON(w, http.StatusCreated, map[string]any{"user": created})
 }

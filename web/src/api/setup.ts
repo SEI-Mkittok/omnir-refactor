@@ -15,8 +15,6 @@ export interface SetupRequest {
 }
 
 export interface SetupResponse {
-  access_token: string
-  refresh_token: string
   user: User
 }
 
@@ -26,6 +24,6 @@ export async function getSetupStatus(): Promise<SetupStatusResponse> {
 }
 
 export async function submitSetup(data: SetupRequest): Promise<SetupResponse> {
-  const res = await axios.post(`${BASE_URL}/setup`, data)
+  const res = await axios.post(`${BASE_URL}/setup`, data, { withCredentials: true })
   return res.data
 }
