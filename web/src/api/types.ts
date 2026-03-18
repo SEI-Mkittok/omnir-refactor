@@ -370,6 +370,7 @@ export interface Ticket {
   account?: Account
   source?: string
   custom_fields?: Record<string, unknown>
+  sla?: TicketSLA
   created_at: string
   updated_at: string
 }
@@ -421,6 +422,52 @@ export interface TicketListParams {
 export interface CreateTicketCommentRequest {
   body: string
   is_internal?: boolean
+}
+
+// ---- SLA ----
+
+export type SLAPriorityFilter = 'all' | 'low' | 'medium' | 'high' | 'critical'
+
+export interface SLAPolicy {
+  id: string
+  name: string
+  response_time_minutes: number
+  resolution_time_minutes: number
+  priority_filter: SLAPriorityFilter
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateSLAPolicyRequest {
+  name: string
+  response_time_minutes: number
+  resolution_time_minutes: number
+  priority_filter?: SLAPriorityFilter
+}
+
+export interface UpdateSLAPolicyRequest {
+  name?: string
+  response_time_minutes?: number
+  resolution_time_minutes?: number
+  priority_filter?: SLAPriorityFilter
+}
+
+export interface SLAPolicyListParams {
+  page?: number
+  per_page?: number
+  q?: string
+}
+
+export type SLATrackingStatus = 'on_track' | 'at_risk' | 'breached'
+
+export interface TicketSLA {
+  policy_id: string
+  policy_name: string
+  response_deadline: string
+  resolution_deadline: string
+  response_breached: boolean
+  resolution_breached: boolean
+  status: SLATrackingStatus
 }
 
 // ---- Lead ----

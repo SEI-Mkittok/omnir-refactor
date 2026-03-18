@@ -15,6 +15,7 @@ import { CustomFieldsPage } from '@/pages/CustomFieldsPage'
 import { APIKeysPage } from '@/pages/APIKeysPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { SLASettingsPage } from '@/pages/SLASettingsPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -90,6 +91,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <APIKeysPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/sla"
+          element={
+            <AdminRoute>
+              <SLASettingsPage />
             </AdminRoute>
           }
         />
