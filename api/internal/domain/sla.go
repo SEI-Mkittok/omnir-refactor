@@ -29,8 +29,12 @@ type SLAPolicyPatch struct {
 
 // SLAStatus is the computed SLA state included in ticket responses.
 type SLAStatus struct {
-	PolicyID          *uuid.UUID `json:"policy_id,omitempty"`
-	ResponseDueAt     *time.Time `json:"response_due_at,omitempty"`
-	ResponseBreached  bool       `json:"response_breached"`
-	FirstRespondedAt  *time.Time `json:"first_responded_at,omitempty"`
+	PolicyID           *uuid.UUID `json:"policy_id,omitempty"`
+	PolicyName         string     `json:"policy_name,omitempty"`
+	ResponseDueAt      *time.Time `json:"response_due_at,omitempty"`
+	ResolutionDueAt    *time.Time `json:"resolution_due_at,omitempty"`
+	ResponseBreached   bool       `json:"response_breached"`
+	ResolutionBreached bool       `json:"resolution_breached"`
+	FirstRespondedAt   *time.Time `json:"first_responded_at,omitempty"`
+	Status             string     `json:"status"` // on_track | at_risk | breached
 }
