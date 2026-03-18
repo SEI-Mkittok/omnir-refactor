@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppShell } from '@/components/layout/AppShell'
+import { PortalShell } from '@/components/layout/PortalShell'
 import { LoginPage } from '@/pages/LoginPage'
 import { SetupPage } from '@/pages/SetupPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -13,6 +14,10 @@ import { DealsPage } from '@/pages/DealsPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { PortalLoginPage } from '@/pages/portal/PortalLoginPage'
+import { PortalTicketsPage } from '@/pages/portal/PortalTicketsPage'
+import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
+import { PortalTicketDetailPage } from '@/pages/portal/PortalTicketDetailPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -58,6 +63,16 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<Navigate to="/login" replace />} />
+
+      {/* Client portal routes */}
+      <Route path="/portal/login" element={<PortalLoginPage />} />
+      <Route path="/portal" element={<PortalShell />}>
+        <Route index element={<Navigate to="/portal/tickets" replace />} />
+        <Route path="tickets" element={<PortalTicketsPage />} />
+        <Route path="tickets/new" element={<PortalSubmitPage />} />
+        <Route path="tickets/:id" element={<PortalTicketDetailPage />} />
+      </Route>
+
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />

@@ -27,7 +27,7 @@ export interface AuthTokens {
   expires_in: number
 }
 
-export type UserRole = 'admin' | 'user' | 'viewer'
+export type UserRole = 'admin' | 'agent' | 'client' | 'user' | 'viewer'
 
 export interface User {
   id: string
@@ -424,4 +424,44 @@ export interface ConvertLeadRequest {
 export interface ConvertLeadResponse {
   contact: Contact
   lead: Lead
+}
+
+// ---- Portal (client-facing) ----
+
+export type PortalTicketStatus = 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed'
+
+export interface PortalTicket {
+  id: string
+  subject: string
+  description?: string
+  status: PortalTicketStatus
+  priority: TicketPriority
+  submitted_by_user_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface PortalTicketComment {
+  id: string
+  ticket_id: string
+  body: string
+  is_internal: boolean
+  author_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePortalTicketRequest {
+  subject: string
+  description?: string
+  priority?: TicketPriority
+}
+
+export interface PortalTicketListParams {
+  page?: number
+  per_page?: number
+  search?: string
+  status?: PortalTicketStatus
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
 }
