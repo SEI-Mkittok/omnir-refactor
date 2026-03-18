@@ -114,12 +114,11 @@ func ValidateCustomFields(rawFields []byte, defs []*CustomFieldDefinition) error
 		}
 	}
 
-	// Type-check provided values.
+	// Type-check provided values; reject unknown field names.
 	for key, raw := range fields {
 		def, ok := defsByName[key]
 		if !ok {
-			// Unknown fields are allowed (forward compat); skip.
-			continue
+			return &ValidationError{Field: key, Message: fmt.Sprintf("unknown custom field %q", key)}
 		}
 		if err := validateFieldValue(def, raw); err != nil {
 			return err
@@ -128,7 +127,33 @@ func ValidateCustomFields(rawFields []byte, defs []*CustomFieldDefinition) error
 	return nil
 }
 
+// ExpandCustomFields merges stored JSONB values with defined field schemas,
+// returning a JSON object that includes all defined fields (null for unset ones).
+func ExpandCustomFields(rawFields []byte, defs []*CustomFieldDefinition) json.RawMessage {
+	result := make(map[string]json.RawMessage, len(defs))
+	for _, d := range defs {
+		result[d.Name] = json.RawMessage("null")
+	}
+	if len(rawFields) > 0 && string(rawFields) != "null" {
+		var stored map[string]json.RawMessage
+		if err := json.Unmarshal(rawFields, &stored); err == nil {
+			for k, v := range stored {
+				if _, ok := result[k]; ok {
+					result[k] = v
+				}
+			}
+		}
+	}
+	b, _ := json.Marshal(result)
+	return b
+}
+
 func validateFieldValue(def *CustomFieldDefinition, raw json.RawMessage) error {
+	// null JSON value means "clear this field" — always valid.
+	if string(raw) == "null" {
+		return nil
+	}
+
 	makeErr := func(msg string) *ValidationError {
 		return &ValidationError{Field: def.Name, Message: fmt.Sprintf("custom field %q: %s", def.Name, msg)}
 	}
