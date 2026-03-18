@@ -74,6 +74,8 @@ export interface Contact {
   title?: string
   department?: string
   stage: ContactStage
+  lead_score?: number
+  lead_source?: string
   account_id?: string
   account?: Account
   owner_id?: string
@@ -82,6 +84,8 @@ export interface Contact {
   deals?: Deal[]
   tags?: string[]
   custom_fields?: Record<string, unknown>
+  converted_at?: string
+  converted_from_lead_id?: string
   created_at: string
   updated_at: string
 }
@@ -489,6 +493,7 @@ export interface Lead {
   phone?: string
   company?: string
   lead_source?: string
+  lead_score: number
   status: LeadStatus
   owner_id?: string
   owner?: User
@@ -505,6 +510,7 @@ export interface CreateLeadRequest {
   phone?: string
   company?: string
   lead_source?: string
+  lead_score?: number
   status?: LeadStatus
   owner_id?: string
 }
@@ -519,6 +525,9 @@ export interface LeadListParams {
   search?: string
   status?: LeadStatus
   owner_id?: string
+  source?: string
+  score_min?: number
+  score_max?: number
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
 }

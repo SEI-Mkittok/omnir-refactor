@@ -13,6 +13,7 @@ export const leadKeys = {
   list: (params?: LeadListParams) => [...leadKeys.lists(), params] as const,
   details: () => [...leadKeys.all, 'detail'] as const,
   detail: (id: string) => [...leadKeys.details(), id] as const,
+  sources: () => [...leadKeys.all, 'sources'] as const,
 }
 
 export function useLeads(params?: LeadListParams) {
@@ -73,6 +74,14 @@ export function useConvertLead() {
       qc.invalidateQueries({ queryKey: leadKeys.lists() })
       qc.invalidateQueries({ queryKey: leadKeys.detail(id) })
     },
+  })
+}
+
+export function useLeadSources() {
+  return useQuery({
+    queryKey: leadKeys.sources(),
+    queryFn: () => leadsApi.sources(),
+    staleTime: 60_000,
   })
 }
 

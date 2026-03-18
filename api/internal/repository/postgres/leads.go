@@ -24,7 +24,7 @@ func NewLeadRepo(db *pgxpool.Pool) *LeadRepo {
 
 const leadCols = `
 	id, org_id, first_name, last_name, email, phone,
-	company, lead_source, status, owner_id,
+	company, lead_source, lead_score, status, owner_id,
 	converted_contact_id, custom_fields, vtiger_legacy_id,
 	created_at, updated_at, deleted_at
 `
@@ -34,7 +34,7 @@ func scanLead(row pgx.Row) (*domain.Lead, error) {
 	var customFields []byte
 	err := row.Scan(
 		&l.ID, &l.OrgID, &l.FirstName, &l.LastName, &l.Email, &l.Phone,
-		&l.Company, &l.LeadSource, &l.Status, &l.OwnerID,
+		&l.Company, &l.LeadSource, &l.Score, &l.Status, &l.OwnerID,
 		&l.ConvertedContactID, &customFields, &l.VtigerLegacyID,
 		&l.CreatedAt, &l.UpdatedAt, &l.DeletedAt,
 	)
@@ -73,13 +73,13 @@ func (r *LeadRepo) Create(ctx context.Context, l *domain.Lead) (*domain.Lead, er
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO leads
 			(id, org_id, first_name, last_name, email, phone,
-			 company, lead_source, status, owner_id,
+			 company, lead_source, lead_score, status, owner_id,
 			 converted_contact_id, custom_fields, vtiger_legacy_id,
 			 created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		RETURNING `+leadCols,
 		l.ID, l.OrgID, l.FirstName, l.LastName, l.Email, l.Phone,
-		l.Company, l.LeadSource, l.Status, l.OwnerID,
+		l.Company, l.LeadSource, l.Score, l.Status, l.OwnerID,
 		l.ConvertedContactID, customFields, l.VtigerLegacyID,
 		l.CreatedAt, l.UpdatedAt,
 	)
@@ -126,6 +126,17 @@ func (r *LeadRepo) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPa
 	}
 	if patch.LeadSource != nil {
 		addArg("lead_source", *patch.LeadSource)
+	}
+	if patch.Score != nil {
+		// Clamp score to [0, 100]
+		score := *patch.Score
+		if score < 0 {
+			score = 0
+		}
+		if score > 100 {
+			score = 100
+		}
+		addArg("lead_score", score)
 	}
 	if patch.Status != nil {
 		addArg("status", *patch.Status)
@@ -202,6 +213,19 @@ func (r *LeadRepo) List(ctx context.Context, f domain.LeadFilter) ([]*domain.Lea
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)
 	}
+	if f.Source != nil {
+		addWhere("lead_source", *f.Source)
+	}
+	if f.ScoreMin != nil {
+		where = append(where, fmt.Sprintf("lead_score >= $%d", i))
+		args = append(args, *f.ScoreMin)
+		i++
+	}
+	if f.ScoreMax != nil {
+		where = append(where, fmt.Sprintf("lead_score <= $%d", i))
+		args = append(args, *f.ScoreMax)
+		i++
+	}
 	if f.Q != "" {
 		// Use the GIN FTS index (idx_leads_fts) rather than ILIKE with a
 		// leading wildcard, which cannot use btree indexes and causes seq scans.
@@ -224,6 +248,7 @@ func (r *LeadRepo) List(ctx context.Context, f domain.LeadFilter) ([]*domain.Lea
 	allowedSorts := map[string]bool{
 		"created_at": true, "updated_at": true,
 		"first_name": true, "last_name": true, "email": true,
+		"lead_score": true, "status": true,
 	}
 	if allowedSorts[f.Sort] {
 		sortCol = f.Sort
@@ -271,4 +296,32 @@ func (r *LeadRepo) ConvertToContact(ctx context.Context, leadID, contactID uuid.
 
 	q += ` RETURNING ` + leadCols
 	return scanLead(r.db.QueryRow(ctx, q, args...))
+}
+
+// ListSources returns distinct non-null lead_source values for the org.
+func (r *LeadRepo) ListSources(ctx context.Context) ([]string, error) {
+	q := `SELECT DISTINCT lead_source FROM leads WHERE lead_source IS NOT NULL AND deleted_at IS NULL`
+	args := []any{}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$1`
+		args = append(args, orgID)
+	}
+	q += ` ORDER BY lead_source`
+
+	rows, err := r.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sources []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		sources = append(sources, s)
+	}
+	return sources, rows.Err()
 }

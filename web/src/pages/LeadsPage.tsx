@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, UserRound, Loader2, Upload } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useLeads, useCreateLead } from '@/hooks/useLeads'
+import { useLeads, useCreateLead, useLeadSources } from '@/hooks/useLeads'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input'
 import { formatDate } from '@/lib/utils'
 import { leadStatusBadgeVariant, leadStatusLabel } from '@/components/omnir/LeadDetailPanel'
 import { LeadDetailPanel } from '@/components/omnir/LeadDetailPanel'
+import { LeadScoreBadge } from '@/components/omnir/LeadScoreBadge'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
 import { ImportModal } from '@/components/omnir/ImportModal'
@@ -172,11 +173,19 @@ const STATUS_OPTIONS = [
   { label: 'Unqualified', value: 'unqualified' },
 ]
 
+const SCORE_RANGE_OPTIONS = [
+  { label: 'Cold (0–30)', value: '0:30' },
+  { label: 'Warm (31–60)', value: '31:60' },
+  { label: 'Hot (61–100)', value: '61:100' },
+]
+
 const SORT_OPTIONS = [
   { label: 'Newest', value: 'created_at:desc' },
   { label: 'Oldest', value: 'created_at:asc' },
   { label: 'Name A–Z', value: 'last_name:asc' },
   { label: 'Name Z–A', value: 'last_name:desc' },
+  { label: 'Score High–Low', value: 'lead_score:desc' },
+  { label: 'Score Low–High', value: 'lead_score:asc' },
 ]
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -185,6 +194,8 @@ export function LeadsPage() {
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [scoreRange, setScoreRange] = useState('')
+  const [source, setSource] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
@@ -194,11 +205,22 @@ export function LeadsPage() {
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
+  const { data: sourcesData } = useLeadSources()
+  const sourceOptions = (sourcesData ?? []).map((s) => ({ label: s, value: s }))
+
+  // Parse score range filter
+  const [scoreMin, scoreMax] = scoreRange
+    ? scoreRange.split(':').map(Number)
+    : [undefined, undefined]
+
   const { data, isLoading } = useLeads({
     page,
     per_page: 20,
     search: debouncedSearch || undefined,
     status: (status as LeadStatus) || undefined,
+    source: source || undefined,
+    score_min: scoreMin,
+    score_max: scoreMax,
     sort_by: sortBy,
     sort_dir: sortDir,
   })
@@ -226,21 +248,37 @@ export function LeadsPage() {
       ),
     },
     {
-      key: 'email',
-      header: 'Email',
-      render: (l) => <span className="text-slate-600">{l.email}</span>,
-    },
-    {
       key: 'company',
       header: 'Company',
       hideOnMobile: true,
       render: (l) => <span className="text-slate-600">{l.company ?? '—'}</span>,
     },
     {
+      key: 'lead_score',
+      header: 'Score',
+      sortable: true,
+      render: (l) => <LeadScoreBadge score={l.lead_score} />,
+    },
+    {
       key: 'lead_source',
       header: 'Source',
       hideOnMobile: true,
-      render: (l) => <span className="text-slate-500 text-xs">{l.lead_source ?? '—'}</span>,
+      render: (l) =>
+        l.lead_source ? (
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+            {l.lead_source}
+          </span>
+        ) : (
+          <span className="text-slate-400">—</span>
+        ),
+    },
+    {
+      key: 'owner',
+      header: 'Assigned To',
+      hideOnMobile: true,
+      render: (l) => (
+        <span className="text-slate-600 text-sm">{l.owner?.name ?? '—'}</span>
+      ),
     },
     {
       key: 'status',
@@ -292,6 +330,18 @@ export function LeadsPage() {
             value: status,
             options: STATUS_OPTIONS,
             onChange: (v) => { setStatus(v); setPage(1) },
+          },
+          {
+            label: 'Source',
+            value: source,
+            options: sourceOptions,
+            onChange: (v) => { setSource(v); setPage(1) },
+          },
+          {
+            label: 'Score',
+            value: scoreRange,
+            options: SCORE_RANGE_OPTIONS,
+            onChange: (v) => { setScoreRange(v); setPage(1) },
           },
           {
             label: 'Sort',
