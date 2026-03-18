@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
@@ -14,6 +14,7 @@ const baseNavItems = [
 
 const adminNavItems = [
   { to: '/users', icon: UserCog, label: 'Users' },
+  { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
 ]
 
 interface SidebarProps {
