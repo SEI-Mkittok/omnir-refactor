@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ type TicketHandler struct {
 	tickets     repository.TicketRepository
 	comments    repository.TicketCommentRepository
 	attachments repository.TicketAttachmentRepository
+	slaPolicies repository.SLAPolicyRepository
 	users       repository.UserRepository
 	notifPrefs  repository.NotificationPrefRepository
 	emailQueue  EmailEnqueuer // nil → email notifications disabled
@@ -34,8 +36,15 @@ func NewTicketHandler(
 	tickets repository.TicketRepository,
 	comments repository.TicketCommentRepository,
 	attachments repository.TicketAttachmentRepository,
+	slaPolicies repository.SLAPolicyRepository,
 ) *TicketHandler {
-	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments}
+	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments, slaPolicies: slaPolicies}
+}
+
+// ticketResponse wraps a Ticket with computed SLA status for API responses.
+type ticketResponse struct {
+	*domain.Ticket
+	SLA *domain.SLAStatus `json:"sla,omitempty"`
 }
 
 // WithEmailNotifications attaches the dependencies needed for outbound email notifications.
@@ -158,7 +167,45 @@ func (h *TicketHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, t)
+
+	resp := &ticketResponse{Ticket: t}
+	if t.SLAPolicyID != nil && h.slaPolicies != nil {
+		if policy, err := h.slaPolicies.GetByID(r.Context(), *t.SLAPolicyID); err == nil {
+			now := time.Now().UTC()
+			responseDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResponseTimeHours))
+			resolutionDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResolutionTimeHours))
+
+			responseBreached := now.After(responseDue) && t.FirstRespondedAt == nil
+			resolutionBreached := now.After(resolutionDue)
+
+			status := "on_track"
+			if responseBreached || resolutionBreached {
+				status = "breached"
+			} else {
+				responseTotal := responseDue.Sub(t.CreatedAt)
+				resolutionTotal := resolutionDue.Sub(t.CreatedAt)
+				responseRemaining := responseDue.Sub(now)
+				resolutionRemaining := resolutionDue.Sub(now)
+				if (t.FirstRespondedAt == nil && responseRemaining < responseTotal/5) ||
+					resolutionRemaining < resolutionTotal/5 {
+					status = "at_risk"
+				}
+			}
+
+			resp.SLA = &domain.SLAStatus{
+				PolicyID:           t.SLAPolicyID,
+				PolicyName:         policy.Name,
+				ResponseDueAt:      &responseDue,
+				ResolutionDueAt:    &resolutionDue,
+				ResponseBreached:   responseBreached,
+				ResolutionBreached: resolutionBreached,
+				FirstRespondedAt:   t.FirstRespondedAt,
+				Status:             status,
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
