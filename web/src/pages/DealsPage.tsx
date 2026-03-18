@@ -15,6 +15,7 @@ import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRender
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { downloadExportCsv } from '@/api/importExport'
+import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -157,6 +158,9 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
 
         {/* Activity Timeline */}
         <ActivityTimeline dealId={deal.id} />
+
+        {/* Attachments */}
+        <AttachmentsPanel entityType="deal" entityId={deal.id} />
       </div>
     </SidePanel>
   )

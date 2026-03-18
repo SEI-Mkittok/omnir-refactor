@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
+import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { ImportModal } from '@/components/omnir/ImportModal'
@@ -194,6 +195,9 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
             <p className="text-sm text-slate-400">No deals linked yet.</p>
           )}
         </div>
+
+        {/* Attachments */}
+        <AttachmentsPanel entityType="account" entityId={accountId} />
       </div>
     </SidePanel>
   )
