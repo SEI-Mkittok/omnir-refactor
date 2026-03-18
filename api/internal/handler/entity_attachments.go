@@ -16,6 +16,37 @@ import (
 	"github.com/omnir/crm-api/internal/repository"
 )
 
+// defaultAllowedMIMEs is the default set of permitted upload MIME types.
+var defaultAllowedMIMEs = map[string]bool{
+	"image/jpeg":                                                         true,
+	"image/png":                                                          true,
+	"image/gif":                                                          true,
+	"image/webp":                                                         true,
+	"application/pdf":                                                    true,
+	"application/msword":                                                 true,
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	"application/vnd.ms-excel":                                           true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+	"text/plain":                                                         true,
+	"text/csv":                                                           true,
+}
+
+// buildAllowedMIMEs returns the allowlist from the ATTACHMENT_ALLOWED_MIMES env var
+// (comma-separated), or defaultAllowedMIMEs if the env var is unset.
+func buildAllowedMIMEs() map[string]bool {
+	raw := os.Getenv("ATTACHMENT_ALLOWED_MIMES")
+	if raw == "" {
+		return defaultAllowedMIMEs
+	}
+	m := make(map[string]bool)
+	for _, t := range strings.Split(raw, ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			m[t] = true
+		}
+	}
+	return m
+}
+
 const (
 	maxUploadSize     = 25 << 20 // 25 MB
 	defaultUploadsDir = "uploads"
@@ -23,10 +54,11 @@ const (
 
 // EntityAttachmentHandler serves attachment sub-resources for contacts, accounts, and deals.
 type EntityAttachmentHandler struct {
-	repo        repository.EntityAttachmentRepository
-	uploadsDir  string
-	entityType  domain.EntityType
-	parentParam string
+	repo         repository.EntityAttachmentRepository
+	uploadsDir   string
+	entityType   domain.EntityType
+	parentParam  string
+	allowedMIMEs map[string]bool
 }
 
 func NewEntityAttachmentHandler(
@@ -39,10 +71,11 @@ func NewEntityAttachmentHandler(
 		uploadsDir = defaultUploadsDir
 	}
 	return &EntityAttachmentHandler{
-		repo:        repo,
-		uploadsDir:  uploadsDir,
-		entityType:  entityType,
-		parentParam: parentParam,
+		repo:         repo,
+		uploadsDir:   uploadsDir,
+		entityType:   entityType,
+		parentParam:  parentParam,
+		allowedMIMEs: buildAllowedMIMEs(),
 	}
 }
 
@@ -111,6 +144,17 @@ func (h *EntityAttachmentHandler) Upload(w http.ResponseWriter, r *http.Request)
 	contentType := http.DetectContentType(buf[:n])
 	if ct := header.Header.Get("Content-Type"); ct != "" && ct != "application/octet-stream" {
 		contentType = ct
+	}
+
+	// Validate MIME type against allowlist (strip parameters like charset).
+	mimeBase := strings.SplitN(contentType, ";", 2)[0]
+	mimeBase = strings.TrimSpace(mimeBase)
+	if !h.allowedMIMEs[mimeBase] {
+		writeJSON(w, http.StatusUnsupportedMediaType, map[string]string{
+			"error":     "file type not allowed",
+			"mime_type": mimeBase,
+		})
+		return
 	}
 
 	attachmentID := uuid.New()

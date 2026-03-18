@@ -60,7 +60,7 @@ func (r *EntityAttachmentRepo) Create(ctx context.Context, a *domain.EntityAttac
 
 func (r *EntityAttachmentRepo) List(ctx context.Context, entityType domain.EntityType, entityID uuid.UUID) ([]*domain.EntityAttachment, error) {
 	args := []any{entityType, entityID}
-	q := `SELECT ` + entityAttachmentCols + ` FROM entity_attachments WHERE entity_type = $1 AND entity_id = $2`
+	q := `SELECT ` + entityAttachmentCols + ` FROM entity_attachments WHERE entity_type = $1 AND entity_id = $2 AND deleted_at IS NULL`
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		q += ` AND org_id = $3`
@@ -89,7 +89,7 @@ func (r *EntityAttachmentRepo) List(ctx context.Context, entityType domain.Entit
 }
 
 func (r *EntityAttachmentRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.EntityAttachment, error) {
-	q := `SELECT ` + entityAttachmentCols + ` FROM entity_attachments WHERE id = $1`
+	q := `SELECT ` + entityAttachmentCols + ` FROM entity_attachments WHERE id = $1 AND deleted_at IS NULL`
 	args := []any{id}
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
@@ -102,7 +102,7 @@ func (r *EntityAttachmentRepo) GetByID(ctx context.Context, id uuid.UUID) (*doma
 }
 
 func (r *EntityAttachmentRepo) Delete(ctx context.Context, id uuid.UUID, entityType domain.EntityType, entityID uuid.UUID) error {
-	q := `DELETE FROM entity_attachments WHERE id = $1 AND entity_type = $2 AND entity_id = $3`
+	q := `UPDATE entity_attachments SET deleted_at = NOW() WHERE id = $1 AND entity_type = $2 AND entity_id = $3 AND deleted_at IS NULL`
 	args := []any{id, entityType, entityID}
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
