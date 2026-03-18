@@ -58,3 +58,27 @@ func (m *MockContactRepository) List(ctx context.Context, filter domain.ContactF
 	}
 	return args.Get(0).([]*domain.Contact), args.Int(1), args.Error(2)
 }
+
+func (m *MockContactRepository) UpdateLeadScore(ctx context.Context, id uuid.UUID, patch domain.LeadScorePatch) (*domain.Contact, error) {
+	args := m.Called(ctx, id, patch)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Contact), args.Error(1)
+}
+
+func (m *MockContactRepository) ConvertLead(ctx context.Context, id, byUserID uuid.UUID, dealID *uuid.UUID) (*domain.Contact, error) {
+	args := m.Called(ctx, id, byUserID, dealID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Contact), args.Error(1)
+}
+
+func (m *MockContactRepository) ListLeadSources(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}

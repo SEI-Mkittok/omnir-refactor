@@ -24,16 +24,18 @@ func NewContactRepo(db *pgxpool.Pool) *ContactRepo {
 
 const contactCols = `
 	id, org_id, first_name, last_name, email, phone,
-	account_id, owner_id, lead_source, stage, tags,
-	custom_fields, created_at, updated_at, deleted_at
+	account_id, owner_id, lead_source, lead_score, stage, tags,
+	custom_fields, converted_at, converted_by, converted_deal_id,
+	created_at, updated_at, deleted_at
 `
 
 func scanContact(row pgx.Row) (*domain.Contact, error) {
 	var c domain.Contact
 	err := row.Scan(
 		&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
-		&c.AccountID, &c.OwnerID, &c.LeadSource, &c.Stage, &c.Tags,
-		&c.CustomFields, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+		&c.AccountID, &c.OwnerID, &c.LeadSource, &c.LeadScore, &c.Stage, &c.Tags,
+		&c.CustomFields, &c.ConvertedAt, &c.ConvertedBy, &c.ConvertedDealID,
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -210,6 +212,19 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	if f.Stage != nil {
 		addWhere("stage", *f.Stage)
 	}
+	if f.Source != nil {
+		addWhere("lead_source", *f.Source)
+	}
+	if f.ScoreMin != nil {
+		where = append(where, fmt.Sprintf("lead_score >= $%d", i))
+		args = append(args, *f.ScoreMin)
+		i++
+	}
+	if f.ScoreMax != nil {
+		where = append(where, fmt.Sprintf("lead_score <= $%d", i))
+		args = append(args, *f.ScoreMax)
+		i++
+	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
 			`to_tsvector('english', first_name || ' ' || last_name || ' ' || coalesce(email, '') || ' ' || coalesce(phone, '')) @@ plainto_tsquery('english', $%d)`, i,
@@ -254,15 +269,102 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 
 	var contacts []*domain.Contact
 	for rows.Next() {
-		var c domain.Contact
-		if err := rows.Scan(
-			&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
-			&c.AccountID, &c.OwnerID, &c.LeadSource, &c.Stage, &c.Tags,
-			&c.CustomFields, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
-		); err != nil {
+		c, err := scanContact(rows)
+		if err != nil {
 			return nil, 0, err
 		}
-		contacts = append(contacts, &c)
+		contacts = append(contacts, c)
 	}
 	return contacts, total, rows.Err()
+}
+
+// UpdateLeadScore adjusts or sets the lead_score on a contact.
+// If patch.Score is set, it is applied as an absolute value.
+// If patch.Delta is set (and Score is nil), it is added to the current score (clamped to >= 0).
+func (r *ContactRepo) UpdateLeadScore(ctx context.Context, id uuid.UUID, patch domain.LeadScorePatch) (*domain.Contact, error) {
+	var scoreExpr string
+	var args []any
+	i := 1
+
+	if patch.Score != nil {
+		scoreExpr = fmt.Sprintf("lead_score = $%d", i)
+		args = append(args, *patch.Score)
+		i++
+	} else if patch.Delta != nil {
+		scoreExpr = fmt.Sprintf("lead_score = GREATEST(0, lead_score + $%d)", i)
+		args = append(args, *patch.Delta)
+		i++
+	} else {
+		return nil, fmt.Errorf("lead score patch must provide score or delta")
+	}
+
+	whereClause := fmt.Sprintf(`id = $%d AND deleted_at IS NULL`, i)
+	args = append(args, id)
+	i++
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		whereClause += fmt.Sprintf(` AND org_id = $%d`, i)
+		args = append(args, orgID)
+	}
+
+	q := fmt.Sprintf(`UPDATE contacts SET %s, updated_at = NOW() WHERE %s RETURNING %s`,
+		scoreExpr, whereClause, contactCols)
+	return scanContact(r.db.QueryRow(ctx, q, args...))
+}
+
+// ConvertLead transitions a contact from stage='lead' to stage='prospect',
+// recording who converted it and optionally which deal was created.
+// The operation is idempotent: if already converted, it returns the contact unchanged.
+func (r *ContactRepo) ConvertLead(ctx context.Context, id, byUserID uuid.UUID, dealID *uuid.UUID) (*domain.Contact, error) {
+	args := []any{byUserID, dealID, id}
+	i := 4
+
+	whereClause := `id = $3 AND deleted_at IS NULL`
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		whereClause += fmt.Sprintf(` AND org_id = $%d`, i)
+		args = append(args, orgID)
+	}
+
+	q := fmt.Sprintf(`
+		UPDATE contacts
+		SET stage = 'prospect',
+		    converted_at = COALESCE(converted_at, NOW()),
+		    converted_by = COALESCE(converted_by, $1),
+		    converted_deal_id = COALESCE(converted_deal_id, $2),
+		    updated_at = NOW()
+		WHERE %s
+		RETURNING %s`, whereClause, contactCols)
+	return scanContact(r.db.QueryRow(ctx, q, args...))
+}
+
+// ListLeadSources returns distinct non-null lead_source values for contacts
+// with stage='lead', scoped to the org in context.
+func (r *ContactRepo) ListLeadSources(ctx context.Context) ([]string, error) {
+	q := `SELECT DISTINCT lead_source FROM contacts WHERE stage = 'lead' AND lead_source IS NOT NULL AND deleted_at IS NULL`
+	args := []any{}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id = $1`
+		args = append(args, orgID)
+	}
+	q += ` ORDER BY lead_source`
+
+	rows, err := r.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sources []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		sources = append(sources, s)
+	}
+	if sources == nil {
+		sources = []string{}
+	}
+	return sources, rows.Err()
 }
