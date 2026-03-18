@@ -40,7 +40,7 @@ func TestExportHandler_Contacts(t *testing.T) {
 	contactRepo.On("List", mock.Anything, mock.MatchedBy(func(f domain.ContactFilter) bool { return f.Page == 1 })).
 		Return([]*domain.Contact{contact}, 1, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/export/contacts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
 	rec := httptest.NewRecorder()
 
 	h.Router().ServeHTTP(rec, req)
@@ -71,7 +71,7 @@ func TestExportHandler_Accounts(t *testing.T) {
 	accountRepo.On("List", mock.Anything, mock.MatchedBy(func(f domain.AccountFilter) bool { return f.Page == 1 })).
 		Return([]*domain.Account{account}, 1, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/export/accounts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/accounts", nil)
 	rec := httptest.NewRecorder()
 
 	h.Router().ServeHTTP(rec, req)
@@ -101,7 +101,7 @@ func TestExportHandler_Deals(t *testing.T) {
 	dealRepo.On("List", mock.Anything, mock.MatchedBy(func(f domain.DealFilter) bool { return f.Page == 1 })).
 		Return([]*domain.Deal{deal}, 1, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/export/deals", nil)
+	req := httptest.NewRequest(http.MethodGet, "/deals", nil)
 	rec := httptest.NewRecorder()
 
 	h.Router().ServeHTTP(rec, req)
@@ -138,7 +138,7 @@ func TestExportHandler_Reports(t *testing.T) {
 			{Type: domain.ActivityTypeCall, Count: 5},
 		}, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/export/reports", nil)
+	req := httptest.NewRequest(http.MethodGet, "/reports", nil)
 	rec := httptest.NewRecorder()
 
 	h.Router().ServeHTTP(rec, req)
@@ -165,7 +165,7 @@ func TestExportHandler_Contacts_FilterByStage(t *testing.T) {
 		return f.Page == 1 && f.Stage != nil && *f.Stage == stage
 	})).Return([]*domain.Contact{contact}, 1, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/export/contacts?stage=prospect", nil)
+	req := httptest.NewRequest(http.MethodGet, "/contacts?stage=prospect", nil)
 	rec := httptest.NewRecorder()
 
 	h.Router().ServeHTTP(rec, req)
@@ -180,15 +180,16 @@ func TestExportHandler_Contacts_RepoError(t *testing.T) {
 	contactRepo.On("List", mock.Anything, mock.Anything).
 		Return(nil, 0, assert.AnError)
 
-	req := httptest.NewRequest(http.MethodGet, "/export/contacts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/contacts", nil)
 	rec := httptest.NewRecorder()
 
 	h.Router().ServeHTTP(rec, req)
 
-	// On repo error we still return 200 with just the header row (error breaks the loop).
+	// On repo error we still return 200; the handler writes a header row plus an #error row.
 	assert.Equal(t, http.StatusOK, rec.Code)
 	rows := parseCSV(t, rec.Body.String())
-	assert.Len(t, rows, 1) // header only
+	assert.Len(t, rows, 2) // header + #error row
+	assert.Equal(t, "#error", rows[1][0])
 
 	contactRepo.AssertExpectations(t)
 }

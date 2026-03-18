@@ -114,6 +114,7 @@ func TestTicketHandler_Update_EnqueuesAssignedEmail(t *testing.T) {
 		ticketRepo,
 		&mocks.MockTicketCommentRepository{},
 		&mocks.MockTicketAttachmentRepository{},
+		&mocks.MockSLAPolicyRepository{},
 	).WithEmailNotifications(userRepo, notifPrefRepo, queue)
 
 	patch := map[string]any{"assignee_id": assigneeID.String()}
@@ -187,6 +188,7 @@ func TestTicketHandler_Update_EnqueuesResolvedEmail(t *testing.T) {
 		ticketRepo,
 		&mocks.MockTicketCommentRepository{},
 		&mocks.MockTicketAttachmentRepository{},
+		&mocks.MockSLAPolicyRepository{},
 	).WithEmailNotifications(userRepo, notifPrefRepo, queue)
 
 	patch := map[string]any{"status": "resolved"}
@@ -232,6 +234,7 @@ func TestTicketHandler_Update_RespectsOptOut(t *testing.T) {
 		ticketRepo,
 		&mocks.MockTicketCommentRepository{},
 		&mocks.MockTicketAttachmentRepository{},
+		&mocks.MockSLAPolicyRepository{},
 	).WithEmailNotifications(userRepo, notifPrefRepo, queue)
 
 	patch := map[string]any{"assignee_id": assigneeID.String()}
