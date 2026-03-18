@@ -91,7 +91,7 @@ func TestRequireRole(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Chain: Authenticate → RequireRole → okHandler
-			chain := middleware.Authenticate(jwtSvc)(
+			chain := middleware.Authenticate(jwtSvc, nil, nil)(
 				middleware.RequireRole(tt.allowedRoles...)(okHandler),
 			)
 

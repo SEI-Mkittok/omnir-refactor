@@ -84,7 +84,7 @@ func TestSearchHandler_Search_RequiresAuth(t *testing.T) {
 
 	jwtSvc := auth.NewJWTService("test-secret")
 	r := chi.NewRouter()
-	r.Use(middleware.Authenticate(jwtSvc))
+	r.Use(middleware.Authenticate(jwtSvc, nil, nil))
 	r.Mount("/", h.Router())
 
 	// No Authorization header — expect 401.

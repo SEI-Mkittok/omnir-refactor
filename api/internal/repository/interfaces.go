@@ -76,6 +76,15 @@ type ReportsRepository interface {
 	ContactsMonthly(ctx context.Context) ([]domain.ContactMonthlyMetric, error)
 	// ActivitiesByType returns activity counts grouped by type.
 	ActivitiesByType(ctx context.Context) ([]domain.ActivityTypeMetric, error)
+
+	// TicketMetrics returns aggregated ticket metrics for the given date range.
+	TicketMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.TicketReport, error)
+	// ContactMetrics returns aggregated contact metrics for the given date range.
+	ContactMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.ContactReport, error)
+	// DealMetrics returns aggregated deal metrics for the given date range.
+	DealMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.DealReport, error)
+	// LeadMetrics returns aggregated lead metrics for the given date range.
+	LeadMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.LeadReport, error)
 }
 
 // UserRepository defines the persistence contract for users.
@@ -127,6 +136,20 @@ type TicketAttachmentRepository interface {
 	Create(ctx context.Context, a *domain.TicketAttachment) (*domain.TicketAttachment, error)
 	List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error)
 	Delete(ctx context.Context, id, ticketID uuid.UUID) error
+}
+
+// APIKeyRepository manages API keys for external client authentication.
+type APIKeyRepository interface {
+	// Create inserts a new API key. keyHash must be the SHA-256 hex of the plaintext key.
+	Create(ctx context.Context, k *domain.APIKey, keyHash string) (*domain.APIKey, error)
+	// GetByHash looks up an API key by its SHA-256 hash. Returns nil (not error) when not found.
+	GetByHash(ctx context.Context, keyHash string) (*domain.APIKey, error)
+	// List returns all non-revoked keys for the given org.
+	List(ctx context.Context, orgID uuid.UUID) ([]*domain.APIKey, error)
+	// Revoke sets revoked_at for the given key, scoped to orgID.
+	Revoke(ctx context.Context, id, orgID uuid.UUID) error
+	// UpdateLastUsed sets last_used_at to now for the given key.
+	UpdateLastUsed(ctx context.Context, id uuid.UUID) error
 }
 
 // CustomFieldDefinitionRepository manages admin-defined field schemas per entity type.
