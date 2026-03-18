@@ -1,22 +1,29 @@
+import { useState, useMemo } from 'react'
 import {
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
   Cell,
   Legend,
 } from 'recharts'
+import { Calendar } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
-import { useReportsSummary } from '@/hooks/useReports'
+import {
+  useTicketReport,
+  useLeadReport,
+  useContactReport,
+  useDealReport,
+} from '@/hooks/useReports'
 import { formatCurrency } from '@/lib/utils'
-import type { DealStage, ActivityType } from '@/api/types'
+import type { DealStage } from '@/api/types'
+
+// ---- Constants ----
 
 const DEAL_STAGE_LABELS: Record<DealStage, string> = {
   lead: 'Lead',
@@ -25,14 +32,6 @@ const DEAL_STAGE_LABELS: Record<DealStage, string> = {
   negotiation: 'Negotiation',
   closed_won: 'Closed Won',
   closed_lost: 'Closed Lost',
-}
-
-const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
-  call: 'Call',
-  email: 'Email',
-  meeting: 'Meeting',
-  task: 'Task',
-  note: 'Note',
 }
 
 const STAGE_COLORS: Record<DealStage, string> = {
@@ -44,192 +43,410 @@ const STAGE_COLORS: Record<DealStage, string> = {
   closed_lost: '#f87171',
 }
 
-const ACTIVITY_COLORS = ['#6366f1', '#0ea5e9', '#22c55e', '#f59e0b', '#ec4899']
+const FUNNEL_COLORS = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe']
 
-function LoadingCard() {
+// ---- Helpers ----
+
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+function addDays(d: Date, n: number) {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
+
+// ---- Sub-components ----
+
+function SkeletonCard() {
   return (
     <Card>
-      <CardContent className="flex justify-center py-12">
-        <Spinner />
+      <CardContent className="pt-5">
+        <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
+        <div className="mt-2 h-8 w-20 animate-pulse rounded bg-slate-200" />
       </CardContent>
     </Card>
   )
 }
 
+function SkeletonChart() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="h-5 w-40 animate-pulse rounded bg-slate-200" />
+      </CardHeader>
+      <CardContent>
+        <div className="flex h-[220px] items-center justify-center">
+          <Spinner />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface SummaryCardProps {
+  label: string
+  value: string | number
+  sub?: string
+  color: string
+  loading?: boolean
+}
+
+function SummaryCard({ label, value, sub, color, loading }: SummaryCardProps) {
+  if (loading) return <SkeletonCard />
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <p className="text-sm font-medium text-slate-500">{label}</p>
+        <p className={`mt-1 text-3xl font-bold ${color}`}>{value}</p>
+        {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---- Date range picker ----
+
+interface DateRange {
+  from: string
+  to: string
+}
+
+function getDefaultRange(): DateRange {
+  const to = new Date()
+  const from = addDays(to, -29)
+  return { from: isoDate(from), to: isoDate(to) }
+}
+
+interface DateRangePickerProps {
+  value: DateRange
+  onChange: (r: DateRange) => void
+}
+
+function DateRangePicker({ value, onChange }: DateRangePickerProps) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Calendar className="h-4 w-4 text-slate-400" />
+      <input
+        type="date"
+        value={value.from}
+        max={value.to}
+        onChange={(e) => onChange({ ...value, from: e.target.value })}
+        className="rounded border border-slate-200 bg-white px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+      <span className="text-slate-400">–</span>
+      <input
+        type="date"
+        value={value.to}
+        min={value.from}
+        max={isoDate(new Date())}
+        onChange={(e) => onChange({ ...value, to: e.target.value })}
+        className="rounded border border-slate-200 bg-white px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </div>
+  )
+}
+
+// ---- Page ----
+
 export function ReportsPage() {
-  const { data, isLoading, isError } = useReportsSummary()
+  const [range, setRange] = useState<DateRange>(getDefaultRange)
 
-  const dealsByStage = (data?.deals_by_stage ?? []).map((d) => ({
-    ...d,
-    label: DEAL_STAGE_LABELS[d.stage] ?? d.stage,
-    value_dollars: d.total_value_cents / 100,
-  }))
+  const params = useMemo(
+    () => ({ from: range.from, to: range.to }),
+    [range.from, range.to],
+  )
 
-  const contactsMonthly = (data?.contacts_monthly ?? []).map((c) => ({
-    ...c,
-    label: c.month,
-  }))
+  const tickets = useTicketReport(params)
+  const leads = useLeadReport(params)
+  const contacts = useContactReport(params)
+  const deals = useDealReport(params)
 
-  const activitiesByType = (data?.activities_by_type ?? []).map((a) => ({
-    ...a,
-    label: ACTIVITY_TYPE_LABELS[a.type] ?? a.type,
-  }))
+  const ticketData = tickets.data
+  const leadData = leads.data
+  const contactData = contacts.data
+  const dealData = deals.data
 
-  const totalPipelineValue = dealsByStage.reduce((sum, d) => sum + d.total_value_cents, 0)
-  const totalDeals = dealsByStage.reduce((sum, d) => sum + d.count, 0)
-  const wonDeals = dealsByStage.find((d) => d.stage === 'closed_won')?.count ?? 0
-  const totalActivities = activitiesByType.reduce((sum, a) => sum + a.count, 0)
+  const dealsByStage = useMemo(
+    () =>
+      (dealData?.by_stage ?? []).map((d) => ({
+        ...d,
+        label: DEAL_STAGE_LABELS[d.stage] ?? d.stage,
+        value_dollars: d.total_value_cents / 100,
+      })),
+    [dealData],
+  )
+
+  const anyError =
+    (tickets.isError && !tickets.isPlaceholderData) ||
+    (leads.isError && !leads.isPlaceholderData) ||
+    (contacts.isError && !contacts.isPlaceholderData) ||
+    (deals.isError && !deals.isPlaceholderData)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-        <p className="mt-1 text-sm text-slate-500">Key CRM metrics and analytics</p>
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
+          <p className="mt-1 text-sm text-slate-500">Key metrics and analytics</p>
+        </div>
+        <DateRangePicker value={range} onChange={setRange} />
       </div>
 
-      {isError && (
+      {anyError && (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          Failed to load report data. Please try again.
+          Some report data could not be loaded. Showing available data.
         </div>
       )}
 
       {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="Total Deals" value={isLoading ? '—' : totalDeals} color="bg-indigo-50 text-indigo-600" />
-        <SummaryCard label="Pipeline Value" value={isLoading ? '—' : formatCurrency(totalPipelineValue / 100)} color="bg-green-50 text-green-600" />
-        <SummaryCard label="Deals Won" value={isLoading ? '—' : wonDeals} color="bg-emerald-50 text-emerald-600" />
-        <SummaryCard label="Total Activities" value={isLoading ? '—' : totalActivities} color="bg-sky-50 text-sky-600" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <SummaryCard
+          label="Open Tickets"
+          value={ticketData?.open_count ?? '—'}
+          color="bg-indigo-50 text-indigo-600"
+          loading={tickets.isLoading && !tickets.isPlaceholderData}
+        />
+        <SummaryCard
+          label="Avg Resolution"
+          value={
+            ticketData?.avg_resolution_hours != null
+              ? `${ticketData.avg_resolution_hours.toFixed(1)}h`
+              : '—'
+          }
+          color="bg-sky-50 text-sky-600"
+          loading={tickets.isLoading && !tickets.isPlaceholderData}
+        />
+        <SummaryCard
+          label="SLA Breach Rate"
+          value={
+            ticketData?.breach_rate != null
+              ? `${(ticketData.breach_rate * 100).toFixed(1)}%`
+              : '—'
+          }
+          sub={
+            ticketData?.breach_rate != null && ticketData.breach_rate > 0.15
+              ? '⚠ Above target'
+              : undefined
+          }
+          color={
+            ticketData?.breach_rate != null && ticketData.breach_rate > 0.15
+              ? 'text-red-600'
+              : 'bg-emerald-50 text-emerald-600'
+          }
+          loading={tickets.isLoading && !tickets.isPlaceholderData}
+        />
+        <SummaryCard
+          label="New Contacts"
+          value={contactData?.new_count ?? '—'}
+          color="bg-violet-50 text-violet-600"
+          loading={contacts.isLoading && !contacts.isPlaceholderData}
+        />
+        <SummaryCard
+          label="Pipeline Value"
+          value={
+            dealData?.pipeline_value_cents != null
+              ? formatCurrency(dealData.pipeline_value_cents / 100)
+              : '—'
+          }
+          color="bg-green-50 text-green-600"
+          loading={deals.isLoading && !deals.isPlaceholderData}
+        />
       </div>
 
-      {/* Charts row 1 */}
+      {/* Row 1: Tickets over time + Deal pipeline by stage */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Deals by stage — count */}
-        {isLoading ? (
-          <LoadingCard />
+        {/* Tickets over time */}
+        {tickets.isLoading && !tickets.isPlaceholderData ? (
+          <SkeletonChart />
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>Deals by Stage</CardTitle>
+              <CardTitle>Tickets Over Time</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={dealsByStage} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value) => [value, 'Deals']}
-                    labelStyle={{ fontWeight: 600 }}
-                  />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {dealsByStage.map((entry) => (
-                      <Cell key={entry.stage} fill={STAGE_COLORS[entry.stage] ?? '#94a3b8'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Deal value by stage */}
-        {isLoading ? (
-          <LoadingCard />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Pipeline Value by Stage</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={dealsByStage} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    formatter={(value) => [formatCurrency(Number(value)), 'Value']}
-                    labelStyle={{ fontWeight: 600 }}
-                  />
-                  <Bar dataKey="value_dollars" radius={[4, 4, 0, 0]}>
-                    {dealsByStage.map((entry) => (
-                      <Cell key={entry.stage} fill={STAGE_COLORS[entry.stage] ?? '#94a3b8'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Charts row 2 */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Contacts created over time */}
-        {isLoading ? (
-          <LoadingCard />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>New Contacts (Monthly)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {contactsMonthly.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">No contact data yet</p>
+              {(ticketData?.over_time.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-400">No ticket data yet</p>
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={contactsMonthly} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                  <AreaChart
+                    data={ticketData?.over_time}
+                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="ticketGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.18} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v: string) => v.slice(5)}
+                      interval="preserveStartEnd"
+                    />
                     <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value) => [value, 'Contacts']}
+                      formatter={(value) => [value, 'Tickets']}
                       labelStyle={{ fontWeight: 600 }}
                     />
-                    <Line
+                    <Area
                       type="monotone"
                       dataKey="count"
                       stroke="#6366f1"
                       strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 5 }}
+                      fill="url(#ticketGrad)"
+                      dot={false}
+                      activeDot={{ r: 4 }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
         )}
 
-        {/* Activities by type */}
-        {isLoading ? (
-          <LoadingCard />
+        {/* Deal pipeline by stage */}
+        {deals.isLoading && !deals.isPlaceholderData ? (
+          <SkeletonChart />
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>Activities by Type</CardTitle>
+              <CardTitle>Deal Pipeline by Stage</CardTitle>
             </CardHeader>
             <CardContent>
-              {activitiesByType.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">No activity data yet</p>
+              {dealsByStage.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-400">No deal data yet</p>
               ) : (
                 <ResponsiveContainer width="100%" height={220}>
-                  <PieChart>
-                    <Pie
-                      data={activitiesByType}
-                      dataKey="count"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={({ name, percent }) =>
-                        `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                    >
-                      {activitiesByType.map((_, index) => (
-                        <Cell key={index} fill={ACTIVITY_COLORS[index % ACTIVITY_COLORS.length]} />
+                  <BarChart
+                    data={dealsByStage}
+                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [formatCurrency(Number(value)), 'Value']}
+                      labelStyle={{ fontWeight: 600 }}
+                    />
+                    <Bar dataKey="value_dollars" radius={[4, 4, 0, 0]}>
+                      {dealsByStage.map((entry) => (
+                        <Cell
+                          key={entry.stage}
+                          fill={STAGE_COLORS[entry.stage] ?? '#94a3b8'}
+                        />
                       ))}
-                    </Pie>
-                    <Legend formatter={(value) => <span className="text-sm">{value}</span>} />
-                    <Tooltip formatter={(value) => [value, 'Activities']} />
-                  </PieChart>
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Row 2: Lead conversion funnel + New contacts over time */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Lead conversion funnel */}
+        {leads.isLoading && !leads.isPlaceholderData ? (
+          <SkeletonChart />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Lead Conversion Funnel
+                {leadData?.conversion_rate != null && (
+                  <span className="ml-2 text-sm font-normal text-slate-500">
+                    {(leadData.conversion_rate * 100).toFixed(1)}% conversion rate
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(leadData?.funnel.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-400">No lead data yet</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={leadData?.funnel}
+                    layout="vertical"
+                    margin={{ top: 4, right: 24, left: 64, bottom: 0 }}
+                    barSize={28}
+                  >
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      tick={{ fontSize: 12 }}
+                      width={60}
+                    />
+                    <Tooltip
+                      formatter={(value) => [value, 'Leads']}
+                      labelStyle={{ fontWeight: 600 }}
+                    />
+                    <Legend
+                      formatter={() => 'Leads'}
+                      wrapperStyle={{ fontSize: 12 }}
+                    />
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                      {leadData?.funnel.map((_, i) => (
+                        <Cell
+                          key={i}
+                          fill={FUNNEL_COLORS[i % FUNNEL_COLORS.length]}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* New contacts over time */}
+        {contacts.isLoading && !contacts.isPlaceholderData ? (
+          <SkeletonChart />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>New Contacts (Monthly)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(contactData?.over_time.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-400">No contact data yet</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart
+                    data={contactData?.over_time}
+                    margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="contactGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.18} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip
+                      formatter={(value) => [value, 'Contacts']}
+                      labelStyle={{ fontWeight: 600 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      fill="url(#contactGrad)"
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
@@ -237,22 +454,5 @@ export function ReportsPage() {
         )}
       </div>
     </div>
-  )
-}
-
-interface SummaryCardProps {
-  label: string
-  value: string | number
-  color: string
-}
-
-function SummaryCard({ label, value, color }: SummaryCardProps) {
-  return (
-    <Card>
-      <CardContent className="pt-5">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <p className={`mt-1 text-3xl font-bold ${color}`}>{value}</p>
-      </CardContent>
-    </Card>
   )
 }
