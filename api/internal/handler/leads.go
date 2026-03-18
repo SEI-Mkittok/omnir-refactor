@@ -32,6 +32,7 @@ func NewLeadHandler(leads leadsStore, contacts repository.ContactRepository) *Le
 func (h *LeadHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
+	r.Get("/sources", h.ListSources)
 	r.Get("/{id}", h.GetByID)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
@@ -52,8 +53,15 @@ func (h *LeadHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	filter := domain.LeadFilter{
 		Q:     searchQ,
-		Sort:  q.Get("sort"),
-		Order: q.Get("order"),
+		Sort:  q.Get("sort_by"),
+		Order: q.Get("sort_dir"),
+	}
+	// Also accept legacy sort/order params.
+	if filter.Sort == "" {
+		filter.Sort = q.Get("sort")
+	}
+	if filter.Order == "" {
+		filter.Order = q.Get("order")
 	}
 
 	if v := q.Get("page"); v != "" {
@@ -80,6 +88,19 @@ func (h *LeadHandler) List(w http.ResponseWriter, r *http.Request) {
 		s := domain.LeadStatus(v)
 		filter.Status = &s
 	}
+	if v := q.Get("source"); v != "" {
+		filter.Source = &v
+	}
+	if v := q.Get("score_min"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			filter.ScoreMin = &n
+		}
+	}
+	if v := q.Get("score_max"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			filter.ScoreMax = &n
+		}
+	}
 
 	if filter.Limit == 0 {
 		filter.Limit = 50
@@ -94,6 +115,18 @@ func (h *LeadHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, paginated(leads, total, filter.Page, filter.Limit))
+}
+
+func (h *LeadHandler) ListSources(w http.ResponseWriter, r *http.Request) {
+	sources, err := h.leads.ListSources(r.Context())
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if sources == nil {
+		sources = []string{}
+	}
+	writeJSON(w, http.StatusOK, sources)
 }
 
 func (h *LeadHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -186,13 +219,14 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contact := &domain.Contact{
-		FirstName:  lead.FirstName,
-		LastName:   lead.LastName,
-		Email:      lead.Email,
-		Phone:      lead.Phone,
-		OwnerID:    ownerID,
-		Stage:      domain.ContactStageLead,
-		LeadSource: lead.LeadSource,
+		FirstName:           lead.FirstName,
+		LastName:            lead.LastName,
+		Email:               lead.Email,
+		Phone:               lead.Phone,
+		OwnerID:             ownerID,
+		Stage:               domain.ContactStageLead,
+		LeadSource:          lead.LeadSource,
+		ConvertedFromLeadID: &leadID,
 	}
 
 	createdContact, err := h.contacts.Create(r.Context(), contact)

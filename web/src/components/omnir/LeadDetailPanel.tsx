@@ -7,6 +7,8 @@ import {
   X,
   Loader2,
   ArrowRightLeft,
+  Minus,
+  Plus,
 } from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
@@ -16,6 +18,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads'
 import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
+import { LeadScoreBadge } from '@/components/omnir/LeadScoreBadge'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import type { Lead, LeadStatus, UpdateLeadRequest, CustomFieldValues } from '@/api/types'
@@ -136,6 +139,53 @@ function StatusSelector({ current, onSave }: { current: LeadStatus; onSave: (s: 
   )
 }
 
+// ── Score stepper widget ─────────────────────────────────────────────────────
+
+interface ScoreStepperProps {
+  score: number
+  onSave: (delta: number) => Promise<void>
+}
+
+function ScoreStepper({ score, onSave }: ScoreStepperProps) {
+  const [pending, setPending] = useState<'dec' | 'inc' | null>(null)
+
+  const step = async (delta: number) => {
+    const newScore = Math.max(0, Math.min(100, score + delta))
+    if (newScore === score) return
+    setPending(delta < 0 ? 'dec' : 'inc')
+    try {
+      await onSave(delta)
+    } finally {
+      setPending(null)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <LeadScoreBadge score={score} className="text-sm" />
+      <div className="flex items-center rounded-md border border-slate-200 overflow-hidden">
+        <button
+          onClick={() => step(-5)}
+          disabled={score <= 0 || pending !== null}
+          className="flex h-7 w-7 items-center justify-center bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+          title="Decrease score by 5"
+        >
+          {pending === 'dec' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Minus className="h-3.5 w-3.5" />}
+        </button>
+        <span className="w-px h-5 bg-slate-200" />
+        <button
+          onClick={() => step(5)}
+          disabled={score >= 100 || pending !== null}
+          className="flex h-7 w-7 items-center justify-center bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+          title="Increase score by 5"
+        >
+          {pending === 'inc' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main panel ───────────────────────────────────────────────────────────────
 
 interface LeadDetailPanelProps {
@@ -155,6 +205,16 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
       await updateLead.mutateAsync({ id: leadId, payload })
     },
     [leadId, updateLead]
+  )
+
+  // Optimistic-style score update via delta (clamped server-side too)
+  const patchScore = useCallback(
+    async (delta: number) => {
+      if (!lead) return
+      const newScore = Math.max(0, Math.min(100, lead.lead_score + delta))
+      await patch({ lead_score: newScore })
+    },
+    [lead, patch]
   )
 
   if (isLoading) {
@@ -216,15 +276,21 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700 text-xl font-bold">
               {lead.first_name[0]}{lead.last_name[0]}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 space-y-1.5">
               <p className="text-lg font-semibold text-slate-900 truncate">{fullName}</p>
-              <div className="mt-1">
-                <StatusSelector
-                  current={lead.status}
-                  onSave={(status) => patch({ status })}
-                />
-              </div>
+              <StatusSelector
+                current={lead.status}
+                onSave={(status) => patch({ status })}
+              />
             </div>
+          </div>
+
+          {/* Lead score */}
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Lead Score
+            </h3>
+            <ScoreStepper score={lead.lead_score} onSave={patchScore} />
           </div>
 
           {/* Details */}
@@ -237,7 +303,18 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
               <EditableField label="First Name" value={lead.first_name} onSave={(v) => patch({ first_name: v })} />
               <EditableField label="Last Name" value={lead.last_name} onSave={(v) => patch({ last_name: v })} />
               <EditableField label="Company" value={lead.company} onSave={(v) => patch({ company: v })} placeholder="No company" />
-              <EditableField label="Source" value={lead.lead_source} onSave={(v) => patch({ lead_source: v })} placeholder="No source" />
+              <div className="py-1">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Source</p>
+                <div className="mt-0.5">
+                  {lead.lead_source ? (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                      {lead.lead_source}
+                    </span>
+                  ) : (
+                    <EditableField label="" value={lead.lead_source} onSave={(v) => patch({ lead_source: v })} placeholder="No source" />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -276,6 +353,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
           lead={lead}
           open={showConvert}
           onClose={() => setShowConvert(false)}
+          onConverted={() => onClose()}
         />
       )}
     </>

@@ -12,6 +12,7 @@ import {
   Plus,
   Loader2,
   Ticket,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
@@ -368,6 +369,14 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
       }
     >
       <div className="space-y-6">
+        {/* Converted from lead banner */}
+        {contact.converted_from_lead_id && (
+          <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700">
+            <ArrowRightLeft className="h-4 w-4 shrink-0" />
+            Converted from lead
+          </div>
+        )}
+
         {/* Avatar + stage */}
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xl font-bold">
