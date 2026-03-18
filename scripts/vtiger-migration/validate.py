@@ -64,6 +64,7 @@ class Validator:
         self._spot_check_contacts()
         self._spot_check_accounts()
         self._spot_check_deals()
+        self._spot_check_tickets()
 
         print(f"\n{'='*50}")
         if self.failures:
@@ -108,6 +109,12 @@ class Validator:
                 """SELECT COUNT(*) FROM vtiger_potential p
                    JOIN vtiger_crmentity e ON e.crmid = p.potentialid WHERE e.deleted = 0""",
                 "SELECT COUNT(*) FROM deals WHERE vtiger_legacy_id IS NOT NULL AND deleted_at IS NULL",
+            ),
+            (
+                "tickets",
+                """SELECT COUNT(*) FROM vtiger_troubletickets t
+                   JOIN vtiger_crmentity e ON e.crmid = t.ticketid WHERE e.deleted = 0""",
+                "SELECT COUNT(*) FROM tickets WHERE vtiger_legacy_id IS NOT NULL AND deleted_at IS NULL",
             ),
             (
                 "activities",
@@ -171,6 +178,20 @@ class Validator:
                 "deals.owner_id dangling",
                 """SELECT COUNT(*) FROM deals
                    WHERE owner_id NOT IN (SELECT id FROM users)
+                     AND deleted_at IS NULL""",
+            ),
+            (
+                "tickets.contact_id dangling",
+                """SELECT COUNT(*) FROM tickets
+                   WHERE contact_id IS NOT NULL
+                     AND contact_id NOT IN (SELECT id FROM contacts)
+                     AND deleted_at IS NULL""",
+            ),
+            (
+                "tickets.account_id dangling",
+                """SELECT COUNT(*) FROM tickets
+                   WHERE account_id IS NOT NULL
+                     AND account_id NOT IN (SELECT id FROM accounts)
                      AND deleted_at IS NULL""",
             ),
         ]
@@ -327,6 +348,41 @@ class Validator:
         print(f"  Deals spot-check: {len(rows) - mismatches}/{len(rows)} OK")
         if mismatches:
             self.failures.append(f"deals spot-check: {mismatches} mismatches")
+
+    def _spot_check_tickets(self):
+        print(f"\n--- Spot-checking {self.sample} tickets ---")
+        src_cur = self.src.cursor(dictionary=True)
+        dst_cur = self.dst.cursor()
+
+        src_cur.execute(
+            f"""SELECT t.ticketid, t.title, t.status, t.priority
+                FROM vtiger_troubletickets t
+                JOIN vtiger_crmentity e ON e.crmid = t.ticketid
+                WHERE e.deleted = 0
+                ORDER BY RAND() LIMIT {self.sample}"""
+        )
+        rows = src_cur.fetchall()
+
+        mismatches = 0
+        for row in rows:
+            dst_cur.execute(
+                "SELECT subject FROM tickets WHERE vtiger_legacy_id = %s",
+                (str(row["ticketid"]),),
+            )
+            result = dst_cur.fetchone()
+            if not result:
+                print(f"  MISSING ticket vtiger_id={row['ticketid']}")
+                mismatches += 1
+            elif result[0] != (row["title"] or "(no subject)"):
+                print(
+                    f"  SUBJECT MISMATCH vtiger_id={row['ticketid']} "
+                    f"src={row['title']!r} dst={result[0]!r}"
+                )
+                mismatches += 1
+
+        print(f"  Tickets spot-check: {len(rows) - mismatches}/{len(rows)} OK")
+        if mismatches:
+            self.failures.append(f"tickets spot-check: {mismatches} mismatches")
 
     def __del__(self):
         try:
