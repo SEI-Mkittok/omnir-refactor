@@ -220,6 +220,7 @@ export function SLASettingsPage() {
     {
       key: 'resolution_time_minutes',
       header: 'Resolution Time',
+      hideOnMobile: true,
       render: (p) => (
         <span className="text-slate-600">{formatMinutes(p.resolution_time_minutes)}</span>
       ),
