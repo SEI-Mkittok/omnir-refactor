@@ -270,6 +270,18 @@ type PortalLinkRepository interface {
 	IncrementView(ctx context.Context, id uuid.UUID) error
 }
 
+// SavedViewRepository manages named, saved filter views for CRM entity lists.
+type SavedViewRepository interface {
+	Create(ctx context.Context, v *domain.SavedView) (*domain.SavedView, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.SavedView, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.SavedViewPatch) (*domain.SavedView, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.SavedViewFilter) ([]*domain.SavedView, error)
+	// Pin toggles the pinned state. If unpinning, pinned_order is cleared.
+	// If pinning, pinned_order is set to the next available slot within the org+entityType.
+	Pin(ctx context.Context, id uuid.UUID, isPinned bool) (*domain.SavedView, error)
+}
+
 // OutboundWebhookRepository manages registered outbound webhook endpoints and their deliveries.
 type OutboundWebhookRepository interface {
 	Create(ctx context.Context, w *domain.Webhook) (*domain.Webhook, error)
