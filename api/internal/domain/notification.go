@@ -6,32 +6,37 @@ import (
 	"github.com/google/uuid"
 )
 
-// NotificationType represents the kind of reminder notification.
-type NotificationType string
+// NotificationKind is the type of CRM notification.
+type NotificationKind string
 
 const (
-	NotificationTypeUpcoming15m NotificationType = "upcoming_15m"
-	NotificationTypeUpcoming1h  NotificationType = "upcoming_1h"
-	NotificationTypeUpcoming1d  NotificationType = "upcoming_1d"
-	NotificationTypeOverdue     NotificationType = "overdue"
+	NotificationKindActivityReminder NotificationKind = "activity_reminder"
+	NotificationKindDealStageChanged NotificationKind = "deal_stage_changed"
+	NotificationKindMention          NotificationKind = "mention"
+	NotificationKindAssignment       NotificationKind = "assignment"
 )
 
-// Notification is a reminder linked to a user and an activity.
+// Notification is a general CRM notification for a user.
 type Notification struct {
 	ID         uuid.UUID        `json:"id"`
-	OrgID      uuid.UUID        `json:"org_id"`
-	UserID     uuid.UUID        `json:"user_id"`
-	ActivityID uuid.UUID        `json:"activity_id"`
-	Type       NotificationType `json:"type"`
+	OrgID      uuid.UUID        `json:"org_id,omitempty"`
+	UserID     uuid.UUID        `json:"user_id,omitempty"`
+	ActorID    *uuid.UUID       `json:"actor_id,omitempty"`
+	Kind       NotificationKind `json:"kind"`
+	EntityType *string          `json:"entity_type,omitempty"`
+	EntityID   *uuid.UUID       `json:"entity_id,omitempty"`
+	Title      string           `json:"title"`
+	Body       *string          `json:"body,omitempty"`
 	ReadAt     *time.Time       `json:"read_at,omitempty"`
+	EmailedAt  *time.Time       `json:"emailed_at,omitempty"`
 	CreatedAt  time.Time        `json:"created_at"`
 }
 
 // NotificationFilter holds query parameters for listing notifications.
 type NotificationFilter struct {
-	OrgID  uuid.UUID
-	UserID uuid.UUID
-	Unread bool
-	Page   int
-	Limit  int
+	OrgID      uuid.UUID
+	UserID     uuid.UUID
+	UnreadOnly bool
+	Limit      int
+	Before     *time.Time // cursor-based pagination
 }

@@ -60,12 +60,16 @@ type NoteRepository interface {
 
 // NotificationRepository defines the persistence contract for notifications.
 type NotificationRepository interface {
-	// Create inserts a single notification. Duplicates (same activity + type) are silently ignored.
+	// Create inserts a new notification. Returns it with ID and timestamps set.
 	Create(ctx context.Context, n *domain.Notification) (*domain.Notification, error)
 	// MarkRead sets read_at for a notification owned by userID.
 	MarkRead(ctx context.Context, id, userID uuid.UUID) error
-	// ListByUser returns notifications for a user, with optional unread filter.
-	ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, int, error)
+	// MarkAllRead sets read_at for all unread notifications for userID in their org.
+	MarkAllRead(ctx context.Context, userID, orgID uuid.UUID) error
+	// UnreadCount returns the count of unread notifications for a user.
+	UnreadCount(ctx context.Context, userID, orgID uuid.UUID) (int, error)
+	// ListByUser returns notifications using cursor-based pagination.
+	ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, error)
 	// GenerateReminders scans due activities and inserts missing reminder notifications.
 	GenerateReminders(ctx context.Context) error
 }

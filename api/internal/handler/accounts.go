@@ -14,11 +14,17 @@ import (
 )
 
 type AccountHandler struct {
-	repo repository.AccountRepository
+	repo   repository.AccountRepository
+	cfDefs repository.CustomFieldDefinitionRepository
 }
 
 func NewAccountHandler(repo repository.AccountRepository) *AccountHandler {
 	return &AccountHandler{repo: repo}
+}
+
+func (h *AccountHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *AccountHandler {
+	h.cfDefs = r
+	return h
 }
 
 func (h *AccountHandler) Router() chi.Router {
@@ -110,6 +116,13 @@ func (h *AccountHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if h.cfDefs != nil {
+		et := domain.CustomFieldEntityAccount
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err == nil && len(defs) > 0 {
+			a.CustomFields = domain.ExpandCustomFields(a.CustomFields, defs)
+		}
 	}
 	writeJSON(w, http.StatusOK, a)
 }

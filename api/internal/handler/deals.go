@@ -15,16 +15,28 @@ import (
 )
 
 type DealHandler struct {
-	repo       repository.DealRepository
-	dispatcher chan<- worker.WebhookEvent
+	repo          repository.DealRepository
+	cfDefs        repository.CustomFieldDefinitionRepository
+	dispatcher    chan<- worker.WebhookEvent
+	notifications repository.NotificationRepository
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
 	return &DealHandler{repo: repo}
 }
 
+func (h *DealHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *DealHandler {
+	h.cfDefs = r
+	return h
+}
+
 func (h *DealHandler) WithDispatcher(d chan<- worker.WebhookEvent) *DealHandler {
 	h.dispatcher = d
+	return h
+}
+
+func (h *DealHandler) WithNotifications(r repository.NotificationRepository) *DealHandler {
+	h.notifications = r
 	return h
 }
 
@@ -141,6 +153,13 @@ func (h *DealHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if h.cfDefs != nil {
+		et := domain.CustomFieldEntityDeal
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err == nil && len(defs) > 0 {
+			d.CustomFields = domain.ExpandCustomFields(d.CustomFields, defs)
+		}
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 
@@ -155,10 +174,34 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
+		et := domain.CustomFieldEntityDeal
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := domain.ValidateCustomFields(patch.CustomFields, defs); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
 	d, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if patch.Stage != nil && h.notifications != nil {
+		title := "Deal stage changed"
+		entityType := "deal"
+		_, _ = h.notifications.Create(r.Context(), &domain.Notification{
+			OrgID:      d.OrgID,
+			UserID:     d.OwnerID,
+			Kind:       domain.NotificationKindDealStageChanged,
+			EntityType: &entityType,
+			EntityID:   &d.ID,
+			Title:      title,
+		})
 	}
 	h.emitWebhook(r, domain.WebhookEventDealUpdated, d.ID, d)
 	if patch.Stage != nil {
