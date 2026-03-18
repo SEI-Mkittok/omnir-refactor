@@ -12,7 +12,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   API_IMAGE: sei-mkittok/omnir-refactor/omnir-api
-  FRONTEND_IMAGE: sei-mkittok/omnir-refactor/omnir-frontend
+  FRONTEND_IMAGE: sei-mkittok/omnir-refactor/web
 
 jobs:
   build-and-push:
@@ -51,7 +51,7 @@ jobs:
       - name: Build & push API
         uses: docker/build-push-action@v5
         with:
-          context: omnir-go-backend
+          context: api
           target: production
           push: true
           tags: ${{ steps.meta-api.outputs.tags }}
@@ -71,7 +71,7 @@ jobs:
       - name: Build & push Frontend
         uses: docker/build-push-action@v5
         with:
-          context: omnir-frontend
+          context: web
           target: production
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
