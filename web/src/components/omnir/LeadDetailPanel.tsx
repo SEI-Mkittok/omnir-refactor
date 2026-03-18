@@ -23,11 +23,11 @@ import type { Lead, LeadStatus, UpdateLeadRequest } from '@/api/types'
 
 // ── Status badge helpers ─────────────────────────────────────────────────────
 
-export const leadStatusBadgeVariant: Record<LeadStatus, 'default' | 'success' | 'warning' | 'destructive'> = {
-  new: 'default',
-  contacted: 'warning',
-  qualified: 'success',
-  unqualified: 'destructive',
+export const leadStatusBadgeVariant: Record<LeadStatus, 'default' | 'blue' | 'yellow' | 'green' | 'red' | 'gray' | 'indigo' | 'purple' | 'orange'> = {
+  new: 'blue',
+  contacted: 'yellow',
+  qualified: 'green',
+  unqualified: 'red',
 }
 
 export const leadStatusLabel: Record<LeadStatus, string> = {
