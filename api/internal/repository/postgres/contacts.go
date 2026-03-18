@@ -54,6 +54,9 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 	now := time.Now().UTC()
 	c.CreatedAt = now
 	c.UpdatedAt = now
+	if c.Tags == nil {
+		c.Tags = []string{}
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO contacts

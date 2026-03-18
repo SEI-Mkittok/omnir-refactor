@@ -82,7 +82,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">
                 First name <span className="text-red-500">*</span>
@@ -127,7 +127,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
             {errors.email && <p className="mt-0.5 text-xs text-red-500">{errors.email}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Phone</label>
               <Input
@@ -152,7 +152,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Title</label>
               <Input

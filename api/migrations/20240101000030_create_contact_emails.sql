@@ -2,7 +2,7 @@
 -- contact_emails stores inbound and outbound emails linked to CRM contacts/deals.
 CREATE TABLE contact_emails (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id      UUID        NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     contact_id  UUID        REFERENCES contacts(id) ON DELETE SET NULL,
     deal_id     UUID        REFERENCES deals(id) ON DELETE SET NULL,
     direction   TEXT        NOT NULL CHECK (direction IN ('inbound', 'outbound')),
