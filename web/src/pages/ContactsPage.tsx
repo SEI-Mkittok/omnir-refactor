@@ -187,7 +187,7 @@ export function ContactsPage() {
         currentFilters={currentFilters}
         onSelectView={applyViewFilters}
         onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
-        onViewSaved={(id) => setActiveView((v) => v ? { ...v, id } : null)}
+        onViewSaved={(view) => setActiveView(view)}
         onUpdateView={handleUpdateView}
       />
 

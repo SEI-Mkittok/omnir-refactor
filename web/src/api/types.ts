@@ -489,6 +489,7 @@ export interface Lead {
   phone?: string
   company?: string
   lead_source?: string
+  lead_score: number
   status: LeadStatus
   owner_id?: string
   owner?: User
@@ -519,6 +520,9 @@ export interface LeadListParams {
   search?: string
   status?: LeadStatus
   owner_id?: string
+  source?: string
+  score_min?: number
+  score_max?: number
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
 }

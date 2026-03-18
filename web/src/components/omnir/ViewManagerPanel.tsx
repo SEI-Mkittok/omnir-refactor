@@ -157,7 +157,7 @@ export function ViewManagerPanel({
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 My views
               </h3>
-              <div className="group space-y-1">
+              <div className="space-y-1">
                 {myViews.map((view) => (
                   <div key={view.id} className="hover-row">
                     {deletingId === view.id ? (
@@ -185,7 +185,7 @@ export function ViewManagerPanel({
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Team views
               </h3>
-              <div className="group space-y-1">
+              <div className="space-y-1">
                 {sharedViews.map((view) => (
                   <div key={view.id} className="hover-row">
                     {deletingId === view.id ? (
