@@ -188,7 +188,7 @@ export function ContactsPage() {
 
         {/* Pagination */}
         {meta && meta.total_pages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
             <p className="text-sm text-slate-500">
               Page {meta.page} of {meta.total_pages}
             </p>

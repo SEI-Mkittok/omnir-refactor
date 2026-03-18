@@ -28,7 +28,7 @@ export function FilterBar({
 }: FilterBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-sm w-full">
         <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <Input
           value={searchValue}

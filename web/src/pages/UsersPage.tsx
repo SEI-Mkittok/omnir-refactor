@@ -394,7 +394,7 @@ export function UsersPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
             <p className="text-sm text-slate-500">
               Page {page} of {totalPages}
             </p>
