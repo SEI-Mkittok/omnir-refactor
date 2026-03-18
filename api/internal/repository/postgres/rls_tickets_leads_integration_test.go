@@ -151,6 +151,72 @@ func TestRLS_TicketCommentTenantIsolation(t *testing.T) {
 	})
 }
 
+// TestRLS_LeadTenantIsolation verifies that leads created for org A are
+// invisible when queried under org B's session variable.
+func TestRLS_LeadTenantIsolation(t *testing.T) {
+	pool, _ := setupDB(t)
+
+	orgA := uuid.New()
+	orgB := uuid.New()
+	for _, org := range []struct {
+		id   uuid.UUID
+		slug string
+	}{
+		{orgA, "lead-org-a"},
+		{orgB, "lead-org-b"},
+	} {
+		_, err := pool.Exec(context.Background(), `
+			INSERT INTO orgs (id, name, slug, plan)
+			VALUES ($1, $2, $3, 'starter')
+		`, org.id, "Org "+org.slug, org.slug)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
+	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
+
+	repo := postgres.NewLeadRepo(pool)
+
+	ctxA := domain.WithOrgID(context.Background(), orgA)
+	ctxB := domain.WithOrgID(context.Background(), orgB)
+
+	lead, err := repo.Create(ctxA, &domain.Lead{
+		OrgID:     orgA,
+		FirstName: "RLS",
+		LastName:  "TestLead",
+		Status:    domain.LeadStatusNew,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, lead)
+	assert.Equal(t, orgA, lead.OrgID)
+
+	t.Run("org A can read its own lead", func(t *testing.T) {
+		got, err := repo.GetByID(ctxA, lead.ID)
+		require.NoError(t, err)
+		assert.Equal(t, lead.ID, got.ID)
+	})
+
+	t.Run("org B cannot read org A lead", func(t *testing.T) {
+		_, err := repo.GetByID(ctxB, lead.ID)
+		assert.ErrorIs(t, err, domain.ErrNotFound,
+			"RLS should make org A lead invisible to org B")
+	})
+
+	t.Run("org B List returns empty", func(t *testing.T) {
+		leads, total, err := repo.List(ctxB, domain.LeadFilter{OrgID: orgB})
+		require.NoError(t, err)
+		assert.Equal(t, 0, total)
+		assert.Empty(t, leads)
+	})
+
+	t.Run("org A List returns its lead", func(t *testing.T) {
+		leads, total, err := repo.List(ctxA, domain.LeadFilter{OrgID: orgA})
+		require.NoError(t, err)
+		assert.Equal(t, 1, total)
+		assert.Len(t, leads, 1)
+	})
+}
+
 // TestRLS_OrgModeTransactionScope verifies that SET LOCAL for app.current_org_id
 // is scoped to the transaction and does not leak across connections.
 func TestRLS_OrgModeTransactionScope(t *testing.T) {
