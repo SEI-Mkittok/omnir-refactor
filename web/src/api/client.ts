@@ -9,36 +9,28 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-})
-
-// Request interceptor — attach access token
-apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = useAuthStore.getState().accessToken
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  withCredentials: true, // send httpOnly cookies automatically
 })
 
 // Track if a refresh is in-flight to avoid parallel refreshes
 let isRefreshing = false
 let failedQueue: Array<{
-  resolve: (value: string) => void
+  resolve: () => void
   reject: (reason?: unknown) => void
 }> = []
 
-function processQueue(error: unknown, token: string | null = null) {
+function processQueue(error: unknown) {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error)
     } else {
-      prom.resolve(token!)
+      prom.resolve()
     }
   })
   failedQueue = []
 }
 
-// Response interceptor — handle 401 with token refresh
+// Response interceptor — handle 401 with cookie-based token refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -47,37 +39,25 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      const { refreshToken, setTokens, logout } = useAuthStore.getState()
-
-      if (!refreshToken) {
-        logout()
-        return Promise.reject(error)
-      }
-
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`
-          return apiClient(originalRequest)
-        })
+        }).then(() => apiClient(originalRequest))
       }
 
       originalRequest._retry = true
       isRefreshing = true
 
       try {
-        const response = await axios.post(`${AUTH_BASE}/auth/refresh`, {
-          refresh_token: refreshToken,
-        })
-        const { access_token, refresh_token } = response.data
-        setTokens(access_token, refresh_token)
-        processQueue(null, access_token)
-        originalRequest.headers.Authorization = `Bearer ${access_token}`
+        // Refresh cookie is sent automatically — no body needed
+        await axios.post(`${AUTH_BASE}/auth/refresh`, null, { withCredentials: true })
+        processQueue(null)
         return apiClient(originalRequest)
       } catch (refreshError) {
-        processQueue(refreshError, null)
-        logout()
+        processQueue(refreshError)
+        // Clear server cookies and local state
+        await axios.post(`${AUTH_BASE}/auth/logout`, null, { withCredentials: true }).catch(() => {})
+        useAuthStore.getState().logout()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

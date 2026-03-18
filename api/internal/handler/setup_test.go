@@ -81,7 +81,7 @@ func TestSetupHandler_Setup(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name: "creates first admin user and returns token",
+			name: "creates first admin user and sets auth cookies",
 			body: map[string]any{
 				"adminName": "Admin",
 				"email":     "admin@example.com",
@@ -166,11 +166,19 @@ func TestSetupHandler_Setup(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, rr.Code)
 
 			if tt.wantStatus == http.StatusCreated {
+				cookies := rr.Result().Cookies()
+				cookieMap := make(map[string]*http.Cookie)
+				for _, c := range cookies {
+					cookieMap[c.Name] = c
+				}
+				require.Contains(t, cookieMap, "access_token")
+				assert.True(t, cookieMap["access_token"].HttpOnly)
+				require.Contains(t, cookieMap, "refresh_token")
+
 				var resp map[string]any
 				require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-				assert.NotEmpty(t, resp["access_token"])
-				assert.NotEmpty(t, resp["refresh_token"])
 				assert.NotNil(t, resp["user"])
+				assert.Nil(t, resp["access_token"])
 			}
 
 			mockRepo.AssertExpectations(t)

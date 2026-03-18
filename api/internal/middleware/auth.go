@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
 
@@ -15,18 +14,17 @@ type contextKey string
 
 const claimsKey contextKey = "claims"
 
-// Authenticate validates the Bearer token and injects JWT claims + org_id into the context.
-// Returns 401 if the token is missing or invalid.
+// Authenticate reads the access_token httpOnly cookie and injects JWT claims into the context.
+// Returns 401 if the cookie is missing or the token is invalid.
 func Authenticate(svc *auth.JWTService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := r.Header.Get("Authorization")
-			if !strings.HasPrefix(header, "Bearer ") {
+			cookie, err := r.Cookie("access_token")
+			if err != nil {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
-			token := strings.TrimPrefix(header, "Bearer ")
-			claims, err := svc.Verify(token)
+			claims, err := svc.Verify(cookie.Value)
 			if err != nil {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 				return

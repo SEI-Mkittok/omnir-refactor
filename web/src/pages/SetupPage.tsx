@@ -21,7 +21,7 @@ type SetupForm = z.infer<typeof setupSchema>
 
 export function SetupPage() {
   const navigate = useNavigate()
-  const { setTokens, setUser } = useAuthStore()
+  const { setUser } = useAuthStore()
   const [error, setError] = useState<string | null>(null)
 
   const {
@@ -36,7 +36,6 @@ export function SetupPage() {
     setError(null)
     try {
       const res = await submitSetup(data)
-      setTokens(res.access_token, res.refresh_token)
       if (res.user) setUser(res.user)
       navigate('/dashboard')
     } catch (err: unknown) {

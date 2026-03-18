@@ -103,7 +103,9 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     setFocusedIndex(-1)
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    const AUTH_BASE = import.meta.env.VITE_AUTH_URL || '/api'
+    await fetch(`${AUTH_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
     logout()
     navigate('/login')
   }
