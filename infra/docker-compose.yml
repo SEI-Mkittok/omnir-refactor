@@ -39,6 +39,10 @@ services:
       JWT_SECRET: dev-jwt-secret-change-in-prod
       SERVER_PORT: 8080
       ENV: development
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASS: ""
     ports:
       - "8080:8080"
     volumes:
@@ -68,6 +72,14 @@ services:
     volumes:
       - ../web:/app
       - node_modules_cache:/app/node_modules
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: omnir-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI — http://localhost:8025
 
   # Optional: pgAdmin for DB inspection
   pgadmin:
