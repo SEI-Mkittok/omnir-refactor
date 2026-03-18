@@ -126,6 +126,7 @@ func main() {
 	emailHandler := handler.NewEmailHandler(emailRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
+	inboundEmailHandler := handler.NewInboundEmailHandler(emailRepo, contactRepo, cfg.WebhookSecret, cfg.OrgMode)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -150,6 +151,7 @@ func main() {
 	r.Mount("/api/orgs", orgHandler.Router())
 	r.Mount("/api/auth", authHandler.Router())
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
+	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(30 * time.Second))
