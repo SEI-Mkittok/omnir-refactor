@@ -858,3 +858,20 @@ export interface AuditLogListParams {
   page?: number
   limit?: number
 }
+
+// ---- Entity Attachments ----
+
+export type EntityAttachmentEntityType = 'contact' | 'account' | 'deal'
+
+export interface EntityAttachment {
+  id: string
+  entity_type: EntityAttachmentEntityType
+  entity_id: string
+  org_id: string
+  uploaded_by?: string
+  filename: string
+  content_type: string
+  size_bytes?: number
+  url: string
+  created_at: string
+}
