@@ -347,6 +347,50 @@ export interface DealReport {
   lost_count: number
 }
 
+export interface PipelineFunnelStage {
+  stage: string
+  label: string
+  count: number
+  value_cents: number
+}
+
+export interface PipelineFunnelReport {
+  stages: PipelineFunnelStage[]
+}
+
+export interface RevenueProjectionMonth {
+  month: string // "YYYY-MM"
+  projected_revenue_cents: number
+  deal_count: number
+  weighted_value_cents: number
+}
+
+export interface RevenueProjectionReport {
+  months: RevenueProjectionMonth[]
+}
+
+export interface ConversionRateStage {
+  from_stage: string
+  to_stage: string
+  from_label: string
+  to_label: string
+  conversion_rate: number // 0.0 - 1.0
+}
+
+export interface ConversionRatesReport {
+  stages: ConversionRateStage[]
+}
+
+export interface ActivitySummaryItem {
+  type: ActivityType
+  count: number
+}
+
+export interface ActivitySummaryReport {
+  activities: ActivitySummaryItem[]
+  period_label: string
+}
+
 // ---- Search ----
 
 export interface SearchResult {
