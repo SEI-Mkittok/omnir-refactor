@@ -302,6 +302,51 @@ export interface ReportsSummary {
   activities_by_type: ActivityTypeMetric[]
 }
 
+export interface TicketTimeMetric {
+  date: string // "YYYY-MM-DD"
+  count: number
+}
+
+export interface TicketStatusMetric {
+  status: TicketStatus
+  count: number
+}
+
+export interface TicketReport {
+  open_count: number
+  avg_resolution_hours: number | null
+  breach_rate: number // 0.0 - 1.0
+  over_time: TicketTimeMetric[]
+  by_status: TicketStatusMetric[]
+  total_closed: number
+}
+
+export interface LeadFunnelMetric {
+  stage: string
+  label: string
+  count: number
+}
+
+export interface LeadReport {
+  new_count: number
+  converted_count: number
+  conversion_rate: number // 0.0 - 1.0
+  funnel: LeadFunnelMetric[]
+}
+
+export interface ContactReport {
+  new_count: number
+  total_count: number
+  over_time: ContactMonthlyMetric[]
+}
+
+export interface DealReport {
+  pipeline_value_cents: number
+  by_stage: DealStageMetric[]
+  won_count: number
+  lost_count: number
+}
+
 // ---- Search ----
 
 export interface SearchResult {
