@@ -26,6 +26,7 @@ interface CreateKeyDialogProps {
 function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
   const { mutate: createKey, isPending } = useCreateApiKey()
   const [name, setName] = useState('')
+  const [scope, setScope] = useState<'read' | 'write'>('write')
   const [error, setError] = useState('')
   const [created, setCreated] = useState<CreateAPIKeyResponse | null>(null)
   const [copied, setCopied] = useState(false)
@@ -38,7 +39,7 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
       return
     }
     createKey(
-      { name: name.trim() },
+      { name: name.trim(), scopes: [scope] },
       {
         onSuccess: (res) => setCreated(res),
         onError: () => setError('Failed to create API key.'),
@@ -56,6 +57,7 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
 
   const handleClose = () => {
     setName('')
+    setScope('write')
     setError('')
     setCreated(null)
     setCopied(false)
@@ -109,6 +111,27 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
                 placeholder="e.g. ConnectWise integration"
                 autoFocus
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Scope</label>
+              <div className="flex gap-3">
+                {(['write', 'read'] as const).map((s) => (
+                  <label key={s} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scope"
+                      value={s}
+                      checked={scope === s}
+                      onChange={() => setScope(s)}
+                      className="accent-blue-600"
+                    />
+                    <span className="text-sm text-slate-700 capitalize">{s}</span>
+                    <span className="text-xs text-slate-400">
+                      {s === 'write' ? '(full access)' : '(GET only)'}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <DialogFooter>
@@ -202,6 +225,24 @@ export function APIKeysPage() {
       header: 'Key Prefix',
       render: (k) => (
         <span className="font-mono text-sm text-slate-600">{k.key_prefix}…</span>
+      ),
+    },
+    {
+      key: 'scopes',
+      header: 'Scope',
+      hideOnMobile: true,
+      render: (k) => (
+        <div className="flex gap-1 flex-wrap">
+          {k.scopes.length === 0 ? (
+            <span className="text-sm text-slate-400">—</span>
+          ) : (
+            k.scopes.map((s) => (
+              <Badge key={s} variant={s === 'write' ? 'blue' : 'default'}>
+                {s}
+              </Badge>
+            ))
+          )}
+        </div>
       ),
     },
     {
