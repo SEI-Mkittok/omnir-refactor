@@ -51,7 +51,8 @@ jobs:
       - name: Build & push API
         uses: docker/build-push-action@v5
         with:
-          context: api
+          context: .
+          file: infra/docker/Dockerfile.api
           target: production
           push: true
           tags: ${{ steps.meta-api.outputs.tags }}
@@ -71,7 +72,8 @@ jobs:
       - name: Build & push Frontend
         uses: docker/build-push-action@v5
         with:
-          context: web
+          context: .
+          file: infra/docker/Dockerfile.web
           target: production
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
@@ -90,6 +92,11 @@ jobs:
       url: http://100.73.134.90
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync prod compose to deploy dir
+        run: cp $GITHUB_WORKSPACE/infra/docker-compose.prod.yml ~/omnir-crm/docker-compose.prod.yml
+
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 

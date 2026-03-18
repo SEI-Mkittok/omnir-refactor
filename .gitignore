@@ -2,18 +2,19 @@
 .env
 .env.local
 .env.*.local
-omnir-go-backend/.env
-omnir-frontend/.env.local
+api/.env
+web/.env.local
 
 # Go
-omnir-go-backend/tmp/
-omnir-go-backend/vendor/
-omnir-go-backend/*.out
-omnir-go-backend/build-errors.log
+api/tmp/
+api/vendor/
+api/*.out
+api/build-errors.log
+api/server
 # Node / Frontend
-omnir-frontend/node_modules/
-omnir-frontend/dist/
-omnir-frontend/.vite/
+web/node_modules/
+web/dist/
+web/.vite/
 # OS
 .DS_Store
 Thumbs.db
