@@ -16,7 +16,9 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads'
 import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
-import type { Lead, LeadStatus, UpdateLeadRequest } from '@/api/types'
+import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import type { Lead, LeadStatus, UpdateLeadRequest, CustomFieldValues } from '@/api/types'
 
 // ── Status badge helpers ─────────────────────────────────────────────────────
 
@@ -145,6 +147,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
   const { data: lead, isLoading } = useLead(leadId)
   const updateLead = useUpdateLead()
   const deleteLead = useDeleteLead()
+  const { data: customFields = [] } = useCustomFieldDefinitions('lead')
   const [showConvert, setShowConvert] = useState(false)
 
   const patch = useCallback(
@@ -249,6 +252,16 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
               <EditableField label="Phone" value={lead.phone} onSave={(v) => patch({ phone: v })} placeholder="No phone" type="tel" />
             </div>
           </div>
+
+          {/* Custom fields */}
+          {customFields.length > 0 && lead.custom_fields && (
+            <div className="rounded-lg border border-slate-200 px-4 py-3">
+              <CustomFieldDisplaySection
+                fields={customFields}
+                values={lead.custom_fields as CustomFieldValues}
+              />
+            </div>
+          )}
 
           {/* Metadata */}
           <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">

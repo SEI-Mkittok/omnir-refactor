@@ -29,7 +29,9 @@ import {
 } from '@/hooks/useContacts'
 import { useTickets } from '@/hooks/useTickets'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
-import type { Contact, ContactStage, UpdateContactRequest } from '@/api/types'
+import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import type { Contact, ContactStage, UpdateContactRequest, CustomFieldValues } from '@/api/types'
 
 // ── Editable field ──────────────────────────────────────────────────────────
 
@@ -320,6 +322,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
   const { data: contact, isLoading } = useContact(contactId)
   const updateContact = useUpdateContact()
   const deleteContact = useDeleteContact()
+  const { data: customFields = [] } = useCustomFieldDefinitions('contact')
 
   const patch = useCallback(
     async (payload: UpdateContactRequest) => {
@@ -522,6 +525,16 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
                 </Badge>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Custom fields */}
+        {customFields.length > 0 && contact.custom_fields && (
+          <div className="rounded-lg border border-slate-200 px-4 py-3">
+            <CustomFieldDisplaySection
+              fields={customFields}
+              values={contact.custom_fields as CustomFieldValues}
+            />
           </div>
         )}
 
