@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -13,11 +14,20 @@ import (
 	"github.com/omnir/crm-api/internal/repository"
 )
 
+// EmailEnqueuer is satisfied by worker.EmailNotifier. Defined here to avoid
+// an import cycle and to make the handler independently testable.
+type EmailEnqueuer interface {
+	Enqueue(job domain.EmailJob)
+}
+
 // TicketHandler serves the /tickets resource and its sub-resources.
 type TicketHandler struct {
 	tickets     repository.TicketRepository
 	comments    repository.TicketCommentRepository
 	attachments repository.TicketAttachmentRepository
+	users       repository.UserRepository
+	notifPrefs  repository.NotificationPrefRepository
+	emailQueue  EmailEnqueuer // nil → email notifications disabled
 }
 
 func NewTicketHandler(
@@ -28,12 +38,21 @@ func NewTicketHandler(
 	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments}
 }
 
+// WithEmailNotifications attaches the dependencies needed for outbound email notifications.
+func (h *TicketHandler) WithEmailNotifications(
+	users repository.UserRepository,
+	notifPrefs repository.NotificationPrefRepository,
+	queue EmailEnqueuer,
+) *TicketHandler {
+	h.users = users
+	h.notifPrefs = notifPrefs
+	h.emailQueue = queue
+	return h
+}
+
 func (h *TicketHandler) Router() chi.Router {
 	r := chi.NewRouter()
 
-	// agentOnly restricts mutation operations to admin and agent roles.
-	// Read operations and comment creation are also open to client role,
-	// with per-handler logic filtering what clients can see/do.
 	agentOnly := middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent)
 
 	r.Get("/", h.List)
@@ -42,9 +61,8 @@ func (h *TicketHandler) Router() chi.Router {
 	r.With(agentOnly).Patch("/{id}", h.Update)
 	r.With(agentOnly).Delete("/{id}", h.Delete)
 
-	// Nested sub-resources
-	r.Get("/{id}/comments", h.ListComments)        // clients see public comments only (filtered in handler)
-	r.Post("/{id}/comments", h.CreateComment)      // clients can comment but not mark internal (enforced in handler)
+	r.Get("/{id}/comments", h.ListComments)
+	r.Post("/{id}/comments", h.CreateComment)
 	r.With(agentOnly).Delete("/{id}/comments/{commentID}", h.DeleteComment)
 
 	r.Get("/{id}/attachments", h.ListAttachments)
@@ -54,8 +72,6 @@ func (h *TicketHandler) Router() chi.Router {
 	return r
 }
 
-// ---- Ticket CRUD ----
-
 func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := domain.TicketFilter{
@@ -63,7 +79,6 @@ func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 		Sort:  q.Get("sort_by"),
 		Order: q.Get("sort_dir"),
 	}
-
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			filter.Page = n
@@ -92,14 +107,12 @@ func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.ContactID = &id
 		}
 	}
-
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
 	if filter.Page == 0 {
 		filter.Page = 1
 	}
-
 	tickets, total, err := h.tickets.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -126,7 +139,6 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "invalid priority: must be one of low, medium, high, critical")
 		return
 	}
-
 	created, err := h.tickets.Create(r.Context(), &t)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -168,11 +180,23 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "invalid priority: must be one of low, medium, high, critical")
 		return
 	}
+
+	// Fetch old state before update so we can detect changes for notifications.
+	var old *domain.Ticket
+	if h.emailQueue != nil {
+		old, _ = h.tickets.GetByID(r.Context(), id) // best-effort
+	}
+
 	t, err := h.tickets.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+
+	if h.emailQueue != nil && old != nil {
+		go h.enqueueTicketNotifications(context.Background(), old, t)
+	}
+
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -189,6 +213,77 @@ func (h *TicketHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// enqueueTicketNotifications detects state changes and enqueues email jobs.
+func (h *TicketHandler) enqueueTicketNotifications(ctx context.Context, old, updated *domain.Ticket) {
+	orgID := updated.OrgID
+
+	// Assignee changed → notify new assignee.
+	if h.assigneeChanged(old, updated) && updated.AssigneeID != nil {
+		assignee, err := h.users.GetByID(ctx, *updated.AssigneeID)
+		if err == nil {
+			pref, _ := h.notifPrefs.GetByUser(ctx, assignee.ID, orgID)
+			if pref == nil || pref.EmailOnAssigned {
+				h.emailQueue.Enqueue(domain.EmailJob{
+					Kind:          domain.EmailEventAssigned,
+					ToEmail:       assignee.Email,
+					ToName:        assignee.Name,
+					TicketID:      updated.ID.String(),
+					TicketSubject: updated.Subject,
+				})
+			}
+		}
+	}
+
+	// Status changed to resolved or closed → notify reporter.
+	if updated.SubmittedByUserID != nil && h.statusChangedTo(old, updated, domain.TicketStatusResolved, domain.TicketStatusClosed) {
+		reporter, err := h.users.GetByID(ctx, *updated.SubmittedByUserID)
+		if err == nil {
+			pref, _ := h.notifPrefs.GetByUser(ctx, reporter.ID, orgID)
+			var kind domain.EmailEventKind
+			if updated.Status == domain.TicketStatusResolved {
+				if pref == nil || pref.EmailOnResolved {
+					kind = domain.EmailEventResolved
+				}
+			} else {
+				if pref == nil || pref.EmailOnClosed {
+					kind = domain.EmailEventClosed
+				}
+			}
+			if kind != "" {
+				h.emailQueue.Enqueue(domain.EmailJob{
+					Kind:          kind,
+					ToEmail:       reporter.Email,
+					ToName:        reporter.Name,
+					TicketID:      updated.ID.String(),
+					TicketSubject: updated.Subject,
+				})
+			}
+		}
+	}
+}
+
+func (h *TicketHandler) assigneeChanged(old, updated *domain.Ticket) bool {
+	if old.AssigneeID == nil && updated.AssigneeID == nil {
+		return false
+	}
+	if old.AssigneeID == nil || updated.AssigneeID == nil {
+		return true
+	}
+	return *old.AssigneeID != *updated.AssigneeID
+}
+
+func (h *TicketHandler) statusChangedTo(old, updated *domain.Ticket, statuses ...domain.TicketStatus) bool {
+	if old.Status == updated.Status {
+		return false
+	}
+	for _, s := range statuses {
+		if updated.Status == s {
+			return true
+		}
+	}
+	return false
+}
+
 // ---- Comments ----
 
 func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
@@ -197,8 +292,6 @@ func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
-
-	// Clients (non-agents) can only see public comments.
 	filter := domain.TicketCommentFilter{TicketID: ticketID}
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
 		if claims.Role == string(domain.UserRoleClient) {
@@ -206,7 +299,6 @@ func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 			filter.IsInternal = &f
 		}
 	}
-
 	comments, err := h.comments.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -221,7 +313,6 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
-
 	var req struct {
 		Body       string `json:"body"`
 		IsInternal bool   `json:"is_internal"`
@@ -234,18 +325,14 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "body is required")
 		return
 	}
-
-	// Extract author from JWT claims.
 	var authorID *uuid.UUID
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
 		id := claims.UserID
 		authorID = &id
-		// Clients cannot post internal notes.
 		if claims.Role == string(domain.UserRoleClient) {
 			req.IsInternal = false
 		}
 	}
-
 	c := &domain.TicketComment{
 		TicketID:   ticketID,
 		AuthorID:   authorID,
@@ -294,16 +381,12 @@ func (h *TicketHandler) ListAttachments(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, attachments)
 }
 
-// CreateAttachment accepts a JSON body with pre-upload metadata.
-// Actual file bytes are stored externally (object storage); this endpoint
-// records the attachment metadata and returns the record.
 func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request) {
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
-
 	var req struct {
 		Filename    string `json:"filename"`
 		ContentType string `json:"content_type"`
@@ -318,13 +401,11 @@ func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusUnprocessableEntity, "filename and url are required")
 		return
 	}
-
 	var uploadedBy *uuid.UUID
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
 		id := claims.UserID
 		uploadedBy = &id
 	}
-
 	a := &domain.TicketAttachment{
 		TicketID:    ticketID,
 		UploadedBy:  uploadedBy,
@@ -336,7 +417,6 @@ func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request)
 	if a.ContentType == "" {
 		a.ContentType = "application/octet-stream"
 	}
-
 	created, err := h.attachments.Create(r.Context(), a)
 	if err != nil {
 		handleDomainErr(w, err)

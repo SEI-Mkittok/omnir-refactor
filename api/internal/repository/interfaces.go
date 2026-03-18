@@ -137,3 +137,11 @@ type CustomFieldDefinitionRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.CustomFieldDefinitionFilter) ([]*domain.CustomFieldDefinition, error)
 }
+
+// NotificationPrefRepository manages per-user email notification preferences.
+type NotificationPrefRepository interface {
+	// GetByUser returns the prefs for a user+org pair, or a default (all-enabled) pref if none exist.
+	GetByUser(ctx context.Context, userID, orgID uuid.UUID) (*domain.UserNotificationPref, error)
+	// Upsert creates or updates the notification prefs for a user.
+	Upsert(ctx context.Context, pref *domain.UserNotificationPref) (*domain.UserNotificationPref, error)
+}
