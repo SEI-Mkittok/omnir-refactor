@@ -179,9 +179,9 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
           ) : deals && deals.length > 0 ? (
             <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
               {deals.map((d) => (
-                <li key={d.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
-                  <span className="font-medium text-slate-900">{d.title}</span>
-                  <div className="flex items-center gap-2">
+                <li key={d.id} className="flex flex-wrap items-center justify-between gap-1 px-3 py-2.5 text-sm">
+                  <span className="min-w-0 truncate font-medium text-slate-900">{d.title}</span>
+                  <div className="flex shrink-0 items-center gap-2">
                     <span className="text-indigo-600 font-semibold">
                       {formatCurrency(d.value, d.currency)}
                     </span>

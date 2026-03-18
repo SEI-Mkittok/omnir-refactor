@@ -126,7 +126,7 @@ interface DateRangePickerProps {
 
 function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm">
       <Calendar className="h-4 w-4 text-slate-400" />
       <input
         type="date"
