@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, Paperclip } from 'lucide-react'
+import { Trash2, Paperclip, Clock } from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -13,8 +13,80 @@ import {
   useTicketAttachments,
   useUploadTicketAttachment,
 } from '@/hooks/useTickets'
-import type { TicketStatus, TicketPriority } from '@/api/types'
+import type { TicketStatus, TicketPriority, TicketSLA, SLATrackingStatus } from '@/api/types'
 import { cn } from '@/lib/utils'
+
+// ---- SLA helpers ----
+
+const slaStatusVariant: Record<SLATrackingStatus, 'green' | 'yellow' | 'red'> = {
+  on_track: 'green',
+  at_risk: 'yellow',
+  breached: 'red',
+}
+
+const slaStatusLabel: Record<SLATrackingStatus, string> = {
+  on_track: 'On track',
+  at_risk: 'At risk',
+  breached: 'Breached',
+}
+
+function formatDeadline(iso: string): string {
+  const date = new Date(iso)
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function SLAProgressBar({ deadline, breached }: { deadline: string; breached: boolean }) {
+  // Show how much time has been used relative to the deadline from created_at
+  // Since we only have the deadline, we show how far past/before we are vs now
+  const now = Date.now()
+  const deadlineMs = new Date(deadline).getTime()
+  const isOver = now > deadlineMs
+
+  if (breached || isOver) {
+    return <div className="h-1.5 rounded-full bg-red-500 w-full" />
+  }
+
+  return <div className="h-1.5 rounded-full bg-green-500 w-3/4" />
+}
+
+function SLAWidget({ sla }: { sla: TicketSLA }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5 text-slate-500" />
+          <span className="text-xs font-medium text-slate-700">{sla.policy_name}</span>
+        </div>
+        <Badge variant={slaStatusVariant[sla.status]}>{slaStatusLabel[sla.status]}</Badge>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-500">First response</span>
+          <span className={cn('font-medium', sla.response_breached ? 'text-red-600' : 'text-slate-700')}>
+            {sla.response_breached ? 'Breached · ' : ''}{formatDeadline(sla.response_deadline)}
+          </span>
+        </div>
+        <SLAProgressBar deadline={sla.response_deadline} breached={sla.response_breached} />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-500">Resolution</span>
+          <span className={cn('font-medium', sla.resolution_breached ? 'text-red-600' : 'text-slate-700')}>
+            {sla.resolution_breached ? 'Breached · ' : ''}{formatDeadline(sla.resolution_deadline)}
+          </span>
+        </div>
+        <SLAProgressBar deadline={sla.resolution_deadline} breached={sla.resolution_breached} />
+      </div>
+    </div>
+  )
+}
 
 // ---- Badge helpers ----
 
@@ -218,6 +290,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
               <span className="text-slate-500">{formatDate(ticket.updated_at)}</span>
             </Field>
           </div>
+
+          {/* SLA Widget */}
+          {ticket.sla && <SLAWidget sla={ticket.sla} />}
 
           {/* Attachments */}
           <AttachmentsSection ticketId={ticketId} />
