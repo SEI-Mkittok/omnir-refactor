@@ -257,11 +257,6 @@ func (r *LeadRepo) List(ctx context.Context, f domain.LeadFilter) ([]*domain.Lea
 // ConvertToContact marks the lead as converted and sets the converted_contact_id.
 // The caller is responsible for creating the contact beforehand.
 func (r *LeadRepo) ConvertToContact(ctx context.Context, leadID, contactID uuid.UUID) (*domain.Lead, error) {
-	status := domain.LeadStatusConverted
-	patch := domain.LeadPatch{
-		Status: &status,
-	}
-	// We must also set converted_contact_id, which is not in LeadPatch — do it directly.
 	q := `UPDATE leads SET status=$1, converted_contact_id=$2, updated_at=NOW()
 	      WHERE id=$3 AND deleted_at IS NULL`
 	args := []any{domain.LeadStatusConverted, contactID, leadID}
@@ -273,6 +268,5 @@ func (r *LeadRepo) ConvertToContact(ctx context.Context, leadID, contactID uuid.
 	}
 
 	q += ` RETURNING ` + leadCols
-	_ = patch
 	return scanLead(r.db.QueryRow(ctx, q, args...))
 }
