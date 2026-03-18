@@ -99,7 +99,7 @@ func TestOrgScope_AfterAuthenticate(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := middleware.Authenticate(jwtSvc)(
+	handler := middleware.Authenticate(jwtSvc, nil, nil)(
 		middleware.OrgScope(config.OrgModeMultitenant)(inner),
 	)
 
