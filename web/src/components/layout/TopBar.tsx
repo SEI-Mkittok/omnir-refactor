@@ -16,6 +16,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/DropdownMenu'
 import { TenantSwitcher } from '@/components/layout/TenantSwitcher'
+import { NotificationBell } from '@/components/layout/NotificationBell'
 import type { Contact, Account, Deal, Ticket } from '@/api/types'
 
 interface TopBarProps {
@@ -256,8 +257,9 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         </div>
       </div>
 
-      {/* Right: tenant switcher + user menu */}
-      <div className="flex items-center gap-3 ml-2 sm:ml-4">
+      {/* Right: notifications + tenant switcher + user menu */}
+      <div className="flex items-center gap-3 ml-4">
+        <NotificationBell />
         <TenantSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
