@@ -15,7 +15,7 @@ const baseNavItems = [
 
 const adminNavItems = [
   { to: '/users', icon: UserCog, label: 'Users' },
-  { to: '/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
+  { to: '/settings/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
   { to: '/api-keys', icon: KeyRound, label: 'API Keys' },
   { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
 ]

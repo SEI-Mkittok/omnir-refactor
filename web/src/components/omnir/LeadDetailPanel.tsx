@@ -16,7 +16,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads'
 import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
-import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import type { Lead, LeadStatus, UpdateLeadRequest, CustomFieldValues } from '@/api/types'
 
@@ -254,14 +254,11 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
           </div>
 
           {/* Custom fields */}
-          {customFields.length > 0 && lead.custom_fields && (
-            <div className="rounded-lg border border-slate-200 px-4 py-3">
-              <CustomFieldDisplaySection
-                fields={customFields}
-                values={lead.custom_fields as CustomFieldValues}
-              />
-            </div>
-          )}
+          <CustomFieldEditableSection
+            fields={customFields}
+            values={lead.custom_fields as CustomFieldValues | undefined}
+            onSave={async (cf) => { await patch({ custom_fields: cf as Record<string, unknown> }) }}
+          />
 
           {/* Metadata */}
           <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">

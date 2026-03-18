@@ -99,7 +99,9 @@ export interface CreateContactRequest {
   tags?: string[]
 }
 
-export interface UpdateContactRequest extends Partial<CreateContactRequest> {}
+export interface UpdateContactRequest extends Partial<CreateContactRequest> {
+  custom_fields?: Record<string, unknown>
+}
 
 export interface ContactListParams {
   page?: number
@@ -144,7 +146,9 @@ export interface CreateAccountRequest {
   owner_id?: string
 }
 
-export interface UpdateAccountRequest extends Partial<CreateAccountRequest> {}
+export interface UpdateAccountRequest extends Partial<CreateAccountRequest> {
+  custom_fields?: Record<string, unknown>
+}
 
 export interface AccountListParams {
   page?: number
@@ -203,7 +207,9 @@ export interface CreateDealRequest {
   tags?: string[]
 }
 
-export interface UpdateDealRequest extends Partial<CreateDealRequest> {}
+export interface UpdateDealRequest extends Partial<CreateDealRequest> {
+  custom_fields?: Record<string, unknown>
+}
 
 export interface DealListParams {
   page?: number
@@ -503,7 +509,9 @@ export interface CreateLeadRequest {
   owner_id?: string
 }
 
-export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {}
+export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
+  custom_fields?: Record<string, unknown>
+}
 
 export interface LeadListParams {
   page?: number
