@@ -14,6 +14,8 @@ const (
 	NotificationKindDealStageChanged NotificationKind = "deal_stage_changed"
 	NotificationKindMention          NotificationKind = "mention"
 	NotificationKindAssignment       NotificationKind = "assignment"
+	NotificationKindSLAWarning       NotificationKind = "sla_warning"
+	NotificationKindSLABreached      NotificationKind = "sla_breached"
 )
 
 // Notification is a general CRM notification for a user.

@@ -70,6 +70,7 @@ func main() {
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
 	slaPolicyRepo := postgres.NewSLAPolicyRepo(db)
+	slaInstanceRepo := postgres.NewSLAInstanceRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 	apiKeyRepo := postgres.NewAPIKeyRepo(db)
 	emailRepo := postgres.NewEmailRepo(db)
@@ -91,6 +92,9 @@ func main() {
 	webhookDispatcher := worker.NewWebhookDispatcher(outboundWebhookRepo, 30*time.Second, logger)
 	webhookDispatcher.Start(workerCtx)
 
+	slaBreachWorker := worker.NewSLABreachWorker(slaInstanceRepo, notificationRepo, 5*time.Minute, logger)
+	slaBreachWorker.Start(workerCtx)
+
 	if cfg.SMTP.Enabled {
 		logger.Info("email notifications enabled", "smtp_host", cfg.SMTP.Host)
 	} else {
@@ -103,7 +107,8 @@ func main() {
 	userHandler := handler.NewUserHandler(userRepo)
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
-	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo)
+	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)
+	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo)
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
@@ -177,6 +182,8 @@ func main() {
 		r.Mount("/tickets", ticketHandler.Router())
 		r.Mount("/portal", portalHandler.Router())
 		r.Mount("/sla-policies", slaPolicyHandler.Router())
+		r.Mount("/sla-instances", slaInstanceHandler.Router())
+		r.Mount("/sla-dashboard", slaInstanceHandler.DashboardRouter())
 		r.Mount("/users", userHandler.Router())
 		r.Route("/users/me/notification-prefs", func(r chi.Router) { r.Mount("/", notifPrefHandler.Router()) })
 		r.Mount("/search", searchHandler.Router())

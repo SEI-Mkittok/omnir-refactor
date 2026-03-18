@@ -24,13 +24,15 @@ func NewSLAPolicyRepo(db *pgxpool.Pool) *SLAPolicyRepo {
 	return &SLAPolicyRepo{db: db}
 }
 
-const slaPolicyCols = `id, org_id, name, response_time_hours, resolution_time_hours, priority_filter, created_at, updated_at`
+const slaPolicyCols = `id, org_id, name, entity_type, conditions, response_time_hours, resolution_time_hours, priority_filter, created_at, updated_at`
 
 func scanSLAPolicy(row pgx.Row) (*domain.SLAPolicy, error) {
 	var p domain.SLAPolicy
 	var priorityJSON []byte
+	var conditionsJSON []byte
 	err := row.Scan(
 		&p.ID, &p.OrgID, &p.Name,
+		&p.EntityType, &conditionsJSON,
 		&p.ResponseTimeHours, &p.ResolutionTimeHours,
 		&priorityJSON, &p.CreatedAt, &p.UpdatedAt,
 	)
@@ -42,6 +44,9 @@ func scanSLAPolicy(row pgx.Row) (*domain.SLAPolicy, error) {
 	}
 	if err := json.Unmarshal(priorityJSON, &p.PriorityFilter); err != nil {
 		return nil, err
+	}
+	if len(conditionsJSON) > 0 {
+		p.Conditions = conditionsJSON
 	}
 	return &p, nil
 }
@@ -56,6 +61,12 @@ func (r *SLAPolicyRepo) Create(ctx context.Context, p *domain.SLAPolicy) (*domai
 	if p.PriorityFilter == nil {
 		p.PriorityFilter = []domain.TicketPriority{}
 	}
+	if p.EntityType == "" {
+		p.EntityType = domain.SLAEntityTypeTicket
+	}
+	if len(p.Conditions) == 0 {
+		p.Conditions = json.RawMessage(`{}`)
+	}
 	now := time.Now().UTC()
 	p.CreatedAt = now
 	p.UpdatedAt = now
@@ -67,10 +78,11 @@ func (r *SLAPolicyRepo) Create(ctx context.Context, p *domain.SLAPolicy) (*domai
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO sla_policies
-			(id, org_id, name, response_time_hours, resolution_time_hours, priority_filter, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+			(id, org_id, name, entity_type, conditions, response_time_hours, resolution_time_hours, priority_filter, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		RETURNING `+slaPolicyCols,
 		p.ID, p.OrgID, p.Name,
+		string(p.EntityType), []byte(p.Conditions),
 		p.ResponseTimeHours, p.ResolutionTimeHours,
 		priorityJSON, p.CreatedAt, p.UpdatedAt,
 	)
@@ -101,6 +113,12 @@ func (r *SLAPolicyRepo) Update(ctx context.Context, id uuid.UUID, patch domain.S
 
 	if patch.Name != nil {
 		addArg("name", *patch.Name)
+	}
+	if patch.EntityType != nil {
+		addArg("entity_type", string(*patch.EntityType))
+	}
+	if len(patch.Conditions) > 0 {
+		addArg("conditions", []byte(patch.Conditions))
 	}
 	if patch.ResponseTimeHours != nil {
 		addArg("response_time_hours", *patch.ResponseTimeHours)
@@ -175,8 +193,10 @@ func (r *SLAPolicyRepo) List(ctx context.Context, orgID uuid.UUID) ([]*domain.SL
 	for rows.Next() {
 		var p domain.SLAPolicy
 		var priorityJSON []byte
+		var conditionsJSON []byte
 		if err := rows.Scan(
 			&p.ID, &p.OrgID, &p.Name,
+			&p.EntityType, &conditionsJSON,
 			&p.ResponseTimeHours, &p.ResolutionTimeHours,
 			&priorityJSON, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
@@ -184,6 +204,9 @@ func (r *SLAPolicyRepo) List(ctx context.Context, orgID uuid.UUID) ([]*domain.SL
 		}
 		if err := json.Unmarshal(priorityJSON, &p.PriorityFilter); err != nil {
 			return nil, err
+		}
+		if len(conditionsJSON) > 0 {
+			p.Conditions = conditionsJSON
 		}
 		policies = append(policies, &p)
 	}
@@ -207,4 +230,44 @@ func (r *SLAPolicyRepo) MatchByPriority(ctx context.Context, priority domain.Tic
 		return nil, nil
 	}
 	return p, err
+}
+
+func (r *SLAPolicyRepo) MatchForEntity(ctx context.Context, entityType domain.SLAEntityType) ([]*domain.SLAPolicy, error) {
+	q := `SELECT ` + slaPolicyCols + ` FROM sla_policies WHERE entity_type=$1`
+	args := []any{string(entityType)}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+	q += ` ORDER BY created_at ASC`
+
+	rows, err := r.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var policies []*domain.SLAPolicy
+	for rows.Next() {
+		var p domain.SLAPolicy
+		var priorityJSON []byte
+		var conditionsJSON []byte
+		if err := rows.Scan(
+			&p.ID, &p.OrgID, &p.Name,
+			&p.EntityType, &conditionsJSON,
+			&p.ResponseTimeHours, &p.ResolutionTimeHours,
+			&priorityJSON, &p.CreatedAt, &p.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(priorityJSON, &p.PriorityFilter); err != nil {
+			return nil, err
+		}
+		if len(conditionsJSON) > 0 {
+			p.Conditions = conditionsJSON
+		}
+		policies = append(policies, &p)
+	}
+	return policies, rows.Err()
 }
