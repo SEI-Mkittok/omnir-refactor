@@ -460,6 +460,7 @@ export interface CreateCustomFieldDefinitionRequest {
 
 export interface UpdateCustomFieldDefinitionRequest {
   label?: string
+  field_type?: CustomFieldType
   options?: string[]
   required?: boolean
 }
