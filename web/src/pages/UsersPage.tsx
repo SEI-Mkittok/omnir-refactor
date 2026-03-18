@@ -35,12 +35,16 @@ const SORT_OPTIONS = [
 
 const roleBadgeVariant: Record<UserRole, 'default' | 'blue' | 'yellow' | 'green' | 'red' | 'gray' | 'indigo' | 'purple' | 'orange'> = {
   admin: 'red',
+  agent: 'indigo',
+  client: 'green',
   user: 'blue',
   viewer: 'gray',
 }
 
 const roleLabel: Record<UserRole, string> = {
   admin: 'Admin',
+  agent: 'Agent',
+  client: 'Client',
   user: 'User',
   viewer: 'Viewer',
 }
