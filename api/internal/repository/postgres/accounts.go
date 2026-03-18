@@ -78,6 +78,19 @@ func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Accoun
 	return scanAccount(row)
 }
 
+func (r *AccountRepo) GetByName(ctx context.Context, name string) (*domain.Account, error) {
+	q := `SELECT ` + accountCols + ` FROM accounts WHERE name=$1 AND deleted_at IS NULL`
+	args := []any{name}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+
+	row := r.db.QueryRow(ctx, q, args...)
+	return scanAccount(row)
+}
+
 func (r *AccountRepo) Update(ctx context.Context, id uuid.UUID, patch domain.AccountPatch) (*domain.Account, error) {
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
