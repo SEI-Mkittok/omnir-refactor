@@ -208,17 +208,3 @@ type SLAPolicyRepository interface {
 	// the given priority, scoped to the org in context. Returns nil, nil when none match.
 	MatchByPriority(ctx context.Context, priority domain.TicketPriority) (*domain.SLAPolicy, error)
 }
-
-// OutboundWebhookRepository manages registered outbound webhook endpoints and their deliveries.
-type OutboundWebhookRepository interface {
-	Create(ctx context.Context, w *domain.Webhook) (*domain.Webhook, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*domain.Webhook, error)
-	List(ctx context.Context) ([]*domain.Webhook, error)
-	ListByEvent(ctx context.Context, orgID uuid.UUID, event domain.WebhookEvent) ([]*domain.Webhook, error)
-	Update(ctx context.Context, id uuid.UUID, patch domain.WebhookPatch) (*domain.Webhook, error)
-	Delete(ctx context.Context, id uuid.UUID) error
-	CreateDelivery(ctx context.Context, d *domain.WebhookDelivery) (*domain.WebhookDelivery, error)
-	UpdateDelivery(ctx context.Context, d *domain.WebhookDelivery) error
-	PendingDeliveries(ctx context.Context) ([]*domain.WebhookDelivery, error)
-	ListDeliveries(ctx context.Context, webhookID uuid.UUID, limit int) ([]*domain.WebhookDelivery, error)
-}
