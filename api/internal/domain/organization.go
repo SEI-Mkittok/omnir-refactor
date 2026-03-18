@@ -10,7 +10,8 @@ import (
 type OrgPlan string
 
 const (
-	OrgPlanSelfHosted OrgPlan = "self_hosted"
+	// OrgPlanSingle is the default plan for self-hosted / single-tenant deployments.
+	OrgPlanSingle     OrgPlan = "single"
 	OrgPlanStarter    OrgPlan = "starter"
 	OrgPlanPro        OrgPlan = "pro"
 	OrgPlanEnterprise OrgPlan = "enterprise"
