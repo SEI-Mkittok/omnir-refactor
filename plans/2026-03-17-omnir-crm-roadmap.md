@@ -71,6 +71,47 @@ Ship the minimum viable CRM: contacts, accounts, deals.
 
 ---
 
+---
+
+## Phase 6: Integrations & Data Portability 🔜 PLANNED
+
+_Defined: 2026-03-18 | Scoped by: Völundr (CTO) | Parent issue: OMN-258_
+
+**Selected areas (ranked by value/cost):**
+1. **Bulk import/export** — critical for vtiger migration completion, medium cost, high immediate value
+2. **Email integration** — core CRM differentiator, high cost, high strategic value
+3. **Webhooks + integrations** — ecosystem enabler, medium cost, enables Zapier/automation use cases
+
+_Deferred: Advanced analytics (high cost, low immediate need), Mobile-responsive audit (lower strategic ROI)_
+
+### Area 1: Bulk Import/Export
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| CSV import API (contacts, accounts, leads) | Tyr | OMN-261 |
+| CSV export API (contacts, accounts, deals, reports) | Tyr | OMN-262 |
+| Bulk import/export UI | Freya | OMN-263 |
+
+### Area 2: Email Integration
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Email data model + SMTP outbound API | Tyr | OMN-264 |
+| Inbound email parsing + storage | Tyr | OMN-265 |
+| Email compose + timeline UI | Freya | OMN-266 |
+
+### Area 3: Webhooks + Integrations
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Webhook registration + delivery API | Tyr | OMN-267 |
+| Webhook event emission on CRM mutations | Tyr | OMN-268 |
+| Webhook management UI | Freya | OMN-269 |
+
+**Exit criteria:** Users can import/export data via CSV, send/receive emails from contact pages, and configure outbound webhooks for automation triggers.
+
+---
+
 ## Open Questions / Decisions Needed
 
 1. **Multi-tenancy:** Add `org_id` now or wait? If targeting SaaS, add it in Phase 2.
