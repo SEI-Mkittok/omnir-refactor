@@ -57,68 +57,156 @@ func (h *DealHandler) Router() chi.Router {
 func (h *DealHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := domain.DealFilter{Q: q.Get("q"), Sort: q.Get("sort"), Order: q.Get("order")}
-	if v := q.Get("page"); v != "" { if n, err := strconv.Atoi(v); err == nil { filter.Page = n } }
-	if v := q.Get("limit"); v != "" { if n, err := strconv.Atoi(v); err == nil && n <= 200 { filter.Limit = n } }
-	if v := q.Get("owner_id"); v != "" { if id, err := uuid.Parse(v); err == nil { filter.OwnerID = &id } }
-	if v := q.Get("stage"); v != "" { s := domain.DealStage(v); filter.Stage = &s }
-	if v := q.Get("account_id"); v != "" { if id, err := uuid.Parse(v); err == nil { filter.AccountID = &id } }
-	if v := q.Get("contact_id"); v != "" { if id, err := uuid.Parse(v); err == nil { filter.ContactID = &id } }
-	if v := q.Get("pipeline_id"); v != "" { if id, err := uuid.Parse(v); err == nil { filter.PipelineID = &id } }
-	if filter.Limit == 0 { filter.Limit = 50 }
-	if filter.Page == 0 { filter.Page = 1 }
+	if v := q.Get("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			filter.Page = n
+		}
+	}
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n <= 200 {
+			filter.Limit = n
+		}
+	}
+	if v := q.Get("owner_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.OwnerID = &id
+		}
+	}
+	if v := q.Get("stage"); v != "" {
+		s := domain.DealStage(v)
+		filter.Stage = &s
+	}
+	if v := q.Get("account_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.AccountID = &id
+		}
+	}
+	if v := q.Get("contact_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.ContactID = &id
+		}
+	}
+	if v := q.Get("pipeline_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.PipelineID = &id
+		}
+	}
+	if filter.Limit == 0 {
+		filter.Limit = 50
+	}
+	if filter.Page == 0 {
+		filter.Page = 1
+	}
 	deals, total, err := h.repo.List(r.Context(), filter)
-	if err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, paginated(deals, total, filter.Page, filter.Limit))
 }
 
 func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var d domain.Deal
-	if err := json.NewDecoder(r.Body).Decode(&d); err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body"); return }
-	if d.Stage == "" { d.Stage = domain.DealStageLead }
-	if d.Currency == "" { d.Currency = "USD" }
-	if err := d.Validate(); err != nil { handleDomainErr(w, err); return }
+	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if d.Stage == "" {
+		d.Stage = domain.DealStageLead
+	}
+	if d.Currency == "" {
+		d.Currency = "USD"
+	}
+	if err := d.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	created, err := h.repo.Create(r.Context(), &d)
-	if err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	h.emitWebhook(r, domain.WebhookEventDealCreated, created.ID, created)
 	writeJSON(w, http.StatusCreated, created)
 }
 
 func (h *DealHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id"); return }
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
 	d, err := h.repo.GetByID(r.Context(), id)
-	if err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 
 func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id"); return }
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
 	var patch domain.DealPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body"); return }
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
 	d, err := h.repo.Update(r.Context(), id, patch)
-	if err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	h.emitWebhook(r, domain.WebhookEventDealUpdated, d.ID, d)
-	if patch.Stage != nil { h.emitWebhook(r, domain.WebhookEventDealStageChanged, d.ID, d) }
+	if patch.Stage != nil {
+		h.emitWebhook(r, domain.WebhookEventDealStageChanged, d.ID, d)
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 
 func (h *DealHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id"); return }
-	if err := h.repo.Delete(r.Context(), id); err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	if err := h.repo.Delete(r.Context(), id); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	h.emitWebhook(r, domain.WebhookEventDealDeleted, id, map[string]any{"id": id})
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
 	dealID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid deal id"); return }
-	var body struct { ContactID uuid.UUID `json:"contact_id"`; Role string `json:"role"` }
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil { writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body"); return }
-	if body.ContactID == uuid.Nil { writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "contact_id is required"); return }
-	if err := h.repo.AddContact(r.Context(), dealID, body.ContactID, body.Role); err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid deal id")
+		return
+	}
+	var body struct {
+		ContactID uuid.UUID `json:"contact_id"`
+		Role      string    `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if body.ContactID == uuid.Nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "contact_id is required")
+		return
+	}
+	if err := h.repo.AddContact(r.Context(), dealID, body.ContactID, body.Role); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	deal, err := h.repo.GetByID(r.Context(), dealID)
-	if err != nil { handleDomainErr(w, err); return }
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, deal)
 }
