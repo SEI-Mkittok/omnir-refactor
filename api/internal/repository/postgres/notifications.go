@@ -3,8 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -22,11 +21,15 @@ func NewNotificationRepo(db *pgxpool.Pool) *NotificationRepo {
 	return &NotificationRepo{db: db}
 }
 
-const notificationCols = `id, org_id, user_id, activity_id, type, read_at, created_at`
+const notifCols = `id, org_id, user_id, actor_id, kind, entity_type, entity_id, title, body, read_at, emailed_at, created_at`
 
 func scanNotification(row pgx.Row) (*domain.Notification, error) {
 	var n domain.Notification
-	err := row.Scan(&n.ID, &n.OrgID, &n.UserID, &n.ActivityID, &n.Type, &n.ReadAt, &n.CreatedAt)
+	err := row.Scan(
+		&n.ID, &n.OrgID, &n.UserID, &n.ActorID, &n.Kind,
+		&n.EntityType, &n.EntityID, &n.Title, &n.Body,
+		&n.ReadAt, &n.EmailedAt, &n.CreatedAt,
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrNotFound
@@ -41,26 +44,20 @@ func (r *NotificationRepo) Create(ctx context.Context, n *domain.Notification) (
 		n.ID = uuid.New()
 	}
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO notifications (id, org_id, user_id, activity_id, type)
-		VALUES ($1, $2, $3, $4, $5::notification_type)
-		ON CONFLICT (activity_id, type) DO NOTHING
-		RETURNING `+notificationCols,
-		n.ID, n.OrgID, n.UserID, n.ActivityID, n.Type,
+		INSERT INTO notifications (id, org_id, user_id, actor_id, kind, entity_type, entity_id, title, body)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING `+notifCols,
+		n.ID, n.OrgID, n.UserID, n.ActorID, n.Kind,
+		n.EntityType, n.EntityID, n.Title, n.Body,
 	)
-	result, err := scanNotification(row)
-	if err != nil {
-		// ON CONFLICT DO NOTHING returns no rows — treat as a no-op success.
-		if errors.Is(err, domain.ErrNotFound) {
-			return n, nil
-		}
-		return nil, err
-	}
-	return result, nil
+	return scanNotification(row)
 }
 
 func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID uuid.UUID) error {
-	q := `UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2 AND read_at IS NULL`
-	result, err := r.db.Exec(ctx, q, id, userID)
+	result, err := r.db.Exec(ctx,
+		`UPDATE notifications SET read_at = NOW() WHERE id = $1 AND user_id = $2 AND read_at IS NULL`,
+		id, userID,
+	)
 	if err != nil {
 		return err
 	}
@@ -70,107 +67,113 @@ func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID uuid.UUID) e
 	return nil
 }
 
-func (r *NotificationRepo) ListByUser(ctx context.Context, f domain.NotificationFilter) ([]*domain.Notification, int, error) {
+func (r *NotificationRepo) MarkAllRead(ctx context.Context, userID, orgID uuid.UUID) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE notifications SET read_at = NOW() WHERE user_id = $1 AND org_id = $2 AND read_at IS NULL`,
+		userID, orgID,
+	)
+	return err
+}
+
+func (r *NotificationRepo) UnreadCount(ctx context.Context, userID, orgID uuid.UUID) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND org_id = $2 AND read_at IS NULL`,
+		userID, orgID,
+	).Scan(&count)
+	return count, err
+}
+
+func (r *NotificationRepo) ListByUser(ctx context.Context, f domain.NotificationFilter) ([]*domain.Notification, error) {
 	if f.Limit <= 0 {
 		f.Limit = 50
 	}
-	if f.Page <= 0 {
-		f.Page = 1
+
+	args := []any{f.UserID, f.OrgID}
+	q := `SELECT ` + notifCols + ` FROM notifications WHERE user_id = $1 AND org_id = $2`
+
+	if f.UnreadOnly {
+		q += ` AND read_at IS NULL`
 	}
-	offset := (f.Page - 1) * f.Limit
-
-	where := []string{}
-	args := []any{}
-	i := 1
-
-	addWhere := func(expr string, val any) {
-		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
-		args = append(args, val)
-		i++
+	if f.Before != nil {
+		q += ` AND created_at < $3`
+		args = append(args, *f.Before)
 	}
+	q += ` ORDER BY created_at DESC`
+	args = append(args, f.Limit+1)
+	q += ` LIMIT $` + itoa(len(args))
 
-	addWhere("user_id", f.UserID)
-	if f.OrgID != uuid.Nil {
-		addWhere("org_id", f.OrgID)
-	}
-	if f.Unread {
-		where = append(where, "read_at IS NULL")
-	}
-
-	whereClause := strings.Join(where, " AND ")
-
-	var total int
-	if err := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE `+whereClause, args...).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-
-	rows, err := r.db.Query(ctx,
-		fmt.Sprintf(
-			`SELECT %s FROM notifications WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
-			notificationCols, whereClause, i, i+1,
-		),
-		append(args, f.Limit, offset)...,
-	)
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer rows.Close()
 
 	var notifications []*domain.Notification
 	for rows.Next() {
-		var n domain.Notification
-		if err := rows.Scan(&n.ID, &n.OrgID, &n.UserID, &n.ActivityID, &n.Type, &n.ReadAt, &n.CreatedAt); err != nil {
-			return nil, 0, err
+		n, err := scanNotification(rows)
+		if err != nil {
+			return nil, err
 		}
-		notifications = append(notifications, &n)
+		notifications = append(notifications, n)
 	}
-	return notifications, total, rows.Err()
+	return notifications, rows.Err()
 }
 
-// GenerateReminders scans activities with upcoming or overdue due dates and inserts
-// missing notifications. The unique index on (activity_id, type) prevents duplicates.
+// GenerateReminders scans activities with upcoming or overdue due dates and creates
+// activity_reminder notifications.
 func (r *NotificationRepo) GenerateReminders(ctx context.Context) error {
-	// Each entry: (notification_type, interval expression for upcoming window).
 	upcomingTypes := []struct {
-		nType    string
+		label    string
 		interval string
 	}{
-		{"upcoming_15m", "15 minutes"},
-		{"upcoming_1h", "1 hour"},
-		{"upcoming_1d", "1 day"},
+		{"15 minutes", "15 minutes"},
+		{"1 hour", "1 hour"},
+		{"1 day", "1 day"},
 	}
 
 	for _, ut := range upcomingTypes {
 		_, err := r.db.Exec(ctx, `
-			INSERT INTO notifications (org_id, user_id, activity_id, type)
-			SELECT a.org_id, a.owner_id, a.id, $1::notification_type
+			INSERT INTO notifications (org_id, user_id, kind, entity_type, entity_id, title)
+			SELECT a.org_id, a.owner_id, 'activity_reminder', 'activity', a.id,
+			       'Upcoming activity in `+ut.label+`'
 			FROM activities a
 			WHERE a.due_date IS NOT NULL
 			  AND a.completed_at IS NULL
 			  AND a.deleted_at IS NULL
-			  AND a.due_date BETWEEN NOW() AND NOW() + $2::interval
-			ON CONFLICT (activity_id, type) DO NOTHING
-		`, ut.nType, ut.interval)
+			  AND a.due_date BETWEEN NOW() AND NOW() + $1::interval
+			  AND NOT EXISTS (
+			    SELECT 1 FROM notifications n2
+			    WHERE n2.entity_id = a.id
+			      AND n2.kind = 'activity_reminder'
+			      AND n2.title = 'Upcoming activity in `+ut.label+`'
+			      AND n2.created_at > NOW() - $1::interval
+			  )
+		`, ut.interval)
 		if err != nil {
-			return fmt.Errorf("generate %s reminders: %w", ut.nType, err)
+			return err
 		}
 	}
 
-	// Overdue: due_date is in the past and activity is not completed.
 	_, err := r.db.Exec(ctx, `
-		INSERT INTO notifications (org_id, user_id, activity_id, type)
-		SELECT a.org_id, a.owner_id, a.id, 'overdue'::notification_type
+		INSERT INTO notifications (org_id, user_id, kind, entity_type, entity_id, title)
+		SELECT a.org_id, a.owner_id, 'activity_reminder', 'activity', a.id, 'Overdue activity'
 		FROM activities a
 		WHERE a.due_date IS NOT NULL
 		  AND a.completed_at IS NULL
 		  AND a.deleted_at IS NULL
 		  AND a.due_date < NOW()
-		ON CONFLICT (activity_id, type) DO NOTHING
+		  AND NOT EXISTS (
+		    SELECT 1 FROM notifications n2
+		    WHERE n2.entity_id = a.id
+		      AND n2.kind = 'activity_reminder'
+		      AND n2.title = 'Overdue activity'
+		      AND n2.created_at > NOW() - interval '1 hour'
+		  )
 	`)
-	if err != nil {
-		return fmt.Errorf("generate overdue reminders: %w", err)
-	}
+	return err
+}
 
-	return nil
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }

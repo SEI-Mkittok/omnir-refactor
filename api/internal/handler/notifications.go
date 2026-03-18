@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -24,12 +25,12 @@ func NewNotificationHandler(repo repository.NotificationRepository) *Notificatio
 func (h *NotificationHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
-	r.Patch("/{id}/read", h.MarkRead)
+	r.Get("/unread-count", h.UnreadCount)
+	r.Post("/{id}/read", h.MarkRead)
+	r.Post("/read-all", h.MarkAllRead)
 	return r
 }
 
-// List returns notifications for the authenticated user.
-// Query params: unread=true, page, limit.
 func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r)
 	if !ok {
@@ -39,46 +40,72 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 	filter := domain.NotificationFilter{
-		OrgID:  claims.OrgID,
-		UserID: claims.UserID,
-		Unread: q.Get("unread") == "true",
-		Page:   1,
-		Limit:  50,
-	}
-	if v := q.Get("page"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			filter.Page = n
-		}
+		OrgID:      claims.OrgID,
+		UserID:     claims.UserID,
+		UnreadOnly: q.Get("unread_only") == "true",
+		Limit:      50,
 	}
 	if v := q.Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
 			filter.Limit = n
 		}
 	}
+	if v := q.Get("before"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			filter.Before = &t
+		}
+	}
 
-	notifications, total, err := h.repo.ListByUser(r.Context(), filter)
+	notifications, err := h.repo.ListByUser(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, paginated(notifications, total, filter.Page, filter.Limit))
+	if notifications == nil {
+		notifications = []*domain.Notification{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": notifications})
 }
 
-// MarkRead marks a single notification as read for the authenticated user.
+func (h *NotificationHandler) UnreadCount(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	count, err := h.repo.UnreadCount(r.Context(), claims.UserID, claims.OrgID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"count": count})
+}
+
 func (h *NotificationHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r)
 	if !ok {
 		writeProblem(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
 		return
 	}
-
 	if err := h.repo.MarkRead(r.Context(), id, claims.UserID); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *NotificationHandler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	if err := h.repo.MarkAllRead(r.Context(), claims.UserID, claims.OrgID); err != nil {
 		handleDomainErr(w, err)
 		return
 	}
