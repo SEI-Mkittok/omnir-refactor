@@ -23,11 +23,11 @@ func adminClaims(userID uuid.UUID) *auth.Claims {
 }
 
 func userClaims(userID uuid.UUID) *auth.Claims {
-	return &auth.Claims{UserID: userID, Role: string(domain.UserRoleUser)}
+	return &auth.Claims{UserID: userID, Role: string(domain.UserRoleAgent)}
 }
 
 func makeUser(id uuid.UUID) *domain.User {
-	return &domain.User{ID: id, Email: "user@example.com", Name: "Test User", Role: domain.UserRoleUser}
+	return &domain.User{ID: id, Email: "user@example.com", Name: "Test User", Role: domain.UserRoleAgent}
 }
 
 func TestUserHandler_List(t *testing.T) {
@@ -123,7 +123,7 @@ func TestUserHandler_Create(t *testing.T) {
 				"name":     "Alice",
 				"email":    "alice@example.com",
 				"password": "secret123",
-				"role":     "user",
+				"role":     "agent",
 			},
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("string")).
@@ -138,7 +138,7 @@ func TestUserHandler_Create(t *testing.T) {
 				"name":     "Bob",
 				"email":    "bob@example.com",
 				"password": "secret123",
-				"role":     "user",
+				"role":     "agent",
 			},
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("Create", mock.Anything, mock.MatchedBy(func(u *domain.User) bool {

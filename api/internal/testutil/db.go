@@ -31,6 +31,7 @@ func TruncateAll(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
 		TRUNCATE
+			leads,
 			notes,
 			activities,
 			deals,
@@ -38,7 +39,7 @@ func TruncateAll(t *testing.T, pool *pgxpool.Pool) {
 			accounts,
 			pipelines,
 			users,
-			organizations
+			orgs
 		RESTART IDENTITY CASCADE
 	`)
 	require.NoError(t, err, "failed to truncate tables")
