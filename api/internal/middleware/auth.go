@@ -92,10 +92,33 @@ func authenticateAPIKey(w http.ResponseWriter, r *http.Request, next http.Handle
 		return true
 	}
 
+	// Enforce scope restrictions before passing the request on.
+	// "read" scope (without "write") allows only safe/idempotent methods.
+	hasWrite := false
+	hasRead := false
+	for _, s := range apiKey.Scopes {
+		switch s {
+		case "write":
+			hasWrite = true
+		case "read":
+			hasRead = true
+		}
+	}
+	if hasRead && !hasWrite {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			// allowed
+		default:
+			http.Error(w, `{"error":"forbidden","code":"insufficient_scope"}`, http.StatusForbidden)
+			return true
+		}
+	}
+
 	claims := &auth.Claims{
-		UserID: apiKey.CreatedBy,
-		OrgID:  apiKey.OrgID,
-		Role:   string(user.Role),
+		UserID:       apiKey.CreatedBy,
+		OrgID:        apiKey.OrgID,
+		Role:         string(user.Role),
+		APIKeyScopes: apiKey.Scopes,
 	}
 	next.ServeHTTP(w, withClaims(r, claims))
 	return true

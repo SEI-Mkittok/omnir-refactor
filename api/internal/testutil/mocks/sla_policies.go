@@ -58,3 +58,11 @@ func (m *MockSLAPolicyRepository) MatchByPriority(ctx context.Context, priority 
 	}
 	return args.Get(0).(*domain.SLAPolicy), args.Error(1)
 }
+
+func (m *MockSLAPolicyRepository) MatchForEntity(ctx context.Context, entityType domain.SLAEntityType) ([]*domain.SLAPolicy, error) {
+	args := m.Called(ctx, entityType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.SLAPolicy), args.Error(1)
+}

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -19,6 +22,8 @@ type DealHandler struct {
 	cfDefs        repository.CustomFieldDefinitionRepository
 	dispatcher    chan<- worker.WebhookEvent
 	notifications repository.NotificationRepository
+	slaInstances  repository.SLAInstanceRepository
+	slaPolicies   repository.SLAPolicyRepository
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
@@ -37,6 +42,12 @@ func (h *DealHandler) WithDispatcher(d chan<- worker.WebhookEvent) *DealHandler 
 
 func (h *DealHandler) WithNotifications(r repository.NotificationRepository) *DealHandler {
 	h.notifications = r
+	return h
+}
+
+func (h *DealHandler) WithSLA(policies repository.SLAPolicyRepository, instances repository.SLAInstanceRepository) *DealHandler {
+	h.slaPolicies = policies
+	h.slaInstances = instances
 	return h
 }
 
@@ -139,6 +150,7 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.emitWebhook(r, domain.WebhookEventDealCreated, created.ID, created)
+	h.attachSLAInstances(r.Context(), created.ID, domain.SLAEntityTypeDeal, created.CreatedAt)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -252,4 +264,31 @@ func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, deal)
+}
+
+// attachSLAInstances creates SLA instance rows for all matching deal policies.
+// Errors are logged and silently ignored so they don't fail the primary request.
+func (h *DealHandler) attachSLAInstances(ctx context.Context, entityID uuid.UUID, entityType domain.SLAEntityType, startedAt time.Time) {
+	if h.slaPolicies == nil || h.slaInstances == nil {
+		return
+	}
+	policies, err := h.slaPolicies.MatchForEntity(ctx, entityType)
+	if err != nil {
+		slog.Default().Error("sla policy match failed", "entity_type", entityType, "err", err)
+		return
+	}
+	for _, policy := range policies {
+		responseWindow := time.Duration(policy.ResponseTimeHours * float64(time.Hour))
+		resolutionWindow := time.Duration(policy.ResolutionTimeHours * float64(time.Hour))
+		inst := &domain.SLAInstance{
+			PolicyID:        policy.ID,
+			EntityID:        entityID,
+			EntityType:      entityType,
+			ResponseDueAt:   startedAt.Add(responseWindow),
+			ResolutionDueAt: startedAt.Add(resolutionWindow),
+		}
+		if _, err := h.slaInstances.Create(ctx, inst); err != nil {
+			slog.Default().Error("sla instance create failed", "policy_id", policy.ID, "entity_id", entityID, "err", err)
+		}
+	}
 }

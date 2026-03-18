@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/Dialog'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import type { APIKey, CreateAPIKeyResponse } from '@/api/types'
 
 // ---- Create Key Dialog ----
@@ -26,6 +26,7 @@ interface CreateKeyDialogProps {
 function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
   const { mutate: createKey, isPending } = useCreateApiKey()
   const [name, setName] = useState('')
+  const [scope, setScope] = useState<'read' | 'write'>('read')
   const [error, setError] = useState('')
   const [created, setCreated] = useState<CreateAPIKeyResponse | null>(null)
   const [copied, setCopied] = useState(false)
@@ -38,7 +39,7 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
       return
     }
     createKey(
-      { name: name.trim() },
+      { name: name.trim(), scopes: [scope] },
       {
         onSuccess: (res) => setCreated(res),
         onError: () => setError('Failed to create API key.'),
@@ -56,6 +57,7 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
 
   const handleClose = () => {
     setName('')
+    setScope('read')
     setError('')
     setCreated(null)
     setCopied(false)
@@ -109,6 +111,35 @@ function CreateKeyDialog({ open, onClose }: CreateKeyDialogProps) {
                 placeholder="e.g. ConnectWise integration"
                 autoFocus
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Scope</label>
+              <div className="flex gap-3">
+                {(['read', 'write'] as const).map((s) => (
+                  <label
+                    key={s}
+                    className={cn(
+                      'flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                      scope === s
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="scope"
+                      value={s}
+                      checked={scope === s}
+                      onChange={() => setScope(s)}
+                      className="sr-only"
+                    />
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400">
+                {scope === 'read' ? 'Read-only access — can list and fetch data.' : 'Full access — can create, update, and delete.'}
+              </p>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <DialogFooter>
@@ -202,6 +233,18 @@ export function APIKeysPage() {
       header: 'Key Prefix',
       render: (k) => (
         <span className="font-mono text-sm text-slate-600">{k.key_prefix}…</span>
+      ),
+    },
+    {
+      key: 'scopes',
+      header: 'Scope',
+      hideOnMobile: true,
+      render: (k) => (
+        <div className="flex gap-1">
+          {(k.scopes ?? []).map((s) => (
+            <Badge key={s} variant={s === 'write' ? 'yellow' : 'blue'}>{s}</Badge>
+          ))}
+        </div>
       ),
     },
     {

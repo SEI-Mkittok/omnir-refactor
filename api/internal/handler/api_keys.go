@@ -97,6 +97,13 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if scopes == nil {
 		scopes = []string{}
 	}
+	validScopes := map[string]bool{"read": true, "write": true}
+	for _, s := range scopes {
+		if !validScopes[s] {
+			writeError(w, http.StatusUnprocessableEntity, "invalid scope: "+s+"; allowed values are read, write")
+			return
+		}
+	}
 
 	k := &domain.APIKey{
 		OrgID:     claims.OrgID,
