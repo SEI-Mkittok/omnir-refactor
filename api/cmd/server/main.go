@@ -73,6 +73,7 @@ func main() {
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
+	apiKeyRepo := postgres.NewAPIKeyRepo(db)
 
 	// Background workers
 	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
@@ -99,6 +100,7 @@ func main() {
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
 
 	r := chi.NewRouter()
 
@@ -131,7 +133,7 @@ func main() {
 
 	// API v1 (all routes require authentication + org scoping)
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(middleware.Authenticate(jwtSvc))
+		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
 		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
 		r.Mount("/leads", leadHandler.Router())
@@ -157,6 +159,7 @@ func main() {
 		r.Mount("/search", searchHandler.Router())
 		r.Mount("/reports", reportsHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
+		r.Mount("/api-keys", apiKeyHandler.Router())
 	})
 
 	srv := &http.Server{

@@ -138,6 +138,20 @@ type TicketAttachmentRepository interface {
 	Delete(ctx context.Context, id, ticketID uuid.UUID) error
 }
 
+// APIKeyRepository manages API keys for external client authentication.
+type APIKeyRepository interface {
+	// Create inserts a new API key. keyHash must be the SHA-256 hex of the plaintext key.
+	Create(ctx context.Context, k *domain.APIKey, keyHash string) (*domain.APIKey, error)
+	// GetByHash looks up an API key by its SHA-256 hash. Returns nil (not error) when not found.
+	GetByHash(ctx context.Context, keyHash string) (*domain.APIKey, error)
+	// List returns all non-revoked keys for the given org.
+	List(ctx context.Context, orgID uuid.UUID) ([]*domain.APIKey, error)
+	// Revoke sets revoked_at for the given key, scoped to orgID.
+	Revoke(ctx context.Context, id, orgID uuid.UUID) error
+	// UpdateLastUsed sets last_used_at to now for the given key.
+	UpdateLastUsed(ctx context.Context, id uuid.UUID) error
+}
+
 // CustomFieldDefinitionRepository manages admin-defined field schemas per entity type.
 type CustomFieldDefinitionRepository interface {
 	Create(ctx context.Context, def *domain.CustomFieldDefinition) (*domain.CustomFieldDefinition, error)
