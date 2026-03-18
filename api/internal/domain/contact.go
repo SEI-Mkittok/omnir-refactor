@@ -19,21 +19,25 @@ const (
 )
 
 type Contact struct {
-	ID           uuid.UUID       `json:"id"`
-	OrgID        uuid.UUID       `json:"org_id"`
-	FirstName    string          `json:"first_name"`
-	LastName     string          `json:"last_name"`
-	Email        *string         `json:"email,omitempty"`
-	Phone        *string         `json:"phone,omitempty"`
-	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
-	OwnerID      uuid.UUID       `json:"owner_id"`
-	LeadSource   *string         `json:"lead_source,omitempty"`
-	Stage        ContactStage    `json:"stage"`
-	Tags         []string        `json:"tags"`
-	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-	DeletedAt    *time.Time      `json:"deleted_at,omitempty"`
+	ID              uuid.UUID       `json:"id"`
+	OrgID           uuid.UUID       `json:"org_id"`
+	FirstName       string          `json:"first_name"`
+	LastName        string          `json:"last_name"`
+	Email           *string         `json:"email,omitempty"`
+	Phone           *string         `json:"phone,omitempty"`
+	AccountID       *uuid.UUID      `json:"account_id,omitempty"`
+	OwnerID         uuid.UUID       `json:"owner_id"`
+	LeadSource      *string         `json:"lead_source,omitempty"`
+	LeadScore       int             `json:"lead_score"`
+	Stage           ContactStage    `json:"stage"`
+	Tags            []string        `json:"tags"`
+	CustomFields    json.RawMessage `json:"custom_fields,omitempty"`
+	ConvertedAt     *time.Time      `json:"converted_at,omitempty"`
+	ConvertedBy     *uuid.UUID      `json:"converted_by,omitempty"`
+	ConvertedDealID *uuid.UUID      `json:"converted_deal_id,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	DeletedAt       *time.Time      `json:"deleted_at,omitempty"`
 }
 
 // ContactPatch holds optional fields for partial updates.
@@ -92,12 +96,28 @@ func isValidEmail(email string) bool {
 
 // ContactFilter holds query parameters for listing contacts.
 type ContactFilter struct {
-	OrgID   uuid.UUID
-	Q       string
-	OwnerID *uuid.UUID
-	Stage   *ContactStage
-	Page    int
-	Limit   int
-	Sort    string
-	Order   string
+	OrgID    uuid.UUID
+	Q        string
+	OwnerID  *uuid.UUID
+	Stage    *ContactStage
+	Source   *string
+	ScoreMin *int
+	ScoreMax *int
+	Page     int
+	Limit    int
+	Sort     string
+	Order    string
+}
+
+// LeadScorePatch updates a contact's lead score either by absolute value or delta.
+type LeadScorePatch struct {
+	Score *int `json:"score,omitempty"`
+	Delta *int `json:"delta,omitempty"`
+}
+
+// LeadConvertRequest holds the body for converting a lead-stage contact.
+type LeadConvertRequest struct {
+	CreateDeal bool       `json:"create_deal"`
+	DealTitle  string     `json:"deal_title"`
+	PipelineID *uuid.UUID `json:"pipeline_id,omitempty"`
 }

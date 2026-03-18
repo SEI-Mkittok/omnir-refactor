@@ -16,6 +16,7 @@ import (
 
 type ContactHandler struct {
 	repo       repository.ContactRepository
+	deals      repository.DealRepository
 	cfDefs     repository.CustomFieldDefinitionRepository
 	dispatcher chan<- worker.WebhookEvent
 }
@@ -26,6 +27,11 @@ func NewContactHandler(repo repository.ContactRepository) *ContactHandler {
 
 func (h *ContactHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *ContactHandler {
 	h.cfDefs = r
+	return h
+}
+
+func (h *ContactHandler) WithDeals(d repository.DealRepository) *ContactHandler {
+	h.deals = d
 	return h
 }
 
@@ -49,12 +55,15 @@ func (h *ContactHandler) emitWebhook(r *http.Request, event domain.WebhookEvent,
 func (h *ContactHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
+	r.Get("/lead-sources", h.LeadSources)
 	r.Get("/{id}", h.GetByID)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
 		r.Post("/", h.Create)
 		r.Patch("/{id}", h.Update)
 		r.Delete("/{id}", h.Delete)
+		r.Patch("/{id}/score", h.UpdateLeadScore)
+		r.Post("/{id}/convert", h.ConvertLead)
 	})
 	return r
 }
@@ -80,6 +89,19 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("stage"); v != "" {
 		s := domain.ContactStage(v)
 		filter.Stage = &s
+	}
+	if v := q.Get("source"); v != "" {
+		filter.Source = &v
+	}
+	if v := q.Get("score_min"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			filter.ScoreMin = &n
+		}
+	}
+	if v := q.Get("score_max"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			filter.ScoreMax = &n
+		}
 	}
 	if filter.Limit == 0 {
 		filter.Limit = 50
@@ -181,4 +203,108 @@ func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// LeadSources returns distinct lead_source values for contacts with stage='lead'.
+// GET /api/v1/contacts/lead-sources
+func (h *ContactHandler) LeadSources(w http.ResponseWriter, r *http.Request) {
+	sources, err := h.repo.ListLeadSources(r.Context())
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sources": sources})
+}
+
+// UpdateLeadScore updates the lead_score on a contact (absolute or delta).
+// PATCH /api/v1/contacts/{id}/score
+func (h *ContactHandler) UpdateLeadScore(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	var patch domain.LeadScorePatch
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if patch.Score == nil && patch.Delta == nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "score or delta is required")
+		return
+	}
+	contact, err := h.repo.UpdateLeadScore(r.Context(), id, patch)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, contact)
+}
+
+// ConvertLead promotes a contact from stage='lead' to stage='prospect',
+// optionally creating a deal linked to the contact.
+// POST /api/v1/contacts/{id}/convert
+func (h *ContactHandler) ConvertLead(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+
+	var req domain.LeadConvertRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+
+	// Resolve converting user from JWT claims.
+	byUserID := uuid.Nil
+	if claims, ok := middleware.ClaimsFromContext(r); ok {
+		byUserID = claims.UserID
+	}
+
+	var dealID *uuid.UUID
+	if req.CreateDeal && h.deals != nil {
+		contact, err := h.repo.GetByID(r.Context(), id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+
+		title := req.DealTitle
+		if title == "" {
+			title = contact.FirstName + " " + contact.LastName + " — Deal"
+		}
+
+		pipelineID := uuid.Nil
+		if req.PipelineID != nil {
+			pipelineID = *req.PipelineID
+		}
+
+		deal := &domain.Deal{
+			Title:      title,
+			Stage:      domain.DealStageLead,
+			OwnerID:    contact.OwnerID,
+			ContactID:  &contact.ID,
+			PipelineID: pipelineID,
+		}
+		created, err := h.deals.Create(r.Context(), deal)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		dealID = &created.ID
+	}
+
+	contact, err := h.repo.ConvertLead(r.Context(), id, byUserID, dealID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+
+	resp := map[string]any{"contact": contact}
+	if dealID != nil {
+		resp["deal_id"] = dealID
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
