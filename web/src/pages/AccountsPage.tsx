@@ -9,8 +9,10 @@ import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
+import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
-import type { Account } from '@/api/types'
+import type { Account, CustomFieldValues } from '@/api/types'
 
 const INDUSTRY_OPTIONS = [
   { label: 'Technology', value: 'Technology' },
@@ -36,6 +38,7 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
   const { data: contacts, isLoading: contactsLoading } = useAccountContacts(accountId)
   const { data: deals, isLoading: dealsLoading } = useAccountDeals(accountId)
   const deleteAccount = useDeleteAccount()
+  const { data: customFields = [] } = useCustomFieldDefinitions('account')
 
   if (isLoading) {
     return (
@@ -119,6 +122,16 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
             <dd className="text-slate-900">{formatDate(account.created_at)}</dd>
           </dl>
         </div>
+
+        {/* Custom Fields */}
+        {customFields.length > 0 && account.custom_fields && (
+          <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-2">
+            <CustomFieldDisplaySection
+              fields={customFields}
+              values={account.custom_fields as CustomFieldValues}
+            />
+          </div>
+        )}
 
         {/* Linked contacts */}
         <div>
