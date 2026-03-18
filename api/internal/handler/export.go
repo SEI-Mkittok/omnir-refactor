@@ -37,6 +37,7 @@ func NewExportHandler(
 		accounts: accounts,
 		deals:    deals,
 		reports:  reports,
+		auditor:  &noopAuditor{},
 	}
 }
 
