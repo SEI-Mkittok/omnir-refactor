@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Search, LogOut, User, Users, Building2, TrendingUp } from 'lucide-react'
+import { Menu, Search, LogOut, User, Users, Building2, TrendingUp, LifeBuoy } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/stores/auth'
 import { getInitials } from '@/lib/utils'
@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/DropdownMenu'
-import type { Contact, Account, Deal } from '@/api/types'
+import type { Contact, Account, Deal, Ticket } from '@/api/types'
 
 interface TopBarProps {
   onMenuClick: () => void
@@ -28,8 +28,22 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const debouncedSearch = useDebounce(searchValue, 300)
+
+  // Cmd+K / Ctrl+K global shortcut to focus search
+  useEffect(() => {
+    function handleGlobalKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    document.addEventListener('keydown', handleGlobalKey)
+    return () => document.removeEventListener('keydown', handleGlobalKey)
+  }, [])
 
   const { data, isFetching } = useQuery({
     queryKey: ['search-inline', debouncedSearch],
@@ -41,16 +55,19 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const contacts = data?.contacts ?? []
   const accounts = data?.accounts ?? []
   const deals = data?.deals ?? []
-  const hasResults = contacts.length + accounts.length + deals.length > 0
+  const tickets = data?.tickets ?? []
+  const hasResults = contacts.length + accounts.length + deals.length + tickets.length > 0
 
   // Flat list of navigable items for arrow key navigation
   const contactItems = contacts.slice(0, 3)
   const accountItems = accounts.slice(0, 3)
   const dealItems = deals.slice(0, 3)
+  const ticketItems = tickets.slice(0, 3)
   const allDropdownItems = [
     ...contactItems.map((c: Contact) => `/contacts?openId=${c.id}`),
     ...accountItems.map((a: Account) => `/accounts?openId=${a.id}`),
     ...dealItems.map((d: Deal) => `/deals?openId=${d.id}`),
+    ...ticketItems.map((t: Ticket) => `/tickets?openId=${t.id}`),
   ]
 
   // Open dropdown when we have a search value (2+ chars)
@@ -113,6 +130,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   // Per-group offsets for focusedIndex highlight
   const accountOffset = contactItems.length
   const dealOffset = contactItems.length + accountItems.length
+  const ticketOffset = contactItems.length + accountItems.length + dealItems.length
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
@@ -134,13 +152,14 @@ export function TopBar({ onMenuClick }: TopBarProps) {
               </span>
             )}
             <input
+              ref={inputRef}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               onFocus={() => {
                 if (debouncedSearch.trim().length >= 2) setDropdownOpen(true)
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search contacts, accounts, deals..."
+              placeholder="Search… (⌘K)"
               className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               autoComplete="off"
             />
@@ -200,6 +219,21 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                         path: `/deals?openId=${d.id}`,
                       }))}
                       offset={dealOffset}
+                      focusedIndex={focusedIndex}
+                      onSelect={navigateTo}
+                    />
+                  )}
+                  {ticketItems.length > 0 && (
+                    <ResultGroup
+                      label="Tickets"
+                      icon={LifeBuoy}
+                      items={ticketItems.map((t: Ticket) => ({
+                        id: t.id,
+                        primary: t.subject,
+                        secondary: `${t.status} · ${t.priority}`,
+                        path: `/tickets?openId=${t.id}`,
+                      }))}
+                      offset={ticketOffset}
                       focusedIndex={focusedIndex}
                       onSelect={navigateTo}
                     />

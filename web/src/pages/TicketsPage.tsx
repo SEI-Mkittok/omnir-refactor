@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useTickets } from '@/hooks/useTickets'
@@ -36,9 +37,16 @@ export function TicketsPage() {
   const { status, priority, search, page, setStatus, setPriority, setSearch, setPage } =
     useTicketFilterStore()
 
+  const [searchParams] = useSearchParams()
   const [sortKey, setSortKey] = useState('created_at:desc')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get('openId'))
   const [showForm, setShowForm] = useState(false)
+
+  // Sync selectedId when openId query param changes (e.g. navigation from search)
+  useEffect(() => {
+    const openId = searchParams.get('openId')
+    if (openId) setSelectedId(openId)
+  }, [searchParams])
 
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
