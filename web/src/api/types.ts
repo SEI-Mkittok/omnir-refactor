@@ -353,6 +353,7 @@ export interface SearchResult {
   contacts?: Contact[]
   accounts?: Account[]
   deals?: Deal[]
+  tickets?: Ticket[]
 }
 
 // ---- Ticket (Help Desk) ----
