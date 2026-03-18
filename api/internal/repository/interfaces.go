@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -227,6 +228,31 @@ type SLAPolicyRepository interface {
 	// MatchByPriority returns the first SLA policy whose priority_filter includes
 	// the given priority, scoped to the org in context. Returns nil, nil when none match.
 	MatchByPriority(ctx context.Context, priority domain.TicketPriority) (*domain.SLAPolicy, error)
+	// MatchForEntity returns all policies matching the given entity type for the org in context.
+	MatchForEntity(ctx context.Context, entityType domain.SLAEntityType) ([]*domain.SLAPolicy, error)
+}
+
+// SLAInstanceRepository defines the persistence contract for SLA instances.
+type SLAInstanceRepository interface {
+	// Create inserts a new SLA instance.
+	Create(ctx context.Context, inst *domain.SLAInstance) (*domain.SLAInstance, error)
+	// GetByID fetches a single SLA instance by ID.
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.SLAInstance, error)
+	// List returns SLA instances matching the filter.
+	List(ctx context.Context, filter domain.SLAInstanceFilter) ([]*domain.SLAInstance, error)
+	// MarkResponded sets responded_at for the instance associated with the entity.
+	MarkResponded(ctx context.Context, entityID uuid.UUID, entityType domain.SLAEntityType, t time.Time) error
+	// MarkResolved sets resolved_at for the instance associated with the entity.
+	MarkResolved(ctx context.Context, entityID uuid.UUID, entityType domain.SLAEntityType, t time.Time) error
+	// ScanBreaches marks instances as breached where due_at has passed.
+	// Returns number of newly breached instances.
+	ScanBreaches(ctx context.Context) (int, error)
+	// ScanWarnings returns instances that have hit 80% of their SLA window and haven't been warned yet.
+	ScanWarnings(ctx context.Context) ([]*domain.SLAInstance, error)
+	// MarkWarned records that a warning notification was sent for the given instance.
+	MarkWarned(ctx context.Context, id uuid.UUID, t time.Time) error
+	// Dashboard returns aggregated SLA health for the org in context.
+	Dashboard(ctx context.Context) (*domain.SLADashboard, error)
 }
 
 // PortalLinkRepository manages shareable deal portal links for external client access.
