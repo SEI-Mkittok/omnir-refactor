@@ -178,6 +178,16 @@ type SearchRepository interface {
 	Search(ctx context.Context, q string, limit int) ([]domain.SearchResultItem, int, error)
 }
 
+// OrgRepository defines the persistence contract for organizations (tenants).
+type OrgRepository interface {
+	// Create inserts a new organization. Returns ErrConflict when slug is already taken.
+	Create(ctx context.Context, org *domain.Organization) (*domain.Organization, error)
+	// GetBySlug returns an org by its unique slug.
+	GetBySlug(ctx context.Context, slug string) (*domain.Organization, error)
+	// SlugExists reports whether a given slug is already in use.
+	SlugExists(ctx context.Context, slug string) (bool, error)
+}
+
 // SLAPolicyRepository defines the persistence contract for SLA policies.
 type SLAPolicyRepository interface {
 	Create(ctx context.Context, p *domain.SLAPolicy) (*domain.SLAPolicy, error)

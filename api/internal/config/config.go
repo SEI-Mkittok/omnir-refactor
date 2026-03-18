@@ -10,8 +10,9 @@ type OrgMode string
 
 const (
 	OrgModeSingle      OrgMode = "single"      // one org, no tenant isolation
-	OrgModeMultitenant OrgMode = "multitenant" // SaaS — org_id required in JWT, RLS enforced
-	OrgModeEnterprise  OrgMode = "enterprise"  // enterprise — same as multitenant with stricter isolation
+	OrgModeSaaS        OrgMode = "saas"        // SaaS multi-tenant — org_id required in JWT, RLS enforced
+	OrgModeMultitenant OrgMode = "multitenant" // alias for saas (legacy name)
+	OrgModeEnterprise  OrgMode = "enterprise"  // enterprise — same as saas with stricter isolation
 )
 
 // Config holds all runtime configuration loaded from environment variables.
