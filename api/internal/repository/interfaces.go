@@ -132,6 +132,7 @@ type LeadRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.LeadPatch) (*domain.Lead, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.LeadFilter) ([]*domain.Lead, int, error)
+	ListSources(ctx context.Context) ([]string, error)
 }
 
 // TicketRepository defines the persistence contract for help-desk tickets.
