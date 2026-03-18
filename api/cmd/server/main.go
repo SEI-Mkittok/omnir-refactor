@@ -68,6 +68,9 @@ func main() {
 	userRepo := postgres.NewUserRepo(db)
 	notificationRepo := postgres.NewNotificationRepo(db)
 	reportsRepo := postgres.NewReportsRepo(db)
+	ticketRepo := postgres.NewTicketRepo(db)
+	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
+	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
 
 	// Background workers
 	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
@@ -84,6 +87,7 @@ func main() {
 	dealHandler := handler.NewDealHandler(dealRepo)
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
+	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
@@ -137,6 +141,7 @@ func main() {
 		})
 		r.Mount("/activities", activityHandler.Router())
 		r.Mount("/notifications", notificationHandler.Router())
+		r.Mount("/tickets", ticketHandler.Router())
 		r.Mount("/users", userHandler.Router())
 		r.Mount("/search", searchHandler.Router())
 		r.Mount("/reports", reportsHandler.Router())
