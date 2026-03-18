@@ -5,8 +5,6 @@ import type {
   UpdateLeadRequest,
   LeadListParams,
   PaginatedResponse,
-  Note,
-  CreateNoteRequest,
   ConvertLeadRequest,
   ConvertLeadResponse,
 } from './types'
@@ -41,13 +39,4 @@ export const leadsApi = {
     return data
   },
 
-  getNotes: async (id: string): Promise<Note[]> => {
-    const { data } = await apiClient.get(`/leads/${id}/notes`)
-    return data
-  },
-
-  addNote: async (id: string, payload: Omit<CreateNoteRequest, 'lead_id'>): Promise<Note> => {
-    const { data } = await apiClient.post(`/leads/${id}/notes`, payload)
-    return data
-  },
 }

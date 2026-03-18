@@ -376,7 +376,7 @@ export interface CreateTicketCommentRequest {
 
 // ---- Lead ----
 
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified'
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted'
 
 export interface Lead {
   id: string
@@ -385,13 +385,11 @@ export interface Lead {
   email: string
   phone?: string
   company?: string
-  source?: string
+  lead_source?: string
   status: LeadStatus
   owner_id?: string
   owner?: User
-  notes?: Note[]
-  contact_id?: string
-  converted_at?: string
+  converted_contact_id?: string
   created_at: string
   updated_at: string
 }
@@ -402,7 +400,7 @@ export interface CreateLeadRequest {
   email: string
   phone?: string
   company?: string
-  source?: string
+  lead_source?: string
   status?: LeadStatus
   owner_id?: string
 }
@@ -420,13 +418,10 @@ export interface LeadListParams {
 }
 
 export interface ConvertLeadRequest {
-  create_deal?: boolean
-  deal_title?: string
-  deal_value?: number
   account_id?: string
 }
 
 export interface ConvertLeadResponse {
   contact: Contact
-  deal?: Deal
+  lead: Lead
 }
