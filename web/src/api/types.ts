@@ -306,3 +306,69 @@ export interface SearchResult {
   accounts?: Account[]
   deals?: Deal[]
 }
+
+// ---- Ticket (Help Desk) ----
+
+export type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed'
+export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
+
+export interface Ticket {
+  id: string
+  subject: string
+  status: TicketStatus
+  priority: TicketPriority
+  assignee?: User
+  contact?: Contact
+  account?: Account
+  source?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TicketComment {
+  id: string
+  body: string
+  is_internal: boolean
+  author?: User
+  created_at: string
+  updated_at: string
+}
+
+export interface TicketAttachment {
+  id: string
+  filename: string
+  size_bytes?: number
+  url?: string
+  created_at: string
+}
+
+export interface CreateTicketRequest {
+  subject: string
+  status?: TicketStatus
+  priority?: TicketPriority
+  assignee_id?: string
+  contact_id?: string
+  account_id?: string
+}
+
+export interface UpdateTicketRequest {
+  subject?: string
+  status?: TicketStatus
+  priority?: TicketPriority
+  assignee_id?: string
+}
+
+export interface TicketListParams {
+  page?: number
+  per_page?: number
+  search?: string
+  status?: TicketStatus
+  priority?: TicketPriority
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+}
+
+export interface CreateTicketCommentRequest {
+  body: string
+  is_internal?: boolean
+}

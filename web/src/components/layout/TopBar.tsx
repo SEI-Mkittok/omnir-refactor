@@ -26,6 +26,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const { user, logout } = useAuthStore()
   const [searchValue, setSearchValue] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const debouncedSearch = useDebounce(searchValue, 300)
@@ -42,9 +43,20 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   const deals = data?.deals ?? []
   const hasResults = contacts.length + accounts.length + deals.length > 0
 
+  // Flat list of navigable items for arrow key navigation
+  const contactItems = contacts.slice(0, 3)
+  const accountItems = accounts.slice(0, 3)
+  const dealItems = deals.slice(0, 3)
+  const allDropdownItems = [
+    ...contactItems.map((c: Contact) => `/contacts?openId=${c.id}`),
+    ...accountItems.map((a: Account) => `/accounts?openId=${a.id}`),
+    ...dealItems.map((d: Deal) => `/deals?openId=${d.id}`),
+  ]
+
   // Open dropdown when we have a search value (2+ chars)
   useEffect(() => {
     setDropdownOpen(debouncedSearch.trim().length >= 2)
+    setFocusedIndex(-1)
   }, [debouncedSearch])
 
   // Close dropdown on outside click
@@ -70,6 +82,17 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Escape') {
       setDropdownOpen(false)
+      setFocusedIndex(-1)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!dropdownOpen) setDropdownOpen(true)
+      setFocusedIndex((prev) => Math.min(prev + 1, allDropdownItems.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusedIndex((prev) => Math.max(prev - 1, 0))
+    } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < allDropdownItems.length) {
+      e.preventDefault()
+      navigateTo(allDropdownItems[focusedIndex])
     }
   }
 
@@ -77,12 +100,17 @@ export function TopBar({ onMenuClick }: TopBarProps) {
     navigate(path)
     setSearchValue('')
     setDropdownOpen(false)
+    setFocusedIndex(-1)
   }
 
   function handleLogout() {
     logout()
     navigate('/login')
   }
+
+  // Per-group offsets for focusedIndex highlight
+  const accountOffset = contactItems.length
+  const dealOffset = contactItems.length + accountItems.length
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:px-6">
@@ -110,7 +138,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                 if (debouncedSearch.trim().length >= 2) setDropdownOpen(true)
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search contacts, accounts, deals…"
+              placeholder="Search contacts, accounts, deals..."
               className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               autoComplete="off"
             />
@@ -129,42 +157,48 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
-                  {contacts.length > 0 && (
+                  {contactItems.length > 0 && (
                     <ResultGroup
                       label="Contacts"
                       icon={Users}
-                      items={contacts.slice(0, 3).map((c: Contact) => ({
+                      items={contactItems.map((c: Contact) => ({
                         id: c.id,
                         primary: `${c.first_name} ${c.last_name}`,
                         secondary: c.email,
-                        path: '/contacts',
+                        path: `/contacts?openId=${c.id}`,
                       }))}
+                      offset={0}
+                      focusedIndex={focusedIndex}
                       onSelect={navigateTo}
                     />
                   )}
-                  {accounts.length > 0 && (
+                  {accountItems.length > 0 && (
                     <ResultGroup
                       label="Accounts"
                       icon={Building2}
-                      items={accounts.slice(0, 3).map((a: Account) => ({
+                      items={accountItems.map((a: Account) => ({
                         id: a.id,
                         primary: a.name,
                         secondary: a.domain ?? a.industry ?? '',
-                        path: '/accounts',
+                        path: `/accounts?openId=${a.id}`,
                       }))}
+                      offset={accountOffset}
+                      focusedIndex={focusedIndex}
                       onSelect={navigateTo}
                     />
                   )}
-                  {deals.length > 0 && (
+                  {dealItems.length > 0 && (
                     <ResultGroup
                       label="Deals"
                       icon={TrendingUp}
-                      items={deals.slice(0, 3).map((d: Deal) => ({
+                      items={dealItems.map((d: Deal) => ({
                         id: d.id,
                         primary: d.title,
                         secondary: d.stage.replace('_', ' '),
-                        path: '/deals',
+                        path: `/deals?openId=${d.id}`,
                       }))}
+                      offset={dealOffset}
+                      focusedIndex={focusedIndex}
                       onSelect={navigateTo}
                     />
                   )}
@@ -227,11 +261,15 @@ function ResultGroup({
   label,
   icon: Icon,
   items,
+  offset,
+  focusedIndex,
   onSelect,
 }: {
   label: string
   icon: React.ElementType
   items: ResultItem[]
+  offset: number
+  focusedIndex: number
   onSelect: (path: string) => void
 }) {
   return (
@@ -240,11 +278,13 @@ function ResultGroup({
         <Icon className="h-3 w-3 text-slate-400" />
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</span>
       </div>
-      {items.map((item) => (
+      {items.map((item, i) => (
         <button
           key={item.id}
           onClick={() => onSelect(item.path)}
-          className="w-full text-left px-4 py-2 hover:bg-indigo-50 transition-colors"
+          className={`w-full text-left px-4 py-2 transition-colors ${
+            offset + i === focusedIndex ? 'bg-indigo-50' : 'hover:bg-indigo-50'
+          }`}
         >
           <p className="text-sm font-medium text-slate-800">{item.primary}</p>
           {item.secondary && (
