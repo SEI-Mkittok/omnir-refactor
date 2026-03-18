@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -29,6 +30,10 @@ func (h *ReportsHandler) Router() chi.Router {
 	r.Get("/contacts", h.Contacts)
 	r.Get("/deals", h.Deals)
 	r.Get("/leads", h.Leads)
+	r.Get("/pipeline-funnel", h.PipelineFunnel)
+	r.Get("/conversion-rates", h.ConversionRates)
+	r.Get("/revenue-projection", h.RevenueProjection)
+	r.Get("/activity-summary", h.ActivitySummary)
 	return r
 }
 
@@ -156,6 +161,69 @@ func (h *ReportsHandler) Leads(w http.ResponseWriter, r *http.Request) {
 	report, err := h.repo.LeadMetrics(r.Context(), f)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load lead metrics")
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+func (h *ReportsHandler) PipelineFunnel(w http.ResponseWriter, r *http.Request) {
+	f, err := parseReportFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var pipelineID *uuid.UUID
+	if v := r.URL.Query().Get("pipeline_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			pipelineID = &id
+		}
+	}
+	report, err := h.repo.PipelineFunnel(r.Context(), pipelineID, f)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load pipeline funnel")
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+func (h *ReportsHandler) ConversionRates(w http.ResponseWriter, r *http.Request) {
+	f, err := parseReportFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	report, err := h.repo.ConversionRates(r.Context(), f)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load conversion rates")
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+func (h *ReportsHandler) RevenueProjection(w http.ResponseWriter, r *http.Request) {
+	months := 3
+	if v := r.URL.Query().Get("months"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 12 {
+			months = n
+		}
+	}
+	report, err := h.repo.RevenueProjection(r.Context(), months)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load revenue projection")
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+func (h *ReportsHandler) ActivitySummary(w http.ResponseWriter, r *http.Request) {
+	f, err := parseReportFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	report, err := h.repo.ActivitySummary(r.Context(), f)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load activity summary")
 		return
 	}
 	writeJSON(w, http.StatusOK, report)

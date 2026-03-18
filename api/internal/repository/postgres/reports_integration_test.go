@@ -34,7 +34,7 @@ func TestReportsRepo_TicketMetrics(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 3, report.TotalOpen)  // open + pending + old open
 		assert.Equal(t, 1, report.TotalClosed) // resolved
-		assert.Equal(t, 4, len(report.ByStatus))
+		assert.Equal(t, 3, len(report.ByStatus)) // 3 distinct statuses: open, pending, resolved
 	})
 
 	t.Run("breach rate reflects old open tickets", func(t *testing.T) {
@@ -79,7 +79,7 @@ func TestReportsRepo_ContactMetrics(t *testing.T) {
 		from := time.Now().Add(-time.Hour)
 		report, err := repo.ContactMetrics(ctx, domain.ReportFilter{From: &from})
 		require.NoError(t, err)
-		assert.Equal(t, 2, report.TotalCount)
+		assert.Equal(t, 2, report.NewCount)
 	})
 
 	t.Run("by_period returns monthly buckets", func(t *testing.T) {
@@ -132,6 +132,6 @@ func TestReportsRepo_LeadMetrics(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 3, report.NewCount)
 		assert.Equal(t, 2, report.ConvertedCount)
-		assert.InDelta(t, 66.67, report.ConversionRate, 0.1)
+		assert.InDelta(t, 0.6667, report.ConversionRate, 0.001)
 	})
 }

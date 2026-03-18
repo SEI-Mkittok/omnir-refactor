@@ -15,9 +15,10 @@ import (
 )
 
 type DealHandler struct {
-	repo       repository.DealRepository
-	cfDefs     repository.CustomFieldDefinitionRepository
-	dispatcher chan<- worker.WebhookEvent
+	repo          repository.DealRepository
+	cfDefs        repository.CustomFieldDefinitionRepository
+	dispatcher    chan<- worker.WebhookEvent
+	notifications repository.NotificationRepository
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
@@ -31,6 +32,11 @@ func (h *DealHandler) WithCustomFields(r repository.CustomFieldDefinitionReposit
 
 func (h *DealHandler) WithDispatcher(d chan<- worker.WebhookEvent) *DealHandler {
 	h.dispatcher = d
+	return h
+}
+
+func (h *DealHandler) WithNotifications(r repository.NotificationRepository) *DealHandler {
+	h.notifications = r
 	return h
 }
 
@@ -184,6 +190,18 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if patch.Stage != nil && h.notifications != nil {
+		title := "Deal stage changed"
+		entityType := "deal"
+		_, _ = h.notifications.Create(r.Context(), &domain.Notification{
+			OrgID:      d.OrgID,
+			UserID:     d.OwnerID,
+			Kind:       domain.NotificationKindDealStageChanged,
+			EntityType: &entityType,
+			EntityID:   &d.ID,
+			Title:      title,
+		})
 	}
 	h.emitWebhook(r, domain.WebhookEventDealUpdated, d.ID, d)
 	if patch.Stage != nil {

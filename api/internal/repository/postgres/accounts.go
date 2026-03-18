@@ -52,6 +52,9 @@ func (r *AccountRepo) Create(ctx context.Context, a *domain.Account) (*domain.Ac
 	now := time.Now().UTC()
 	a.CreatedAt = now
 	a.UpdatedAt = now
+	if a.Tags == nil {
+		a.Tags = []string{}
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO accounts
