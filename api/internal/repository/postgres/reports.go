@@ -21,8 +21,6 @@ func NewReportsRepo(db *pgxpool.Pool) *ReportsRepo {
 }
 
 // reportArgs builds the common WHERE clause args for date-ranged report queries.
-// It always pins the org_id as $1, then optionally appends args for from/to dates.
-// Returns the arg slice and the SQL fragment to append (e.g. " AND t.created_at >= $2").
 func reportArgs(orgID interface{}, f domain.ReportFilter, alias string) ([]interface{}, string) {
 	args := []interface{}{orgID}
 	var sb strings.Builder
@@ -43,7 +41,6 @@ func (r *ReportsRepo) DealsByStage(ctx context.Context) ([]domain.DealStageMetri
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-
 	rows, err := r.db.Query(ctx, `
 		SELECT stage, COUNT(*) AS count, COALESCE(SUM(value_cents), 0) AS total_value_cents
 		FROM deals
@@ -55,7 +52,6 @@ func (r *ReportsRepo) DealsByStage(ctx context.Context) ([]domain.DealStageMetri
 		return nil, err
 	}
 	defer rows.Close()
-
 	var metrics []domain.DealStageMetric
 	for rows.Next() {
 		var m domain.DealStageMetric
@@ -76,7 +72,6 @@ func (r *ReportsRepo) ContactsMonthly(ctx context.Context) ([]domain.ContactMont
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-
 	rows, err := r.db.Query(ctx, `
 		SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS count
 		FROM contacts
@@ -90,7 +85,6 @@ func (r *ReportsRepo) ContactsMonthly(ctx context.Context) ([]domain.ContactMont
 		return nil, err
 	}
 	defer rows.Close()
-
 	var metrics []domain.ContactMonthlyMetric
 	for rows.Next() {
 		var m domain.ContactMonthlyMetric
@@ -111,7 +105,6 @@ func (r *ReportsRepo) ActivitiesByType(ctx context.Context) ([]domain.ActivityTy
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-
 	rows, err := r.db.Query(ctx, `
 		SELECT type, COUNT(*) AS count
 		FROM activities
@@ -123,7 +116,6 @@ func (r *ReportsRepo) ActivitiesByType(ctx context.Context) ([]domain.ActivityTy
 		return nil, err
 	}
 	defer rows.Close()
-
 	var metrics []domain.ActivityTypeMetric
 	for rows.Next() {
 		var m domain.ActivityTypeMetric
@@ -202,7 +194,6 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 	}
 
 	// Breach rate: % of open tickets older than 48 hours.
-	// Build separate args so the breach threshold doesn't conflict with dateClause positions.
 	breachArgs, breachDateClause := reportArgs(orgID, filter, "t")
 	breachArgs = append(breachArgs, time.Now().Add(-48*time.Hour))
 	breachThreshIdx := "$" + strconv.Itoa(len(breachArgs))
@@ -224,12 +215,41 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 		breachRate = float64(openBreached) / float64(openTotal) * 100
 	}
 
+	// Daily ticket count for the Tickets Over Time chart.
+	dailyRows, err := r.db.Query(ctx, `
+		SELECT TO_CHAR(t.created_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
+		FROM tickets t
+		WHERE t.org_id = $1 AND t.deleted_at IS NULL`+dateClause+`
+		GROUP BY date
+		ORDER BY date
+	`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer dailyRows.Close()
+
+	var overTime []domain.TicketDailyMetric
+	for dailyRows.Next() {
+		var m domain.TicketDailyMetric
+		if err := dailyRows.Scan(&m.Date, &m.Count); err != nil {
+			return nil, err
+		}
+		overTime = append(overTime, m)
+	}
+	if err := dailyRows.Err(); err != nil {
+		return nil, err
+	}
+	if overTime == nil {
+		overTime = []domain.TicketDailyMetric{}
+	}
+
 	return &domain.TicketReport{
 		TotalOpen:          totalOpen,
 		TotalClosed:        totalClosed,
 		AvgResolutionHours: avgHours,
 		ByStatus:           byStatus,
 		BreachRate:         breachRate,
+		OverTime:           overTime,
 	}, nil
 }
 
@@ -243,48 +263,60 @@ func (r *ReportsRepo) ContactMetrics(ctx context.Context, filter domain.ReportFi
 		orgID = *filter.OrgID
 	}
 
-	args, dateClause := reportArgs(orgID, filter, "c")
+	// All-time total for the org (no date filter).
+	var totalCount int
+	if err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM contacts c
+		WHERE c.org_id = $1 AND c.deleted_at IS NULL`,
+		orgID,
+	).Scan(&totalCount); err != nil {
+		return nil, err
+	}
 
-	var total int
+	// Contacts created within the date range.
+	rangeArgs, dateClause := reportArgs(orgID, filter, "c")
+	var newCount int
 	if err := r.db.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM contacts c
 		WHERE c.org_id = $1 AND c.deleted_at IS NULL`+dateClause,
-		args...,
-	).Scan(&total); err != nil {
+		rangeArgs...,
+	).Scan(&newCount); err != nil {
 		return nil, err
 	}
 
-	periodRows, err := r.db.Query(ctx, `
-		SELECT TO_CHAR(c.created_at, 'YYYY-MM') AS period, COUNT(*) AS count
+	overTimeRows, err := r.db.Query(ctx, `
+		SELECT TO_CHAR(c.created_at, 'YYYY-MM') AS month, COUNT(*) AS count
 		FROM contacts c
 		WHERE c.org_id = $1 AND c.deleted_at IS NULL`+dateClause+`
-		GROUP BY period
-		ORDER BY period
-	`, args...)
+		GROUP BY month
+		ORDER BY month
+	`, rangeArgs...)
 	if err != nil {
 		return nil, err
 	}
-	defer periodRows.Close()
+	defer overTimeRows.Close()
 
-	var byPeriod []domain.ContactPeriodMetric
-	for periodRows.Next() {
-		var m domain.ContactPeriodMetric
-		if err := periodRows.Scan(&m.Period, &m.Count); err != nil {
+	var overTime []domain.ContactOverTimeMetric
+	for overTimeRows.Next() {
+		var m domain.ContactOverTimeMetric
+		if err := overTimeRows.Scan(&m.Month, &m.Count); err != nil {
 			return nil, err
 		}
-		byPeriod = append(byPeriod, m)
+		overTime = append(overTime, m)
 	}
-	if err := periodRows.Err(); err != nil {
+	if err := overTimeRows.Err(); err != nil {
 		return nil, err
 	}
-	if byPeriod == nil {
-		byPeriod = []domain.ContactPeriodMetric{}
+	if overTime == nil {
+		overTime = []domain.ContactOverTimeMetric{}
 	}
 
 	return &domain.ContactReport{
-		Total:    total,
-		ByPeriod: byPeriod,
+		NewCount:   newCount,
+		TotalCount: totalCount,
+		OverTime:   overTime,
 	}, nil
 }
 
@@ -357,7 +389,7 @@ func (r *ReportsRepo) LeadMetrics(ctx context.Context, filter domain.ReportFilte
 
 	args, dateClause := reportArgs(orgID, filter, "l")
 
-	var totalNew, totalConverted int
+	var newCount, convertedCount int
 	if err := r.db.QueryRow(ctx, `
 		SELECT
 			COUNT(*) AS total,
@@ -365,18 +397,63 @@ func (r *ReportsRepo) LeadMetrics(ctx context.Context, filter domain.ReportFilte
 		FROM leads l
 		WHERE l.org_id = $1 AND l.deleted_at IS NULL`+dateClause,
 		args...,
-	).Scan(&totalNew, &totalConverted); err != nil {
+	).Scan(&newCount, &convertedCount); err != nil {
 		return nil, err
 	}
 
 	var conversionRate float64
-	if totalNew > 0 {
-		conversionRate = float64(totalConverted) / float64(totalNew) * 100
+	if newCount > 0 {
+		conversionRate = float64(convertedCount) / float64(newCount)
+	}
+
+	// Funnel: count per lead status for the funnel breakdown chart.
+	funnelRows, err := r.db.Query(ctx, `
+		SELECT l.status, COUNT(*) AS count
+		FROM leads l
+		WHERE l.org_id = $1 AND l.deleted_at IS NULL`+dateClause+`
+		GROUP BY l.status
+		ORDER BY l.status
+	`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer funnelRows.Close()
+
+	stageLabels := map[string]string{
+		"new":       "New",
+		"contacted": "Contacted",
+		"qualified": "Qualified",
+		"converted": "Converted",
+	}
+
+	var funnel []domain.LeadFunnelMetric
+	for funnelRows.Next() {
+		var stage string
+		var count int
+		if err := funnelRows.Scan(&stage, &count); err != nil {
+			return nil, err
+		}
+		label, ok := stageLabels[stage]
+		if !ok {
+			label = stage
+		}
+		funnel = append(funnel, domain.LeadFunnelMetric{
+			Stage: stage,
+			Label: label,
+			Count: count,
+		})
+	}
+	if err := funnelRows.Err(); err != nil {
+		return nil, err
+	}
+	if funnel == nil {
+		funnel = []domain.LeadFunnelMetric{}
 	}
 
 	return &domain.LeadReport{
-		TotalNew:       totalNew,
-		TotalConverted: totalConverted,
+		NewCount:       newCount,
+		ConvertedCount: convertedCount,
 		ConversionRate: conversionRate,
+		Funnel:         funnel,
 	}, nil
 }
