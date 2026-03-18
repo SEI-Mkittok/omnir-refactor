@@ -326,10 +326,11 @@ func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// StorageURL is set to the API download path so clients can fetch via this service.
-	downloadPath := fmt.Sprintf("/api/v1/tickets/%s/attachments/", ticketID)
+	// Pre-generate the attachment ID so the storage_url stored in the DB is complete.
+	attachmentID := uuid.New()
 	size := header.Size
 	a := &domain.TicketAttachment{
+		ID:             attachmentID,
 		TicketID:       ticketID,
 		UploadedBy:     uploadedBy,
 		Filename:       header.Filename,
@@ -337,8 +338,7 @@ func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request)
 		SizeBytes:      &size,
 		StorageKey:     storageKey,
 		StorageBackend: h.storage.Type(),
-		// Placeholder — will be updated with the real ID below.
-		StorageURL: downloadPath,
+		StorageURL:     fmt.Sprintf("/api/v1/tickets/%s/attachments/%s", ticketID, attachmentID),
 	}
 
 	created, err := h.attachments.Create(r.Context(), a)
@@ -349,8 +349,6 @@ func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Update the URL to include the real attachment ID.
-	created.StorageURL = fmt.Sprintf("/api/v1/tickets/%s/attachments/%s", ticketID, created.ID)
 	writeJSON(w, http.StatusCreated, created)
 }
 

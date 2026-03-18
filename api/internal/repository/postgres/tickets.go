@@ -502,21 +502,11 @@ func (r *TicketAttachmentRepo) List(ctx context.Context, ticketID uuid.UUID) ([]
 
 	var attachments []*domain.TicketAttachment
 	for rows.Next() {
-		var a domain.TicketAttachment
-		var storageKey, storageBackend *string
-		if err := rows.Scan(
-			&a.ID, &a.TicketID, &a.OrgID, &a.UploadedBy, &a.Filename,
-			&a.ContentType, &a.SizeBytes, &a.StorageURL, &storageKey, &storageBackend, &a.CreatedAt,
-		); err != nil {
+		a, err := scanAttachment(rows)
+		if err != nil {
 			return nil, err
 		}
-		if storageKey != nil {
-			a.StorageKey = *storageKey
-		}
-		if storageBackend != nil {
-			a.StorageBackend = *storageBackend
-		}
-		attachments = append(attachments, &a)
+		attachments = append(attachments, a)
 	}
 	return attachments, rows.Err()
 }
