@@ -34,6 +34,7 @@ const SORT_OPTIONS = [
 ]
 
 const roleBadgeVariant: Record<UserRole, 'default' | 'blue' | 'yellow' | 'green' | 'red' | 'gray' | 'indigo' | 'purple' | 'orange'> = {
+  super_admin: 'purple',
   admin: 'red',
   agent: 'indigo',
   client: 'green',
@@ -42,6 +43,7 @@ const roleBadgeVariant: Record<UserRole, 'default' | 'blue' | 'yellow' | 'green'
 }
 
 const roleLabel: Record<UserRole, string> = {
+  super_admin: 'Super Admin',
   admin: 'Admin',
   agent: 'Agent',
   client: 'Client',
