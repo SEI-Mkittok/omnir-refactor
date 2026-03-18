@@ -128,3 +128,12 @@ type TicketAttachmentRepository interface {
 	List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error)
 	Delete(ctx context.Context, id, ticketID uuid.UUID) error
 }
+
+// CustomFieldDefinitionRepository manages admin-defined field schemas per entity type.
+type CustomFieldDefinitionRepository interface {
+	Create(ctx context.Context, def *domain.CustomFieldDefinition) (*domain.CustomFieldDefinition, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.CustomFieldDefinition, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.CustomFieldDefinitionPatch) (*domain.CustomFieldDefinition, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.CustomFieldDefinitionFilter) ([]*domain.CustomFieldDefinition, error)
+}

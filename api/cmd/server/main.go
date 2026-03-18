@@ -69,6 +69,7 @@ func main() {
 	notificationRepo := postgres.NewNotificationRepo(db)
 	reportsRepo := postgres.NewReportsRepo(db)
 	ticketRepo := postgres.NewTicketRepo(db)
+	customFieldRepo := postgres.NewCustomFieldDefinitionRepo(db)
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
@@ -97,6 +98,7 @@ func main() {
 	searchHandler := handler.NewSearchHandler(contactRepo, accountRepo, dealRepo)
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
+	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
 
 	r := chi.NewRouter()
 
@@ -154,6 +156,7 @@ func main() {
 		r.Mount("/users", userHandler.Router())
 		r.Mount("/search", searchHandler.Router())
 		r.Mount("/reports", reportsHandler.Router())
+		r.Mount("/custom-fields", customFieldHandler.Router())
 	})
 
 	srv := &http.Server{
