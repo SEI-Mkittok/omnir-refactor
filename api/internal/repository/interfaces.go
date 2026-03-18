@@ -87,6 +87,14 @@ type ReportsRepository interface {
 	DealMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.DealReport, error)
 	// LeadMetrics returns aggregated lead metrics for the given date range.
 	LeadMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.LeadReport, error)
+	// PipelineFunnel returns deal count and value by stage for a pipeline.
+	PipelineFunnel(ctx context.Context, pipelineID *uuid.UUID, filter domain.ReportFilter) (*domain.PipelineFunnelReport, error)
+	// ConversionRates returns stage-to-stage conversion rate approximations.
+	ConversionRates(ctx context.Context, filter domain.ReportFilter) (*domain.ConversionRatesReport, error)
+	// RevenueProjection returns projected revenue grouped by expected close month.
+	RevenueProjection(ctx context.Context, months int) (*domain.RevenueProjectionReport, error)
+	// ActivitySummary returns activity counts by kind and by owner.
+	ActivitySummary(ctx context.Context, filter domain.ReportFilter) (*domain.ActivitySummaryReport, error)
 }
 
 // UserRepository defines the persistence contract for users.
