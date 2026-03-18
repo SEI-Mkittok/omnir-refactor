@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { CommentThread } from './CommentThread'
+import { CustomFieldDisplaySection } from './CustomFieldRenderer'
 import { formatDate } from '@/lib/utils'
 import {
   useTicket,
@@ -13,7 +14,8 @@ import {
   useTicketAttachments,
   useUploadTicketAttachment,
 } from '@/hooks/useTickets'
-import type { TicketStatus, TicketPriority } from '@/api/types'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import type { TicketStatus, TicketPriority, CustomFieldValues } from '@/api/types'
 import { cn } from '@/lib/utils'
 
 // ---- Badge helpers ----
@@ -122,6 +124,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
   const { data: ticket, isLoading } = useTicket(ticketId)
   const { mutateAsync: updateTicket } = useUpdateTicket()
   const { mutateAsync: deleteTicket } = useDeleteTicket()
+  const { data: customFields = [] } = useCustomFieldDefinitions('ticket')
 
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -218,6 +221,16 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
               <span className="text-slate-500">{formatDate(ticket.updated_at)}</span>
             </Field>
           </div>
+
+          {/* Custom fields */}
+          {customFields.length > 0 && ticket.custom_fields && (
+            <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-2">
+              <CustomFieldDisplaySection
+                fields={customFields}
+                values={ticket.custom_fields as CustomFieldValues}
+              />
+            </div>
+          )}
 
           {/* Attachments */}
           <AttachmentsSection ticketId={ticketId} />

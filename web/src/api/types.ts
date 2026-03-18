@@ -81,6 +81,7 @@ export interface Contact {
   notes?: Note[]
   deals?: Deal[]
   tags?: string[]
+  custom_fields?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -321,6 +322,7 @@ export interface Ticket {
   contact?: Contact
   account?: Account
   source?: string
+  custom_fields?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -390,6 +392,7 @@ export interface Lead {
   owner_id?: string
   owner?: User
   converted_contact_id?: string
+  custom_fields?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -425,3 +428,39 @@ export interface ConvertLeadResponse {
   contact: Contact
   lead: Lead
 }
+
+// ---- Custom Fields ----
+
+export type CustomFieldEntityType = 'ticket' | 'contact' | 'lead'
+export type CustomFieldType = 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'url'
+
+export interface CustomFieldDefinition {
+  id: string
+  org_id: string
+  entity_type: CustomFieldEntityType
+  name: string
+  label: string
+  field_type: CustomFieldType
+  options?: string[]   // for select / multiselect
+  required?: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCustomFieldDefinitionRequest {
+  entity_type: CustomFieldEntityType
+  name: string
+  label: string
+  field_type: CustomFieldType
+  options?: string[]
+  required?: boolean
+}
+
+export interface UpdateCustomFieldDefinitionRequest {
+  label?: string
+  field_type?: CustomFieldType
+  options?: string[]
+  required?: boolean
+}
+
+export type CustomFieldValues = Record<string, string | number | boolean | string[] | null>
