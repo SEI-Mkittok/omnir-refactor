@@ -72,6 +72,15 @@ ACTIVITY_TYPE_MAP = {
     "Email": "email",
 }
 
+LEAD_STATUS_MAP = {
+    "New": "new",
+    "Assigned": "contacted",
+    "In Process": "contacted",
+    "Converted": "converted",
+    "Recycled": "unqualified",
+    "Dead": "unqualified",
+}
+
 EMPLOYEE_SIZE_MAP = [
     (10, "1-10"),
     (50, "11-50"),
@@ -131,6 +140,7 @@ class Migrator:
             "users": {"migrated": 0, "skipped": 0},
             "accounts": {"migrated": 0, "skipped": 0},
             "contacts": {"migrated": 0, "skipped": 0},
+            "leads": {"migrated": 0, "skipped": 0},
             "deals": {"migrated": 0, "skipped": 0},
             "tickets": {"migrated": 0, "skipped": 0},
             "activities": {"migrated": 0, "skipped": 0},
@@ -141,6 +151,7 @@ class Migrator:
             self.migrate_users()
             self.migrate_accounts()
             self.migrate_contacts()
+            self.migrate_leads()
             self.migrate_deals()
             self.migrate_tickets()
             self.migrate_activities()
@@ -346,6 +357,70 @@ class Migrator:
                 if existing:
                     self.contact_map[row["contactid"]] = existing[0]
                 self.counts["contacts"]["skipped"] += 1
+
+    # ------------------------------------------------------------------
+    # Leads (vtiger Leads → Omnir leads)
+    # ------------------------------------------------------------------
+
+    def migrate_leads(self):
+        print("\n--- Migrating leads ---")
+        cur = self.src.cursor(dictionary=True)
+        cur.execute("""
+            SELECT l.leadid, l.firstname, l.lastname, l.email,
+                   l.mobile, l.company, l.leadsource, l.leadstatus,
+                   l.converted,
+                   e.smownerid, e.createdtime, e.modifiedtime
+            FROM vtiger_leaddetails l
+            JOIN vtiger_crmentity e ON e.crmid = l.leadid
+            WHERE e.deleted = 0
+        """)
+        rows = cur.fetchall()
+
+        dcur = self.dst.cursor()
+        for row in tqdm(rows, desc="leads"):
+            owner = self._owner(row["smownerid"])
+            if not owner:
+                self.counts["leads"]["skipped"] += 1
+                continue
+
+            legacy_id = str(row["leadid"])
+            status = LEAD_STATUS_MAP.get(row["leadstatus"] or "", "new")
+            # If vtiger marks the lead as converted but we have no mapping override,
+            # default status to 'converted'.
+            if row.get("converted") == 1 and status == "new":
+                status = "converted"
+
+            dcur.execute(
+                """
+                INSERT INTO leads (
+                    org_id, first_name, last_name, email, phone,
+                    company, lead_source, status, owner_id,
+                    vtiger_legacy_id, created_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (vtiger_legacy_id) DO NOTHING
+                RETURNING id
+                """,
+                (
+                    self.org_id,
+                    row["firstname"] or "",
+                    row["lastname"] or "",
+                    row["email"] or None,
+                    row["mobile"],
+                    row["company"],
+                    row["leadsource"],
+                    status,
+                    owner,
+                    legacy_id,
+                    row["createdtime"],
+                    row["modifiedtime"],
+                ),
+            )
+            result = dcur.fetchone()
+            if result:
+                self.counts["leads"]["migrated"] += 1
+            else:
+                self.counts["leads"]["skipped"] += 1
 
     # ------------------------------------------------------------------
     # Deals (vtiger Opportunities / Potentials)

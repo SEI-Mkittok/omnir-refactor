@@ -61,9 +61,9 @@ python validate.py  # (uses same tables, org_id is not checked in validation)
 
 ## Migration order
 
-`users → accounts → contacts → deals → tickets → activities`
+`users → accounts → contacts → leads → deals → tickets → activities`
 
-Each entity depends on the previous step's ID remapping table (user_map, account_map, contact_map). Do not change the order.
+Each entity depends on the previous step's ID remapping table (user_map, account_map, contact_map). Do not change the order. Leads are independent of accounts/contacts but are migrated after them so the owner_id remapping is available.
 
 ## Idempotency
 
@@ -75,3 +75,29 @@ All inserts use `ON CONFLICT (vtiger_legacy_id) DO NOTHING`. Re-running after a 
 - Row counts within 0.1% of source
 - No referential integrity violations
 - Spot-checks pass
+
+---
+
+## Fresh start (new deployments, no vtiger data)
+
+If you are deploying Omnir CRM for the first time without any existing vtiger data, skip `migrate.py` entirely and use `fresh_start.py` instead:
+
+```bash
+python fresh_start.py \
+  --admin-name "Your Name" \
+  --admin-email admin@yourcompany.com \
+  --admin-password changeme123
+```
+
+Or via environment variables:
+
+```bash
+OMNIR_ADMIN_NAME="Your Name" \
+OMNIR_ADMIN_EMAIL=admin@yourcompany.com \
+OMNIR_ADMIN_PASSWORD=changeme123 \
+python fresh_start.py
+```
+
+This seeds a single admin user and confirms the default org/pipeline (seeded by DB migrations) are in place. All other CRM data is entered through the Omnir UI after login.
+
+**Note:** `fresh_start.py` will exit safely with a warning if any users already exist, so it cannot overwrite a live instance.
