@@ -23,6 +23,7 @@ type ExportHandler struct {
 	accounts repository.AccountRepository
 	deals    repository.DealRepository
 	reports  repository.ReportsRepository
+	auditor  Auditor
 }
 
 func NewExportHandler(
@@ -39,6 +40,11 @@ func NewExportHandler(
 	}
 }
 
+func (h *ExportHandler) WithAuditLog(r repository.AuditLogRepository) *ExportHandler {
+	h.auditor = newAuditor(r)
+	return h
+}
+
 func (h *ExportHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/contacts", h.Contacts)
@@ -50,6 +56,7 @@ func (h *ExportHandler) Router() chi.Router {
 
 // Contacts streams all contacts matching the filter as CSV.
 func (h *ExportHandler) Contacts(w http.ResponseWriter, r *http.Request) {
+	h.auditor.logExport(r, domain.AuditEntityContact)
 	q := r.URL.Query()
 	filter := domain.ContactFilter{
 		Q:     q.Get("q"),
@@ -119,6 +126,7 @@ func (h *ExportHandler) Contacts(w http.ResponseWriter, r *http.Request) {
 
 // Accounts streams all accounts matching the filter as CSV.
 func (h *ExportHandler) Accounts(w http.ResponseWriter, r *http.Request) {
+	h.auditor.logExport(r, domain.AuditEntityAccount)
 	q := r.URL.Query()
 	filter := domain.AccountFilter{
 		Q:     q.Get("q"),
@@ -187,6 +195,7 @@ func (h *ExportHandler) Accounts(w http.ResponseWriter, r *http.Request) {
 
 // Deals streams all deals matching the filter as CSV.
 func (h *ExportHandler) Deals(w http.ResponseWriter, r *http.Request) {
+	h.auditor.logExport(r, domain.AuditEntityDeal)
 	q := r.URL.Query()
 	filter := domain.DealFilter{
 		Q:     q.Get("q"),
@@ -277,6 +286,7 @@ func (h *ExportHandler) Deals(w http.ResponseWriter, r *http.Request) {
 
 // Reports exports the current report summary as CSV (deals by stage + contacts monthly + activities by type).
 func (h *ExportHandler) Reports(w http.ResponseWriter, r *http.Request) {
+	h.auditor.logExport(r, domain.AuditEntityView)
 	ctx := r.Context()
 
 	setCsvHeaders(w, "reports.csv")
