@@ -205,7 +205,7 @@ export function ReportsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <SummaryCard
           label="Open Tickets"
-          value={ticketData?.open_count ?? '—'}
+          value={ticketData?.total_open ?? '—'}
           color="bg-indigo-50 text-indigo-600"
           loading={tickets.isLoading && !tickets.isPlaceholderData}
         />
