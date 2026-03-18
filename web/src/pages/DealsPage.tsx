@@ -16,6 +16,7 @@ import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { downloadExportCsv } from '@/api/importExport'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
+import { DealForm } from '@/components/omnir/DealForm'
 import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -177,6 +178,7 @@ export function DealsPage() {
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
+  const [showCreate, setShowCreate] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -309,7 +311,7 @@ export function DealsPage() {
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
-          <Button>
+          <Button onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
             Add Deal
           </Button>
@@ -387,6 +389,8 @@ export function DealsPage() {
       {selectedId && (
         <DealDetail dealId={selectedId} onClose={() => setSelectedId(null)} />
       )}
+
+      {showCreate && <DealForm onClose={() => setShowCreate(false)} />}
     </div>
   )
 }

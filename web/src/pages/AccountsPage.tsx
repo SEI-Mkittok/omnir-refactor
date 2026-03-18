@@ -14,6 +14,7 @@ import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { ImportModal } from '@/components/omnir/ImportModal'
+import { AccountForm } from '@/components/omnir/AccountForm'
 import { downloadExportCsv } from '@/api/importExport'
 import type { Account, CustomFieldValues } from '@/api/types'
 
@@ -213,6 +214,7 @@ export function AccountsPage() {
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
   const [showImport, setShowImport] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
@@ -317,7 +319,7 @@ export function AccountsPage() {
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
-          <Button>
+          <Button onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
             Add Account
           </Button>
@@ -391,6 +393,8 @@ export function AccountsPage() {
       {selectedId && (
         <AccountDetail accountId={selectedId} onClose={() => setSelectedId(null)} />
       )}
+
+      {showCreate && <AccountForm onClose={() => setShowCreate(false)} />}
 
       <ImportModal
         open={showImport}
