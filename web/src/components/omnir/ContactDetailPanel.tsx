@@ -30,6 +30,7 @@ import {
 } from '@/hooks/useContacts'
 import { useTickets } from '@/hooks/useTickets'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
+import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { EmailTimeline } from '@/components/omnir/EmailTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
@@ -561,6 +562,9 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
 
         {/* Notes */}
         <NotesSection contactId={contactId} />
+
+        {/* Attachments */}
+        <AttachmentsPanel entityType="contact" entityId={contactId} />
       </div>
     </SidePanel>
   )
