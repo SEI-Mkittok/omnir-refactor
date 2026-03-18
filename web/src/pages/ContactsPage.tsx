@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { formatDate } from '@/lib/utils'
 import { stageBadgeVariant, stageLabel } from '@/components/omnir/ContactCard'
 import { ContactDetailPanel } from '@/components/omnir/ContactDetailPanel'
+import { ContactForm } from '@/components/omnir/ContactForm'
 import type { Contact, ContactStage } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -35,6 +36,7 @@ export function ContactsPage() {
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
+  const [showForm, setShowForm] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -118,7 +120,7 @@ export function ContactsPage() {
             {meta ? `${meta.total} total` : 'Loading…'}
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4" />
           Add Contact
         </Button>
@@ -193,6 +195,9 @@ export function ContactsPage() {
       {selectedId && (
         <ContactDetailPanel contactId={selectedId} onClose={() => setSelectedId(null)} />
       )}
+
+      {/* Create form */}
+      <ContactForm open={showForm} onClose={() => setShowForm(false)} />
     </div>
   )
 }
