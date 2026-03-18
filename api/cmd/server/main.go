@@ -92,6 +92,7 @@ func main() {
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
+	leadNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityLead, "id")
 	searchHandler := handler.NewSearchHandler(contactRepo, accountRepo, dealRepo)
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
@@ -131,6 +132,9 @@ func main() {
 		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
 		r.Mount("/leads", leadHandler.Router())
+		r.Route("/leads/{id}/notes", func(r chi.Router) {
+			r.Mount("/", leadNoteHandler.Router())
+		})
 		r.Route("/contacts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", contactNoteHandler.Router())
 		})
