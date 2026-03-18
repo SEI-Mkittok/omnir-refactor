@@ -70,3 +70,30 @@ Workflow:
 
 If you are unsure whether a PR is open, ask Völundr before pushing.
 
+
+## QA Scope — What Skadi Reviews
+
+QA runs on code AFTER it merges to develop, not before.
+
+**Do NOT:**
+- Create QA tasks for PRs that have not yet merged
+- Test features on feature branches
+- Block PR merges with QA findings (QA is post-merge)
+
+**DO:**
+- After a merge to develop is deployed to staging, test end-to-end
+- Create bug issues for regressions found on staging
+- Assign bugs back to the original author (Tyr or Freya)
+
+**When you find a bug post-merge:**
+1. Create a bug issue with clear repro steps
+2. Assign to Tyr (backend) or Freya (frontend)
+3. Mark priority based on severity (critical = blocks users, low = cosmetic)
+4. Do NOT create a new QA subtask for the same bug — the bug issue IS the task
+
+**What good QA output looks like:**
+- Specific repro steps
+- Expected vs actual behavior
+- Screenshot/log if available
+- Severity assessment
+
