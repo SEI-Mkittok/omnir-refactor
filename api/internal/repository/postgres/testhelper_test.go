@@ -29,10 +29,10 @@ func setupDB(t *testing.T) (*pgxpool.Pool, context.Context) {
 
 	ctx := context.Background()
 
-	// Re-seed default organization (truncated above).
+	// Re-seed default org (truncated above).
 	_, err := pool.Exec(ctx, `
-		INSERT INTO organizations (id, name, slug, plan)
-		VALUES ($1, 'Default', 'default', 'self_hosted')
+		INSERT INTO orgs (id, name, slug, plan)
+		VALUES ($1, 'Default', 'default', 'single')
 	`, defaultOrgID)
 	require.NoError(t, err)
 

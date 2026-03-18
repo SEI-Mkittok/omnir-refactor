@@ -26,7 +26,7 @@ func (h *DealHandler) Router() chi.Router {
 	r.Get("/", h.List)
 	r.Get("/{id}", h.GetByID)
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleUser))
+		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
 		r.Post("/", h.Create)
 		r.Patch("/{id}", h.Update)
 		r.Delete("/{id}", h.Delete)

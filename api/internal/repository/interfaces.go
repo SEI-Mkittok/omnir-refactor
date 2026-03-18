@@ -96,3 +96,12 @@ type UserRepository interface {
 	// List returns users matching the filter along with the total count.
 	List(ctx context.Context, filter domain.UserFilter) ([]*domain.User, int, error)
 }
+
+// LeadRepository defines the persistence contract for leads.
+type LeadRepository interface {
+	Create(ctx context.Context, l *domain.Lead) (*domain.Lead, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.LeadPatch) (*domain.Lead, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.LeadFilter) ([]*domain.Lead, int, error)
+}
