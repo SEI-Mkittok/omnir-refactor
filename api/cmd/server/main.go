@@ -76,6 +76,7 @@ func main() {
 	emailRepo := postgres.NewEmailRepo(db)
 	outboundWebhookRepo := postgres.NewOutboundWebhookRepo(db)
 	portalLinkRepo := postgres.NewPortalLinkRepo(db)
+	entityAttachmentRepo := postgres.NewEntityAttachmentRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -104,7 +105,7 @@ func main() {
 
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
-	authHandler := handler.NewAuthHandler(userRepo, jwtSvc)
+	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo)
 	userHandler := handler.NewUserHandler(userRepo)
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
@@ -125,7 +126,7 @@ func main() {
 	searchRepo := postgres.NewSearchRepo(db)
 	searchHandler := handler.NewSearchHandler(searchRepo)
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
-	exportHandler := handler.NewExportHandler(contactRepo, accountRepo, dealRepo, reportsRepo)
+	exportHandler := handler.NewExportHandler(contactRepo, accountRepo, dealRepo, reportsRepo).WithAuditLog(auditLogRepo)
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
@@ -134,6 +135,12 @@ func main() {
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
 	inboundEmailHandler := handler.NewInboundEmailHandler(emailRepo, contactRepo, cfg.WebhookSecret, cfg.OrgMode)
 	dealPortalLinksHandler := handler.NewDealPortalLinksHandler(portalLinkRepo, dealRepo, noteRepo, orgRepo)
+
+	uploadsDir := getEnv("UPLOADS_DIR", "uploads")
+	contactAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeContact, "id")
+	accountAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeAccount, "id")
+	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeDeal, "id")
+	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)

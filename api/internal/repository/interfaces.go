@@ -283,3 +283,15 @@ type OutboundWebhookRepository interface {
 	PendingDeliveries(ctx context.Context) ([]*domain.WebhookDelivery, error)
 	ListDeliveries(ctx context.Context, webhookID uuid.UUID, limit int) ([]*domain.WebhookDelivery, error)
 }
+
+// EntityAttachmentRepository manages file attachments for contacts, accounts, and deals.
+type EntityAttachmentRepository interface {
+	// Create inserts a new attachment record.
+	Create(ctx context.Context, a *domain.EntityAttachment) (*domain.EntityAttachment, error)
+	// List returns all attachments for a given entity, ordered by created_at ASC.
+	List(ctx context.Context, entityType domain.EntityType, entityID uuid.UUID) ([]*domain.EntityAttachment, error)
+	// GetByID returns a single attachment by ID (for download authorization).
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.EntityAttachment, error)
+	// Delete removes an attachment record. Returns ErrNotFound when absent.
+	Delete(ctx context.Context, id uuid.UUID, entityType domain.EntityType, entityID uuid.UUID) error
+}
