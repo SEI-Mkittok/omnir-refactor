@@ -3,9 +3,11 @@
 -- Helper function: returns the current org_id from the session variable set
 -- by the application before every query. Returns NULL when not set (e.g. for
 -- superuser maintenance sessions), causing RLS policies to match nothing.
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION current_org_id() RETURNS UUID AS $$
   SELECT NULLIF(current_setting('app.current_org_id', true), '')::UUID;
 $$ LANGUAGE SQL STABLE SECURITY DEFINER;
+-- +goose StatementEnd
 
 -- Enable Row-Level Security on every org-scoped table.
 -- RLS is enabled but not yet FORCED — enforcement is activated at runtime by

@@ -4,6 +4,7 @@
 ALTER TABLE organizations RENAME TO orgs;
 
 -- Drop the auto-named plan check and replace with updated values + new default.
+-- +goose StatementBegin
 DO $$
 DECLARE
     c TEXT;
@@ -17,6 +18,7 @@ BEGIN
         EXECUTE 'ALTER TABLE orgs DROP CONSTRAINT ' || quote_ident(c);
     END IF;
 END $$;
+-- +goose StatementEnd
 
 -- 'single' is the new default plan for self-hosted/single-tenant deployments.
 ALTER TABLE orgs
@@ -29,6 +31,7 @@ ALTER TABLE orgs ALTER COLUMN plan SET DEFAULT 'single';
 UPDATE orgs SET plan = 'single' WHERE plan = 'self_hosted';
 
 -- 2. Update users.role enum: admin/user/viewer → admin/agent/client
+-- +goose StatementBegin
 DO $$
 DECLARE
     c TEXT;
@@ -42,6 +45,7 @@ BEGIN
         EXECUTE 'ALTER TABLE users DROP CONSTRAINT ' || quote_ident(c);
     END IF;
 END $$;
+-- +goose StatementEnd
 
 ALTER TABLE users
     ADD CONSTRAINT users_role_check
@@ -141,6 +145,7 @@ UPDATE users SET role = 'user'   WHERE role = 'agent';
 UPDATE users SET role = 'viewer' WHERE role = 'client';
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 
+-- +goose StatementBegin
 DO $$
 BEGIN
     ALTER TABLE users
@@ -148,6 +153,7 @@ BEGIN
             CHECK (role IN ('admin', 'user', 'viewer'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+-- +goose StatementEnd
 
 ALTER TABLE users ALTER COLUMN role SET DEFAULT 'user';
 
@@ -155,6 +161,7 @@ ALTER TABLE users ALTER COLUMN role SET DEFAULT 'user';
 UPDATE orgs SET plan = 'self_hosted' WHERE plan = 'single';
 ALTER TABLE orgs DROP CONSTRAINT IF EXISTS orgs_plan_check;
 
+-- +goose StatementBegin
 DO $$
 BEGIN
     ALTER TABLE orgs
@@ -162,6 +169,7 @@ BEGIN
             CHECK (plan IN ('self_hosted', 'starter', 'pro', 'enterprise'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+-- +goose StatementEnd
 
 ALTER TABLE orgs ALTER COLUMN plan SET DEFAULT 'self_hosted';
 ALTER TABLE orgs RENAME TO organizations;
