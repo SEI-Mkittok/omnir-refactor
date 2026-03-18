@@ -82,6 +82,15 @@ func Load() *Config {
 			From:     getEnv("SMTP_FROM", "noreply@omnir.io"),
 		},
 		WebhookSecret: getEnv("WEBHOOK_SECRET", ""),
+		Storage: StorageConfig{
+			Backend:       StorageBackend(getEnv("STORAGE_BACKEND", string(StorageBackendLocal))),
+			S3Endpoint:    getEnv("S3_ENDPOINT", ""),
+			S3Bucket:      getEnv("S3_BUCKET", "omnir-attachments"),
+			S3AccessKey:   getEnv("S3_ACCESS_KEY", ""),
+			S3SecretKey:   getEnv("S3_SECRET_KEY", ""),
+			S3UseSSL:      getEnv("S3_USE_SSL", "true") == "true",
+			LocalBasePath: getEnv("STORAGE_LOCAL_PATH", "./uploads"),
+		},
 	}
 }
 

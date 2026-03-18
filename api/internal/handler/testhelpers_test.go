@@ -18,8 +18,12 @@ func withClaims(r *http.Request, claims *auth.Claims) *http.Request {
 }
 
 // withURLParam injects a Chi URL param into a request context.
+// If a RouteContext already exists, it appends to it rather than replacing it.
 func withURLParam(r *http.Request, key, value string) *http.Request {
-	rctx := chi.NewRouteContext()
+	rctx, ok := r.Context().Value(chi.RouteCtxKey).(*chi.Context)
+	if !ok || rctx == nil {
+		rctx = chi.NewRouteContext()
+	}
 	rctx.URLParams.Add(key, value)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
