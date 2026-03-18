@@ -3,8 +3,8 @@
 -- custom_field_definitions stores admin-defined field schemas per entity type.
 -- The custom_fields JSONB column on each entity (ticket, contact, lead) holds
 -- the actual values keyed by field name.
-CREATE TYPE custom_field_entity_type AS ENUM ('ticket', 'contact', 'lead');
-CREATE TYPE custom_field_type AS ENUM ('text', 'number', 'date', 'boolean', 'select', 'multi_select');
+CREATE TYPE custom_field_entity_type AS ENUM ('ticket', 'contact', 'lead', 'deal', 'account');
+CREATE TYPE custom_field_type AS ENUM ('text', 'number', 'date', 'checkbox', 'select', 'multiselect', 'url');
 
 CREATE TABLE IF NOT EXISTS custom_field_definitions (
     id           UUID                      PRIMARY KEY DEFAULT gen_random_uuid(),

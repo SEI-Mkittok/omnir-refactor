@@ -53,16 +53,16 @@ func (h *CustomFieldHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	et := domain.CustomFieldEntityType(req.EntityType)
 	if !et.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, or lead")
+		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, or account")
 		return
 	}
 	ft := domain.CustomFieldType(req.FieldType)
 	if !ft.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid field_type: must be text, number, date, boolean, select, or multi_select")
+		writeError(w, http.StatusUnprocessableEntity, "invalid field_type: must be text, number, date, url, checkbox, select, or multiselect")
 		return
 	}
 	if (ft == domain.CustomFieldTypeSelect || ft == domain.CustomFieldTypeMultiSelect) && len(req.Options) == 0 {
-		writeError(w, http.StatusUnprocessableEntity, "options are required for select and multi_select field types")
+		writeError(w, http.StatusUnprocessableEntity, "options are required for select and multiselect field types")
 		return
 	}
 
