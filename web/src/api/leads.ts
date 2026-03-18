@@ -39,4 +39,8 @@ export const leadsApi = {
     return data
   },
 
+  sources: async (): Promise<string[]> => {
+    const { data } = await apiClient.get('/leads/sources')
+    return data
+  },
 }

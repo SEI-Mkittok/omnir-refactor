@@ -26,6 +26,7 @@ type Lead struct {
 	Phone              *string    `json:"phone,omitempty"`
 	Company            *string    `json:"company,omitempty"`
 	LeadSource         *string    `json:"lead_source,omitempty"`
+	Score              int        `json:"lead_score"`
 	Status             LeadStatus `json:"status"`
 	OwnerID            *uuid.UUID `json:"owner_id,omitempty"`
 	ConvertedContactID *uuid.UUID `json:"converted_contact_id,omitempty"`
@@ -44,18 +45,22 @@ type LeadPatch struct {
 	Phone      *string     `json:"phone,omitempty"`
 	Company    *string     `json:"company,omitempty"`
 	LeadSource *string     `json:"lead_source,omitempty"`
+	Score      *int        `json:"lead_score,omitempty"`
 	Status     *LeadStatus `json:"status,omitempty"`
 	OwnerID    *uuid.UUID  `json:"owner_id,omitempty"`
 }
 
 // LeadFilter holds query parameters for listing leads.
 type LeadFilter struct {
-	OrgID   uuid.UUID
-	Status  *LeadStatus
-	OwnerID *uuid.UUID
-	Q       string
-	Page    int
-	Limit   int
-	Sort    string
-	Order   string
+	OrgID    uuid.UUID
+	Status   *LeadStatus
+	OwnerID  *uuid.UUID
+	Source   *string
+	ScoreMin *int
+	ScoreMax *int
+	Q        string
+	Page     int
+	Limit    int
+	Sort     string
+	Order    string
 }
