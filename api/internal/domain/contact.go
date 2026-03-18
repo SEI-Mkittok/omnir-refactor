@@ -32,9 +32,10 @@ type Contact struct {
 	Stage           ContactStage    `json:"stage"`
 	Tags            []string        `json:"tags"`
 	CustomFields    json.RawMessage `json:"custom_fields,omitempty"`
-	ConvertedAt     *time.Time      `json:"converted_at,omitempty"`
-	ConvertedBy     *uuid.UUID      `json:"converted_by,omitempty"`
-	ConvertedDealID *uuid.UUID      `json:"converted_deal_id,omitempty"`
+	ConvertedAt         *time.Time      `json:"converted_at,omitempty"`
+	ConvertedBy         *uuid.UUID      `json:"converted_by,omitempty"`
+	ConvertedDealID     *uuid.UUID      `json:"converted_deal_id,omitempty"`
+	ConvertedFromLeadID *uuid.UUID      `json:"converted_from_lead_id,omitempty"`
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 	DeletedAt       *time.Time      `json:"deleted_at,omitempty"`

@@ -25,7 +25,7 @@ func NewContactRepo(db *pgxpool.Pool) *ContactRepo {
 const contactCols = `
 	id, org_id, first_name, last_name, email, phone,
 	account_id, owner_id, lead_source, lead_score, stage, tags,
-	custom_fields, converted_at, converted_by, converted_deal_id,
+	custom_fields, converted_at, converted_by, converted_deal_id, converted_from_lead_id,
 	created_at, updated_at, deleted_at
 `
 
@@ -34,7 +34,7 @@ func scanContact(row pgx.Row) (*domain.Contact, error) {
 	err := row.Scan(
 		&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
 		&c.AccountID, &c.OwnerID, &c.LeadSource, &c.LeadScore, &c.Stage, &c.Tags,
-		&c.CustomFields, &c.ConvertedAt, &c.ConvertedBy, &c.ConvertedDealID,
+		&c.CustomFields, &c.ConvertedAt, &c.ConvertedBy, &c.ConvertedDealID, &c.ConvertedFromLeadID,
 		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 	)
 	if err != nil {
