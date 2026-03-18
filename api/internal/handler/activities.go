@@ -11,15 +11,35 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
+	"github.com/omnir/crm-api/internal/worker"
 )
 
 // ActivityHandler handles HTTP requests for the activities resource.
 type ActivityHandler struct {
-	repo repository.ActivityRepository
+	repo       repository.ActivityRepository
+	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewActivityHandler(repo repository.ActivityRepository) *ActivityHandler {
 	return &ActivityHandler{repo: repo}
+}
+
+// WithDispatcher attaches the webhook event dispatcher to the handler.
+func (h *ActivityHandler) WithDispatcher(d chan<- worker.WebhookEvent) *ActivityHandler {
+	h.dispatcher = d
+	return h
+}
+
+func (h *ActivityHandler) emitWebhook(r *http.Request, event domain.WebhookEvent, entityID uuid.UUID, data any) {
+	if h.dispatcher == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.WebhookEvent{OrgID: orgID, EntityID: entityID, Event: event, Data: data}
+	select {
+	case h.dispatcher <- evt:
+	default:
+	}
 }
 
 func (h *ActivityHandler) Router() chi.Router {
@@ -42,7 +62,6 @@ func (h *ActivityHandler) List(w http.ResponseWriter, r *http.Request) {
 		Sort:  q.Get("sort"),
 		Order: q.Get("order"),
 	}
-
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			filter.Page = n
@@ -77,14 +96,12 @@ func (h *ActivityHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.DealID = &id
 		}
 	}
-
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
 	if filter.Page == 0 {
 		filter.Page = 1
 	}
-
 	activities, total, err := h.repo.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -99,17 +116,16 @@ func (h *ActivityHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
-
 	if err := a.Validate(); err != nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 		return
 	}
-
 	created, err := h.repo.Create(r.Context(), &a)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventActivityCreated, created.ID, created)
 	writeJSON(w, http.StatusCreated, created)
 }
 
