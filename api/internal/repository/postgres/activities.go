@@ -200,8 +200,12 @@ func (r *ActivityRepo) List(ctx context.Context, f domain.ActivityFilter) ([]*do
 		addWhere("deal_id", *f.DealID)
 	}
 	if f.Q != "" {
-		where = append(where, fmt.Sprintf(`(subject ILIKE $%d OR description ILIKE $%d)`, i, i))
-		args = append(args, "%"+f.Q+"%")
+		// Use the GIN FTS index (idx_activities_fts) rather than ILIKE with a
+		// leading wildcard, which cannot use btree indexes and causes seq scans.
+		where = append(where, fmt.Sprintf(
+			`to_tsvector('english', subject || ' ' || coalesce(description, '')) @@ plainto_tsquery('english', $%d)`, i,
+		))
+		args = append(args, f.Q)
 		i++
 	}
 
