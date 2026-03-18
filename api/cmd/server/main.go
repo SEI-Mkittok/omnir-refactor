@@ -126,6 +126,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
+	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 
 	r := chi.NewRouter()
 
@@ -134,7 +135,6 @@ func main() {
 	r.Use(chimiddleware.RealIP)
 	r.Use(middleware.Logger(logger))
 	r.Use(chimiddleware.Recoverer)
-	r.Use(chimiddleware.Timeout(30 * time.Second))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -162,8 +162,9 @@ func main() {
 	// Inbound email webhooks (unauthenticated — provider-level HMAC/Basic auth)
 	r.Mount("/webhooks/email", webhookHandler.Router())
 
-	// API v1 (all routes require authentication + org scoping)
+	// API v1 (all routes require authentication + org scoping, 30s timeout)
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(chimiddleware.Timeout(30 * time.Second))
 		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
 		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
@@ -195,6 +196,14 @@ func main() {
 		r.Mount("/reports", reportsHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
 		r.Mount("/api-keys", apiKeyHandler.Router())
+	})
+
+	// Import endpoints (5-minute timeout for large CSVs)
+	r.Group(func(r chi.Router) {
+		r.Use(chimiddleware.Timeout(5 * time.Minute))
+		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
+		r.Use(middleware.OrgScope(cfg.OrgMode))
+		r.Mount("/api/v1/import", importHandler.Router())
 	})
 
 	srv := &http.Server{
