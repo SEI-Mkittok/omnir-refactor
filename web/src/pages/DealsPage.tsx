@@ -11,8 +11,10 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
+import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
-import type { Deal, DealStage } from '@/api/types'
+import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 
 const STAGE_OPTIONS = [
   { label: 'Lead', value: 'lead' },
@@ -46,6 +48,7 @@ const stageLabel: Record<DealStage, string> = {
 function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }) {
   const { data: deal, isLoading } = useDeal(dealId)
   const deleteDeal = useDeleteDeal()
+  const { data: customFields = [] } = useCustomFieldDefinitions('deal')
 
   if (isLoading) {
     return (
@@ -140,6 +143,16 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
                 </Badge>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Custom Fields */}
+        {customFields.length > 0 && deal.custom_fields && (
+          <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-2">
+            <CustomFieldDisplaySection
+              fields={customFields}
+              values={deal.custom_fields as CustomFieldValues}
+            />
           </div>
         )}
 

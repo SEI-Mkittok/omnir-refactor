@@ -128,6 +128,7 @@ export interface Account {
   contacts?: Contact[]
   deals?: Deal[]
   notes?: Note[]
+  custom_fields?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -183,6 +184,7 @@ export interface Deal {
   owner?: User
   notes?: Note[]
   tags?: string[]
+  custom_fields?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -431,7 +433,7 @@ export interface ConvertLeadResponse {
 
 // ---- Custom Fields ----
 
-export type CustomFieldEntityType = 'ticket' | 'contact' | 'lead'
+export type CustomFieldEntityType = 'ticket' | 'contact' | 'lead' | 'deal' | 'account'
 export type CustomFieldType = 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'url'
 
 export interface CustomFieldDefinition {
