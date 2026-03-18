@@ -905,6 +905,17 @@ export interface EmailSequence {
   steps?: SequenceStep[]
   enrolled_count: number
   open_rate: number
+// ---- Products ----
+
+export interface Product {
+  id: string
+  org_id: string
+  name: string
+  description?: string
+  sku?: string
+  price: number
+  currency: string
+  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -965,4 +976,67 @@ export interface UpdateSequenceRequest {
 
 export interface EnrollRequest {
   contact_ids: string[]
+export interface CreateProductRequest {
+  name: string
+  description?: string
+  sku?: string
+  price: number
+  currency?: string
+}
+
+export interface UpdateProductRequest {
+  name?: string
+  description?: string
+  sku?: string
+  price?: number
+  currency?: string
+  is_active?: boolean
+}
+
+export interface PriceBookEntry {
+  id: string
+  price_book_id: string
+  product_id: string
+  product?: Product
+  price_override?: number
+  created_at: string
+}
+
+export interface PriceBook {
+  id: string
+  org_id: string
+  name: string
+  is_default: boolean
+  entries?: PriceBookEntry[]
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePriceBookRequest {
+  name: string
+  is_default?: boolean
+}
+
+export interface DealLineItem {
+  id: string
+  deal_id: string
+  product_id?: string
+  name: string
+  quantity: number
+  unit_price: number
+  discount_pct: number
+  subtotal: number
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface UpsertLineItemRequest {
+  id?: string
+  name: string
+  product_id?: string
+  quantity: number
+  unit_price: number
+  discount_pct?: number
+  position?: number
 }

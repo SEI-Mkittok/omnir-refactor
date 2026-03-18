@@ -27,6 +27,7 @@ import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
 import { SequencesPage } from '@/pages/SequencesPage'
+import { ProductsPage } from '@/pages/ProductsPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -137,6 +138,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <WebhooksPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <AdminRoute>
+              <ProductsPage />
             </AdminRoute>
           }
         />
