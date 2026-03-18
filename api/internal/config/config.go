@@ -23,6 +23,17 @@ type Config struct {
 	CORSOrigins []string
 	LogLevel    string
 	OrgMode     OrgMode
+	SMTP        SMTPConfig
+}
+
+// SMTPConfig holds SMTP connection and sender settings.
+type SMTPConfig struct {
+	Enabled  bool
+	Host     string
+	Port     string
+	Username string
+	Password string
+	From     string
 }
 
 // Load reads configuration from environment variables.
@@ -36,6 +47,14 @@ func Load() *Config {
 		CORSOrigins: splitCSV(getEnv("CORS_ORIGINS", "http://localhost:5173")),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 		OrgMode:     OrgMode(getEnv("ORG_MODE", string(OrgModeSingle))),
+		SMTP: SMTPConfig{
+			Enabled:  getEnv("SMTP_ENABLED", "false") == "true",
+			Host:     getEnv("SMTP_HOST", "localhost"),
+			Port:     getEnv("SMTP_PORT", "587"),
+			Username: getEnv("SMTP_USERNAME", ""),
+			Password: getEnv("SMTP_PASSWORD", ""),
+			From:     getEnv("SMTP_FROM", "noreply@omnir.io"),
+		},
 	}
 }
 
