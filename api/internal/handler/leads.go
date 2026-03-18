@@ -45,8 +45,13 @@ func (h *LeadHandler) Router() chi.Router {
 
 func (h *LeadHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	// Accept both canonical names and frontend aliases.
+	searchQ := q.Get("q")
+	if searchQ == "" {
+		searchQ = q.Get("search")
+	}
 	filter := domain.LeadFilter{
-		Q:     q.Get("q"),
+		Q:     searchQ,
 		Sort:  q.Get("sort"),
 		Order: q.Get("order"),
 	}
@@ -56,8 +61,13 @@ func (h *LeadHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.Page = n
 		}
 	}
-	if v := q.Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n <= 200 {
+	// Accept ?limit (canonical) or ?per_page (frontend alias).
+	limitParam := q.Get("limit")
+	if limitParam == "" {
+		limitParam = q.Get("per_page")
+	}
+	if limitParam != "" {
+		if n, err := strconv.Atoi(limitParam); err == nil && n <= 200 {
 			filter.Limit = n
 		}
 	}
@@ -197,8 +207,10 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Return shape: { contact, lead } — contact is the primary result,
+	// lead is included for callers that need to update their local state.
 	writeJSON(w, http.StatusOK, map[string]any{
-		"lead":    updatedLead,
 		"contact": createdContact,
+		"lead":    updatedLead,
 	})
 }

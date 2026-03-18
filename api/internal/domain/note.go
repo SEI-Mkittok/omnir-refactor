@@ -14,12 +14,13 @@ const (
 	NoteEntityContact NoteEntityType = "contact"
 	NoteEntityAccount NoteEntityType = "account"
 	NoteEntityDeal    NoteEntityType = "deal"
+	NoteEntityLead    NoteEntityType = "lead"
 )
 
 // IsValid returns true if the entity type is known.
 func (t NoteEntityType) IsValid() bool {
 	switch t {
-	case NoteEntityContact, NoteEntityAccount, NoteEntityDeal:
+	case NoteEntityContact, NoteEntityAccount, NoteEntityDeal, NoteEntityLead:
 		return true
 	}
 	return false
