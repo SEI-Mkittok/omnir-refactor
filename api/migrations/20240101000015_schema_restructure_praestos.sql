@@ -20,15 +20,15 @@ BEGIN
 END $$;
 -- +goose StatementEnd
 
+-- Migrate existing self_hosted rows BEFORE adding the constraint.
+UPDATE orgs SET plan = 'single' WHERE plan = 'self_hosted';
+
 -- 'single' is the new default plan for self-hosted/single-tenant deployments.
 ALTER TABLE orgs
     ADD CONSTRAINT orgs_plan_check
         CHECK (plan IN ('single', 'starter', 'pro', 'enterprise'));
 
 ALTER TABLE orgs ALTER COLUMN plan SET DEFAULT 'single';
-
--- Migrate existing self_hosted rows to the new 'single' plan value.
-UPDATE orgs SET plan = 'single' WHERE plan = 'self_hosted';
 
 -- 2. Update users.role enum: admin/user/viewer → admin/agent/client
 -- +goose StatementBegin
