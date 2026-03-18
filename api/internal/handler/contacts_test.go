@@ -156,6 +156,8 @@ func TestContactHandler_Update_CustomFields(t *testing.T) {
 			name: "set valid custom field",
 			body: map[string]any{"custom_fields": map[string]any{"notes": "hello"}},
 			setupMocks: func(cr *mocks.MockContactRepository, cfr *mocks.MockCustomFieldDefinitionRepository) {
+				cr.On("GetByID", mock.Anything, contactID).
+					Return(&domain.Contact{ID: contactID, OwnerID: ownerID}, nil)
 				cfr.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{textDef}, nil)
 				cr.On("Update", mock.Anything, contactID, mock.Anything).
 					Return(&domain.Contact{ID: contactID, OwnerID: ownerID}, nil)
@@ -182,6 +184,8 @@ func TestContactHandler_Update_CustomFields(t *testing.T) {
 			name: "clear custom field (null value)",
 			body: map[string]any{"custom_fields": map[string]any{"notes": nil}},
 			setupMocks: func(cr *mocks.MockContactRepository, cfr *mocks.MockCustomFieldDefinitionRepository) {
+				cr.On("GetByID", mock.Anything, contactID).
+					Return(&domain.Contact{ID: contactID, OwnerID: ownerID}, nil)
 				cfr.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{textDef}, nil)
 				cr.On("Update", mock.Anything, contactID, mock.Anything).
 					Return(&domain.Contact{ID: contactID, OwnerID: ownerID}, nil)

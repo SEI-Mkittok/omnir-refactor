@@ -27,6 +27,12 @@ const (
 	AuditEntityLead    AuditEntityType = "lead"
 	AuditEntityUser    AuditEntityType = "user"
 	AuditEntityView    AuditEntityType = "view"
+	AuditEntityContact  AuditEntityType = "contact"
+	AuditEntityAccount  AuditEntityType = "account"
+	AuditEntityDeal     AuditEntityType = "deal"
+	AuditEntityLead     AuditEntityType = "lead"
+	AuditEntityUser     AuditEntityType = "user"
+	AuditEntityView     AuditEntityType = "view"
 )
 
 // FieldChange captures the before/after value for a single field.

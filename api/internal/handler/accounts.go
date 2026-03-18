@@ -14,8 +14,9 @@ import (
 )
 
 type AccountHandler struct {
-	repo   repository.AccountRepository
-	cfDefs repository.CustomFieldDefinitionRepository
+	repo    repository.AccountRepository
+	cfDefs  repository.CustomFieldDefinitionRepository
+	auditor Auditor
 }
 
 func NewAccountHandler(repo repository.AccountRepository) *AccountHandler {
@@ -24,6 +25,11 @@ func NewAccountHandler(repo repository.AccountRepository) *AccountHandler {
 
 func (h *AccountHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *AccountHandler {
 	h.cfDefs = r
+	return h
+}
+
+func (h *AccountHandler) WithAuditLog(r repository.AuditLogRepository) *AccountHandler {
+	h.auditor = newAuditor(r)
 	return h
 }
 
@@ -103,6 +109,7 @@ func (h *AccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionCreated, domain.AuditEntityAccount, idPtr(created.ID), strPtr(created.Name), nil)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -150,11 +157,17 @@ func (h *AccountHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	old, err := h.repo.GetByID(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	a, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionUpdated, domain.AuditEntityAccount, idPtr(a.ID), strPtr(a.Name), buildAccountChanges(old, patch))
 	writeJSON(w, http.StatusOK, a)
 }
 
@@ -168,5 +181,6 @@ func (h *AccountHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionDeleted, domain.AuditEntityAccount, idPtr(id), nil, nil)
 	w.WriteHeader(http.StatusNoContent)
 }

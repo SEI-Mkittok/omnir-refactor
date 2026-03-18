@@ -19,10 +19,16 @@ type ContactHandler struct {
 	deals      repository.DealRepository
 	cfDefs     repository.CustomFieldDefinitionRepository
 	dispatcher chan<- worker.WebhookEvent
+	auditor    Auditor
 }
 
 func NewContactHandler(repo repository.ContactRepository) *ContactHandler {
 	return &ContactHandler{repo: repo}
+}
+
+func (h *ContactHandler) WithAuditLog(r repository.AuditLogRepository) *ContactHandler {
+	h.auditor = newAuditor(r)
+	return h
 }
 
 func (h *ContactHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *ContactHandler {
@@ -136,6 +142,8 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.emitWebhook(r, domain.WebhookEventContactCreated, created.ID, created)
+	name := created.FirstName + " " + created.LastName
+	h.auditor.log(r, domain.AuditActionCreated, domain.AuditEntityContact, idPtr(created.ID), strPtr(name), nil)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -183,12 +191,19 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	old, err := h.repo.GetByID(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	c, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
 	h.emitWebhook(r, domain.WebhookEventContactUpdated, c.ID, c)
+	name := c.FirstName + " " + c.LastName
+	h.auditor.log(r, domain.AuditActionUpdated, domain.AuditEntityContact, idPtr(c.ID), strPtr(name), buildContactChanges(old, patch))
 	writeJSON(w, http.StatusOK, c)
 }
 
@@ -202,6 +217,7 @@ func (h *ContactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionDeleted, domain.AuditEntityContact, idPtr(id), nil, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -302,6 +318,8 @@ func (h *ContactHandler) ConvertLead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	name := contact.FirstName + " " + contact.LastName
+	h.auditor.log(r, domain.AuditActionConverted, domain.AuditEntityContact, idPtr(contact.ID), strPtr(name), nil)
 	resp := map[string]any{"contact": contact}
 	if dealID != nil {
 		resp["deal_id"] = dealID

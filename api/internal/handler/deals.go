@@ -24,6 +24,7 @@ type DealHandler struct {
 	notifications repository.NotificationRepository
 	slaInstances  repository.SLAInstanceRepository
 	slaPolicies   repository.SLAPolicyRepository
+	auditor       Auditor
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
@@ -48,6 +49,11 @@ func (h *DealHandler) WithNotifications(r repository.NotificationRepository) *De
 func (h *DealHandler) WithSLA(policies repository.SLAPolicyRepository, instances repository.SLAInstanceRepository) *DealHandler {
 	h.slaPolicies = policies
 	h.slaInstances = instances
+	return h
+}
+
+func (h *DealHandler) WithAuditLog(r repository.AuditLogRepository) *DealHandler {
+	h.auditor = newAuditor(r)
 	return h
 }
 

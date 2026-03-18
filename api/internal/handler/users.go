@@ -15,11 +15,17 @@ import (
 )
 
 type UserHandler struct {
-	repo repository.UserRepository
+	repo    repository.UserRepository
+	auditor Auditor
 }
 
 func NewUserHandler(repo repository.UserRepository) *UserHandler {
 	return &UserHandler{repo: repo}
+}
+
+func (h *UserHandler) WithAuditLog(r repository.AuditLogRepository) *UserHandler {
+	h.auditor = newAuditor(r)
+	return h
 }
 
 func (h *UserHandler) Router() chi.Router {
@@ -154,6 +160,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionCreated, domain.AuditEntityUser, idPtr(created.ID), strPtr(created.Name), nil)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -190,11 +197,17 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	old, err := h.repo.GetByID(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	u, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionUpdated, domain.AuditEntityUser, idPtr(u.ID), strPtr(u.Name), buildUserChanges(old, patch))
 	writeJSON(w, http.StatusOK, u)
 }
 
@@ -215,6 +228,7 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionDeleted, domain.AuditEntityUser, idPtr(id), nil, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

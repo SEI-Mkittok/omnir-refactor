@@ -285,6 +285,14 @@ type OutboundWebhookRepository interface {
 	ListDeliveries(ctx context.Context, webhookID uuid.UUID, limit int) ([]*domain.WebhookDelivery, error)
 }
 
+// AuditLogRepository manages immutable audit log entries.
+type AuditLogRepository interface {
+	// Append writes a new audit entry. It is intentionally fire-and-forget.
+	Append(ctx context.Context, entry domain.AuditEntry) error
+	// List returns audit log entries matching the filter along with total count.
+	List(ctx context.Context, filter domain.AuditLogFilter) ([]*domain.AuditLog, int, error)
+}
+
 // EntityAttachmentRepository manages file attachments for contacts, accounts, and deals.
 type EntityAttachmentRepository interface {
 	// Create inserts a new attachment record.

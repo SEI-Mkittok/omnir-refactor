@@ -23,10 +23,16 @@ type leadsStore interface {
 type LeadHandler struct {
 	leads    leadsStore
 	contacts repository.ContactRepository
+	auditor  Auditor
 }
 
 func NewLeadHandler(leads leadsStore, contacts repository.ContactRepository) *LeadHandler {
 	return &LeadHandler{leads: leads, contacts: contacts}
+}
+
+func (h *LeadHandler) WithAuditLog(r repository.AuditLogRepository) *LeadHandler {
+	h.auditor = newAuditor(r)
+	return h
 }
 
 func (h *LeadHandler) Router() chi.Router {
@@ -141,6 +147,8 @@ func (h *LeadHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	leadName := created.FirstName + " " + created.LastName
+	h.auditor.log(r, domain.AuditActionCreated, domain.AuditEntityLead, idPtr(created.ID), strPtr(leadName), nil)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -169,11 +177,18 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	old, err := h.leads.GetByID(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	l, err := h.leads.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	leadName := l.FirstName + " " + l.LastName
+	h.auditor.log(r, domain.AuditActionUpdated, domain.AuditEntityLead, idPtr(l.ID), strPtr(leadName), buildLeadChanges(old, patch))
 	writeJSON(w, http.StatusOK, l)
 }
 
@@ -187,6 +202,7 @@ func (h *LeadHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.auditor.log(r, domain.AuditActionDeleted, domain.AuditEntityLead, idPtr(id), nil, nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -241,6 +257,7 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.auditor.log(r, domain.AuditActionConverted, domain.AuditEntityLead, idPtr(updatedLead.ID), strPtr(updatedLead.FirstName+" "+updatedLead.LastName), nil)
 	// Return shape: { contact, lead } — contact is the primary result,
 	// lead is included for callers that need to update their local state.
 	writeJSON(w, http.StatusOK, map[string]any{

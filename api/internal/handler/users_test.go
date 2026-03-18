@@ -395,6 +395,8 @@ func TestUserHandler_Update(t *testing.T) {
 			claims:   userClaims(regularID),
 			body:     map[string]any{"name": "New Name"},
 			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("GetByID", mock.Anything, regularID).
+					Return(makeUser(regularID), nil)
 				m.On("Update", mock.Anything, regularID, mock.AnythingOfType("domain.UserPatch")).
 					Return(makeUser(regularID), nil)
 			},
@@ -406,6 +408,8 @@ func TestUserHandler_Update(t *testing.T) {
 			claims:   adminClaims(adminID),
 			body:     map[string]any{"name": "Updated"},
 			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("GetByID", mock.Anything, otherID).
+					Return(makeUser(otherID), nil)
 				m.On("Update", mock.Anything, otherID, mock.AnythingOfType("domain.UserPatch")).
 					Return(makeUser(otherID), nil)
 			},
@@ -417,6 +421,8 @@ func TestUserHandler_Update(t *testing.T) {
 			claims:   adminClaims(adminID),
 			body:     map[string]any{"role": "admin"},
 			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("GetByID", mock.Anything, otherID).
+					Return(makeUser(otherID), nil)
 				m.On("Update", mock.Anything, otherID, mock.MatchedBy(func(p domain.UserPatch) bool {
 					return p.Role != nil && *p.Role == adminRole
 				})).Return(&domain.User{ID: otherID, Role: domain.UserRoleAdmin}, nil)
@@ -461,7 +467,7 @@ func TestUserHandler_Update(t *testing.T) {
 			claims:   adminClaims(adminID),
 			body:     map[string]any{"name": "Updated"},
 			setupMock: func(m *mocks.MockUserRepository) {
-				m.On("Update", mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.AnythingOfType("domain.UserPatch")).
+				m.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).
 					Return(nil, domain.ErrNotFound)
 			},
 			wantStatus: http.StatusNotFound,
