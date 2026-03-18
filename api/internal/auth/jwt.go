@@ -20,6 +20,10 @@ type Claims struct {
 	OrgID     uuid.UUID `json:"org_id"`
 	Role      string    `json:"role"`
 	CompanyID uuid.UUID `json:"company_id,omitempty"`
+	// APIKeyScopes is non-nil only when the request is authenticated via an API
+	// key (not a JWT). It contains the scopes granted to that key ("read",
+	// "write"). Nil means JWT auth — no scope restriction applies.
+	APIKeyScopes []string `json:"api_key_scopes,omitempty"`
 }
 
 type jwtClaims struct {
