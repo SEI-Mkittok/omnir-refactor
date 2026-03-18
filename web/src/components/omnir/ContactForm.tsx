@@ -10,7 +10,9 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useCreateContact } from '@/hooks/useContacts'
-import type { CreateContactRequest } from '@/api/types'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import type { CreateContactRequest, CustomFieldValues } from '@/api/types'
 
 interface ContactFormProps {
   open: boolean
@@ -30,7 +32,9 @@ const INITIAL: CreateContactRequest = {
 export function ContactForm({ open, onClose }: ContactFormProps) {
   const [form, setForm] = useState<CreateContactRequest>(INITIAL)
   const [errors, setErrors] = useState<Partial<Record<keyof CreateContactRequest, string>>>({})
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const createContact = useCreateContact()
+  const { data: customFields = [] } = useCustomFieldDefinitions('contact')
 
   const set = (field: keyof CreateContactRequest) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }))
@@ -53,9 +57,11 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
       phone: form.phone || undefined,
       title: form.title || undefined,
       department: form.department || undefined,
-    })
+      custom_fields: Object.keys(customFieldValues).length ? customFieldValues : undefined,
+    } as CreateContactRequest & { custom_fields?: CustomFieldValues })
     setForm(INITIAL)
     setErrors({})
+    setCustomFieldValues({})
     onClose()
   }
 
@@ -63,6 +69,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
     if (!o) {
       setForm(INITIAL)
       setErrors({})
+      setCustomFieldValues({})
       onClose()
     }
   }
@@ -163,6 +170,12 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
               />
             </div>
           </div>
+
+          <CustomFieldFormSection
+            fields={customFields}
+            values={customFieldValues}
+            onChange={setCustomFieldValues}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>

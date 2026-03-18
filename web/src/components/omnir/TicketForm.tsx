@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCreateTicket } from '@/hooks/useTickets'
-import type { CreateTicketRequest, TicketStatus, TicketPriority } from '@/api/types'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import type { CreateTicketRequest, TicketStatus, TicketPriority, CustomFieldValues } from '@/api/types'
 
 interface TicketFormProps {
   onClose: () => void
@@ -25,10 +27,12 @@ const PRIORITY_OPTIONS: { label: string; value: TicketPriority }[] = [
 
 export function TicketForm({ onClose, onCreated }: TicketFormProps) {
   const { mutateAsync: createTicket, isPending } = useCreateTicket()
+  const { data: customFields = [] } = useCustomFieldDefinitions('ticket')
 
   const [subject, setSubject] = useState('')
   const [status, setStatus] = useState<TicketStatus>('open')
   const [priority, setPriority] = useState<TicketPriority>('medium')
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,12 +42,13 @@ export function TicketForm({ onClose, onCreated }: TicketFormProps) {
       return
     }
     setError('')
-    const payload: CreateTicketRequest = {
+    const payload = {
       subject: subject.trim(),
       status,
       priority,
-    }
-    const ticket = await createTicket(payload)
+      ...(Object.keys(customFieldValues).length ? { custom_fields: customFieldValues } : {}),
+    } as CreateTicketRequest & { custom_fields?: CustomFieldValues }
+    const ticket = await createTicket(payload as CreateTicketRequest)
     onCreated?.(ticket.id)
     onClose()
   }
@@ -119,6 +124,12 @@ export function TicketForm({ onClose, onCreated }: TicketFormProps) {
               </select>
             </div>
           </div>
+
+          <CustomFieldFormSection
+            fields={customFields}
+            values={customFieldValues}
+            onChange={setCustomFieldValues}
+          />
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
