@@ -101,7 +101,7 @@ func TestTicketHandler_List(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockTickets)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets"+tt.query, nil)
 			w := httptest.NewRecorder()
@@ -171,7 +171,7 @@ func TestTicketHandler_Create(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockTickets)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			var body []byte
 			if tt.body != nil {
@@ -234,7 +234,7 @@ func TestTicketHandler_GetByID(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockTickets)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+tt.ticketID, nil)
 			req = withURLParam(req, "id", tt.ticketID)
@@ -293,7 +293,7 @@ func TestTicketHandler_Update(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockTickets)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			var body []byte
 			if tt.body != nil {
@@ -356,7 +356,7 @@ func TestTicketHandler_Delete(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockTickets)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			req := httptest.NewRequest(http.MethodDelete, "/api/v1/tickets/"+tt.ticketID, nil)
 			req = withURLParam(req, "id", tt.ticketID)
@@ -445,7 +445,7 @@ func TestTicketHandler_ListComments(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockComments)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+tt.ticketID+"/comments", nil)
 			req = withURLParam(req, "id", tt.ticketID)
@@ -560,7 +560,7 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockComments)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			var body []byte
 			if tt.body != nil {
@@ -638,7 +638,7 @@ func TestTicketHandler_DeleteComment(t *testing.T) {
 			mockAttachments := new(mocks.MockTicketAttachmentRepository)
 			tt.setupMock(mockComments)
 
-			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments)
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
 
 			req := httptest.NewRequest(http.MethodDelete, "/api/v1/tickets/"+tt.ticketID+"/comments/"+tt.commentID, nil)
 			req = withURLParam(req, "id", tt.ticketID)

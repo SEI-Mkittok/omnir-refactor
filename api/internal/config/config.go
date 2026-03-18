@@ -5,6 +5,29 @@ import (
 	"strings"
 )
 
+// StorageBackend selects the file storage implementation.
+type StorageBackend string
+
+const (
+	StorageBackendLocal StorageBackend = "local"
+	StorageBackendS3    StorageBackend = "s3"
+)
+
+// StorageConfig holds configuration for the file storage backend.
+type StorageConfig struct {
+	Backend StorageBackend
+
+	// S3 / S3-compatible (MinIO) settings
+	S3Endpoint  string
+	S3Bucket    string
+	S3AccessKey string
+	S3SecretKey string
+	S3UseSSL    bool
+
+	// Local filesystem settings
+	LocalBasePath string
+}
+
 // OrgMode controls multi-tenancy behaviour.
 type OrgMode string
 
@@ -26,6 +49,7 @@ type Config struct {
 	OrgMode       OrgMode
 	SMTP          SMTPConfig
 	WebhookSecret string
+	Storage       StorageConfig
 }
 
 // SMTPConfig holds SMTP connection and sender settings.

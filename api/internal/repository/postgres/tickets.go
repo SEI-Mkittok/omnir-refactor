@@ -421,19 +421,26 @@ func NewTicketAttachmentRepo(db *pgxpool.Pool) *TicketAttachmentRepo {
 	return &TicketAttachmentRepo{db: db}
 }
 
-const attachmentCols = `id, ticket_id, org_id, uploaded_by, filename, content_type, size_bytes, storage_url, created_at`
+const attachmentCols = `id, ticket_id, org_id, uploaded_by, filename, content_type, size_bytes, storage_url, storage_key, storage_backend, created_at`
 
 func scanAttachment(row pgx.Row) (*domain.TicketAttachment, error) {
 	var a domain.TicketAttachment
+	var storageKey, storageBackend *string
 	err := row.Scan(
 		&a.ID, &a.TicketID, &a.OrgID, &a.UploadedBy, &a.Filename,
-		&a.ContentType, &a.SizeBytes, &a.StorageURL, &a.CreatedAt,
+		&a.ContentType, &a.SizeBytes, &a.StorageURL, &storageKey, &storageBackend, &a.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
+	}
+	if storageKey != nil {
+		a.StorageKey = *storageKey
+	}
+	if storageBackend != nil {
+		a.StorageBackend = *storageBackend
 	}
 	return &a, nil
 }
@@ -447,15 +454,34 @@ func (r *TicketAttachmentRepo) Create(ctx context.Context, a *domain.TicketAttac
 	}
 	a.CreatedAt = time.Now().UTC()
 
+	var storageKey, storageBackend *string
+	if a.StorageKey != "" {
+		storageKey = &a.StorageKey
+	}
+	if a.StorageBackend != "" {
+		storageBackend = &a.StorageBackend
+	}
+
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO ticket_attachments
-			(id, ticket_id, org_id, uploaded_by, filename, content_type, size_bytes, storage_url, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+			(id, ticket_id, org_id, uploaded_by, filename, content_type, size_bytes, storage_url, storage_key, storage_backend, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		RETURNING `+attachmentCols,
 		a.ID, a.TicketID, a.OrgID, a.UploadedBy, a.Filename,
-		a.ContentType, a.SizeBytes, a.StorageURL, a.CreatedAt,
+		a.ContentType, a.SizeBytes, a.StorageURL, storageKey, storageBackend, a.CreatedAt,
 	)
 	return scanAttachment(row)
+}
+
+func (r *TicketAttachmentRepo) GetByID(ctx context.Context, id, ticketID uuid.UUID) (*domain.TicketAttachment, error) {
+	args := []any{id, ticketID}
+	q := `SELECT ` + attachmentCols + ` FROM ticket_attachments WHERE id = $1 AND ticket_id = $2`
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id = $3`
+		args = append(args, orgID)
+	}
+	return scanAttachment(r.db.QueryRow(ctx, q, args...))
 }
 
 func (r *TicketAttachmentRepo) List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error) {
@@ -477,11 +503,18 @@ func (r *TicketAttachmentRepo) List(ctx context.Context, ticketID uuid.UUID) ([]
 	var attachments []*domain.TicketAttachment
 	for rows.Next() {
 		var a domain.TicketAttachment
+		var storageKey, storageBackend *string
 		if err := rows.Scan(
 			&a.ID, &a.TicketID, &a.OrgID, &a.UploadedBy, &a.Filename,
-			&a.ContentType, &a.SizeBytes, &a.StorageURL, &a.CreatedAt,
+			&a.ContentType, &a.SizeBytes, &a.StorageURL, &storageKey, &storageBackend, &a.CreatedAt,
 		); err != nil {
 			return nil, err
+		}
+		if storageKey != nil {
+			a.StorageKey = *storageKey
+		}
+		if storageBackend != nil {
+			a.StorageBackend = *storageBackend
 		}
 		attachments = append(attachments, &a)
 	}
