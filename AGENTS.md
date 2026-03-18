@@ -276,3 +276,17 @@ Common failures to watch for:
 - go.mod version mismatch with CI Go version
 - Test assertions using wrong field names after schema changes
 
+
+
+## Sequential Merge Rule (MANDATORY)
+
+**Never open a PR or request a merge if a previous PR is still open or failed CI.**
+
+Workflow:
+1. Check if any PR is currently open — ask Völundr or run: gh pr list
+2. If a PR is open → wait for it to be reviewed, CI to pass, and merge to complete
+3. Only then push your branch and open the next PR
+4. One PR in flight at a time — no parallel merges
+
+If you are unsure whether a PR is open, ask Völundr before pushing.
+
