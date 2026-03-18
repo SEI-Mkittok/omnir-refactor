@@ -77,6 +77,7 @@ func main() {
 	outboundWebhookRepo := postgres.NewOutboundWebhookRepo(db)
 	portalLinkRepo := postgres.NewPortalLinkRepo(db)
 	entityAttachmentRepo := postgres.NewEntityAttachmentRepo(db)
+	auditLogRepo := postgres.NewAuditLogRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -206,6 +207,10 @@ func main() {
 		r.Mount("/api-keys", apiKeyHandler.Router())
 		r.Mount("/emails", emailHandler.Router())
 		r.Mount("/webhooks", outboundWebhookHandler.Router())
+		r.Route("/contacts/{id}/attachments", func(r chi.Router) { r.Mount("/", contactAttachmentHandler.Router()) })
+		r.Route("/accounts/{id}/attachments", func(r chi.Router) { r.Mount("/", accountAttachmentHandler.Router()) })
+		r.Route("/deals/{id}/attachments", func(r chi.Router) { r.Mount("/", dealAttachmentHandler.Router()) })
+		r.Mount("/attachments", attachmentDownloadHandler.Router())
 	})
 
 	r.Group(func(r chi.Router) {

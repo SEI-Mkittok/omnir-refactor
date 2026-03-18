@@ -295,3 +295,11 @@ type EntityAttachmentRepository interface {
 	// Delete removes an attachment record. Returns ErrNotFound when absent.
 	Delete(ctx context.Context, id uuid.UUID, entityType domain.EntityType, entityID uuid.UUID) error
 }
+
+// AuditLogRepository persists audit log entries.
+type AuditLogRepository interface {
+	// Create inserts a new audit log entry.
+	Create(ctx context.Context, entry *domain.AuditLogEntry) error
+	// List returns audit entries for the org, ordered by created_at DESC.
+	List(ctx context.Context, orgID uuid.UUID, limit, offset int) ([]*domain.AuditLogEntry, int, error)
+}
