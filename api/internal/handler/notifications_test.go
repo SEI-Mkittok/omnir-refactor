@@ -31,10 +31,10 @@ func TestNotificationHandler_List(t *testing.T) {
 			name: "returns notifications for user",
 			setupMock: func(m *mocks.MockNotificationRepository) {
 				m.On("ListByUser", mock.Anything, mock.MatchedBy(func(f domain.NotificationFilter) bool {
-					return f.UserID == userID && !f.Unread
+					return f.UserID == userID && !f.UnreadOnly
 				})).Return([]*domain.Notification{
-					{ID: uuid.New(), UserID: userID, Type: domain.NotificationTypeUpcoming1h},
-				}, 1, nil)
+					{ID: uuid.New(), UserID: userID, Kind: domain.NotificationKindActivityReminder},
+				}, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -42,10 +42,10 @@ func TestNotificationHandler_List(t *testing.T) {
 			name: "filters unread notifications",
 			setupMock: func(m *mocks.MockNotificationRepository) {
 				m.On("ListByUser", mock.Anything, mock.MatchedBy(func(f domain.NotificationFilter) bool {
-					return f.UserID == userID && f.Unread
-				})).Return([]*domain.Notification{}, 0, nil)
+					return f.UserID == userID && f.UnreadOnly
+				})).Return([]*domain.Notification{}, nil)
 			},
-			query:      "?unread=true",
+			query:      "?unread_only=true",
 			wantStatus: http.StatusOK,
 		},
 	}
@@ -67,6 +67,29 @@ func TestNotificationHandler_List(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestNotificationHandler_UnreadCount(t *testing.T) {
+	userID := uuid.New()
+	orgID := uuid.New()
+
+	claims := &auth.Claims{UserID: userID, OrgID: orgID}
+
+	t.Run("returns unread count", func(t *testing.T) {
+		mockRepo := new(mocks.MockNotificationRepository)
+		mockRepo.On("UnreadCount", mock.Anything, userID, orgID).Return(5, nil)
+
+		h := handler.NewNotificationHandler(mockRepo)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/notifications/unread-count", nil)
+		req = withClaims(req, claims)
+		w := httptest.NewRecorder()
+
+		h.UnreadCount(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		mockRepo.AssertExpectations(t)
+	})
 }
 
 func TestNotificationHandler_MarkRead(t *testing.T) {
@@ -114,7 +137,7 @@ func TestNotificationHandler_MarkRead(t *testing.T) {
 
 			h := handler.NewNotificationHandler(mockRepo)
 
-			req := httptest.NewRequest(http.MethodPatch, "/api/notifications/"+tt.notifID+"/read", nil)
+			req := httptest.NewRequest(http.MethodPost, "/api/notifications/"+tt.notifID+"/read", nil)
 			req = withClaims(req, claims)
 			req = withURLParam(req, "id", tt.notifID)
 			w := httptest.NewRecorder()
@@ -125,4 +148,27 @@ func TestNotificationHandler_MarkRead(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestNotificationHandler_MarkAllRead(t *testing.T) {
+	userID := uuid.New()
+	orgID := uuid.New()
+
+	claims := &auth.Claims{UserID: userID, OrgID: orgID}
+
+	t.Run("marks all notifications as read", func(t *testing.T) {
+		mockRepo := new(mocks.MockNotificationRepository)
+		mockRepo.On("MarkAllRead", mock.Anything, userID, orgID).Return(nil)
+
+		h := handler.NewNotificationHandler(mockRepo)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/notifications/read-all", nil)
+		req = withClaims(req, claims)
+		w := httptest.NewRecorder()
+
+		h.MarkAllRead(w, req)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		mockRepo.AssertExpectations(t)
+	})
 }
