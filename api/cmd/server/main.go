@@ -177,6 +177,11 @@ func main() {
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
+	productRepo := postgres.NewProductRepo(db)
+	dealLineItemRepo := postgres.NewDealLineItemRepo(db)
+	productHandler := handler.NewProductHandler(productRepo)
+	dealLineItemHandler := handler.NewDealLineItemHandler(dealLineItemRepo)
+
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
@@ -247,6 +252,10 @@ func main() {
 		r.Route("/deals/{id}/attachments", func(r chi.Router) { r.Mount("/", dealAttachmentHandler.Router()) })
 		r.Mount("/attachments", attachmentDownloadHandler.Router())
 		r.Mount("/admin/audit-log", auditLogHandler.Router())
+		r.Mount("/products", productHandler.Router())
+		r.Mount("/price-books", productHandler.PriceBooksRouter())
+		r.Route("/deals/{id}/line-items", func(r chi.Router) { r.Mount("/", dealLineItemHandler.Router()) })
+
 	})
 
 	r.Group(func(r chi.Router) {
