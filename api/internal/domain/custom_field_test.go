@@ -98,11 +98,34 @@ func TestValidateCustomFields_MultiSelectType(t *testing.T) {
 	require.Error(t, domain.ValidateCustomFields(fields("tags", []string{"billing", "unknown"}), defs))
 }
 
-func TestValidateCustomFields_UnknownFieldsAllowed(t *testing.T) {
-	// Unknown keys should be silently accepted (forward compat).
+func TestValidateCustomFields_UnknownFieldsRejected(t *testing.T) {
 	defs := []*domain.CustomFieldDefinition{def("notes", domain.CustomFieldTypeText, false)}
 	err := domain.ValidateCustomFields(fields("notes", "hi", "unknown_key", "value"), defs)
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown_key")
+}
+
+func TestExpandCustomFields_AllDefsPresent(t *testing.T) {
+	defs := []*domain.CustomFieldDefinition{
+		def("notes", domain.CustomFieldTypeText, false),
+		def("score", domain.CustomFieldTypeNumber, false),
+	}
+	stored := fields("notes", "hello")
+	out := domain.ExpandCustomFields(stored, defs)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Equal(t, "hello", m["notes"])
+	assert.Nil(t, m["score"])
+}
+
+func TestExpandCustomFields_NilStorage(t *testing.T) {
+	defs := []*domain.CustomFieldDefinition{
+		def("notes", domain.CustomFieldTypeText, false),
+	}
+	out := domain.ExpandCustomFields(nil, defs)
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Nil(t, m["notes"])
 }
 
 func TestValidateCustomFields_NullFields(t *testing.T) {
