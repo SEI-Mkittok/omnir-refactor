@@ -26,7 +26,7 @@ func NewTicketRepo(db *pgxpool.Pool) *TicketRepo {
 const ticketCols = `
 	id, org_id, subject, description, status, priority,
 	assignee_id, contact_id, account_id, source, tags,
-	custom_fields, created_at, updated_at, deleted_at
+	custom_fields, sla_policy_id, first_responded_at, created_at, updated_at, deleted_at
 `
 
 func scanTicket(row pgx.Row) (*domain.Ticket, error) {
@@ -34,7 +34,7 @@ func scanTicket(row pgx.Row) (*domain.Ticket, error) {
 	err := row.Scan(
 		&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
 		&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.Tags,
-		&t.CustomFields, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -65,16 +65,33 @@ func (r *TicketRepo) Create(ctx context.Context, t *domain.Ticket) (*domain.Tick
 	t.CreatedAt = now
 	t.UpdatedAt = now
 
+	// Auto-assign a matching SLA policy based on ticket priority.
+	var slaID *uuid.UUID
+	{
+		var policyID uuid.UUID
+		err := r.db.QueryRow(ctx, `
+			SELECT id FROM sla_policies
+			WHERE org_id = $1
+			  AND priority_filter @> jsonb_build_array($2::text)
+			ORDER BY created_at
+			LIMIT 1`,
+			t.OrgID, string(t.Priority),
+		).Scan(&policyID)
+		if err == nil {
+			slaID = &policyID
+		}
+	}
+
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO tickets
 			(id, org_id, subject, description, status, priority,
 			 assignee_id, contact_id, account_id, source, tags,
-			 custom_fields, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+			 custom_fields, sla_policy_id, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING `+ticketCols,
 		t.ID, t.OrgID, t.Subject, t.Description, t.Status, t.Priority,
 		t.AssigneeID, t.ContactID, t.AccountID, t.Source, t.Tags,
-		t.CustomFields, t.CreatedAt, t.UpdatedAt,
+		t.CustomFields, slaID, t.CreatedAt, t.UpdatedAt,
 	)
 	return scanTicket(row)
 }
@@ -244,7 +261,7 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		if err := rows.Scan(
 			&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
 			&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.Tags,
-			&t.CustomFields, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+			&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 		); err != nil {
 			return nil, 0, err
 		}
@@ -297,7 +314,23 @@ func (r *TicketCommentRepo) Create(ctx context.Context, c *domain.TicketComment)
 		RETURNING `+commentCols,
 		c.ID, c.TicketID, c.OrgID, c.AuthorID, c.Body, c.IsInternal, c.CreatedAt, c.UpdatedAt,
 	)
-	return scanComment(row)
+	comment, err := scanComment(row)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set first_responded_at on the parent ticket when a public (non-internal)
+	// comment is posted and the ticket has not yet been responded to.
+	if !c.IsInternal {
+		_, _ = r.db.Exec(ctx, `
+			UPDATE tickets
+			SET first_responded_at = $1
+			WHERE id = $2 AND first_responded_at IS NULL`,
+			now, c.TicketID,
+		)
+	}
+
+	return comment, nil
 }
 
 func (r *TicketCommentRepo) List(ctx context.Context, f domain.TicketCommentFilter) ([]*domain.TicketComment, error) {

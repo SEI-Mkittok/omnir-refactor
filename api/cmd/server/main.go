@@ -71,6 +71,7 @@ func main() {
 	ticketRepo := postgres.NewTicketRepo(db)
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
+	slaPolicyRepo := postgres.NewSLAPolicyRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 
 	// Background workers
@@ -88,7 +89,8 @@ func main() {
 	dealHandler := handler.NewDealHandler(dealRepo)
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
-	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo)
+	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, slaPolicyRepo)
+	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
@@ -149,6 +151,7 @@ func main() {
 		r.Mount("/activities", activityHandler.Router())
 		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/tickets", ticketHandler.Router())
+		r.Mount("/sla-policies", slaPolicyHandler.Router())
 		r.Mount("/users", userHandler.Router())
 		r.Mount("/search", searchHandler.Router())
 		r.Mount("/reports", reportsHandler.Router())
