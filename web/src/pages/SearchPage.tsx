@@ -1,9 +1,9 @@
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Users, Building2, TrendingUp, Search } from 'lucide-react'
+import { Users, Building2, TrendingUp, Search, LifeBuoy } from 'lucide-react'
 import { searchApi } from '@/api/search'
 import { Spinner } from '@/components/ui/Spinner'
-import type { Contact, Account, Deal } from '@/api/types'
+import type { Contact, Account, Deal, Ticket } from '@/api/types'
 
 function ResultSection<T>({
   title,
@@ -44,7 +44,8 @@ export function SearchPage() {
   const contacts = data?.contacts ?? []
   const accounts = data?.accounts ?? []
   const deals = data?.deals ?? []
-  const totalResults = contacts.length + accounts.length + deals.length
+  const tickets = data?.tickets ?? []
+  const totalResults = contacts.length + accounts.length + deals.length + tickets.length
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -150,6 +151,29 @@ export function SearchPage() {
                   <p className="text-sm font-medium text-slate-900">{d.title}</p>
                   <p className="text-xs text-slate-500 truncate">
                     {d.stage.replace('_', ' ')}{d.value ? ` · $${d.value.toLocaleString()}` : ''}
+                  </p>
+                </div>
+              </button>
+            )}
+          />
+
+          <ResultSection<Ticket>
+            title="Tickets"
+            icon={LifeBuoy}
+            items={tickets}
+            renderItem={(t) => (
+              <button
+                key={t.id}
+                onClick={() => navigate(`/tickets?openId=${t.id}`)}
+                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                  <LifeBuoy className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900">{t.subject}</p>
+                  <p className="text-xs text-slate-500 truncate capitalize">
+                    {t.status} · {t.priority}
                   </p>
                 </div>
               </button>
