@@ -46,6 +46,12 @@ type TicketStatusCount struct {
 	Count  int          `json:"count"`
 }
 
+// TicketDailyMetric holds the number of tickets created on a given day.
+type TicketDailyMetric struct {
+	Date  string `json:"date"`  // YYYY-MM-DD
+	Count int    `json:"count"`
+}
+
 // TicketReport is the response payload for GET /reports/tickets.
 type TicketReport struct {
 	TotalOpen          int                 `json:"total_open"`
@@ -53,18 +59,20 @@ type TicketReport struct {
 	AvgResolutionHours float64             `json:"avg_resolution_hours"`
 	ByStatus           []TicketStatusCount `json:"by_status"`
 	BreachRate         float64             `json:"breach_rate"` // % of open tickets older than 48 h
+	OverTime           []TicketDailyMetric `json:"over_time"`
 }
 
-// ContactPeriodMetric holds the count of contacts created in one time bucket.
-type ContactPeriodMetric struct {
-	Period string `json:"period"` // "YYYY-MM"
-	Count  int    `json:"count"`
+// ContactOverTimeMetric holds the count of contacts created in one monthly bucket.
+type ContactOverTimeMetric struct {
+	Month string `json:"month"` // "YYYY-MM"
+	Count int    `json:"count"`
 }
 
 // ContactReport is the response payload for GET /reports/contacts.
 type ContactReport struct {
-	Total    int                   `json:"total"`
-	ByPeriod []ContactPeriodMetric `json:"by_period"`
+	NewCount   int                     `json:"new_count"`   // contacts created within the date range
+	TotalCount int                     `json:"total_count"` // all-time total for the org
+	OverTime   []ContactOverTimeMetric `json:"over_time"`
 }
 
 // DealStageCount holds per-stage deal count and aggregate value.
@@ -82,9 +90,17 @@ type DealReport struct {
 	ByStage            []DealStageCount `json:"by_stage"`
 }
 
+// LeadFunnelMetric holds the count of leads at one stage of the funnel.
+type LeadFunnelMetric struct {
+	Stage string `json:"stage"` // e.g. "new", "contacted", "qualified", "converted"
+	Label string `json:"label"` // title-cased display label
+	Count int    `json:"count"`
+}
+
 // LeadReport is the response payload for GET /reports/leads.
 type LeadReport struct {
-	TotalNew       int     `json:"total_new"`
-	TotalConverted int     `json:"total_converted"`
-	ConversionRate float64 `json:"conversion_rate"` // converted / total * 100
+	NewCount       int                `json:"new_count"`       // leads created within the date range
+	ConvertedCount int                `json:"converted_count"` // converted leads within the date range
+	ConversionRate float64            `json:"conversion_rate"` // converted / total (0.0-1.0)
+	Funnel         []LeadFunnelMetric `json:"funnel"`
 }
