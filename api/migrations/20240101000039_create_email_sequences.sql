@@ -1,6 +1,8 @@
 -- Email sequences: automated multi-step email drip campaigns
 -- Tables: email_sequences, sequence_steps, sequence_enrollments, sequence_events
 
+-- +goose Up
+
 CREATE TYPE sequence_status AS ENUM ('draft', 'active', 'paused', 'archived');
 CREATE TYPE sequence_step_kind AS ENUM ('email', 'wait');
 CREATE TYPE enrollment_status AS ENUM ('active', 'completed', 'unsubscribed', 'bounced', 'paused');
@@ -82,3 +84,14 @@ CREATE POLICY org_isolation ON sequence_enrollments
 
 CREATE POLICY org_isolation ON sequence_events
     USING (org_id = current_setting('app.org_id', true)::uuid);
+
+-- +goose Down
+
+DROP TABLE IF EXISTS sequence_events;
+DROP TABLE IF EXISTS sequence_enrollments;
+DROP TABLE IF EXISTS sequence_steps;
+DROP TABLE IF EXISTS email_sequences;
+DROP TYPE IF EXISTS sequence_event_kind;
+DROP TYPE IF EXISTS enrollment_status;
+DROP TYPE IF EXISTS sequence_step_kind;
+DROP TYPE IF EXISTS sequence_status;
