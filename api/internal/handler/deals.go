@@ -16,11 +16,17 @@ import (
 
 type DealHandler struct {
 	repo       repository.DealRepository
+	cfDefs     repository.CustomFieldDefinitionRepository
 	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
 	return &DealHandler{repo: repo}
+}
+
+func (h *DealHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *DealHandler {
+	h.cfDefs = r
+	return h
 }
 
 func (h *DealHandler) WithDispatcher(d chan<- worker.WebhookEvent) *DealHandler {
@@ -141,6 +147,13 @@ func (h *DealHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if h.cfDefs != nil {
+		et := domain.CustomFieldEntityDeal
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err == nil && len(defs) > 0 {
+			d.CustomFields = domain.ExpandCustomFields(d.CustomFields, defs)
+		}
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 
@@ -154,6 +167,18 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
+	}
+	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
+		et := domain.CustomFieldEntityDeal
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := domain.ValidateCustomFields(patch.CustomFields, defs); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 	}
 	d, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
