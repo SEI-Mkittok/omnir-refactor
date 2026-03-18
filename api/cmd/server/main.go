@@ -48,8 +48,8 @@ func main() {
 	}
 	logger.Info("database connected", "org_mode", cfg.OrgMode)
 
-	// Enable FORCE ROW LEVEL SECURITY for multitenant / enterprise deployments.
-	if cfg.OrgMode == config.OrgModeMultitenant || cfg.OrgMode == config.OrgModeEnterprise {
+	// Enable FORCE ROW LEVEL SECURITY for saas / multitenant / enterprise deployments.
+	if cfg.OrgMode == config.OrgModeSaaS || cfg.OrgMode == config.OrgModeMultitenant || cfg.OrgMode == config.OrgModeEnterprise {
 		if err := postgres.EnableRLS(context.Background(), db); err != nil {
 			logger.Error("failed to enable RLS", "err", err)
 			os.Exit(1)
@@ -61,6 +61,7 @@ func main() {
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
 
 	// Repositories
+	orgRepo := postgres.NewOrgRepo(db)
 	contactRepo := postgres.NewContactRepo(db)
 	accountRepo := postgres.NewAccountRepo(db)
 	dealRepo := postgres.NewDealRepo(db)
@@ -101,6 +102,7 @@ func main() {
 
 	// Handlers
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
+	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc)
 	userHandler := handler.NewUserHandler(userRepo)
 	contactHandler := handler.NewContactHandler(contactRepo)
@@ -150,6 +152,9 @@ func main() {
 
 	// Setup endpoints (unauthenticated — fresh install only)
 	r.Mount("/api/setup", setupHandler.Router())
+
+	// Org endpoints (unauthenticated — signup is gatekept by OrgMode in handler)
+	r.Mount("/api/orgs", orgHandler.Router())
 
 	// Auth endpoints (unauthenticated)
 	r.Mount("/api/auth", authHandler.Router())
