@@ -196,9 +196,9 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
-			`(first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)`, i, i, i,
+			`to_tsvector('english', first_name || ' ' || last_name || ' ' || coalesce(email, '') || ' ' || coalesce(phone, '')) @@ plainto_tsquery('english', $%d)`, i,
 		))
-		args = append(args, "%"+f.Q+"%")
+		args = append(args, f.Q)
 		i++
 	}
 

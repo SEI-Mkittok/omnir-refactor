@@ -265,8 +265,10 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 		addWhere("pipeline_id", *f.PipelineID)
 	}
 	if f.Q != "" {
-		where = append(where, fmt.Sprintf(`title ILIKE $%d`, i))
-		args = append(args, "%"+f.Q+"%")
+		where = append(where, fmt.Sprintf(
+			`to_tsvector('english', title) @@ plainto_tsquery('english', $%d)`, i,
+		))
+		args = append(args, f.Q)
 		i++
 	}
 
