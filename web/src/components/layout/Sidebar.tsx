@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound, SlidersHorizontal, KeyRound, Clock, LifeBuoy } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound, SlidersHorizontal, KeyRound, Clock, LifeBuoy, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
@@ -18,6 +18,7 @@ const adminNavItems = [
   { to: '/settings/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
   { to: '/api-keys', icon: KeyRound, label: 'API Keys' },
   { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
+  { to: '/admin/audit', icon: ShieldCheck, label: 'Audit Log' },
 ]
 
 interface SidebarProps {

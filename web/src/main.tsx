@@ -25,6 +25,7 @@ import { PortalTicketDetailPage } from '@/pages/portal/PortalTicketDetailPage'
 import { TicketsPage } from '@/pages/TicketsPage'
 import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
+import { AuditLogPage } from '@/pages/AuditLogPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -134,6 +135,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <WebhooksPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/audit"
+          element={
+            <AdminRoute>
+              <AuditLogPage />
             </AdminRoute>
           }
         />
