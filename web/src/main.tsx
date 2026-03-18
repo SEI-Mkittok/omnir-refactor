@@ -22,6 +22,7 @@ import { PortalTicketsPage } from '@/pages/portal/PortalTicketsPage'
 import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
 import { PortalTicketDetailPage } from '@/pages/portal/PortalTicketDetailPage'
 import { TicketsPage } from '@/pages/TicketsPage'
+import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -38,6 +39,12 @@ const queryClient = new QueryClient({
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
   if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />
+  return <>{children}</>
+}
+
+function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore((s) => s.user)
+  if (user?.role !== 'super_admin') return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -117,6 +124,14 @@ function AppRoutes() {
             <AdminRoute>
               <SLASettingsPage />
             </AdminRoute>
+          }
+        />
+        <Route
+          path="/orgs/new"
+          element={
+            <SuperAdminRoute>
+              <OrgOnboardingPage />
+            </SuperAdminRoute>
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

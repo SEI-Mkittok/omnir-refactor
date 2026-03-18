@@ -27,7 +27,7 @@ export interface AuthTokens {
   expires_in: number
 }
 
-export type UserRole = 'admin' | 'agent' | 'client' | 'user' | 'viewer'
+export type UserRole = 'super_admin' | 'admin' | 'agent' | 'client' | 'user' | 'viewer'
 
 export interface User {
   id: string
@@ -623,4 +623,25 @@ export interface PortalTicketListParams {
   status?: PortalTicketStatus
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
+}
+
+// ---- Org (Multi-tenancy) ----
+
+export interface Org {
+  id: string
+  name: string
+  slug: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateOrgRequest {
+  name: string
+  slug: string
+}
+
+export interface OrgListParams {
+  page?: number
+  per_page?: number
+  q?: string
 }
