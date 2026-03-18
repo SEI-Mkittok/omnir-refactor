@@ -72,20 +72,20 @@ func TestReportsRepo_ContactMetrics(t *testing.T) {
 	t.Run("total counts all non-deleted contacts", func(t *testing.T) {
 		report, err := repo.ContactMetrics(ctx, domain.ReportFilter{})
 		require.NoError(t, err)
-		assert.Equal(t, 3, report.Total)
+		assert.Equal(t, 3, report.TotalCount)
 	})
 
 	t.Run("date filter from restricts total", func(t *testing.T) {
 		from := time.Now().Add(-time.Hour)
 		report, err := repo.ContactMetrics(ctx, domain.ReportFilter{From: &from})
 		require.NoError(t, err)
-		assert.Equal(t, 2, report.Total)
+		assert.Equal(t, 2, report.TotalCount)
 	})
 
 	t.Run("by_period returns monthly buckets", func(t *testing.T) {
 		report, err := repo.ContactMetrics(ctx, domain.ReportFilter{})
 		require.NoError(t, err)
-		assert.NotEmpty(t, report.ByPeriod)
+		assert.NotEmpty(t, report.OverTime)
 	})
 }
 
@@ -130,8 +130,8 @@ func TestReportsRepo_LeadMetrics(t *testing.T) {
 	t.Run("conversion rate is calculated correctly", func(t *testing.T) {
 		report, err := repo.LeadMetrics(ctx, domain.ReportFilter{})
 		require.NoError(t, err)
-		assert.Equal(t, 3, report.TotalNew)
-		assert.Equal(t, 2, report.TotalConverted)
+		assert.Equal(t, 3, report.NewCount)
+		assert.Equal(t, 2, report.ConvertedCount)
 		assert.InDelta(t, 66.67, report.ConversionRate, 0.1)
 	})
 }
