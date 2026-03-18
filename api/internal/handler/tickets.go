@@ -159,13 +159,36 @@ func (h *TicketHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	resp := &ticketResponse{Ticket: t}
 	if t.SLAPolicyID != nil && h.slaPolicies != nil {
 		if policy, err := h.slaPolicies.GetByID(r.Context(), *t.SLAPolicyID); err == nil {
+			now := time.Now().UTC()
 			responseDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResponseTimeHours))
-			breached := time.Now().UTC().After(responseDue) && t.FirstRespondedAt == nil
+			resolutionDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResolutionTimeHours))
+
+			responseBreached := now.After(responseDue) && t.FirstRespondedAt == nil
+			resolutionBreached := now.After(resolutionDue)
+
+			status := "on_track"
+			if responseBreached || resolutionBreached {
+				status = "breached"
+			} else {
+				responseTotal := responseDue.Sub(t.CreatedAt)
+				resolutionTotal := resolutionDue.Sub(t.CreatedAt)
+				responseRemaining := responseDue.Sub(now)
+				resolutionRemaining := resolutionDue.Sub(now)
+				if (t.FirstRespondedAt == nil && responseRemaining < responseTotal/5) ||
+					resolutionRemaining < resolutionTotal/5 {
+					status = "at_risk"
+				}
+			}
+
 			resp.SLA = &domain.SLAStatus{
-				PolicyID:         t.SLAPolicyID,
-				ResponseDueAt:    &responseDue,
-				ResponseBreached: breached,
-				FirstRespondedAt: t.FirstRespondedAt,
+				PolicyID:           t.SLAPolicyID,
+				PolicyName:         policy.Name,
+				ResponseDueAt:      &responseDue,
+				ResolutionDueAt:    &resolutionDue,
+				ResponseBreached:   responseBreached,
+				ResolutionBreached: resolutionBreached,
+				FirstRespondedAt:   t.FirstRespondedAt,
+				Status:             status,
 			}
 		}
 	}

@@ -25,12 +25,13 @@ func (h *SLAPolicyHandler) Router() chi.Router {
 	r := chi.NewRouter()
 
 	agentOnly := middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent)
+	adminOnly := middleware.RequireRole(domain.UserRoleAdmin)
 
 	r.With(agentOnly).Get("/", h.List)
-	r.With(agentOnly).Post("/", h.Create)
+	r.With(adminOnly).Post("/", h.Create)
 	r.With(agentOnly).Get("/{id}", h.GetByID)
-	r.With(agentOnly).Put("/{id}", h.Update)
-	r.With(agentOnly).Delete("/{id}", h.Delete)
+	r.With(adminOnly).Put("/{id}", h.Update)
+	r.With(adminOnly).Delete("/{id}", h.Delete)
 
 	return r
 }
