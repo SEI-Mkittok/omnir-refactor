@@ -74,6 +74,7 @@ func main() {
 	customFieldRepo := postgres.NewCustomFieldDefinitionRepo(db)
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
+	slaPolicyRepo := postgres.NewSLAPolicyRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 	apiKeyRepo := postgres.NewAPIKeyRepo(db)
 
@@ -108,9 +109,10 @@ func main() {
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
-	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo).
+	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, slaPolicyRepo).
 		WithEmailNotifications(userRepo, notifPrefRepo, emailNotifier)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
+	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
@@ -174,6 +176,7 @@ func main() {
 		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/tickets", ticketHandler.Router())
 		r.Mount("/portal", portalHandler.Router())
+		r.Mount("/sla-policies", slaPolicyHandler.Router())
 		r.Mount("/users", userHandler.Router())
 		r.Route("/users/me/notification-prefs", func(r chi.Router) {
 			r.Mount("/", notifPrefHandler.Router())

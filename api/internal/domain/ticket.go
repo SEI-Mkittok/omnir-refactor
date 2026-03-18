@@ -58,6 +58,8 @@ type Ticket struct {
 	Source              *string        `json:"source,omitempty"`
 	Tags                []string       `json:"tags"`
 	CustomFields        []byte         `json:"custom_fields,omitempty"`
+	SLAPolicyID         *uuid.UUID     `json:"sla_policy_id,omitempty"`
+	FirstRespondedAt    *time.Time     `json:"first_responded_at,omitempty"`
 	SubmittedByUserID   *uuid.UUID     `json:"submitted_by_user_id,omitempty"`
 	CreatedAt           time.Time      `json:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at"`
