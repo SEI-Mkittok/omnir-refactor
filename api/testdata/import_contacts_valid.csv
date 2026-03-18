@@ -1,0 +1,11 @@
+first_name,last_name,email,phone,lead_source,stage
+John,Doe,john.doe@example.com,555-0100,Website,lead
+Jane,Smith,jane.smith@example.com,555-0101,Referral,customer
+Bob,Johnson,bob.j@example.com,555-0102,Cold Call,lead
+Alice,Williams,alice.w@example.com,555-0103,Trade Show,prospect
+Charlie,Brown,charlie.b@example.com,555-0104,Website,customer
+Diana,Martinez,diana.m@example.com,555-0105,Partner,lead
+Eve,Garcia,eve.garcia@example.com,555-0106,Inbound,prospect
+Frank,Rodriguez,frank.r@example.com,555-0107,Website,customer
+Grace,Wilson,grace.wilson@example.com,555-0108,Referral,lead
+Henry,Anderson,henry.a@example.com,555-0109,Cold Call,prospect
