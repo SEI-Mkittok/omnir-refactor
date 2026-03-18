@@ -1,6 +1,6 @@
 -- +goose Up
 
--- Helper function: returns the current org_id from the session variable set
+-- current_org_id: returns the current org_id from the session variable set
 -- by the application before every query. Returns NULL when not set (e.g. for
 -- superuser maintenance sessions), causing RLS policies to match nothing.
 -- +goose StatementBegin
