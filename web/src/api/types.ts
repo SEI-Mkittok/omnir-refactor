@@ -313,7 +313,7 @@ export interface TicketStatusMetric {
 }
 
 export interface TicketReport {
-  open_count: number
+  total_open: number
   avg_resolution_hours: number | null
   breach_rate: number // 0.0 - 1.0
   over_time: TicketTimeMetric[]

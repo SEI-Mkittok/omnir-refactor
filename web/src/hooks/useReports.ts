@@ -38,7 +38,7 @@ function buildMockTicketReport(): TicketReport {
     }
   })
   return {
-    open_count: 34,
+    total_open: 34,
     avg_resolution_hours: 18.5,
     breach_rate: 0.12,
     over_time,
