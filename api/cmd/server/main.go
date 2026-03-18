@@ -18,6 +18,7 @@ import (
 	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/email"
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository/postgres"
@@ -67,6 +68,7 @@ func main() {
 	noteRepo := postgres.NewNoteRepo(db)
 	userRepo := postgres.NewUserRepo(db)
 	notificationRepo := postgres.NewNotificationRepo(db)
+	notifPrefRepo := postgres.NewNotificationPrefRepo(db)
 	reportsRepo := postgres.NewReportsRepo(db)
 	ticketRepo := postgres.NewTicketRepo(db)
 	customFieldRepo := postgres.NewCustomFieldDefinitionRepo(db)
@@ -74,11 +76,26 @@ func main() {
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 
+	// Email delivery
+	smtpSender := email.NewSender(cfg.SMTP)
+	appURL := getEnv("APP_URL", "http://localhost:5173")
+	mailer := email.NewMailer(smtpSender, appURL)
+
 	// Background workers
-	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
+
+	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
 	reminderWorker.Start(workerCtx)
+
+	emailNotifier := worker.NewEmailNotifier(mailer, logger)
+	emailNotifier.Start(workerCtx, 3)
+
+	if cfg.SMTP.Enabled {
+		logger.Info("email notifications enabled", "smtp_host", cfg.SMTP.Host)
+	} else {
+		logger.Info("email notifications disabled (set SMTP_ENABLED=true to enable)")
+	}
 
 	// Handlers
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
@@ -89,7 +106,9 @@ func main() {
 	dealHandler := handler.NewDealHandler(dealRepo)
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
-	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo)
+	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
+	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo).
+		WithEmailNotifications(userRepo, notifPrefRepo, emailNotifier)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
@@ -154,6 +173,9 @@ func main() {
 		r.Mount("/tickets", ticketHandler.Router())
 		r.Mount("/portal", portalHandler.Router())
 		r.Mount("/users", userHandler.Router())
+		r.Route("/users/me/notification-prefs", func(r chi.Router) {
+			r.Mount("/", notifPrefHandler.Router())
+		})
 		r.Mount("/search", searchHandler.Router())
 		r.Mount("/reports", reportsHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
@@ -198,11 +220,18 @@ func setupLogger(env string) *slog.Logger {
 	}
 
 	opts := &slog.HandlerOptions{Level: level}
-	var handler slog.Handler
+	var h slog.Handler
 	if env == "production" {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		h = slog.NewJSONHandler(os.Stdout, opts)
 	} else {
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		h = slog.NewTextHandler(os.Stdout, opts)
 	}
-	return slog.New(handler)
+	return slog.New(h)
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
