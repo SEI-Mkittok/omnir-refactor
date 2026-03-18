@@ -128,6 +128,7 @@ export function TicketList({
         if (!sla) return <span className="text-xs text-slate-400">—</span>
         return <Badge variant={slaBadgeVariant[sla.status]}>{slaLabel[sla.status]}</Badge>
       },
+      meta: { hideOnMobile: true },
     }),
     columnHelper.accessor('assignee', {
       id: 'assignee',
@@ -140,6 +141,7 @@ export function TicketList({
           </span>
         )
       },
+      meta: { hideOnMobile: true },
     }),
     columnHelper.accessor('created_at', {
       header: () => (
@@ -154,6 +156,7 @@ export function TicketList({
       cell: (info) => (
         <span className="text-xs text-slate-500">{formatDate(info.getValue())}</span>
       ),
+      meta: { hideOnMobile: true },
     }),
   ]
 
@@ -178,7 +181,10 @@ export function TicketList({
                 {hg.headers.map((header: Header<Ticket, unknown>) => (
                   <th
                     key={header.id}
-                    className="px-4 py-3 text-left text-xs text-slate-500"
+                    className={cn(
+                      'px-4 py-3 text-left text-xs text-slate-500',
+                      (header.column.columnDef.meta as { hideOnMobile?: boolean } | undefined)?.hideOnMobile && 'hidden sm:table-cell'
+                    )}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
@@ -213,7 +219,13 @@ export function TicketList({
                   className="cursor-pointer transition-colors hover:bg-slate-50"
                 >
                   {row.getVisibleCells().map((cell: Cell<Ticket, unknown>) => (
-                    <td key={cell.id} className="px-4 py-3 text-sm">
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        'px-4 py-3 text-sm',
+                        (cell.column.columnDef.meta as { hideOnMobile?: boolean } | undefined)?.hideOnMobile && 'hidden sm:table-cell'
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

@@ -49,6 +49,21 @@ STAGE_MAP = {
     "Closed Lost": "closed_lost",
 }
 
+TICKET_STATUS_MAP = {
+    "Open": "open",
+    "In Progress": "in_progress",
+    "Wait For Response": "pending",
+    "Hold": "pending",
+    "Closed": "closed",
+}
+
+TICKET_PRIORITY_MAP = {
+    "Low": "low",
+    "Medium": "medium",
+    "High": "high",
+    "Critical": "critical",
+}
+
 ACTIVITY_TYPE_MAP = {
     "Call": "call",
     "Meeting": "meeting",
@@ -117,6 +132,7 @@ class Migrator:
             "accounts": {"migrated": 0, "skipped": 0},
             "contacts": {"migrated": 0, "skipped": 0},
             "deals": {"migrated": 0, "skipped": 0},
+            "tickets": {"migrated": 0, "skipped": 0},
             "activities": {"migrated": 0, "skipped": 0},
         }
 
@@ -126,6 +142,7 @@ class Migrator:
             self.migrate_accounts()
             self.migrate_contacts()
             self.migrate_deals()
+            self.migrate_tickets()
             self.migrate_activities()
 
             if self.dry_run:
@@ -405,6 +422,86 @@ class Migrator:
                 self.counts["deals"]["migrated"] += 1
             else:
                 self.counts["deals"]["skipped"] += 1
+
+    # ------------------------------------------------------------------
+    # Tickets (vtiger HelpDesk → Omnir tickets)
+    # ------------------------------------------------------------------
+
+    def migrate_tickets(self):
+        print("\n--- Migrating tickets ---")
+        cur = self.src.cursor(dictionary=True)
+        cur.execute("""
+            SELECT t.ticketid, t.title, t.solution,
+                   t.status, t.priority,
+                   t.parent_id,
+                   e.smownerid, e.createdtime, e.modifiedtime,
+                   e.description
+            FROM vtiger_troubletickets t
+            JOIN vtiger_crmentity e ON e.crmid = t.ticketid
+            WHERE e.deleted = 0
+        """)
+        rows = cur.fetchall()
+
+        # Build a set of known contact and account vtiger crmids so we can
+        # correctly classify the parent_id FK.
+        contact_ids = set(self.contact_map.keys())
+        account_ids = set(self.account_map.keys())
+
+        dcur = self.dst.cursor()
+        for row in tqdm(rows, desc="tickets"):
+            legacy_id = str(row["ticketid"])
+            assignee_id = self._owner(row["smownerid"])
+
+            # parent_id in vtiger can point to either an account or a contact.
+            contact_id = None
+            account_id = None
+            parent = row.get("parent_id")
+            if parent:
+                try:
+                    parent = int(parent)
+                except (TypeError, ValueError):
+                    parent = None
+            if parent:
+                if parent in contact_ids:
+                    contact_id = self.contact_map.get(parent)
+                elif parent in account_ids:
+                    account_id = self.account_map.get(parent)
+
+            status = TICKET_STATUS_MAP.get(row["status"] or "", "open")
+            priority = TICKET_PRIORITY_MAP.get(row["priority"] or "", "medium")
+
+            # Combine vtiger crmentity.description + solution as the ticket body.
+            description_parts = [p for p in [row.get("description"), row.get("solution")] if p]
+            description = "\n\n".join(description_parts) or None
+
+            dcur.execute(
+                """
+                INSERT INTO tickets (
+                    subject, description, status, priority,
+                    assignee_id, contact_id, account_id,
+                    org_id, vtiger_legacy_id, created_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (vtiger_legacy_id) DO NOTHING
+                """,
+                (
+                    row["title"] or "(no subject)",
+                    description,
+                    status,
+                    priority,
+                    assignee_id,
+                    contact_id,
+                    account_id,
+                    self.org_id,
+                    legacy_id,
+                    row["createdtime"],
+                    row["modifiedtime"],
+                ),
+            )
+            if dcur.rowcount:
+                self.counts["tickets"]["migrated"] += 1
+            else:
+                self.counts["tickets"]["skipped"] += 1
 
     # ------------------------------------------------------------------
     # Activities

@@ -19,14 +19,14 @@ pip install -r requirements.txt
 
 Alternatively, set individual vtiger vars: `VTIGER_HOST`, `VTIGER_PORT`, `VTIGER_USER`, `VTIGER_PASSWORD`, `VTIGER_DATABASE`.
 
-## Pre-migration: apply the vtiger_legacy_id migration
+## Pre-migration: apply all pending migrations
 
 ```bash
-cd omnir-go-backend
-goose -dir db/migrations postgres "$OMNIR_DSN" up
+cd api
+goose -dir migrations postgres "$OMNIR_DSN" up
 ```
 
-This adds `vtiger_legacy_id` columns to all entity tables, enabling idempotent re-runs.
+This adds `vtiger_legacy_id` columns to all entity tables (including tickets), enabling idempotent re-runs.
 
 ## Usage
 
@@ -61,7 +61,7 @@ python validate.py  # (uses same tables, org_id is not checked in validation)
 
 ## Migration order
 
-`users → accounts → contacts → deals → activities`
+`users → accounts → contacts → deals → tickets → activities`
 
 Each entity depends on the previous step's ID remapping table (user_map, account_map, contact_map). Do not change the order.
 
