@@ -364,6 +364,7 @@ export interface TicketListParams {
   search?: string
   status?: TicketStatus
   priority?: TicketPriority
+  contact_id?: string
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
 }
@@ -371,4 +372,61 @@ export interface TicketListParams {
 export interface CreateTicketCommentRequest {
   body: string
   is_internal?: boolean
+}
+
+// ---- Lead ----
+
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified'
+
+export interface Lead {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  phone?: string
+  company?: string
+  source?: string
+  status: LeadStatus
+  owner_id?: string
+  owner?: User
+  notes?: Note[]
+  contact_id?: string
+  converted_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateLeadRequest {
+  first_name: string
+  last_name: string
+  email: string
+  phone?: string
+  company?: string
+  source?: string
+  status?: LeadStatus
+  owner_id?: string
+}
+
+export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {}
+
+export interface LeadListParams {
+  page?: number
+  per_page?: number
+  search?: string
+  status?: LeadStatus
+  owner_id?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+}
+
+export interface ConvertLeadRequest {
+  create_deal?: boolean
+  deal_title?: string
+  deal_value?: number
+  account_id?: string
+}
+
+export interface ConvertLeadResponse {
+  contact: Contact
+  deal?: Deal
 }

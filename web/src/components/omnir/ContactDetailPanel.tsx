@@ -11,6 +11,7 @@ import {
   X,
   Plus,
   Loader2,
+  Ticket,
 } from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
@@ -26,6 +27,7 @@ import {
   useContactNotes,
   useAddContactNote,
 } from '@/hooks/useContacts'
+import { useTickets } from '@/hooks/useTickets'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import type { Contact, ContactStage, UpdateContactRequest } from '@/api/types'
 
@@ -186,6 +188,55 @@ function StageSelector({ current, onSave }: StageSelectorProps) {
             </button>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── Linked tickets section ───────────────────────────────────────────────────
+
+const TICKET_STATUS_COLOR: Record<string, string> = {
+  open: 'text-green-700 bg-green-50 border-green-200',
+  pending: 'text-amber-700 bg-amber-50 border-amber-200',
+  resolved: 'text-slate-600 bg-slate-50 border-slate-200',
+  closed: 'text-slate-400 bg-slate-50 border-slate-200',
+}
+
+function LinkedTicketsSection({ contactId }: { contactId: string }) {
+  const { data, isLoading } = useTickets({ contact_id: contactId, per_page: 10 })
+  const tickets = data?.data ?? []
+
+  return (
+    <div>
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-700">
+        <Ticket className="h-4 w-4" />
+        Tickets
+        {tickets.length > 0 && (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600">
+            {tickets.length}
+          </span>
+        )}
+      </h3>
+      {isLoading ? (
+        <Spinner />
+      ) : tickets.length > 0 ? (
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+          {tickets.map((ticket) => (
+            <li key={ticket.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+              <p className="min-w-0 flex-1 font-medium text-slate-900 truncate">{ticket.subject}</p>
+              <span
+                className={cn(
+                  'ml-3 shrink-0 rounded border px-2 py-0.5 text-xs capitalize',
+                  TICKET_STATUS_COLOR[ticket.status] ?? 'text-slate-600 bg-slate-50 border-slate-200'
+                )}
+              >
+                {ticket.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-slate-400">No tickets linked.</p>
       )}
     </div>
   )
@@ -453,6 +504,9 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             <p className="text-sm text-slate-400">No deals associated.</p>
           )}
         </div>
+
+        {/* Linked tickets */}
+        <LinkedTicketsSection contactId={contactId} />
 
         {/* Tags */}
         {contact.tags && contact.tags.length > 0 && (
