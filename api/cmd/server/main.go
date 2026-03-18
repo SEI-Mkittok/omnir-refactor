@@ -101,7 +101,7 @@ func main() {
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc)
 	userHandler := handler.NewUserHandler(userRepo)
-	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo)
+	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
 	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo)
 	activityHandler := handler.NewActivityHandler(activityRepo)
