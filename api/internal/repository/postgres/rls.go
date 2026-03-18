@@ -8,7 +8,7 @@ import (
 )
 
 // orgScopedTables are all tables that carry an org_id column and have RLS
-// policies defined by migration 20240101000014_add_rls_policies.sql.
+// policies defined (migrations 20240101000014 and 20240101000020).
 var orgScopedTables = []string{
 	"users",
 	"accounts",
@@ -18,6 +18,9 @@ var orgScopedTables = []string{
 	"activities",
 	"notes",
 	"notifications",
+	"tickets",
+	"ticket_comments",
+	"leads",
 }
 
 // EnableRLS activates FORCE ROW LEVEL SECURITY on every org-scoped table so
