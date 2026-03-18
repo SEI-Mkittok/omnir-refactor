@@ -201,6 +201,8 @@ type SearchRepository interface {
 type OrgRepository interface {
 	// Create inserts a new organization. Returns ErrConflict when slug is already taken.
 	Create(ctx context.Context, org *domain.Organization) (*domain.Organization, error)
+	// GetByID returns an org by its UUID.
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Organization, error)
 	// GetBySlug returns an org by its unique slug.
 	GetBySlug(ctx context.Context, slug string) (*domain.Organization, error)
 	// SlugExists reports whether a given slug is already in use.
@@ -225,6 +227,21 @@ type SLAPolicyRepository interface {
 	// MatchByPriority returns the first SLA policy whose priority_filter includes
 	// the given priority, scoped to the org in context. Returns nil, nil when none match.
 	MatchByPriority(ctx context.Context, priority domain.TicketPriority) (*domain.SLAPolicy, error)
+}
+
+// PortalLinkRepository manages shareable deal portal links for external client access.
+type PortalLinkRepository interface {
+	// Create inserts a new portal link.
+	Create(ctx context.Context, l *domain.PortalLink) (*domain.PortalLink, error)
+	// GetByToken returns the portal link for the given token. Returns ErrNotFound when absent.
+	// This query does NOT require org context — the token is globally unique.
+	GetByToken(ctx context.Context, token string) (*domain.PortalLink, error)
+	// ListByDeal returns all non-revoked portal links for a deal, newest first.
+	ListByDeal(ctx context.Context, dealID uuid.UUID) ([]*domain.PortalLink, error)
+	// Revoke sets revoked_at for the given link, scoped to orgID.
+	Revoke(ctx context.Context, id, orgID uuid.UUID) error
+	// IncrementView atomically increments view_count and sets last_viewed_at.
+	IncrementView(ctx context.Context, id uuid.UUID) error
 }
 
 // OutboundWebhookRepository manages registered outbound webhook endpoints and their deliveries.
