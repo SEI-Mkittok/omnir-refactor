@@ -63,6 +63,7 @@ class Validator:
         self._spot_check_users()
         self._spot_check_contacts()
         self._spot_check_accounts()
+        self._spot_check_leads()
         self._spot_check_deals()
         self._spot_check_tickets()
 
@@ -103,6 +104,12 @@ class Validator:
                 """SELECT COUNT(*) FROM vtiger_contacts c
                    JOIN vtiger_crmentity e ON e.crmid = c.contactid WHERE e.deleted = 0""",
                 "SELECT COUNT(*) FROM contacts WHERE vtiger_legacy_id IS NOT NULL AND deleted_at IS NULL",
+            ),
+            (
+                "leads",
+                """SELECT COUNT(*) FROM vtiger_leaddetails l
+                   JOIN vtiger_crmentity e ON e.crmid = l.leadid WHERE e.deleted = 0""",
+                "SELECT COUNT(*) FROM leads WHERE vtiger_legacy_id IS NOT NULL AND deleted_at IS NULL",
             ),
             (
                 "deals",
@@ -172,6 +179,12 @@ class Validator:
                 """SELECT COUNT(*) FROM activities
                    WHERE contact_id IS NOT NULL
                      AND contact_id NOT IN (SELECT id FROM contacts)
+                     AND deleted_at IS NULL""",
+            ),
+            (
+                "leads.owner_id dangling",
+                """SELECT COUNT(*) FROM leads
+                   WHERE owner_id NOT IN (SELECT id FROM users)
                      AND deleted_at IS NULL""",
             ),
             (
@@ -310,6 +323,43 @@ class Validator:
         print(f"  Accounts spot-check: {len(rows) - mismatches}/{len(rows)} OK")
         if mismatches:
             self.failures.append(f"accounts spot-check: {mismatches} mismatches")
+
+    def _spot_check_leads(self):
+        print(f"\n--- Spot-checking {self.sample} leads ---")
+        src_cur = self.src.cursor(dictionary=True)
+        dst_cur = self.dst.cursor()
+
+        src_cur.execute(
+            f"""SELECT l.leadid, l.firstname, l.lastname, l.email
+                FROM vtiger_leaddetails l
+                JOIN vtiger_crmentity e ON e.crmid = l.leadid
+                WHERE e.deleted = 0
+                ORDER BY RAND() LIMIT {self.sample}"""
+        )
+        rows = src_cur.fetchall()
+
+        mismatches = 0
+        for row in rows:
+            dst_cur.execute(
+                "SELECT first_name, last_name, email FROM leads WHERE vtiger_legacy_id = %s",
+                (str(row["leadid"]),),
+            )
+            result = dst_cur.fetchone()
+            if not result:
+                print(f"  MISSING lead vtiger_id={row['leadid']}")
+                mismatches += 1
+            else:
+                if result[0] != (row["firstname"] or "") or result[1] != (row["lastname"] or ""):
+                    print(
+                        f"  NAME MISMATCH vtiger_id={row['leadid']} "
+                        f"src={row['firstname']} {row['lastname']} "
+                        f"dst={result[0]} {result[1]}"
+                    )
+                    mismatches += 1
+
+        print(f"  Leads spot-check: {len(rows) - mismatches}/{len(rows)} OK")
+        if mismatches:
+            self.failures.append(f"leads spot-check: {mismatches} mismatches")
 
     def _spot_check_deals(self):
         print(f"\n--- Spot-checking {self.sample} deals ---")
