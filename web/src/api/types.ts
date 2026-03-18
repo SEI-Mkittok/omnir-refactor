@@ -674,3 +674,54 @@ export interface SendEmailRequest {
   body: string
   thread_id?: string
 }
+
+// ---- Outbound Webhooks ----
+
+export type WebhookEvent =
+  | 'deal.created'
+  | 'deal.updated'
+  | 'deal.stage_changed'
+  | 'deal.deleted'
+  | 'contact.created'
+  | 'contact.updated'
+  | 'activity.created'
+
+export type WebhookDeliveryStatus = 'pending' | 'delivered' | 'failed'
+
+export interface Webhook {
+  id: string
+  org_id: string
+  url: string
+  events: WebhookEvent[]
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface WebhookDelivery {
+  id: string
+  webhook_id: string
+  event: WebhookEvent | string
+  status: WebhookDeliveryStatus
+  attempts: number
+  delivered_at?: string
+  next_retry_at?: string
+  last_error?: string
+  created_at: string
+}
+
+export interface CreateWebhookRequest {
+  url: string
+  events: WebhookEvent[]
+}
+
+export interface UpdateWebhookRequest {
+  url?: string
+  events?: WebhookEvent[]
+  active?: boolean
+}
+
+export interface WebhookTestResult {
+  status: 'queued' | 'success' | 'error'
+  message?: string
+}

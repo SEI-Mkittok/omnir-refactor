@@ -17,6 +17,7 @@ import { APIKeysPage } from '@/pages/APIKeysPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { SLASettingsPage } from '@/pages/SLASettingsPage'
+import { WebhooksPage } from '@/pages/WebhooksPage'
 import { PortalLoginPage } from '@/pages/portal/PortalLoginPage'
 import { PortalTicketsPage } from '@/pages/portal/PortalTicketsPage'
 import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
@@ -123,6 +124,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <SLASettingsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/webhooks"
+          element={
+            <AdminRoute>
+              <WebhooksPage />
             </AdminRoute>
           }
         />

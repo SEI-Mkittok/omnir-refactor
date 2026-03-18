@@ -11,14 +11,34 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
+	"github.com/omnir/crm-api/internal/worker"
 )
 
 type DealHandler struct {
-	repo repository.DealRepository
+	repo       repository.DealRepository
+	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
 	return &DealHandler{repo: repo}
+}
+
+// WithDispatcher attaches the webhook event dispatcher to the handler.
+func (h *DealHandler) WithDispatcher(d chan<- worker.WebhookEvent) *DealHandler {
+	h.dispatcher = d
+	return h
+}
+
+func (h *DealHandler) emitWebhook(r *http.Request, event domain.WebhookEvent, entityID uuid.UUID, data any) {
+	if h.dispatcher == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.WebhookEvent{OrgID: orgID, EntityID: entityID, Event: event, Data: data}
+	select {
+	case h.dispatcher <- evt:
+	default:
+	}
 }
 
 func (h *DealHandler) Router() chi.Router {
@@ -42,7 +62,6 @@ func (h *DealHandler) List(w http.ResponseWriter, r *http.Request) {
 		Sort:  q.Get("sort"),
 		Order: q.Get("order"),
 	}
-
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			filter.Page = n
@@ -77,14 +96,12 @@ func (h *DealHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.PipelineID = &id
 		}
 	}
-
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
 	if filter.Page == 0 {
 		filter.Page = 1
 	}
-
 	deals, total, err := h.repo.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -99,7 +116,6 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
-
 	if d.Stage == "" {
 		d.Stage = domain.DealStageLead
 	}
@@ -110,12 +126,12 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-
 	created, err := h.repo.Create(r.Context(), &d)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventDealCreated, created.ID, created)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -149,6 +165,10 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventDealUpdated, d.ID, d)
+	if patch.Stage != nil {
+		h.emitWebhook(r, domain.WebhookEventDealStageChanged, d.ID, d)
+	}
 	writeJSON(w, http.StatusOK, d)
 }
 
@@ -162,6 +182,7 @@ func (h *DealHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventDealDeleted, id, map[string]any{"id": id})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -173,7 +194,6 @@ func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid deal id")
 		return
 	}
-
 	var body struct {
 		ContactID uuid.UUID `json:"contact_id"`
 		Role      string    `json:"role"`
@@ -186,13 +206,10 @@ func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "contact_id is required")
 		return
 	}
-
 	if err := h.repo.AddContact(r.Context(), dealID, body.ContactID, body.Role); err != nil {
 		handleDomainErr(w, err)
 		return
 	}
-
-	// Return the updated deal so the caller gets the full contacts slice.
 	deal, err := h.repo.GetByID(r.Context(), dealID)
 	if err != nil {
 		handleDomainErr(w, err)
