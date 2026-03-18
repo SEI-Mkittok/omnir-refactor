@@ -76,6 +76,15 @@ type ReportsRepository interface {
 	ContactsMonthly(ctx context.Context) ([]domain.ContactMonthlyMetric, error)
 	// ActivitiesByType returns activity counts grouped by type.
 	ActivitiesByType(ctx context.Context) ([]domain.ActivityTypeMetric, error)
+
+	// TicketMetrics returns aggregated ticket metrics for the given date range.
+	TicketMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.TicketReport, error)
+	// ContactMetrics returns aggregated contact metrics for the given date range.
+	ContactMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.ContactReport, error)
+	// DealMetrics returns aggregated deal metrics for the given date range.
+	DealMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.DealReport, error)
+	// LeadMetrics returns aggregated lead metrics for the given date range.
+	LeadMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.LeadReport, error)
 }
 
 // UserRepository defines the persistence contract for users.
