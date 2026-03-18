@@ -2,14 +2,14 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Building2, Globe, Users, TrendingUp, Upload, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useAccounts, useAccount, useAccountContacts, useAccountDeals, useDeleteAccount } from '@/hooks/useAccounts'
+import { useAccounts, useAccount, useAccountContacts, useAccountDeals, useDeleteAccount, useUpdateAccount } from '@/hooks/useAccounts'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
-import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
+import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { ImportModal } from '@/components/omnir/ImportModal'
@@ -40,6 +40,7 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
   const { data: contacts, isLoading: contactsLoading } = useAccountContacts(accountId)
   const { data: deals, isLoading: dealsLoading } = useAccountDeals(accountId)
   const deleteAccount = useDeleteAccount()
+  const updateAccount = useUpdateAccount()
   const { data: customFields = [] } = useCustomFieldDefinitions('account')
 
   if (isLoading) {
@@ -126,14 +127,11 @@ function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () 
         </div>
 
         {/* Custom Fields */}
-        {customFields.length > 0 && account.custom_fields && (
-          <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-2">
-            <CustomFieldDisplaySection
-              fields={customFields}
-              values={account.custom_fields as CustomFieldValues}
-            />
-          </div>
-        )}
+        <CustomFieldEditableSection
+          fields={customFields}
+          values={account.custom_fields as CustomFieldValues | undefined}
+          onSave={async (cf) => { await updateAccount.mutateAsync({ id: accountId, payload: { custom_fields: cf as Record<string, unknown> } }) }}
+        />
 
         {/* Linked contacts */}
         <div>
