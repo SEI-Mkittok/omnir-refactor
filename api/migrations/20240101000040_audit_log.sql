@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE audit_log (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID NOT NULL REFERENCES organizations(id),
+    org_id      UUID NOT NULL REFERENCES orgs(id),
     user_id     UUID REFERENCES users(id),
     agent_id    TEXT,
     action      TEXT NOT NULL,
