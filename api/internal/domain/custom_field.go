@@ -15,12 +15,15 @@ const (
 	CustomFieldEntityTicket  CustomFieldEntityType = "ticket"
 	CustomFieldEntityContact CustomFieldEntityType = "contact"
 	CustomFieldEntityLead    CustomFieldEntityType = "lead"
+	CustomFieldEntityDeal    CustomFieldEntityType = "deal"
+	CustomFieldEntityAccount CustomFieldEntityType = "account"
 )
 
 // IsValid returns true if the entity type is recognised.
 func (e CustomFieldEntityType) IsValid() bool {
 	switch e {
-	case CustomFieldEntityTicket, CustomFieldEntityContact, CustomFieldEntityLead:
+	case CustomFieldEntityTicket, CustomFieldEntityContact, CustomFieldEntityLead,
+		CustomFieldEntityDeal, CustomFieldEntityAccount:
 		return true
 	}
 	return false
@@ -33,16 +36,17 @@ const (
 	CustomFieldTypeText        CustomFieldType = "text"
 	CustomFieldTypeNumber      CustomFieldType = "number"
 	CustomFieldTypeDate        CustomFieldType = "date"
-	CustomFieldTypeBoolean     CustomFieldType = "boolean"
+	CustomFieldTypeURL         CustomFieldType = "url"
+	CustomFieldTypeCheckbox    CustomFieldType = "checkbox"
 	CustomFieldTypeSelect      CustomFieldType = "select"
-	CustomFieldTypeMultiSelect CustomFieldType = "multi_select"
+	CustomFieldTypeMultiSelect CustomFieldType = "multiselect"
 )
 
 // IsValid returns true if the field type is recognised.
 func (t CustomFieldType) IsValid() bool {
 	switch t {
 	case CustomFieldTypeText, CustomFieldTypeNumber, CustomFieldTypeDate,
-		CustomFieldTypeBoolean, CustomFieldTypeSelect, CustomFieldTypeMultiSelect:
+		CustomFieldTypeURL, CustomFieldTypeCheckbox, CustomFieldTypeSelect, CustomFieldTypeMultiSelect:
 		return true
 	}
 	return false
@@ -145,10 +149,15 @@ func validateFieldValue(def *CustomFieldDefinition, raw json.RawMessage) error {
 		if err := json.Unmarshal(raw, &s); err != nil {
 			return makeErr("must be a date string (YYYY-MM-DD)")
 		}
-	case CustomFieldTypeBoolean:
+	case CustomFieldTypeCheckbox:
 		var b bool
 		if err := json.Unmarshal(raw, &b); err != nil {
 			return makeErr("must be a boolean")
+		}
+	case CustomFieldTypeURL:
+		var s string
+		if err := json.Unmarshal(raw, &s); err != nil {
+			return makeErr("must be a string")
 		}
 	case CustomFieldTypeSelect:
 		var s string
