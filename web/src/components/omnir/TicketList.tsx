@@ -17,7 +17,19 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { formatDate, cn } from '@/lib/utils'
 import { statusBadgeVariant, statusLabel, priorityBadgeVariant, priorityLabel } from './TicketDetail'
-import type { Ticket } from '@/api/types'
+import type { Ticket, SLATrackingStatus } from '@/api/types'
+
+const slaBadgeVariant: Record<SLATrackingStatus, 'green' | 'yellow' | 'red'> = {
+  on_track: 'green',
+  at_risk: 'yellow',
+  breached: 'red',
+}
+
+const slaLabel: Record<SLATrackingStatus, string> = {
+  on_track: 'On track',
+  at_risk: 'At risk',
+  breached: 'Breached',
+}
 
 interface TicketListProps {
   tickets: Ticket[]
@@ -98,6 +110,23 @@ export function TicketList({
       cell: (info) => {
         const v = info.getValue()
         return <Badge variant={priorityBadgeVariant[v]}>{priorityLabel[v]}</Badge>
+      },
+    }),
+    columnHelper.accessor('sla', {
+      id: 'sla',
+      header: () => (
+        <button
+          className="inline-flex items-center gap-1 font-medium hover:text-slate-900"
+          onClick={() => onSort('sla_status')}
+        >
+          SLA
+          <SortIcon column="sla_status" sortBy={sortBy} sortDir={sortDir} />
+        </button>
+      ),
+      cell: (info) => {
+        const sla = info.getValue()
+        if (!sla) return <span className="text-xs text-slate-400">—</span>
+        return <Badge variant={slaBadgeVariant[sla.status]}>{slaLabel[sla.status]}</Badge>
       },
     }),
     columnHelper.accessor('assignee', {
