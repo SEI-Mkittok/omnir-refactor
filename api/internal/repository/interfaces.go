@@ -169,6 +169,13 @@ type NotificationPrefRepository interface {
 	Upsert(ctx context.Context, pref *domain.UserNotificationPref) (*domain.UserNotificationPref, error)
 }
 
+// SearchRepository provides full-text search across CRM entities.
+type SearchRepository interface {
+	// Search returns up to limit results across tickets, contacts, accounts, and deals,
+	// scoped to the org in context. Returns the flat result list and total count.
+	Search(ctx context.Context, q string, limit int) ([]domain.SearchResultItem, int, error)
+}
+
 // SLAPolicyRepository defines the persistence contract for SLA policies.
 type SLAPolicyRepository interface {
 	Create(ctx context.Context, p *domain.SLAPolicy) (*domain.SLAPolicy, error)
