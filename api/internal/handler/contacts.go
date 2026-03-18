@@ -11,14 +11,34 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
+	"github.com/omnir/crm-api/internal/worker"
 )
 
 type ContactHandler struct {
-	repo repository.ContactRepository
+	repo       repository.ContactRepository
+	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewContactHandler(repo repository.ContactRepository) *ContactHandler {
 	return &ContactHandler{repo: repo}
+}
+
+// WithDispatcher attaches the webhook event dispatcher to the handler.
+func (h *ContactHandler) WithDispatcher(d chan<- worker.WebhookEvent) *ContactHandler {
+	h.dispatcher = d
+	return h
+}
+
+func (h *ContactHandler) emitWebhook(r *http.Request, event domain.WebhookEvent, entityID uuid.UUID, data any) {
+	if h.dispatcher == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.WebhookEvent{OrgID: orgID, EntityID: entityID, Event: event, Data: data}
+	select {
+	case h.dispatcher <- evt:
+	default:
+	}
 }
 
 func (h *ContactHandler) Router() chi.Router {
@@ -41,7 +61,6 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 		Sort:  q.Get("sort"),
 		Order: q.Get("order"),
 	}
-
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			filter.Page = n
@@ -61,14 +80,12 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 		s := domain.ContactStage(v)
 		filter.Stage = &s
 	}
-
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
 	if filter.Page == 0 {
 		filter.Page = 1
 	}
-
 	contacts, total, err := h.repo.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -83,7 +100,6 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
-
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
 	}
@@ -91,12 +107,12 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-
 	created, err := h.repo.Create(r.Context(), &c)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventContactCreated, created.ID, created)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -130,6 +146,7 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventContactUpdated, c.ID, c)
 	writeJSON(w, http.StatusOK, c)
 }
 

@@ -22,52 +22,53 @@ Everything needed to start building features.
 
 ---
 
-## Phase 2: Core CRM Entities 🚧 IN PROGRESS
+## Phase 2: Core CRM Entities ✅ COMPLETE
 
 Ship the minimum viable CRM: contacts, accounts, deals.
 
 | Task | Owner | Status | Issue |
 |------|-------|--------|-------|
-| Go API: Contacts, Accounts, Deals CRUD | Backend | 🔄 Todo | OMN-6 |
-| React UI: Contacts, Accounts, Deals | Frontend | 🔄 Todo | OMN-7 |
-| Activities table + API | Backend | 🔄 Todo | OMN-11 |
-| Notes on contacts/deals | Backend | 🔄 Todo | OMN-12 |
-| Deal-contact many-to-many | Backend | 🔄 Todo | OMN-13 |
-| Multi-tenancy: org_id across all entities | Backend | 🔄 Todo | OMN-14 |
+| Go API: Contacts, Accounts, Deals CRUD | Backend | ✅ Done | OMN-6 |
+| React UI: Contacts, Accounts, Deals | Frontend | ✅ Done | OMN-7 |
+| Activities table + API | Backend | ✅ Done | OMN-11 |
+| Notes on contacts/deals | Backend | ✅ Done | OMN-12 |
+| Deal-contact many-to-many | Backend | ✅ Done | OMN-13 |
+| Multi-tenancy: org_id across all entities | Backend | ✅ Done | OMN-14 |
 
 **Exit criteria:** A user can create/read/update/delete contacts, accounts, and deals. Pipeline kanban works.
 
 ---
 
-## Phase 3: Auth + User Management
+## Phase 3: Auth + User Management ✅ COMPLETE
 
 | Task | Notes |
 |------|-------|
-| Login / JWT auth flow | users table exists, auth endpoints needed |
-| Role-based access (admin/user/viewer) | Schema has role column, enforcement needed |
-| User management UI | |
+| Login / JWT auth flow | ✅ Done — OMN-60 |
+| Role-based access (admin/user/viewer) | ✅ Done — OMN-63 |
+| User management UI | ✅ Done — OMN-64 |
 
 ---
 
-## Phase 4: Activities + Timeline
+## Phase 4: Activities + Timeline ✅ COMPLETE
 
 | Task | Notes |
 |------|-------|
-| Activities schema (calls, emails, meetings, tasks) | Biggest current gap |
-| Activity CRUD API | |
-| Contact/deal timeline UI | |
-| Activity reminders | |
+| Activities schema (calls, emails, meetings, tasks) | ✅ Done — OMN-11 |
+| Activity CRUD API | ✅ Done |
+| Contact/deal timeline UI | ✅ Done — OMN-77 |
+| Activity reminders | ✅ Done — OMN-78 |
 
 ---
 
-## Phase 5: Polish + Migration
+## Phase 5: Polish + Migration ✅ COMPLETE
 
 | Task | Notes |
 |------|-------|
-| vtiger data migration scripts | Runbook in docs/vtiger-migration-runbook.md |
-| Search across all entities | |
-| Reports / basic analytics | |
-| Mobile-responsive audit | |
+| vtiger data migration scripts | ✅ Done — OMN-123 |
+| Search across all entities | ✅ Done |
+| Reports / basic analytics | ✅ Done |
+| Mobile-responsive audit | 🔄 In Progress — OMN-259 (Freya) |
+| DB performance review | ✅ Done — OMN-260 (Tyr, in_review) |
 
 ---
 
@@ -107,6 +108,18 @@ _Deferred: Advanced analytics (high cost, low immediate need), Mobile-responsive
 | Webhook registration + delivery API | Tyr | OMN-267 |
 | Webhook event emission on CRM mutations | Tyr | OMN-268 |
 | Webhook management UI | Freya | OMN-269 |
+
+### QA
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Phase 6 QA: import/export, email, webhooks test coverage | Skadi | OMN-271 |
+
+### DevOps
+
+| Task | Owner | Issue |
+|------|-------|-------|
+| Staging: add client test user + configure MailHog SMTP | Heimdall | OMN-249 |
 
 **Exit criteria:** Users can import/export data via CSV, send/receive emails from contact pages, and configure outbound webhooks for automation triggers.
 

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Users } from 'lucide-react'
+import { Plus, Users, Upload, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useContacts } from '@/hooks/useContacts'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -11,6 +11,8 @@ import { formatDate } from '@/lib/utils'
 import { stageBadgeVariant, stageLabel } from '@/components/omnir/ContactCard'
 import { ContactDetailPanel } from '@/components/omnir/ContactDetailPanel'
 import { ContactForm } from '@/components/omnir/ContactForm'
+import { ImportModal } from '@/components/omnir/ImportModal'
+import { downloadExportCsv } from '@/api/importExport'
 import type { Contact, ContactStage } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -37,6 +39,7 @@ export function ContactsPage() {
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -120,10 +123,30 @@ export function ContactsPage() {
             {meta ? `${meta.total} total` : 'Loading…'}
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4" />
-          Add Contact
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadExportCsv('contacts', {
+                ...(debouncedSearch ? { q: debouncedSearch } : {}),
+                ...(stage ? { stage } : {}),
+                ...(sortBy ? { sort: sortBy, order: sortDir } : {}),
+              })
+            }
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" />
+            Add Contact
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -198,6 +221,14 @@ export function ContactsPage() {
 
       {/* Create form */}
       <ContactForm open={showForm} onClose={() => setShowForm(false)} />
+
+      {/* Import modal */}
+      <ImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        entity="contacts"
+        entityLabel="Contacts"
+      />
     </div>
   )
 }
