@@ -733,3 +733,32 @@ export interface WebhookTestResult {
   status: 'queued' | 'success' | 'error'
   message?: string
 }
+
+// ---- Notifications ----
+
+export type NotificationKind =
+  | 'activity_reminder'
+  | 'deal_stage_changed'
+  | 'mention'
+  | 'assignment'
+
+export interface Notification {
+  id: string
+  kind: NotificationKind
+  title: string
+  body?: string
+  entity_type?: string
+  entity_id?: string
+  read_at?: string | null
+  created_at: string
+}
+
+export interface UnreadCountResponse {
+  count: number
+}
+
+export interface NotificationListParams {
+  limit?: number
+  before?: string
+  unread_only?: boolean
+}

@@ -60,12 +60,16 @@ type NoteRepository interface {
 
 // NotificationRepository defines the persistence contract for notifications.
 type NotificationRepository interface {
-	// Create inserts a single notification. Duplicates (same activity + type) are silently ignored.
+	// Create inserts a new notification. Returns it with ID and timestamps set.
 	Create(ctx context.Context, n *domain.Notification) (*domain.Notification, error)
 	// MarkRead sets read_at for a notification owned by userID.
 	MarkRead(ctx context.Context, id, userID uuid.UUID) error
-	// ListByUser returns notifications for a user, with optional unread filter.
-	ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, int, error)
+	// MarkAllRead sets read_at for all unread notifications for userID in their org.
+	MarkAllRead(ctx context.Context, userID, orgID uuid.UUID) error
+	// UnreadCount returns the count of unread notifications for a user.
+	UnreadCount(ctx context.Context, userID, orgID uuid.UUID) (int, error)
+	// ListByUser returns notifications using cursor-based pagination.
+	ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, error)
 	// GenerateReminders scans due activities and inserts missing reminder notifications.
 	GenerateReminders(ctx context.Context) error
 }
@@ -87,6 +91,14 @@ type ReportsRepository interface {
 	DealMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.DealReport, error)
 	// LeadMetrics returns aggregated lead metrics for the given date range.
 	LeadMetrics(ctx context.Context, filter domain.ReportFilter) (*domain.LeadReport, error)
+	// PipelineFunnel returns deal count and value by stage for a pipeline.
+	PipelineFunnel(ctx context.Context, pipelineID *uuid.UUID, filter domain.ReportFilter) (*domain.PipelineFunnelReport, error)
+	// ConversionRates returns stage-to-stage conversion rate approximations.
+	ConversionRates(ctx context.Context, filter domain.ReportFilter) (*domain.ConversionRatesReport, error)
+	// RevenueProjection returns projected revenue grouped by expected close month.
+	RevenueProjection(ctx context.Context, months int) (*domain.RevenueProjectionReport, error)
+	// ActivitySummary returns activity counts by kind and by owner.
+	ActivitySummary(ctx context.Context, filter domain.ReportFilter) (*domain.ActivitySummaryReport, error)
 }
 
 // UserRepository defines the persistence contract for users.

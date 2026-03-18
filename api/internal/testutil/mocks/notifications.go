@@ -27,12 +27,22 @@ func (m *MockNotificationRepository) MarkRead(ctx context.Context, id, userID uu
 	return args.Error(0)
 }
 
-func (m *MockNotificationRepository) ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, int, error) {
+func (m *MockNotificationRepository) MarkAllRead(ctx context.Context, userID, orgID uuid.UUID) error {
+	args := m.Called(ctx, userID, orgID)
+	return args.Error(0)
+}
+
+func (m *MockNotificationRepository) UnreadCount(ctx context.Context, userID, orgID uuid.UUID) (int, error) {
+	args := m.Called(ctx, userID, orgID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockNotificationRepository) ListByUser(ctx context.Context, filter domain.NotificationFilter) ([]*domain.Notification, error) {
 	args := m.Called(ctx, filter)
 	if args.Get(0) == nil {
-		return nil, args.Int(1), args.Error(2)
+		return nil, args.Error(1)
 	}
-	return args.Get(0).([]*domain.Notification), args.Int(1), args.Error(2)
+	return args.Get(0).([]*domain.Notification), args.Error(1)
 }
 
 func (m *MockNotificationRepository) GenerateReminders(ctx context.Context) error {
