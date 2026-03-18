@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS entity_attachments (
     id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     entity_type  TEXT        NOT NULL CHECK (entity_type IN ('contact', 'account', 'deal')),
     entity_id    UUID        NOT NULL,
-    org_id       UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id       UUID        NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     uploaded_by  UUID        REFERENCES users(id) ON DELETE SET NULL,
     filename     TEXT        NOT NULL,
     content_type TEXT        NOT NULL DEFAULT 'application/octet-stream',
