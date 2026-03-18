@@ -78,7 +78,7 @@ func TestValidateCustomFields_NumberType(t *testing.T) {
 }
 
 func TestValidateCustomFields_BooleanType(t *testing.T) {
-	defs := []*domain.CustomFieldDefinition{def("flagged", domain.CustomFieldTypeBoolean, false)}
+	defs := []*domain.CustomFieldDefinition{def("flagged", domain.CustomFieldTypeCheckbox, false)}
 
 	require.NoError(t, domain.ValidateCustomFields(fields("flagged", true), defs))
 	require.Error(t, domain.ValidateCustomFields(fields("flagged", "yes"), defs))
@@ -115,13 +115,15 @@ func TestCustomFieldEntityType_IsValid(t *testing.T) {
 	assert.True(t, domain.CustomFieldEntityTicket.IsValid())
 	assert.True(t, domain.CustomFieldEntityContact.IsValid())
 	assert.True(t, domain.CustomFieldEntityLead.IsValid())
-	assert.False(t, domain.CustomFieldEntityType("deal").IsValid())
+	assert.True(t, domain.CustomFieldEntityType("deal").IsValid())
+	assert.True(t, domain.CustomFieldEntityType("account").IsValid())
+	assert.False(t, domain.CustomFieldEntityType("invoice").IsValid())
 }
 
 func TestCustomFieldType_IsValid(t *testing.T) {
 	for _, ft := range []domain.CustomFieldType{
 		domain.CustomFieldTypeText, domain.CustomFieldTypeNumber, domain.CustomFieldTypeDate,
-		domain.CustomFieldTypeBoolean, domain.CustomFieldTypeSelect, domain.CustomFieldTypeMultiSelect,
+		domain.CustomFieldTypeURL, domain.CustomFieldTypeCheckbox, domain.CustomFieldTypeSelect, domain.CustomFieldTypeMultiSelect,
 	} {
 		assert.True(t, ft.IsValid(), "expected %s to be valid", ft)
 	}
