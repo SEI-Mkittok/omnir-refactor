@@ -188,6 +188,14 @@ type OrgRepository interface {
 	SlugExists(ctx context.Context, slug string) (bool, error)
 }
 
+// EmailRepository defines the persistence contract for contact emails.
+type EmailRepository interface {
+	// Create inserts a new email record (inbound or outbound).
+	Create(ctx context.Context, e *domain.ContactEmail) (*domain.ContactEmail, error)
+	// List returns emails matching the filter along with total count.
+	List(ctx context.Context, filter domain.EmailFilter) ([]*domain.ContactEmail, int, error)
+}
+
 // SLAPolicyRepository defines the persistence contract for SLA policies.
 type SLAPolicyRepository interface {
 	Create(ctx context.Context, p *domain.SLAPolicy) (*domain.SLAPolicy, error)
