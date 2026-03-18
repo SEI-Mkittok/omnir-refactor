@@ -9,16 +9,17 @@ import (
 type TicketStatus string
 
 const (
-	TicketStatusOpen     TicketStatus = "open"
-	TicketStatusPending  TicketStatus = "pending"
-	TicketStatusResolved TicketStatus = "resolved"
-	TicketStatusClosed   TicketStatus = "closed"
+	TicketStatusOpen       TicketStatus = "open"
+	TicketStatusInProgress TicketStatus = "in_progress"
+	TicketStatusPending    TicketStatus = "pending"
+	TicketStatusResolved   TicketStatus = "resolved"
+	TicketStatusClosed     TicketStatus = "closed"
 )
 
 // IsValid returns true if the status value is recognised.
 func (s TicketStatus) IsValid() bool {
 	switch s {
-	case TicketStatusOpen, TicketStatusPending, TicketStatusResolved, TicketStatusClosed:
+	case TicketStatusOpen, TicketStatusInProgress, TicketStatusPending, TicketStatusResolved, TicketStatusClosed:
 		return true
 	}
 	return false
