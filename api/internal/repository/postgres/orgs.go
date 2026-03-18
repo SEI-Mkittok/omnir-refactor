@@ -40,6 +40,22 @@ func (r *OrgRepo) Create(ctx context.Context, org *domain.Organization) (*domain
 	return org, nil
 }
 
+// GetByID returns the org with the given ID, or domain.ErrNotFound.
+func (r *OrgRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Organization, error) {
+	var org domain.Organization
+	err := r.db.QueryRow(ctx, `
+		SELECT id, name, slug, plan, created_at
+		FROM orgs WHERE id = $1
+	`, id).Scan(&org.ID, &org.Name, &org.Slug, &org.Plan, &org.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &org, nil
+}
+
 // GetBySlug returns the org with the given slug, or domain.ErrNotFound.
 func (r *OrgRepo) GetBySlug(ctx context.Context, slug string) (*domain.Organization, error) {
 	var org domain.Organization
