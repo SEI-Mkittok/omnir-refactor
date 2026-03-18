@@ -257,7 +257,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
       </div>
 
       {/* Right: tenant switcher + user menu */}
-      <div className="flex items-center gap-3 ml-4">
+      <div className="flex items-center gap-3 ml-2 sm:ml-4">
         <TenantSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
