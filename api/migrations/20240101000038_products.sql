@@ -3,7 +3,7 @@
 -- Products catalog
 CREATE TABLE IF NOT EXISTS products (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     description TEXT,
     sku         TEXT,
@@ -20,7 +20,7 @@ CREATE POLICY products_org ON products USING (true) WITH CHECK (true);
 -- Price books
 CREATE TABLE IF NOT EXISTS price_books (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     is_default  BOOLEAN NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
