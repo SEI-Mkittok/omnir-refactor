@@ -29,7 +29,6 @@ import {
 } from '@/hooks/useContacts'
 import { useTickets } from '@/hooks/useTickets'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
-import { EmailTimeline } from '@/components/omnir/EmailTimeline'
 import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import type { Contact, ContactStage, UpdateContactRequest, CustomFieldValues } from '@/api/types'
@@ -546,9 +545,6 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             <span className="ml-3">Updated {formatRelativeTime(contact.updated_at)}</span>
           )}
         </div>
-
-        {/* Email Timeline */}
-        <EmailTimeline contactId={contactId} contactEmail={contact.email ?? undefined} />
 
         {/* Activity Timeline */}
         <ActivityTimeline contactId={contactId} />
