@@ -11,8 +11,9 @@ import (
 // deployment-mode rules:
 //
 //   - single:      if no org_id in context, fall back to domain.DefaultOrgID.
-//   - multitenant: org_id must be present in the JWT claims; 401 otherwise.
-//   - enterprise:  same as multitenant.
+//   - saas:        org_id must be present in the JWT claims; 401 otherwise.
+//   - multitenant: alias for saas (legacy mode name).
+//   - enterprise:  same as saas.
 //
 // OrgScope must run after Authenticate so that JWT claims (and hence org_id)
 // are already stored in the context.

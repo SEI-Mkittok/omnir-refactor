@@ -31,7 +31,7 @@ func TestRLS_TenantIsolation(t *testing.T) {
 		{orgB, "org-b"},
 	} {
 		_, err := pool.Exec(context.Background(), `
-			INSERT INTO organizations (id, name, slug, plan)
+			INSERT INTO orgs (id, name, slug, plan)
 			VALUES ($1, $2, $3, 'starter')
 		`, org.id, org.slug, org.slug)
 		require.NoError(t, err)
