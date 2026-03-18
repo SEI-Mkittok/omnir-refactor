@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, TrendingUp, LayoutGrid, List } from 'lucide-react'
+import { Plus, TrendingUp, LayoutGrid, List, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal } from '@/hooks/useDeals'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -14,6 +14,7 @@ import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { downloadExportCsv } from '@/api/importExport'
 import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -293,6 +294,19 @@ export function DealsPage() {
               List
             </button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadExportCsv('deals', {
+                ...(debouncedSearch ? { q: debouncedSearch } : {}),
+                ...(stage ? { stage } : {}),
+              })
+            }
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
           <Button>
             <Plus className="h-4 w-4" />
             Add Deal
