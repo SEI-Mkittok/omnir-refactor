@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, Globe, Users, TrendingUp } from 'lucide-react'
+import { Plus, Building2, Globe, Users, TrendingUp, Upload, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAccounts, useAccount, useAccountContacts, useAccountDeals, useDeleteAccount } from '@/hooks/useAccounts'
 import { FilterBar } from '@/components/ui/FilterBar'
@@ -12,6 +12,8 @@ import { Spinner } from '@/components/ui/Spinner'
 import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
+import { ImportModal } from '@/components/omnir/ImportModal'
+import { downloadExportCsv } from '@/api/importExport'
 import type { Account, CustomFieldValues } from '@/api/types'
 
 const INDUSTRY_OPTIONS = [
@@ -208,6 +210,7 @@ export function AccountsPage() {
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
+  const [showImport, setShowImport] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
@@ -293,10 +296,30 @@ export function AccountsPage() {
             {meta ? `${meta.total} total` : 'Loading…'}
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4" />
-          Add Account
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadExportCsv('accounts', {
+                ...(debouncedSearch ? { q: debouncedSearch } : {}),
+                ...(industry ? { industry } : {}),
+                ...(sortBy ? { sort: sortBy, order: sortDir } : {}),
+              })
+            }
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button>
+            <Plus className="h-4 w-4" />
+            Add Account
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -366,6 +389,13 @@ export function AccountsPage() {
       {selectedId && (
         <AccountDetail accountId={selectedId} onClose={() => setSelectedId(null)} />
       )}
+
+      <ImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        entity="accounts"
+        entityLabel="Accounts"
+      />
     </div>
   )
 }

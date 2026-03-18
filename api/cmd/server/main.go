@@ -28,13 +28,10 @@ import (
 var Version = "dev"
 
 func main() {
-	// Load .env (ignored in production/CI where vars are injected)
 	_ = godotenv.Load()
-
 	cfg := config.Load()
 	logger := setupLogger(cfg.Env)
 
-	// Connect to PostgreSQL with org-scoped pool (sets app.current_org_id per request).
 	db, err := postgres.NewOrgScopedPool(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		logger.Error("failed to connect to database", "err", err)
@@ -48,7 +45,6 @@ func main() {
 	}
 	logger.Info("database connected", "org_mode", cfg.OrgMode)
 
-	// Enable FORCE ROW LEVEL SECURITY for saas / multitenant / enterprise deployments.
 	if cfg.OrgMode == config.OrgModeSaaS || cfg.OrgMode == config.OrgModeMultitenant || cfg.OrgMode == config.OrgModeEnterprise {
 		if err := postgres.EnableRLS(context.Background(), db); err != nil {
 			logger.Error("failed to enable RLS", "err", err)
@@ -57,10 +53,8 @@ func main() {
 		logger.Info("row-level security enforced", "org_mode", cfg.OrgMode)
 	}
 
-	// JWT service
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
 
-	// Repositories
 	orgRepo := postgres.NewOrgRepo(db)
 	contactRepo := postgres.NewContactRepo(db)
 	accountRepo := postgres.NewAccountRepo(db)
@@ -78,13 +72,13 @@ func main() {
 	slaPolicyRepo := postgres.NewSLAPolicyRepo(db)
 	leadRepo := postgres.NewLeadRepo(db)
 	apiKeyRepo := postgres.NewAPIKeyRepo(db)
+	emailRepo := postgres.NewEmailRepo(db)
+	outboundWebhookRepo := postgres.NewOutboundWebhookRepo(db)
 
-	// Email delivery
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
 	mailer := email.NewMailer(smtpSender, appURL)
 
-	// Background workers
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
 
@@ -94,13 +88,15 @@ func main() {
 	emailNotifier := worker.NewEmailNotifier(mailer, logger)
 	emailNotifier.Start(workerCtx, 3)
 
+	webhookDispatcher := worker.NewWebhookDispatcher(outboundWebhookRepo, 30*time.Second, logger)
+	webhookDispatcher.Start(workerCtx)
+
 	if cfg.SMTP.Enabled {
 		logger.Info("email notifications enabled", "smtp_host", cfg.SMTP.Host)
 	} else {
-		logger.Info("email notifications disabled (set SMTP_ENABLED=true to enable)")
+		logger.Info("email notifications disabled")
 	}
 
-	// Handlers
 	setupHandler := handler.NewSetupHandler(userRepo, jwtSvc)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc)
@@ -115,7 +111,7 @@ func main() {
 		WithEmailNotifications(userRepo, notifPrefRepo, emailNotifier)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
-	webhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger)
+	inboundWebhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger)
 	contactNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityContact, "id")
 	accountNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityAccount, "id")
 	dealNoteHandler := handler.NewNoteHandler(noteRepo, domain.NoteEntityDeal, "id")
@@ -123,14 +119,15 @@ func main() {
 	searchRepo := postgres.NewSearchRepo(db)
 	searchHandler := handler.NewSearchHandler(searchRepo)
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
+	exportHandler := handler.NewExportHandler(contactRepo, accountRepo, dealRepo, reportsRepo)
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
+	emailHandler := handler.NewEmailHandler(emailRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
+	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
 
 	r := chi.NewRouter()
-
-	// Global middleware
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
 	r.Use(middleware.Logger(logger))
@@ -143,26 +140,17 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// Health check (unauthenticated)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok","version":"` + Version + `"}`))
 	})
 
-	// Setup endpoints (unauthenticated — fresh install only)
 	r.Mount("/api/setup", setupHandler.Router())
-
-	// Org endpoints (unauthenticated — signup is gatekept by OrgMode in handler)
 	r.Mount("/api/orgs", orgHandler.Router())
-
-	// Auth endpoints (unauthenticated)
 	r.Mount("/api/auth", authHandler.Router())
+	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 
-	// Inbound email webhooks (unauthenticated — provider-level HMAC/Basic auth)
-	r.Mount("/webhooks/email", webhookHandler.Router())
-
-	// API v1 (all routes require authentication + org scoping, 30s timeout)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(30 * time.Second))
 		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
@@ -175,30 +163,29 @@ func main() {
 		r.Route("/contacts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", contactNoteHandler.Router())
 		})
+		r.Route("/contacts/{id}/emails", func(r chi.Router) {
+			r.Mount("/", emailHandler.ContactEmailRouter())
+		})
 		r.Mount("/accounts", accountHandler.Router())
-		r.Route("/accounts/{id}/notes", func(r chi.Router) {
-			r.Mount("/", accountNoteHandler.Router())
-		})
+		r.Route("/accounts/{id}/notes", func(r chi.Router) { r.Mount("/", accountNoteHandler.Router()) })
 		r.Mount("/deals", dealHandler.Router())
-		r.Route("/deals/{id}/notes", func(r chi.Router) {
-			r.Mount("/", dealNoteHandler.Router())
-		})
+		r.Route("/deals/{id}/notes", func(r chi.Router) { r.Mount("/", dealNoteHandler.Router()) })
 		r.Mount("/activities", activityHandler.Router())
 		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/tickets", ticketHandler.Router())
 		r.Mount("/portal", portalHandler.Router())
 		r.Mount("/sla-policies", slaPolicyHandler.Router())
 		r.Mount("/users", userHandler.Router())
-		r.Route("/users/me/notification-prefs", func(r chi.Router) {
-			r.Mount("/", notifPrefHandler.Router())
-		})
+		r.Route("/users/me/notification-prefs", func(r chi.Router) { r.Mount("/", notifPrefHandler.Router()) })
 		r.Mount("/search", searchHandler.Router())
 		r.Mount("/reports", reportsHandler.Router())
+		r.Mount("/export", exportHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
 		r.Mount("/api-keys", apiKeyHandler.Router())
+		r.Mount("/emails", emailHandler.Router())
+		r.Mount("/webhooks", outboundWebhookHandler.Router())
 	})
 
-	// Import endpoints (5-minute timeout for large CSVs)
 	r.Group(func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(5 * time.Minute))
 		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
@@ -214,7 +201,6 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Graceful shutdown
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
@@ -243,7 +229,6 @@ func setupLogger(env string) *slog.Logger {
 	if env == "development" {
 		level = slog.LevelDebug
 	}
-
 	opts := &slog.HandlerOptions{Level: level}
 	var h slog.Handler
 	if env == "production" {
