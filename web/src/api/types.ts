@@ -762,3 +762,51 @@ export interface NotificationListParams {
   before?: string
   unread_only?: boolean
 }
+
+// ---- Saved Views ----
+
+export type ViewEntityType = 'contacts' | 'accounts' | 'deals' | 'leads'
+
+export interface ViewFilters {
+  search?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface SavedView {
+  id: string
+  org_id: string
+  created_by: string
+  entity_type: ViewEntityType
+  name: string
+  filters: ViewFilters
+  is_shared: boolean
+  is_pinned: boolean
+  pin_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateViewRequest {
+  entity_type: ViewEntityType
+  name: string
+  filters: ViewFilters
+  is_shared?: boolean
+  is_pinned?: boolean
+}
+
+export interface UpdateViewRequest {
+  name?: string
+  filters?: ViewFilters
+  is_shared?: boolean
+  is_pinned?: boolean
+}
+
+export interface PinViewRequest {
+  pin_order: number
+}
+
+export interface ViewListParams {
+  entity_type?: ViewEntityType
+}

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, Building2, Globe, Users, TrendingUp, Upload, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAccounts, useAccount, useAccountContacts, useAccountDeals, useDeleteAccount, useUpdateAccount } from '@/hooks/useAccounts'
+import { useUpdateView } from '@/hooks/useViews'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
@@ -10,11 +11,12 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
+import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { ImportModal } from '@/components/omnir/ImportModal'
 import { downloadExportCsv } from '@/api/importExport'
-import type { Account, CustomFieldValues } from '@/api/types'
+import type { Account, CustomFieldValues, SavedView } from '@/api/types'
 
 const INDUSTRY_OPTIONS = [
   { label: 'Technology', value: 'Technology' },
@@ -209,9 +211,35 @@ export function AccountsPage() {
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
   const [showImport, setShowImport] = useState(false)
+  const [activeView, setActiveView] = useState<SavedView | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
+  const updateView = useUpdateView()
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
+
+  const currentFilters = {
+    search: debouncedSearch || undefined,
+    industry: industry || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+  }
+
+  const applyViewFilters = (view: SavedView) => {
+    setActiveView(view)
+    setHasUnsavedChanges(false)
+    setSearch((view.filters.search as string) ?? '')
+    setIndustry((view.filters.industry as string) ?? '')
+    setSortKey(view.filters.sort_by ? `${view.filters.sort_by}:${view.filters.sort_dir ?? 'asc'}` : 'created_at:desc')
+    setPage(1)
+  }
+
+  const markChanged = () => { if (activeView) setHasUnsavedChanges(true) }
+
+  const handleUpdateView = async (viewId: string) => {
+    await updateView.mutateAsync({ id: viewId, payload: { filters: currentFilters } })
+    setHasUnsavedChanges(false)
+  }
 
   const { data, isLoading } = useAccounts({
     page,
@@ -289,7 +317,9 @@ export function AccountsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Accounts</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {activeView ? activeView.name : 'Accounts'}
+          </h1>
           <p className="mt-0.5 text-sm text-slate-500">
             {meta ? `${meta.total} total` : 'Loading…'}
           </p>
@@ -320,23 +350,35 @@ export function AccountsPage() {
         </div>
       </div>
 
+      {/* View pin bar */}
+      <ViewPinBar
+        entityType="accounts"
+        activeViewId={activeView?.id ?? null}
+        hasUnsavedChanges={hasUnsavedChanges}
+        currentFilters={currentFilters}
+        onSelectView={applyViewFilters}
+        onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
+        onViewSaved={(id) => setActiveView((v) => v ? { ...v, id } : null)}
+        onUpdateView={handleUpdateView}
+      />
+
       {/* Filters */}
       <FilterBar
         searchValue={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1) }}
+        onSearchChange={(v) => { setSearch(v); setPage(1); markChanged() }}
         searchPlaceholder="Search accounts…"
         filters={[
           {
             label: 'Industry',
             value: industry,
             options: INDUSTRY_OPTIONS,
-            onChange: (v) => { setIndustry(v); setPage(1) },
+            onChange: (v) => { setIndustry(v); setPage(1); markChanged() },
           },
           {
             label: 'Sort',
             value: sortKey,
             options: SORT_OPTIONS,
-            onChange: (v) => { setSortKey(v); setPage(1) },
+            onChange: (v) => { setSortKey(v); setPage(1); markChanged() },
           },
         ]}
       />
