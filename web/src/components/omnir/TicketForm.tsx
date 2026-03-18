@@ -61,7 +61,7 @@ export function TicketForm({ onClose, onCreated }: TicketFormProps) {
       {/* Modal */}
       <div className="relative z-10 w-full max-w-md rounded-xl bg-white shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 sm:px-6 py-4">
           <h2 className="text-lg font-semibold text-slate-900">New Ticket</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -69,7 +69,7 @@ export function TicketForm({ onClose, onCreated }: TicketFormProps) {
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 p-4 sm:p-6">
           {/* Subject */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-slate-700" htmlFor="ticket-subject">
@@ -87,7 +87,7 @@ export function TicketForm({ onClose, onCreated }: TicketFormProps) {
           </div>
 
           {/* Status + Priority (side by side) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="ticket-status">
                 Status

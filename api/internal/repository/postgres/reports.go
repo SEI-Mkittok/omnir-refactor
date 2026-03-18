@@ -2,10 +2,12 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/omnir/crm-api/internal/domain"
@@ -455,5 +457,271 @@ func (r *ReportsRepo) LeadMetrics(ctx context.Context, filter domain.ReportFilte
 		ConvertedCount: convertedCount,
 		ConversionRate: conversionRate,
 		Funnel:         funnel,
+	}, nil
+}
+
+func (r *ReportsRepo) PipelineFunnel(ctx context.Context, pipelineID *uuid.UUID, filter domain.ReportFilter) (*domain.PipelineFunnelReport, error) {
+	stages := []string{"lead", "qualified", "proposal", "negotiation"}
+
+	where := []string{"deleted_at IS NULL", "stage NOT IN ('closed_won','closed_lost')"}
+	args := []any{}
+	i := 1
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		where = append(where, fmt.Sprintf("org_id = $%d", i))
+		args = append(args, orgID)
+		i++
+	}
+	if pipelineID != nil {
+		where = append(where, fmt.Sprintf("pipeline_id = $%d", i))
+		args = append(args, *pipelineID)
+		i++
+	}
+	if filter.From != nil {
+		where = append(where, fmt.Sprintf("created_at >= $%d", i))
+		args = append(args, *filter.From)
+		i++
+	}
+	if filter.To != nil {
+		where = append(where, fmt.Sprintf("created_at <= $%d", i))
+		args = append(args, *filter.To)
+		i++
+	}
+	_ = i
+
+	q := `SELECT stage, COUNT(*), COALESCE(SUM(value_cents), 0) FROM deals WHERE ` +
+		strings.Join(where, " AND ") + ` GROUP BY stage`
+
+	rows, err := r.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byStage := make(map[string]domain.PipelineFunnelStage)
+	for rows.Next() {
+		var s domain.PipelineFunnelStage
+		if err := rows.Scan(&s.Name, &s.Count, &s.ValueCents); err != nil {
+			return nil, err
+		}
+		byStage[s.Name] = s
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	result := &domain.PipelineFunnelReport{Stages: make([]domain.PipelineFunnelStage, 0, len(stages))}
+	for _, name := range stages {
+		if s, ok := byStage[name]; ok {
+			result.Stages = append(result.Stages, s)
+		} else {
+			result.Stages = append(result.Stages, domain.PipelineFunnelStage{Name: name})
+		}
+	}
+	return result, nil
+}
+
+func (r *ReportsRepo) ConversionRates(ctx context.Context, filter domain.ReportFilter) (*domain.ConversionRatesReport, error) {
+	pairs := []struct{ from, to string }{
+		{"lead", "qualified"},
+		{"qualified", "proposal"},
+		{"proposal", "negotiation"},
+	}
+
+	where := []string{"deleted_at IS NULL"}
+	args := []any{}
+	i := 1
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		where = append(where, fmt.Sprintf("org_id = $%d", i))
+		args = append(args, orgID)
+		i++
+	}
+	if filter.From != nil {
+		where = append(where, fmt.Sprintf("created_at >= $%d", i))
+		args = append(args, *filter.From)
+		i++
+	}
+	if filter.To != nil {
+		where = append(where, fmt.Sprintf("created_at <= $%d", i))
+		args = append(args, *filter.To)
+		i++
+	}
+	_ = i
+
+	q := `SELECT stage, COUNT(*) FROM deals WHERE ` + strings.Join(where, " AND ") + ` GROUP BY stage`
+	rows, err := r.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var stage string
+		var count int
+		if err := rows.Scan(&stage, &count); err != nil {
+			return nil, err
+		}
+		counts[stage] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	result := &domain.ConversionRatesReport{Rates: make([]domain.ConversionRate, 0, len(pairs))}
+	for _, p := range pairs {
+		fromCount := counts[p.from]
+		toCount := counts[p.to]
+		var rate float64
+		if fromCount > 0 {
+			rate = float64(toCount) / float64(fromCount)
+		}
+		result.Rates = append(result.Rates, domain.ConversionRate{From: p.from, To: p.to, Rate: rate})
+	}
+	return result, nil
+}
+
+func (r *ReportsRepo) RevenueProjection(ctx context.Context, months int) (*domain.RevenueProjectionReport, error) {
+	if months <= 0 || months > 12 {
+		months = 3
+	}
+
+	stageWeights := map[string]float64{
+		"lead":        0.10,
+		"qualified":   0.25,
+		"proposal":    0.50,
+		"negotiation": 0.75,
+	}
+
+	where := []string{
+		"deleted_at IS NULL",
+		"stage NOT IN ('closed_won','closed_lost')",
+		"expected_close_date IS NOT NULL",
+		fmt.Sprintf("expected_close_date <= NOW() + ('%d months')::interval", months),
+	}
+	args := []any{}
+	i := 1
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		where = append(where, fmt.Sprintf("org_id = $%d", i))
+		args = append(args, orgID)
+		i++
+	}
+	_ = i
+
+	q := `SELECT stage, expected_close_date, value_cents FROM deals WHERE ` + strings.Join(where, " AND ")
+	rows, err := r.db.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	type bucket struct {
+		projected int64
+		count     int
+	}
+	buckets := make(map[string]*bucket)
+	for rows.Next() {
+		var stage string
+		var closeDate time.Time
+		var valueCents int64
+		if err := rows.Scan(&stage, &closeDate, &valueCents); err != nil {
+			return nil, err
+		}
+		month := closeDate.Format("2006-01")
+		w := stageWeights[stage]
+		if _, ok := buckets[month]; !ok {
+			buckets[month] = &bucket{}
+		}
+		buckets[month].projected += int64(float64(valueCents) * w)
+		buckets[month].count++
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Build ordered month list
+	now := time.Now()
+	result := &domain.RevenueProjectionReport{Months: make([]domain.RevenueProjectionMonth, 0, months)}
+	for m := 0; m < months; m++ {
+		t := now.AddDate(0, m, 0)
+		monthStr := t.Format("2006-01")
+		b, ok := buckets[monthStr]
+		if !ok {
+			b = &bucket{}
+		}
+		result.Months = append(result.Months, domain.RevenueProjectionMonth{
+			Month:          monthStr,
+			ProjectedCents: b.projected,
+			DealCount:      b.count,
+		})
+	}
+	return result, nil
+}
+
+func (r *ReportsRepo) ActivitySummary(ctx context.Context, filter domain.ReportFilter) (*domain.ActivitySummaryReport, error) {
+	where := []string{"deleted_at IS NULL"}
+	args := []any{}
+	i := 1
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		where = append(where, fmt.Sprintf("org_id = $%d", i))
+		args = append(args, orgID)
+		i++
+	}
+	if filter.From != nil {
+		where = append(where, fmt.Sprintf("created_at >= $%d", i))
+		args = append(args, *filter.From)
+		i++
+	}
+	if filter.To != nil {
+		where = append(where, fmt.Sprintf("created_at <= $%d", i))
+		args = append(args, *filter.To)
+		i++
+	}
+	_ = i
+
+	whereStr := strings.Join(where, " AND ")
+
+	// By type (called "kind" in the response)
+	kindRows, err := r.db.Query(ctx, `SELECT type, COUNT(*) FROM activities WHERE `+whereStr+` GROUP BY type ORDER BY type`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer kindRows.Close()
+	var byKind []domain.ActivityKindCount
+	for kindRows.Next() {
+		var ak domain.ActivityKindCount
+		if err := kindRows.Scan(&ak.Kind, &ak.Count); err != nil {
+			return nil, err
+		}
+		byKind = append(byKind, ak)
+	}
+	if err := kindRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// By owner
+	ownerRows, err := r.db.Query(ctx, `SELECT owner_id, COUNT(*) FROM activities WHERE `+whereStr+` GROUP BY owner_id ORDER BY count DESC LIMIT 20`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer ownerRows.Close()
+	var byOwner []domain.ActivityOwnerCount
+	for ownerRows.Next() {
+		var ao domain.ActivityOwnerCount
+		if err := ownerRows.Scan(&ao.OwnerID, &ao.Count); err != nil {
+			return nil, err
+		}
+		byOwner = append(byOwner, ao)
+	}
+	if err := ownerRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &domain.ActivitySummaryReport{
+		ByKind:  byKind,
+		ByOwner: byOwner,
 	}, nil
 }

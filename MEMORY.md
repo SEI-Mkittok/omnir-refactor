@@ -118,3 +118,7 @@ Roadmap: `plans/2026-03-17-omnir-crm-roadmap.md`
 - GitHub push protection blocks tokens in code — use gitignored files for secrets
 - All Paperclip issues need projectId set or workspace resolution fails
 - Paperclip checkout requires the agent's own API key (can't checkout as another agent)
+- goose `$$`-quoted SQL needs `-- +goose StatementBegin/End` markers or it fails silently
+- Always do data migrations BEFORE adding CHECK constraints (constraint violation on existing rows)
+- goose staging deploys need `-allow-missing` flag when DB may have gaps from out-of-order deployments
+- Migration files need `-- +goose Up` header or goose ignores them entirely

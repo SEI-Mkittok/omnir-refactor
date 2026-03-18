@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -11,6 +12,10 @@ import (
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
+
+var customFieldNameRe = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+const maxCustomFieldsPerEntityType = 50
 
 // CustomFieldHandler serves the /custom-fields resource (admin only).
 type CustomFieldHandler struct {
@@ -51,6 +56,10 @@ func (h *CustomFieldHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "name and label are required")
 		return
 	}
+	if !customFieldNameRe.MatchString(req.Name) {
+		writeError(w, http.StatusUnprocessableEntity, "name must match ^[a-z][a-z0-9_]*$")
+		return
+	}
 	et := domain.CustomFieldEntityType(req.EntityType)
 	if !et.IsValid() {
 		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, or account")
@@ -63,6 +72,16 @@ func (h *CustomFieldHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if (ft == domain.CustomFieldTypeSelect || ft == domain.CustomFieldTypeMultiSelect) && len(req.Options) == 0 {
 		writeError(w, http.StatusUnprocessableEntity, "options are required for select and multiselect field types")
+		return
+	}
+
+	existing, err := h.defs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if len(existing) >= maxCustomFieldsPerEntityType {
+		writeError(w, http.StatusUnprocessableEntity, "maximum of 50 custom fields per entity type reached")
 		return
 	}
 

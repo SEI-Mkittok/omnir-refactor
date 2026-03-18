@@ -114,12 +114,11 @@ func ValidateCustomFields(rawFields []byte, defs []*CustomFieldDefinition) error
 		}
 	}
 
-	// Type-check provided values.
+	// Type-check provided values; reject unknown field names.
 	for key, raw := range fields {
 		def, ok := defsByName[key]
 		if !ok {
-			// Unknown fields are allowed (forward compat); skip.
-			continue
+			return &ValidationError{Field: key, Message: fmt.Sprintf("unknown custom field %q", key)}
 		}
 		if err := validateFieldValue(def, raw); err != nil {
 			return err
@@ -129,6 +128,11 @@ func ValidateCustomFields(rawFields []byte, defs []*CustomFieldDefinition) error
 }
 
 func validateFieldValue(def *CustomFieldDefinition, raw json.RawMessage) error {
+	// null JSON value means "clear this field" — always valid.
+	if string(raw) == "null" {
+		return nil
+	}
+
 	makeErr := func(msg string) *ValidationError {
 		return &ValidationError{Field: def.Name, Message: fmt.Sprintf("custom field %q: %s", def.Name, msg)}
 	}
@@ -200,4 +204,28 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	return fmt.Sprintf("validation error on %q: %s", e.Field, e.Message)
+}
+
+// ExpandCustomFields merges stored custom field values with the full set of
+// field definitions, returning a JSON object that includes a null entry for
+// any defined field that has no stored value.  This ensures the API always
+// returns every defined field key even when the entity was saved before some
+// definitions existed.
+func ExpandCustomFields(rawFields []byte, defs []*CustomFieldDefinition) json.RawMessage {
+	result := make(map[string]json.RawMessage, len(defs))
+	for _, d := range defs {
+		result[d.Name] = json.RawMessage("null")
+	}
+	if len(rawFields) > 0 && string(rawFields) != "null" {
+		var stored map[string]json.RawMessage
+		if err := json.Unmarshal(rawFields, &stored); err == nil {
+			for k, v := range stored {
+				if _, ok := result[k]; ok {
+					result[k] = v
+				}
+			}
+		}
+	}
+	b, _ := json.Marshal(result)
+	return b
 }
