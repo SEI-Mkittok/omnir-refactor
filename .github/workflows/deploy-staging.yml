@@ -12,7 +12,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   API_IMAGE: sei-mkittok/omnir-refactor/omnir-api
-  FRONTEND_IMAGE: sei-mkittok/omnir-refactor/omnir-frontend
+  FRONTEND_IMAGE: sei-mkittok/omnir-refactor/web
 
 jobs:
   build-and-push:

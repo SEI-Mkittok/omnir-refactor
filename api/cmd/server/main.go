@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"github.com/omnir/crm-api/internal/auth"
@@ -34,8 +33,8 @@ func main() {
 	cfg := config.Load()
 	logger := setupLogger(cfg.Env)
 
-	// Connect to PostgreSQL
-	db, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	// Connect to PostgreSQL with org-scoped pool (sets app.current_org_id per request).
+	db, err := postgres.NewOrgScopedPool(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		logger.Error("failed to connect to database", "err", err)
 		os.Exit(1)
@@ -46,7 +45,16 @@ func main() {
 		logger.Error("database ping failed", "err", err)
 		os.Exit(1)
 	}
-	logger.Info("database connected")
+	logger.Info("database connected", "org_mode", cfg.OrgMode)
+
+	// Enable FORCE ROW LEVEL SECURITY for multitenant / enterprise deployments.
+	if cfg.OrgMode == config.OrgModeMultitenant || cfg.OrgMode == config.OrgModeEnterprise {
+		if err := postgres.EnableRLS(context.Background(), db); err != nil {
+			logger.Error("failed to enable RLS", "err", err)
+			os.Exit(1)
+		}
+		logger.Info("row-level security enforced", "org_mode", cfg.OrgMode)
+	}
 
 	// JWT service
 	jwtSvc := auth.NewJWTService(cfg.JWTSecret)
@@ -114,6 +122,7 @@ func main() {
 	// API v1 (all routes require authentication + org scoping)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.Authenticate(jwtSvc))
+		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
 		r.Route("/contacts/{id}/notes", func(r chi.Router) {
 			r.Mount("/", contactNoteHandler.Router())

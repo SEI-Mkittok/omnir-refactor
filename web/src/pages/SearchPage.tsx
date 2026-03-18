@@ -96,7 +96,7 @@ export function SearchPage() {
             renderItem={(c) => (
               <button
                 key={c.id}
-                onClick={() => navigate('/contacts')}
+                onClick={() => navigate(`/contacts?openId=${c.id}`)}
                 className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 text-xs font-semibold group-hover:bg-indigo-200">
@@ -117,7 +117,7 @@ export function SearchPage() {
             renderItem={(a) => (
               <button
                 key={a.id}
-                onClick={() => navigate('/accounts')}
+                onClick={() => navigate(`/accounts?openId=${a.id}`)}
                 className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
@@ -140,7 +140,7 @@ export function SearchPage() {
             renderItem={(d) => (
               <button
                 key={d.id}
-                onClick={() => navigate('/deals')}
+                onClick={() => navigate(`/deals?openId=${d.id}`)}
                 className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
