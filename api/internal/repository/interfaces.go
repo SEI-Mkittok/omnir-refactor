@@ -22,6 +22,7 @@ type ContactRepository interface {
 type AccountRepository interface {
 	Create(ctx context.Context, a *domain.Account) (*domain.Account, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error)
+	GetByName(ctx context.Context, name string) (*domain.Account, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.AccountPatch) (*domain.Account, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.AccountFilter) ([]*domain.Account, int, error)
@@ -186,6 +187,14 @@ type OrgRepository interface {
 	GetBySlug(ctx context.Context, slug string) (*domain.Organization, error)
 	// SlugExists reports whether a given slug is already in use.
 	SlugExists(ctx context.Context, slug string) (bool, error)
+}
+
+// EmailRepository defines the persistence contract for contact emails.
+type EmailRepository interface {
+	// Create inserts a new email record (inbound or outbound).
+	Create(ctx context.Context, e *domain.ContactEmail) (*domain.ContactEmail, error)
+	// List returns emails matching the filter along with total count.
+	List(ctx context.Context, filter domain.EmailFilter) ([]*domain.ContactEmail, int, error)
 }
 
 // SLAPolicyRepository defines the persistence contract for SLA policies.
