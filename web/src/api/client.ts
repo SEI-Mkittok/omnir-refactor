@@ -41,7 +41,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise<void>((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
+          failedQueue.push({ resolve: resolve as (value: unknown) => void, reject })
         }).then(() => apiClient(originalRequest))
       }
 
