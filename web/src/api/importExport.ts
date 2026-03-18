@@ -68,12 +68,19 @@ export function parseCsvHeaders(file: File): Promise<string[]> {
 }
 
 /**
- * Trigger a CSV download by navigating to the export URL with current filters.
+ * Trigger a CSV download using apiClient so the Authorization header is sent.
  */
-export function downloadExportCsv(entity: ExportEntity, params: Record<string, string> = {}) {
-  const base = (import.meta.env.VITE_API_URL || '/api/v1') + `/export/${entity}`
+export async function downloadExportCsv(
+  entity: ExportEntity,
+  params: Record<string, string> = {}
+): Promise<void> {
   const qs = new URLSearchParams(params).toString()
-  const url = qs ? `${base}?${qs}` : base
-  // Open in same window so the browser triggers a file download
-  window.location.href = url
+  const path = `/export/${entity}${qs ? `?${qs}` : ''}`
+  const { data } = await apiClient.get<Blob>(path, { responseType: 'blob' })
+  const url = URL.createObjectURL(data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${entity}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
