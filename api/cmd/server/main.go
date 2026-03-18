@@ -77,6 +77,8 @@ func main() {
 	outboundWebhookRepo := postgres.NewOutboundWebhookRepo(db)
 	portalLinkRepo := postgres.NewPortalLinkRepo(db)
 	entityAttachmentRepo := postgres.NewEntityAttachmentRepo(db)
+	auditLogRepo := postgres.NewAuditLogRepo(db)
+	sequenceRepo := postgres.NewSequenceRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -141,6 +143,10 @@ func main() {
 	accountAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeAccount, "id")
 	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeDeal, "id")
 	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo)
+	sequenceHandler := handler.NewSequenceHandler(sequenceRepo)
+	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
+	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, time.Minute, logger)
+	sequenceWorker.Start(workerCtx)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -206,6 +212,12 @@ func main() {
 		r.Mount("/api-keys", apiKeyHandler.Router())
 		r.Mount("/emails", emailHandler.Router())
 		r.Mount("/webhooks", outboundWebhookHandler.Router())
+		r.Mount("/sequences", sequenceHandler.Router())
+		r.Route("/contacts/{id}/attachments", func(r chi.Router) { r.Mount("/", contactAttachmentHandler.Router()) })
+		r.Route("/accounts/{id}/attachments", func(r chi.Router) { r.Mount("/", accountAttachmentHandler.Router()) })
+		r.Route("/deals/{id}/attachments", func(r chi.Router) { r.Mount("/", dealAttachmentHandler.Router()) })
+		r.Mount("/attachments", attachmentDownloadHandler.Router())
+		r.Mount("/admin/audit-log", auditLogHandler.Router())
 	})
 
 	r.Group(func(r chi.Router) {

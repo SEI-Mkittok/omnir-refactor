@@ -875,3 +875,94 @@ export interface EntityAttachment {
   url: string
   created_at: string
 }
+
+// ---- Email Sequences ----
+
+export type SequenceStatus = 'draft' | 'active' | 'paused' | 'archived'
+export type StepKind = 'email' | 'wait'
+export type EnrollmentStatus = 'active' | 'completed' | 'unsubscribed' | 'bounced' | 'paused'
+export type SequenceEventKind = 'sent' | 'opened' | 'clicked' | 'completed' | 'bounced' | 'unsubscribed'
+
+export interface SequenceStep {
+  id: string
+  sequence_id: string
+  position: number
+  kind: StepKind
+  subject?: string
+  body?: string
+  wait_duration_hours?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailSequence {
+  id: string
+  org_id: string
+  name: string
+  description: string
+  status: SequenceStatus
+  created_by?: string
+  steps?: SequenceStep[]
+  enrolled_count: number
+  open_rate: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SequenceEnrollment {
+  id: string
+  sequence_id: string
+  contact_id: string
+  status: EnrollmentStatus
+  current_step: number
+  enrolled_at: string
+  completed_at?: string
+  contact_name: string
+  contact_email: string
+}
+
+export interface StepAnalytics {
+  step_id: string
+  position: number
+  sent: number
+  opened: number
+  clicked: number
+}
+
+export interface SequenceAnalytics {
+  sequence_id: string
+  sent: number
+  opened: number
+  clicked: number
+  completed: number
+  bounced: number
+  unsubscribed: number
+  open_rate: number
+  click_rate: number
+  steps: StepAnalytics[]
+}
+
+export interface CreateStepRequest {
+  kind: StepKind
+  position: number
+  subject?: string
+  body?: string
+  wait_duration_hours?: number
+}
+
+export interface CreateSequenceRequest {
+  name: string
+  description?: string
+  steps?: CreateStepRequest[]
+}
+
+export interface UpdateSequenceRequest {
+  name?: string
+  description?: string
+  status?: SequenceStatus
+  steps?: CreateStepRequest[]
+}
+
+export interface EnrollRequest {
+  contact_ids: string[]
+}

@@ -22,12 +22,19 @@ const (
 
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
-	users  repository.UserRepository
-	jwtSvc *auth.JWTService
+	users   repository.UserRepository
+	jwtSvc  *auth.JWTService
+	auditor Auditor
 }
 
 func NewAuthHandler(users repository.UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
 	return &AuthHandler{users: users, jwtSvc: jwtSvc}
+}
+
+// WithAuditLog wires an audit log repository into the handler.
+func (h *AuthHandler) WithAuditLog(r repository.AuditLogRepository) *AuthHandler {
+	h.auditor = newAuditor(r)
+	return h
 }
 
 func (h *AuthHandler) Router() chi.Router {
