@@ -16,6 +16,11 @@ type ContactRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.ContactPatch) (*domain.Contact, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.ContactFilter) ([]*domain.Contact, int, error)
+
+	// Lead management (Phase 8)
+	UpdateLeadScore(ctx context.Context, id uuid.UUID, patch domain.LeadScorePatch) (*domain.Contact, error)
+	ConvertLead(ctx context.Context, id, byUserID uuid.UUID, dealID *uuid.UUID) (*domain.Contact, error)
+	ListLeadSources(ctx context.Context) ([]string, error)
 }
 
 // AccountRepository defines the persistence contract for accounts.
@@ -127,6 +132,7 @@ type LeadRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.LeadPatch) (*domain.Lead, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.LeadFilter) ([]*domain.Lead, int, error)
+	ListSources(ctx context.Context) ([]string, error)
 }
 
 // TicketRepository defines the persistence contract for help-desk tickets.
