@@ -104,3 +104,57 @@ type LeadReport struct {
 	ConversionRate float64            `json:"conversion_rate"` // converted / total (0.0-1.0)
 	Funnel         []LeadFunnelMetric `json:"funnel"`
 }
+
+// PipelineFunnelStage holds count and value for one deal stage.
+type PipelineFunnelStage struct {
+	Name       string `json:"name"`
+	Count      int    `json:"count"`
+	ValueCents int64  `json:"value_cents"`
+}
+
+// PipelineFunnelReport is the response for GET /reports/pipeline-funnel.
+type PipelineFunnelReport struct {
+	Stages []PipelineFunnelStage `json:"stages"`
+}
+
+// ConversionRate is the conversion rate between two consecutive deal stages.
+type ConversionRate struct {
+	From string  `json:"from"`
+	To   string  `json:"to"`
+	Rate float64 `json:"rate"`
+}
+
+// ConversionRatesReport is the response for GET /reports/conversion-rates.
+type ConversionRatesReport struct {
+	Rates []ConversionRate `json:"rates"`
+}
+
+// RevenueProjectionMonth holds projected revenue for one month bucket.
+type RevenueProjectionMonth struct {
+	Month          string `json:"month"` // "YYYY-MM"
+	ProjectedCents int64  `json:"projected_cents"`
+	DealCount      int    `json:"deal_count"`
+}
+
+// RevenueProjectionReport is the response for GET /reports/revenue-projection.
+type RevenueProjectionReport struct {
+	Months []RevenueProjectionMonth `json:"months"`
+}
+
+// ActivityKindCount holds activity count for one kind.
+type ActivityKindCount struct {
+	Kind  ActivityType `json:"kind"`
+	Count int          `json:"count"`
+}
+
+// ActivityOwnerCount holds activity count for one owner.
+type ActivityOwnerCount struct {
+	OwnerID uuid.UUID `json:"owner_id"`
+	Count   int       `json:"count"`
+}
+
+// ActivitySummaryReport is the response for GET /reports/activity-summary.
+type ActivitySummaryReport struct {
+	ByKind  []ActivityKindCount  `json:"by_kind"`
+	ByOwner []ActivityOwnerCount `json:"by_owner"`
+}
