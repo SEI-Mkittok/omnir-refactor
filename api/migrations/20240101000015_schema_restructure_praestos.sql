@@ -20,15 +20,19 @@ BEGIN
 END $$;
 -- +goose StatementEnd
 
+-- Migrate all non-conforming plan values before adding the constraint.
+UPDATE orgs SET plan = 'single' WHERE plan NOT IN ('single', 'starter', 'pro', 'enterprise');
+
 -- 'single' is the new default plan for self-hosted/single-tenant deployments.
+-- Use NOT VALID to add constraint without scanning existing rows, then validate separately.
 ALTER TABLE orgs
     ADD CONSTRAINT orgs_plan_check
-        CHECK (plan IN ('single', 'starter', 'pro', 'enterprise'));
+        CHECK (plan IN ('single', 'starter', 'pro', 'enterprise'))
+        NOT VALID;
+
+ALTER TABLE orgs VALIDATE CONSTRAINT orgs_plan_check;
 
 ALTER TABLE orgs ALTER COLUMN plan SET DEFAULT 'single';
-
--- Migrate existing self_hosted rows to the new 'single' plan value.
-UPDATE orgs SET plan = 'single' WHERE plan = 'self_hosted';
 
 -- 2. Update users.role enum: admin/user/viewer → admin/agent/client
 -- +goose StatementBegin
