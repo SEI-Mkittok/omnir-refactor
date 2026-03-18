@@ -511,3 +511,28 @@ export interface UpdateCustomFieldDefinitionRequest {
 }
 
 export type CustomFieldValues = Record<string, string | number | boolean | string[] | null>
+
+// ---- API Keys ----
+
+export interface APIKey {
+  id: string
+  org_id: string
+  created_by: string
+  name: string
+  key_prefix: string
+  scopes: string[]
+  last_used_at?: string
+  expires_at?: string
+  revoked_at?: string
+  created_at: string
+}
+
+export interface CreateAPIKeyRequest {
+  name: string
+  expires_at?: string
+  scopes?: string[]
+}
+
+export interface CreateAPIKeyResponse extends APIKey {
+  key: string
+}
