@@ -26,7 +26,7 @@ func NewTicketRepo(db *pgxpool.Pool) *TicketRepo {
 const ticketCols = `
 	id, org_id, subject, description, status, priority,
 	assignee_id, contact_id, account_id, source, tags,
-	custom_fields, created_at, updated_at, deleted_at
+	custom_fields, submitted_by_user_id, created_at, updated_at, deleted_at
 `
 
 func scanTicket(row pgx.Row) (*domain.Ticket, error) {
@@ -34,7 +34,7 @@ func scanTicket(row pgx.Row) (*domain.Ticket, error) {
 	err := row.Scan(
 		&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
 		&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.Tags,
-		&t.CustomFields, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		&t.CustomFields, &t.SubmittedByUserID, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -69,12 +69,12 @@ func (r *TicketRepo) Create(ctx context.Context, t *domain.Ticket) (*domain.Tick
 		INSERT INTO tickets
 			(id, org_id, subject, description, status, priority,
 			 assignee_id, contact_id, account_id, source, tags,
-			 custom_fields, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+			 custom_fields, submitted_by_user_id, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING `+ticketCols,
 		t.ID, t.OrgID, t.Subject, t.Description, t.Status, t.Priority,
 		t.AssigneeID, t.ContactID, t.AccountID, t.Source, t.Tags,
-		t.CustomFields, t.CreatedAt, t.UpdatedAt,
+		t.CustomFields, t.SubmittedByUserID, t.CreatedAt, t.UpdatedAt,
 	)
 	return scanTicket(row)
 }
@@ -199,6 +199,9 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 	if f.ContactID != nil {
 		addWhere("contact_id", *f.ContactID)
 	}
+	if f.SubmittedByUserID != nil {
+		addWhere("submitted_by_user_id", *f.SubmittedByUserID)
+	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(`subject ILIKE $%d`, i))
 		args = append(args, "%"+f.Q+"%")
@@ -244,7 +247,7 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		if err := rows.Scan(
 			&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
 			&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.Tags,
-			&t.CustomFields, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+			&t.CustomFields, &t.SubmittedByUserID, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 		); err != nil {
 			return nil, 0, err
 		}

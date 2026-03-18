@@ -45,21 +45,22 @@ func (p TicketPriority) IsValid() bool {
 
 // Ticket represents a help-desk support ticket.
 type Ticket struct {
-	ID           uuid.UUID      `json:"id"`
-	OrgID        uuid.UUID      `json:"org_id"`
-	Subject      string         `json:"subject"`
-	Description  *string        `json:"description,omitempty"`
-	Status       TicketStatus   `json:"status"`
-	Priority     TicketPriority `json:"priority"`
-	AssigneeID   *uuid.UUID     `json:"assignee_id,omitempty"`
-	ContactID    *uuid.UUID     `json:"contact_id,omitempty"`
-	AccountID    *uuid.UUID     `json:"account_id,omitempty"`
-	Source       *string        `json:"source,omitempty"`
-	Tags         []string       `json:"tags"`
-	CustomFields []byte         `json:"custom_fields,omitempty"`
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    *time.Time     `json:"deleted_at,omitempty"`
+	ID                  uuid.UUID      `json:"id"`
+	OrgID               uuid.UUID      `json:"org_id"`
+	Subject             string         `json:"subject"`
+	Description         *string        `json:"description,omitempty"`
+	Status              TicketStatus   `json:"status"`
+	Priority            TicketPriority `json:"priority"`
+	AssigneeID          *uuid.UUID     `json:"assignee_id,omitempty"`
+	ContactID           *uuid.UUID     `json:"contact_id,omitempty"`
+	AccountID           *uuid.UUID     `json:"account_id,omitempty"`
+	Source              *string        `json:"source,omitempty"`
+	Tags                []string       `json:"tags"`
+	CustomFields        []byte         `json:"custom_fields,omitempty"`
+	SubmittedByUserID   *uuid.UUID     `json:"submitted_by_user_id,omitempty"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	DeletedAt           *time.Time     `json:"deleted_at,omitempty"`
 }
 
 // TicketPatch holds optional fields for partial ticket updates.
@@ -76,16 +77,17 @@ type TicketPatch struct {
 
 // TicketFilter holds query parameters for listing tickets.
 type TicketFilter struct {
-	OrgID      uuid.UUID
-	Status     *TicketStatus
-	Priority   *TicketPriority
-	AssigneeID *uuid.UUID
-	ContactID  *uuid.UUID
-	Q          string
-	Page       int
-	Limit      int
-	Sort       string
-	Order      string
+	OrgID               uuid.UUID
+	Status              *TicketStatus
+	Priority            *TicketPriority
+	AssigneeID          *uuid.UUID
+	ContactID           *uuid.UUID
+	SubmittedByUserID   *uuid.UUID
+	Q                   string
+	Page                int
+	Limit               int
+	Sort                string
+	Order               string
 }
 
 // TicketComment is a reply or internal note attached to a ticket.
