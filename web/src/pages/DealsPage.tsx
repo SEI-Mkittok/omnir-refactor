@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, TrendingUp, LayoutGrid, List, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
+import { useUpdateView } from '@/hooks/useViews'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
@@ -12,10 +13,11 @@ import { Spinner } from '@/components/ui/Spinner'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
+import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { downloadExportCsv } from '@/api/importExport'
-import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
+import type { Deal, DealStage, CustomFieldValues, SavedView } from '@/api/types'
 
 const STAGE_OPTIONS = [
   { label: 'Lead', value: 'lead' },
@@ -173,8 +175,31 @@ export function DealsPage() {
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
+  const [activeView, setActiveView] = useState<SavedView | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
+  const updateView = useUpdateView()
   const debouncedSearch = useDebounce(search, 300)
+
+  const currentFilters = {
+    search: debouncedSearch || undefined,
+    stage: stage || undefined,
+  }
+
+  const applyViewFilters = (view: SavedView) => {
+    setActiveView(view)
+    setHasUnsavedChanges(false)
+    setSearch((view.filters.search as string) ?? '')
+    setStage((view.filters.stage as string) ?? '')
+    setPage(1)
+  }
+
+  const markChanged = () => { if (activeView) setHasUnsavedChanges(true) }
+
+  const handleUpdateView = async (viewId: string) => {
+    await updateView.mutateAsync({ id: viewId, payload: { filters: currentFilters } })
+    setHasUnsavedChanges(false)
+  }
 
   // Kanban: fetch all (no pagination)
   const kanbanQuery = useDeals({
@@ -261,7 +286,9 @@ export function DealsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Deals</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {activeView ? activeView.name : 'Deals'}
+          </h1>
           <p className="mt-0.5 text-sm text-slate-500">
             {totalDeals !== undefined ? `${totalDeals} total` : 'Loading…'}
           </p>
@@ -312,17 +339,29 @@ export function DealsPage() {
         </div>
       </div>
 
+      {/* View pin bar */}
+      <ViewPinBar
+        entityType="deals"
+        activeViewId={activeView?.id ?? null}
+        hasUnsavedChanges={hasUnsavedChanges}
+        currentFilters={currentFilters}
+        onSelectView={applyViewFilters}
+        onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
+        onViewSaved={(id) => setActiveView((v) => v ? { ...v, id } : null)}
+        onUpdateView={handleUpdateView}
+      />
+
       {/* Filters */}
       <FilterBar
         searchValue={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1) }}
+        onSearchChange={(v) => { setSearch(v); setPage(1); markChanged() }}
         searchPlaceholder="Search deals…"
         filters={[
           {
             label: 'Stage',
             value: stage,
             options: STAGE_OPTIONS,
-            onChange: (v) => { setStage(v); setPage(1) },
+            onChange: (v) => { setStage(v); setPage(1); markChanged() },
           },
         ]}
       />
