@@ -111,6 +111,14 @@ func TestRLS_DealTenantIsolation(t *testing.T) {
 	`, ownerA, orgA, "dealowner+"+ownerA.String()+"@omnir.test")
 	require.NoError(t, err)
 
+	// Seed a pipeline for orgA (pipeline_id is NOT NULL on deals).
+	pipelineA := uuid.New()
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO pipelines (id, org_id, name, stages)
+		VALUES ($1, $2, 'Default', '[]'::jsonb)
+	`, pipelineA, orgA)
+	require.NoError(t, err)
+
 	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
 	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
 
@@ -119,11 +127,12 @@ func TestRLS_DealTenantIsolation(t *testing.T) {
 	ctxB := domain.WithOrgID(context.Background(), orgB)
 
 	deal, err := repo.Create(ctxA, &domain.Deal{
-		OrgID:    orgA,
-		Title:    "RLS Test Deal",
-		Stage:    domain.DealStageLead,
-		Currency: "USD",
-		OwnerID:  ownerA,
+		OrgID:      orgA,
+		Title:      "RLS Test Deal",
+		Stage:      domain.DealStageLead,
+		Currency:   "USD",
+		OwnerID:    ownerA,
+		PipelineID: pipelineA,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, deal)
@@ -262,6 +271,22 @@ func TestRLS_CrossOrgDataLeakage(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	// Seed pipelines for each org (pipeline_id is NOT NULL on deals).
+	pipelineA, pipelineB := uuid.New(), uuid.New()
+	for _, p := range []struct {
+		id    uuid.UUID
+		orgID uuid.UUID
+	}{
+		{pipelineA, orgA},
+		{pipelineB, orgB},
+	} {
+		_, err := pool.Exec(context.Background(), `
+			INSERT INTO pipelines (id, org_id, name, stages)
+			VALUES ($1, $2, 'Default', '[]'::jsonb)
+		`, p.id, p.orgID)
+		require.NoError(t, err)
+	}
+
 	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
 	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
 
@@ -278,9 +303,9 @@ func TestRLS_CrossOrgDataLeakage(t *testing.T) {
 	_, err = accountRepo.Create(ctxB, &domain.Account{OrgID: orgB, Name: "OrgB Account", OwnerID: ownerB})
 	require.NoError(t, err)
 
-	_, err = dealRepo.Create(ctxA, &domain.Deal{OrgID: orgA, Title: "OrgA Deal", Stage: domain.DealStageLead, Currency: "USD", OwnerID: ownerA})
+	_, err = dealRepo.Create(ctxA, &domain.Deal{OrgID: orgA, Title: "OrgA Deal", Stage: domain.DealStageLead, Currency: "USD", OwnerID: ownerA, PipelineID: pipelineA})
 	require.NoError(t, err)
-	_, err = dealRepo.Create(ctxB, &domain.Deal{OrgID: orgB, Title: "OrgB Deal", Stage: domain.DealStageLead, Currency: "USD", OwnerID: ownerB})
+	_, err = dealRepo.Create(ctxB, &domain.Deal{OrgID: orgB, Title: "OrgB Deal", Stage: domain.DealStageLead, Currency: "USD", OwnerID: ownerB, PipelineID: pipelineB})
 	require.NoError(t, err)
 
 	_, err = activityRepo.Create(ctxA, &domain.Activity{OrgID: orgA, Type: domain.ActivityTypeCall, Subject: "OrgA Call", OwnerID: ownerA})
