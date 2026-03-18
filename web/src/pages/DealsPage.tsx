@@ -177,13 +177,17 @@ export function DealsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
   const [activeView, setActiveView] = useState<SavedView | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [sortKey, setSortKey] = useState('created_at:desc')
 
   const updateView = useUpdateView()
   const debouncedSearch = useDebounce(search, 300)
+  const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
   const currentFilters = {
     search: debouncedSearch || undefined,
     stage: stage || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
   }
 
   const applyViewFilters = (view: SavedView) => {
@@ -191,6 +195,7 @@ export function DealsPage() {
     setHasUnsavedChanges(false)
     setSearch((view.filters.search as string) ?? '')
     setStage((view.filters.stage as string) ?? '')
+    setSortKey(view.filters.sort_by ? `${view.filters.sort_by}:${view.filters.sort_dir ?? 'asc'}` : 'created_at:desc')
     setPage(1)
   }
 
@@ -214,8 +219,8 @@ export function DealsPage() {
     per_page: 20,
     search: debouncedSearch || undefined,
     stage: (stage as DealStage) || undefined,
-    sort_by: 'created_at',
-    sort_dir: 'desc',
+    sort_by: sortBy,
+    sort_dir: sortDir,
   })
 
   const kanbanDeals = kanbanQuery.data?.data ?? []
@@ -224,9 +229,14 @@ export function DealsPage() {
 
   const totalDeals = (viewMode === 'kanban' ? kanbanQuery.data?.meta : listQuery.data?.meta)?.total
 
-  const handleSort = useCallback((_key: string) => {
-    // future: column sort in list mode
-  }, [])
+  const handleSort = useCallback((key: string) => {
+    setSortKey((prev) => {
+      const [prevKey, prevDir] = prev.split(':')
+      if (prevKey === key) return `${key}:${prevDir === 'asc' ? 'desc' : 'asc'}`
+      return `${key}:asc`
+    })
+    markChanged()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns: Column<Deal>[] = [
     {
@@ -347,7 +357,7 @@ export function DealsPage() {
         currentFilters={currentFilters}
         onSelectView={applyViewFilters}
         onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
-        onViewSaved={(id) => setActiveView((v) => v ? { ...v, id } : null)}
+        onViewSaved={(view) => setActiveView(view)}
         onUpdateView={handleUpdateView}
       />
 
