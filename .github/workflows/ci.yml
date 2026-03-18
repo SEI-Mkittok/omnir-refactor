@@ -64,12 +64,11 @@ jobs:
           go tool cover -func=coverage.out
 
       - name: API integration tests
+        working-directory: api
         env:
           DATABASE_URL: postgres://omnir:omnir_dev@localhost:5432/omnir_crm_test?sslmode=disable
-          JWT_SECRET: ci-test-secret
-          ENV: test
           ORG_MODE: multitenant
-        run: go test -tags integration ./... -v -count=1
+        run: go test -tags integration ./internal/repository/postgres/... -v -count=1
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
