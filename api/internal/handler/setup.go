@@ -48,7 +48,6 @@ type setupRequest struct {
 	Password    string `json:"password"`
 }
 
-
 // Setup creates the first admin user and seeds the default org.
 // POST /api/setup → {token, user} or 409 if already set up.
 func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {

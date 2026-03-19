@@ -69,30 +69,30 @@ type Ticket struct {
 
 // TicketPatch holds optional fields for partial ticket updates.
 type TicketPatch struct {
-	Subject      *string          `json:"subject,omitempty"`
-	Description  *string          `json:"description,omitempty"`
-	Status       *TicketStatus    `json:"status,omitempty"`
-	Priority     *TicketPriority  `json:"priority,omitempty"`
-	AssigneeID   *uuid.UUID       `json:"assignee_id,omitempty"`
-	ContactID    *uuid.UUID       `json:"contact_id,omitempty"`
-	AccountID    *uuid.UUID       `json:"account_id,omitempty"`
-	Source       *string          `json:"source,omitempty"`
-	CustomFields json.RawMessage  `json:"custom_fields,omitempty"`
+	Subject      *string         `json:"subject,omitempty"`
+	Description  *string         `json:"description,omitempty"`
+	Status       *TicketStatus   `json:"status,omitempty"`
+	Priority     *TicketPriority `json:"priority,omitempty"`
+	AssigneeID   *uuid.UUID      `json:"assignee_id,omitempty"`
+	ContactID    *uuid.UUID      `json:"contact_id,omitempty"`
+	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
+	Source       *string         `json:"source,omitempty"`
+	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
 }
 
 // TicketFilter holds query parameters for listing tickets.
 type TicketFilter struct {
-	OrgID               uuid.UUID
-	Status              *TicketStatus
-	Priority            *TicketPriority
-	AssigneeID          *uuid.UUID
-	ContactID           *uuid.UUID
-	SubmittedByUserID   *uuid.UUID
-	Q                   string
-	Page                int
-	Limit               int
-	Sort                string
-	Order               string
+	OrgID             uuid.UUID
+	Status            *TicketStatus
+	Priority          *TicketPriority
+	AssigneeID        *uuid.UUID
+	ContactID         *uuid.UUID
+	SubmittedByUserID *uuid.UUID
+	Q                 string
+	Page              int
+	Limit             int
+	Sort              string
+	Order             string
 }
 
 // TicketComment is a reply or internal note attached to a ticket.

@@ -53,9 +53,9 @@ type Webhook struct {
 
 // WebhookPatch contains the fields that can be updated on a webhook.
 type WebhookPatch struct {
-	URL    *string         `json:"url,omitempty"`
-	Events []WebhookEvent  `json:"events,omitempty"`
-	Active *bool           `json:"active,omitempty"`
+	URL    *string        `json:"url,omitempty"`
+	Events []WebhookEvent `json:"events,omitempty"`
+	Active *bool          `json:"active,omitempty"`
 }
 
 // WebhookDelivery records one delivery attempt for a webhook event.

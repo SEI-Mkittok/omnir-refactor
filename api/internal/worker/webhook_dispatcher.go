@@ -194,4 +194,3 @@ func computeSignature(secret string, payload []byte) string {
 	mac.Write(payload)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
-

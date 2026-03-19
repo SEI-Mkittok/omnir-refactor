@@ -187,4 +187,3 @@ func (h *OrgHandler) uniqueSlug(ctx context.Context, base string) (string, error
 		candidate = base + "-" + strconv.Itoa(i)
 	}
 }
-

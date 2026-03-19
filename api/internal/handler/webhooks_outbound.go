@@ -59,7 +59,7 @@ func (h *OutboundWebhookHandler) List(w http.ResponseWriter, r *http.Request) {
 // Create registers a new outbound webhook.
 func (h *OutboundWebhookHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		URL    string               `json:"url"`
+		URL    string                `json:"url"`
 		Events []domain.WebhookEvent `json:"events"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

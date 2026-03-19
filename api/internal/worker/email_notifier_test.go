@@ -3,7 +3,6 @@ package worker_test
 import (
 	"context"
 	"log/slog"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,32 +14,6 @@ import (
 	"github.com/omnir/crm-api/internal/email"
 	"github.com/omnir/crm-api/internal/worker"
 )
-
-// stubSender is a thread-safe in-memory email sender for testing.
-type stubSender struct {
-	mu   sync.Mutex
-	sent []email.Message
-}
-
-func (s *stubSender) Send(msg email.Message) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.sent = append(s.sent, msg)
-	return nil
-}
-
-func (s *stubSender) Messages() []email.Message {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := make([]email.Message, len(s.sent))
-	copy(out, s.sent)
-	return out
-}
-
-// senderAdapter wraps stubSender so it satisfies the email.Sender interface shape.
-// We create a real Sender but swap the underlying SMTP connection with a mock by
-// using SMTP_ENABLED=false and testing the notifier dispatch layer separately.
-
 
 func TestEmailNotifier_EnqueueAndDeliver(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
