@@ -156,6 +156,7 @@ type TicketCommentRepository interface {
 // TicketAttachmentRepository defines the persistence contract for ticket attachments.
 type TicketAttachmentRepository interface {
 	Create(ctx context.Context, a *domain.TicketAttachment) (*domain.TicketAttachment, error)
+	GetByID(ctx context.Context, id, ticketID uuid.UUID) (*domain.TicketAttachment, error)
 	List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error)
 	Delete(ctx context.Context, id, ticketID uuid.UUID) error
 }

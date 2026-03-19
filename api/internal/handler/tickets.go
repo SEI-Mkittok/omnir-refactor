@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -13,55 +13,32 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
+	"github.com/omnir/crm-api/internal/storage"
 )
-
-// EmailEnqueuer is satisfied by worker.EmailNotifier. Defined here to avoid
-// an import cycle and to make the handler independently testable.
-type EmailEnqueuer interface {
-	Enqueue(job domain.EmailJob)
-}
 
 // TicketHandler serves the /tickets resource and its sub-resources.
 type TicketHandler struct {
 	tickets     repository.TicketRepository
 	comments    repository.TicketCommentRepository
 	attachments repository.TicketAttachmentRepository
-	slaPolicies repository.SLAPolicyRepository
-	users       repository.UserRepository
-	notifPrefs  repository.NotificationPrefRepository
-	emailQueue  EmailEnqueuer // nil → email notifications disabled
+	storage     storage.Backend
 }
 
 func NewTicketHandler(
 	tickets repository.TicketRepository,
 	comments repository.TicketCommentRepository,
 	attachments repository.TicketAttachmentRepository,
-	slaPolicies repository.SLAPolicyRepository,
+	store storage.Backend,
 ) *TicketHandler {
-	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments, slaPolicies: slaPolicies}
-}
-
-// ticketResponse wraps a Ticket with computed SLA status for API responses.
-type ticketResponse struct {
-	*domain.Ticket
-	SLA *domain.SLAStatus `json:"sla,omitempty"`
-}
-
-// WithEmailNotifications attaches the dependencies needed for outbound email notifications.
-func (h *TicketHandler) WithEmailNotifications(
-	users repository.UserRepository,
-	notifPrefs repository.NotificationPrefRepository,
-	queue EmailEnqueuer,
-) *TicketHandler {
-	h.users = users
-	h.notifPrefs = notifPrefs
-	h.emailQueue = queue
-	return h
+	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments, storage: store}
 }
 
 func (h *TicketHandler) Router() chi.Router {
 	r := chi.NewRouter()
 
+	// agentOnly restricts mutation operations to admin and agent roles.
+	// Read operations and comment creation are also open to client role,
+	// with per-handler logic filtering what clients can see/do.
 	agentOnly := middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent)
 
 	r.Get("/", h.List)
@@ -70,16 +47,20 @@ func (h *TicketHandler) Router() chi.Router {
 	r.With(agentOnly).Patch("/{id}", h.Update)
 	r.With(agentOnly).Delete("/{id}", h.Delete)
 
-	r.Get("/{id}/comments", h.ListComments)
-	r.Post("/{id}/comments", h.CreateComment)
+	// Nested sub-resources
+	r.Get("/{id}/comments", h.ListComments)        // clients see public comments only (filtered in handler)
+	r.Post("/{id}/comments", h.CreateComment)      // clients can comment but not mark internal (enforced in handler)
 	r.With(agentOnly).Delete("/{id}/comments/{commentID}", h.DeleteComment)
 
 	r.Get("/{id}/attachments", h.ListAttachments)
 	r.With(agentOnly).Post("/{id}/attachments", h.CreateAttachment)
+	r.Get("/{id}/attachments/{attachmentID}", h.GetAttachment)
 	r.With(agentOnly).Delete("/{id}/attachments/{attachmentID}", h.DeleteAttachment)
 
 	return r
 }
+
+// ---- Ticket CRUD ----
 
 func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -88,6 +69,7 @@ func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 		Sort:  q.Get("sort_by"),
 		Order: q.Get("sort_dir"),
 	}
+
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			filter.Page = n
@@ -116,12 +98,14 @@ func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.ContactID = &id
 		}
 	}
+
 	if filter.Limit == 0 {
 		filter.Limit = 50
 	}
 	if filter.Page == 0 {
 		filter.Page = 1
 	}
+
 	tickets, total, err := h.tickets.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -140,14 +124,7 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "subject is required")
 		return
 	}
-	if t.Status != "" && !t.Status.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, in_progress, pending, resolved, closed")
-		return
-	}
-	if t.Priority != "" && !t.Priority.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid priority: must be one of low, medium, high, critical")
-		return
-	}
+
 	created, err := h.tickets.Create(r.Context(), &t)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -167,45 +144,7 @@ func (h *TicketHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-
-	resp := &ticketResponse{Ticket: t}
-	if t.SLAPolicyID != nil && h.slaPolicies != nil {
-		if policy, err := h.slaPolicies.GetByID(r.Context(), *t.SLAPolicyID); err == nil {
-			now := time.Now().UTC()
-			responseDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResponseTimeHours))
-			resolutionDue := t.CreatedAt.Add(time.Duration(float64(time.Hour) * policy.ResolutionTimeHours))
-
-			responseBreached := now.After(responseDue) && t.FirstRespondedAt == nil
-			resolutionBreached := now.After(resolutionDue)
-
-			status := "on_track"
-			if responseBreached || resolutionBreached {
-				status = "breached"
-			} else {
-				responseTotal := responseDue.Sub(t.CreatedAt)
-				resolutionTotal := resolutionDue.Sub(t.CreatedAt)
-				responseRemaining := responseDue.Sub(now)
-				resolutionRemaining := resolutionDue.Sub(now)
-				if (t.FirstRespondedAt == nil && responseRemaining < responseTotal/5) ||
-					resolutionRemaining < resolutionTotal/5 {
-					status = "at_risk"
-				}
-			}
-
-			resp.SLA = &domain.SLAStatus{
-				PolicyID:           t.SLAPolicyID,
-				PolicyName:         policy.Name,
-				ResponseDueAt:      &responseDue,
-				ResolutionDueAt:    &resolutionDue,
-				ResponseBreached:   responseBreached,
-				ResolutionBreached: resolutionBreached,
-				FirstRespondedAt:   t.FirstRespondedAt,
-				Status:             status,
-			}
-		}
-	}
-
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, t)
 }
 
 func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -219,31 +158,11 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
-	if patch.Status != nil && !(*patch.Status).IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid status: must be one of open, in_progress, pending, resolved, closed")
-		return
-	}
-	if patch.Priority != nil && !(*patch.Priority).IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid priority: must be one of low, medium, high, critical")
-		return
-	}
-
-	// Fetch old state before update so we can detect changes for notifications.
-	var old *domain.Ticket
-	if h.emailQueue != nil {
-		old, _ = h.tickets.GetByID(r.Context(), id) // best-effort
-	}
-
 	t, err := h.tickets.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
-
-	if h.emailQueue != nil && old != nil {
-		go h.enqueueTicketNotifications(context.Background(), old, t)
-	}
-
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -260,77 +179,6 @@ func (h *TicketHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// enqueueTicketNotifications detects state changes and enqueues email jobs.
-func (h *TicketHandler) enqueueTicketNotifications(ctx context.Context, old, updated *domain.Ticket) {
-	orgID := updated.OrgID
-
-	// Assignee changed → notify new assignee.
-	if h.assigneeChanged(old, updated) && updated.AssigneeID != nil {
-		assignee, err := h.users.GetByID(ctx, *updated.AssigneeID)
-		if err == nil {
-			pref, _ := h.notifPrefs.GetByUser(ctx, assignee.ID, orgID)
-			if pref == nil || pref.EmailOnAssigned {
-				h.emailQueue.Enqueue(domain.EmailJob{
-					Kind:          domain.EmailEventAssigned,
-					ToEmail:       assignee.Email,
-					ToName:        assignee.Name,
-					TicketID:      updated.ID.String(),
-					TicketSubject: updated.Subject,
-				})
-			}
-		}
-	}
-
-	// Status changed to resolved or closed → notify reporter.
-	if updated.SubmittedByUserID != nil && h.statusChangedTo(old, updated, domain.TicketStatusResolved, domain.TicketStatusClosed) {
-		reporter, err := h.users.GetByID(ctx, *updated.SubmittedByUserID)
-		if err == nil {
-			pref, _ := h.notifPrefs.GetByUser(ctx, reporter.ID, orgID)
-			var kind domain.EmailEventKind
-			if updated.Status == domain.TicketStatusResolved {
-				if pref == nil || pref.EmailOnResolved {
-					kind = domain.EmailEventResolved
-				}
-			} else {
-				if pref == nil || pref.EmailOnClosed {
-					kind = domain.EmailEventClosed
-				}
-			}
-			if kind != "" {
-				h.emailQueue.Enqueue(domain.EmailJob{
-					Kind:          kind,
-					ToEmail:       reporter.Email,
-					ToName:        reporter.Name,
-					TicketID:      updated.ID.String(),
-					TicketSubject: updated.Subject,
-				})
-			}
-		}
-	}
-}
-
-func (h *TicketHandler) assigneeChanged(old, updated *domain.Ticket) bool {
-	if old.AssigneeID == nil && updated.AssigneeID == nil {
-		return false
-	}
-	if old.AssigneeID == nil || updated.AssigneeID == nil {
-		return true
-	}
-	return *old.AssigneeID != *updated.AssigneeID
-}
-
-func (h *TicketHandler) statusChangedTo(old, updated *domain.Ticket, statuses ...domain.TicketStatus) bool {
-	if old.Status == updated.Status {
-		return false
-	}
-	for _, s := range statuses {
-		if updated.Status == s {
-			return true
-		}
-	}
-	return false
-}
-
 // ---- Comments ----
 
 func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
@@ -339,6 +187,8 @@ func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
+
+	// Clients (non-agents) can only see public comments.
 	filter := domain.TicketCommentFilter{TicketID: ticketID}
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
 		if claims.Role == string(domain.UserRoleClient) {
@@ -346,6 +196,7 @@ func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 			filter.IsInternal = &f
 		}
 	}
+
 	comments, err := h.comments.List(r.Context(), filter)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -360,6 +211,7 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
+
 	var req struct {
 		Body       string `json:"body"`
 		IsInternal bool   `json:"is_internal"`
@@ -372,14 +224,18 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "body is required")
 		return
 	}
+
+	// Extract author from JWT claims.
 	var authorID *uuid.UUID
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
 		id := claims.UserID
 		authorID = &id
+		// Clients cannot post internal notes.
 		if claims.Role == string(domain.UserRoleClient) {
 			req.IsInternal = false
 		}
 	}
+
 	c := &domain.TicketComment{
 		TicketID:   ticketID,
 		AuthorID:   authorID,
@@ -428,48 +284,131 @@ func (h *TicketHandler) ListAttachments(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, attachments)
 }
 
+// CreateAttachment accepts a multipart/form-data upload.
+// The file is stored via the configured storage backend (S3 or local).
+// Field name: "file".
 func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request) {
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
-	var req struct {
-		Filename    string `json:"filename"`
-		ContentType string `json:"content_type"`
-		SizeBytes   *int64 `json:"size_bytes"`
-		StorageURL  string `json:"url"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+
+	// Limit memory to 32 MB; larger files are buffered to temp files automatically.
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "failed to parse multipart form")
 		return
 	}
-	if req.Filename == "" || req.StorageURL == "" {
-		writeError(w, http.StatusUnprocessableEntity, "filename and url are required")
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "file field is required")
 		return
 	}
+	defer file.Close()
+
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
 	var uploadedBy *uuid.UUID
+	orgID := uuid.Nil
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
 		id := claims.UserID
 		uploadedBy = &id
+		orgID = claims.OrgID
 	}
+
+	storageKey := fmt.Sprintf("orgs/%s/tickets/%s/%s/%s", orgID, ticketID, uuid.New(), header.Filename)
+	if err := h.storage.Upload(r.Context(), storageKey, file, header.Size, contentType); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to upload file")
+		return
+	}
+
+	// Pre-generate the attachment ID so the storage_url stored in the DB is complete.
+	attachmentID := uuid.New()
+	size := header.Size
 	a := &domain.TicketAttachment{
-		TicketID:    ticketID,
-		UploadedBy:  uploadedBy,
-		Filename:    req.Filename,
-		ContentType: req.ContentType,
-		SizeBytes:   req.SizeBytes,
-		StorageURL:  req.StorageURL,
+		ID:             attachmentID,
+		TicketID:       ticketID,
+		UploadedBy:     uploadedBy,
+		Filename:       header.Filename,
+		ContentType:    contentType,
+		SizeBytes:      &size,
+		StorageKey:     storageKey,
+		StorageBackend: h.storage.Type(),
+		StorageURL:     fmt.Sprintf("/api/v1/tickets/%s/attachments/%s", ticketID, attachmentID),
 	}
-	if a.ContentType == "" {
-		a.ContentType = "application/octet-stream"
-	}
+
 	created, err := h.attachments.Create(r.Context(), a)
+	if err != nil {
+		// Best-effort cleanup of uploaded object on DB failure.
+		_ = h.storage.Delete(r.Context(), storageKey)
+		handleDomainErr(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, created)
+}
+
+// GetAttachment serves or redirects to the attachment file.
+// S3 backend: issues a 302 redirect to a presigned URL.
+// Local backend: streams the file directly.
+func (h *TicketHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
+	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+	attachmentID, err := uuid.Parse(chi.URLParam(r, "attachmentID"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid attachment id")
+		return
+	}
+
+	a, err := h.attachments.GetByID(r.Context(), attachmentID, ticketID)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, created)
+
+	// Legacy record: no storage key — redirect to stored URL.
+	if a.StorageKey == "" {
+		if a.StorageURL != "" {
+			http.Redirect(w, r, a.StorageURL, http.StatusFound)
+			return
+		}
+		writeError(w, http.StatusNotFound, "attachment has no downloadable content")
+		return
+	}
+
+	// Try presigned URL first (S3 backend returns non-empty string).
+	presignedURL, err := h.storage.PresignURL(r.Context(), a.StorageKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to generate download URL")
+		return
+	}
+	if presignedURL != "" {
+		http.Redirect(w, r, presignedURL, http.StatusFound)
+		return
+	}
+
+	// Local backend: stream the file.
+	rc, err := h.storage.Open(r.Context(), a.StorageKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to open attachment")
+		return
+	}
+	defer rc.Close()
+
+	w.Header().Set("Content-Type", a.ContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, a.Filename))
+	if a.SizeBytes != nil {
+		w.Header().Set("Content-Length", strconv.FormatInt(*a.SizeBytes, 10))
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, rc)
 }
 
 func (h *TicketHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {

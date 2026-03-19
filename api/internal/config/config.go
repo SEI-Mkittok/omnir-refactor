@@ -5,6 +5,29 @@ import (
 	"strings"
 )
 
+// StorageBackend selects the file storage implementation.
+type StorageBackend string
+
+const (
+	StorageBackendLocal StorageBackend = "local"
+	StorageBackendS3    StorageBackend = "s3"
+)
+
+// StorageConfig holds configuration for the file storage backend.
+type StorageConfig struct {
+	Backend StorageBackend
+
+	// S3 / S3-compatible (MinIO) settings
+	S3Endpoint  string
+	S3Bucket    string
+	S3AccessKey string
+	S3SecretKey string
+	S3UseSSL    bool
+
+	// Local filesystem settings
+	LocalBasePath string
+}
+
 // OrgMode controls multi-tenancy behaviour.
 type OrgMode string
 
@@ -26,6 +49,7 @@ type Config struct {
 	OrgMode       OrgMode
 	SMTP          SMTPConfig
 	WebhookSecret string
+	Storage       StorageConfig
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -58,6 +82,15 @@ func Load() *Config {
 			From:     getEnv("SMTP_FROM", "noreply@omnir.io"),
 		},
 		WebhookSecret: getEnv("WEBHOOK_SECRET", ""),
+		Storage: StorageConfig{
+			Backend:       StorageBackend(getEnv("STORAGE_BACKEND", string(StorageBackendLocal))),
+			S3Endpoint:    getEnv("S3_ENDPOINT", ""),
+			S3Bucket:      getEnv("S3_BUCKET", "omnir-attachments"),
+			S3AccessKey:   getEnv("S3_ACCESS_KEY", ""),
+			S3SecretKey:   getEnv("S3_SECRET_KEY", ""),
+			S3UseSSL:      getEnv("S3_USE_SSL", "true") == "true",
+			LocalBasePath: getEnv("STORAGE_LOCAL_PATH", "./uploads"),
+		},
 	}
 }
 

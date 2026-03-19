@@ -97,6 +97,14 @@ func (m *MockTicketAttachmentRepository) Create(ctx context.Context, a *domain.T
 	return args.Get(0).(*domain.TicketAttachment), args.Error(1)
 }
 
+func (m *MockTicketAttachmentRepository) GetByID(ctx context.Context, id, ticketID uuid.UUID) (*domain.TicketAttachment, error) {
+	args := m.Called(ctx, id, ticketID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.TicketAttachment), args.Error(1)
+}
+
 func (m *MockTicketAttachmentRepository) List(ctx context.Context, ticketID uuid.UUID) ([]*domain.TicketAttachment, error) {
 	args := m.Called(ctx, ticketID)
 	if args.Get(0) == nil {

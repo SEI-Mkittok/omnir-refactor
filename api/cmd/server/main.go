@@ -22,6 +22,7 @@ import (
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository/postgres"
+	"github.com/omnir/crm-api/internal/storage"
 	"github.com/omnir/crm-api/internal/worker"
 )
 
@@ -116,8 +117,35 @@ func main() {
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
-	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, slaPolicyRepo).
-		WithEmailNotifications(userRepo, notifPrefRepo, emailNotifier)
+	// Initialize file storage backend (S3-compatible or local fallback)
+	var storageBackend storage.Backend
+	if cfg.Storage.Backend == config.StorageBackendS3 {
+		storageBackend, err = storage.NewS3Backend(
+			cfg.Storage.S3Endpoint,
+			cfg.Storage.S3Bucket,
+			cfg.Storage.S3AccessKey,
+			cfg.Storage.S3SecretKey,
+			cfg.Storage.S3UseSSL,
+		)
+		if err != nil {
+			logger.Error("failed to initialize S3 storage backend", "err", err)
+			os.Exit(1)
+		}
+		logger.Info("storage: S3 backend", "endpoint", cfg.Storage.S3Endpoint, "bucket", cfg.Storage.S3Bucket)
+	} else {
+		basePath := cfg.Storage.LocalBasePath
+		if basePath == "" {
+			basePath = "./uploads"
+		}
+		storageBackend, err = storage.NewLocalBackend(basePath)
+		if err != nil {
+			logger.Error("failed to initialize local storage backend", "err", err)
+			os.Exit(1)
+		}
+		logger.Info("storage: local backend", "path", basePath)
+	}
+
+	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, storageBackend)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
 	inboundWebhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger)

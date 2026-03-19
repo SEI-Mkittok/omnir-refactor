@@ -19,7 +19,6 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import { downloadExportCsv } from '@/api/importExport'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { DealForm } from '@/components/omnir/DealForm'
-import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 import type { Deal, DealStage, CustomFieldValues, SavedView } from '@/api/types'
 
 const STAGE_OPTIONS = [

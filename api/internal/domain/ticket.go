@@ -117,13 +117,15 @@ type TicketCommentFilter struct {
 
 // TicketAttachment is a file attached to a ticket.
 type TicketAttachment struct {
-	ID          uuid.UUID  `json:"id"`
-	TicketID    uuid.UUID  `json:"ticket_id"`
-	OrgID       uuid.UUID  `json:"org_id"`
-	UploadedBy  *uuid.UUID `json:"uploaded_by,omitempty"`
-	Filename    string     `json:"filename"`
-	ContentType string     `json:"content_type"`
-	SizeBytes   *int64     `json:"size_bytes,omitempty"`
-	StorageURL  string     `json:"url"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID             uuid.UUID  `json:"id"`
+	TicketID       uuid.UUID  `json:"ticket_id"`
+	OrgID          uuid.UUID  `json:"org_id"`
+	UploadedBy     *uuid.UUID `json:"uploaded_by,omitempty"`
+	Filename       string     `json:"filename"`
+	ContentType    string     `json:"content_type"`
+	SizeBytes      *int64     `json:"size_bytes,omitempty"`
+	StorageURL     string     `json:"url"`
+	StorageKey     string     `json:"-"` // opaque backend key, not exposed to clients
+	StorageBackend string     `json:"-"` // "s3" | "local" | ""
+	CreatedAt      time.Time  `json:"created_at"`
 }
