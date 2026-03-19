@@ -503,4 +503,3 @@ func (r *SequenceRepo) RecordEvent(ctx context.Context, e *domain.SequenceEvent)
 	`, e.ID, e.SequenceID, e.StepID, e.EnrollmentID, e.ContactID, e.OrgID, e.Kind, e.OccurredAt)
 	return err
 }
-

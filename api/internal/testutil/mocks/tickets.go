@@ -38,7 +38,6 @@ func (m *MockTicketRepository) GetByEmailMessageID(ctx context.Context, messageI
 	return args.Get(0).(*domain.Ticket), args.Error(1)
 }
 
-
 func (m *MockTicketRepository) Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error) {
 	args := m.Called(ctx, id, patch)
 	if args.Get(0) == nil {

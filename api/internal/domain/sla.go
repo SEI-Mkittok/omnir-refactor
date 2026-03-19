@@ -29,16 +29,16 @@ const (
 // SLAPolicy defines response and resolution time targets for tickets matching
 // specific priorities within an org.
 type SLAPolicy struct {
-	ID                   uuid.UUID        `json:"id"`
-	OrgID                uuid.UUID        `json:"org_id"`
-	Name                 string           `json:"name"`
-	EntityType           SLAEntityType    `json:"entity_type"`
-	Conditions           json.RawMessage  `json:"conditions"`
-	ResponseTimeHours    float64          `json:"response_time_hours"`
-	ResolutionTimeHours  float64          `json:"resolution_time_hours"`
-	PriorityFilter       []TicketPriority `json:"priority_filter"`
-	CreatedAt            time.Time        `json:"created_at"`
-	UpdatedAt            time.Time        `json:"updated_at"`
+	ID                  uuid.UUID        `json:"id"`
+	OrgID               uuid.UUID        `json:"org_id"`
+	Name                string           `json:"name"`
+	EntityType          SLAEntityType    `json:"entity_type"`
+	Conditions          json.RawMessage  `json:"conditions"`
+	ResponseTimeHours   float64          `json:"response_time_hours"`
+	ResolutionTimeHours float64          `json:"resolution_time_hours"`
+	PriorityFilter      []TicketPriority `json:"priority_filter"`
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
 }
 
 // SLAPolicyPatch holds optional fields for partial SLA policy updates.
@@ -65,20 +65,20 @@ type SLAStatus struct {
 
 // SLAInstance tracks SLA state for a specific entity (deal, contact, activity, ticket).
 type SLAInstance struct {
-	ID               uuid.UUID     `json:"id"`
-	OrgID            uuid.UUID     `json:"org_id"`
-	PolicyID         uuid.UUID     `json:"policy_id"`
-	EntityID         uuid.UUID     `json:"entity_id"`
-	EntityType       SLAEntityType `json:"entity_type"`
-	StartedAt        time.Time     `json:"started_at"`
-	ResponseDueAt    time.Time     `json:"response_due_at"`
-	ResolutionDueAt  time.Time     `json:"resolution_due_at"`
-	RespondedAt      *time.Time    `json:"responded_at,omitempty"`
-	ResolvedAt       *time.Time    `json:"resolved_at,omitempty"`
-	Breached         bool          `json:"breached"`
-	BreachType       SLABreachType `json:"breach_type"`
-	WarnedAt         *time.Time    `json:"warned_at,omitempty"`
-	CreatedAt        time.Time     `json:"created_at"`
+	ID              uuid.UUID     `json:"id"`
+	OrgID           uuid.UUID     `json:"org_id"`
+	PolicyID        uuid.UUID     `json:"policy_id"`
+	EntityID        uuid.UUID     `json:"entity_id"`
+	EntityType      SLAEntityType `json:"entity_type"`
+	StartedAt       time.Time     `json:"started_at"`
+	ResponseDueAt   time.Time     `json:"response_due_at"`
+	ResolutionDueAt time.Time     `json:"resolution_due_at"`
+	RespondedAt     *time.Time    `json:"responded_at,omitempty"`
+	ResolvedAt      *time.Time    `json:"resolved_at,omitempty"`
+	Breached        bool          `json:"breached"`
+	BreachType      SLABreachType `json:"breach_type"`
+	WarnedAt        *time.Time    `json:"warned_at,omitempty"`
+	CreatedAt       time.Time     `json:"created_at"`
 	// Computed status for API responses
 	Status string `json:"status,omitempty"` // on_track | at_risk | breached
 }
@@ -112,7 +112,7 @@ type SLAInstanceFilter struct {
 
 // SLADashboard summarises SLA health across an org.
 type SLADashboard struct {
-	OnTrack int `json:"on_track"`
-	AtRisk  int `json:"at_risk"`
+	OnTrack  int `json:"on_track"`
+	AtRisk   int `json:"at_risk"`
 	Breached int `json:"breached"`
 }

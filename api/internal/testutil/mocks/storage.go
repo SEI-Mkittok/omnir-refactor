@@ -46,7 +46,7 @@ type NoopStorageBackend struct{}
 func (NoopStorageBackend) Upload(_ context.Context, _ string, _ io.Reader, _ int64, _ string) error {
 	return nil
 }
-func (NoopStorageBackend) Delete(_ context.Context, _ string) error       { return nil }
+func (NoopStorageBackend) Delete(_ context.Context, _ string) error               { return nil }
 func (NoopStorageBackend) PresignURL(_ context.Context, _ string) (string, error) { return "", nil }
 func (NoopStorageBackend) Open(_ context.Context, _ string) (io.ReadCloser, error) {
 	return nil, nil

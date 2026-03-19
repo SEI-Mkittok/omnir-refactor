@@ -32,8 +32,8 @@ func TestReportsRepo_TicketMetrics(t *testing.T) {
 	t.Run("returns correct open/closed counts", func(t *testing.T) {
 		report, err := repo.TicketMetrics(ctx, domain.ReportFilter{})
 		require.NoError(t, err)
-		assert.Equal(t, 3, report.TotalOpen)  // open + pending + old open
-		assert.Equal(t, 1, report.TotalClosed) // resolved
+		assert.Equal(t, 3, report.TotalOpen)     // open + pending + old open
+		assert.Equal(t, 1, report.TotalClosed)   // resolved
 		assert.Equal(t, 3, len(report.ByStatus)) // 3 distinct statuses: open, pending, resolved
 	})
 
@@ -50,7 +50,7 @@ func TestReportsRepo_TicketMetrics(t *testing.T) {
 		report, err := repo.TicketMetrics(ctx, domain.ReportFilter{From: &from})
 		require.NoError(t, err)
 		// The old open ticket (72h ago) and resolved (2h ago) should be excluded.
-		assert.Equal(t, 2, report.TotalOpen)  // open + pending (within last hour)
+		assert.Equal(t, 2, report.TotalOpen) // open + pending (within last hour)
 		assert.Equal(t, 0, report.TotalClosed)
 	})
 }

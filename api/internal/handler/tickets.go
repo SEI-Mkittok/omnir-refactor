@@ -48,8 +48,8 @@ func (h *TicketHandler) Router() chi.Router {
 	r.With(agentOnly).Delete("/{id}", h.Delete)
 
 	// Nested sub-resources
-	r.Get("/{id}/comments", h.ListComments)        // clients see public comments only (filtered in handler)
-	r.Post("/{id}/comments", h.CreateComment)      // clients can comment but not mark internal (enforced in handler)
+	r.Get("/{id}/comments", h.ListComments)   // clients see public comments only (filtered in handler)
+	r.Post("/{id}/comments", h.CreateComment) // clients can comment but not mark internal (enforced in handler)
 	r.With(agentOnly).Delete("/{id}/comments/{commentID}", h.DeleteComment)
 
 	r.Get("/{id}/attachments", h.ListAttachments)

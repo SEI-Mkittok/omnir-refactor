@@ -389,11 +389,11 @@ func TestTicketHandler_ListComments(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		ticketID      string
-		claims        *auth.Claims
-		setupMock     func(*mocks.MockTicketCommentRepository)
-		wantStatus    int
+		name           string
+		ticketID       string
+		claims         *auth.Claims
+		setupMock      func(*mocks.MockTicketCommentRepository)
+		wantStatus     int
 		expectInternal bool
 	}{
 		{
@@ -429,11 +429,11 @@ func TestTicketHandler_ListComments(t *testing.T) {
 			expectInternal: false,
 		},
 		{
-			name:          "returns 400 for invalid ticket id",
-			ticketID:      "not-a-uuid",
-			claims:        &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAdmin)},
-			setupMock:     func(m *mocks.MockTicketCommentRepository) {},
-			wantStatus:    http.StatusBadRequest,
+			name:           "returns 400 for invalid ticket id",
+			ticketID:       "not-a-uuid",
+			claims:         &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAdmin)},
+			setupMock:      func(m *mocks.MockTicketCommentRepository) {},
+			wantStatus:     http.StatusBadRequest,
 			expectInternal: false,
 		},
 	}

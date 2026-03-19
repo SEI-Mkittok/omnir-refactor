@@ -58,8 +58,8 @@ type EmailSequence struct {
 	CreatedBy   *uuid.UUID     `json:"created_by,omitempty"`
 	Steps       []SequenceStep `json:"steps,omitempty"`
 	// Analytics fields (populated on list)
-	EnrolledCount int     `json:"enrolled_count"`
-	OpenRate      float64 `json:"open_rate"`
+	EnrolledCount int       `json:"enrolled_count"`
+	OpenRate      float64   `json:"open_rate"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -107,16 +107,16 @@ type SequenceEvent struct {
 
 // SequenceAnalytics holds per-sequence aggregate metrics.
 type SequenceAnalytics struct {
-	SequenceID  uuid.UUID            `json:"sequence_id"`
-	Sent        int                  `json:"sent"`
-	Opened      int                  `json:"opened"`
-	Clicked     int                  `json:"clicked"`
-	Completed   int                  `json:"completed"`
-	Bounced     int                  `json:"bounced"`
-	Unsubscribed int                 `json:"unsubscribed"`
-	OpenRate    float64              `json:"open_rate"`
-	ClickRate   float64              `json:"click_rate"`
-	Steps       []StepAnalytics      `json:"steps"`
+	SequenceID   uuid.UUID       `json:"sequence_id"`
+	Sent         int             `json:"sent"`
+	Opened       int             `json:"opened"`
+	Clicked      int             `json:"clicked"`
+	Completed    int             `json:"completed"`
+	Bounced      int             `json:"bounced"`
+	Unsubscribed int             `json:"unsubscribed"`
+	OpenRate     float64         `json:"open_rate"`
+	ClickRate    float64         `json:"click_rate"`
+	Steps        []StepAnalytics `json:"steps"`
 }
 
 // StepAnalytics holds per-step metrics.
@@ -132,8 +132,8 @@ type StepAnalytics struct {
 
 // CreateSequenceRequest is the payload to create a new sequence.
 type CreateSequenceRequest struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
 	Steps       []CreateStepRequest `json:"steps"`
 }
 
@@ -146,9 +146,9 @@ func (r *CreateSequenceRequest) Validate() error {
 
 // UpdateSequenceRequest is the payload to update a sequence's metadata or status.
 type UpdateSequenceRequest struct {
-	Name        *string         `json:"name,omitempty"`
-	Description *string         `json:"description,omitempty"`
-	Status      *SequenceStatus `json:"status,omitempty"`
+	Name        *string             `json:"name,omitempty"`
+	Description *string             `json:"description,omitempty"`
+	Status      *SequenceStatus     `json:"status,omitempty"`
 	Steps       []CreateStepRequest `json:"steps,omitempty"` // full replacement of steps when provided
 }
 

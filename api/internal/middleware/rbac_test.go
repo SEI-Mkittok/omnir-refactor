@@ -1,7 +1,6 @@
 package middleware_test
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,18 +11,6 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 )
-
-// injectClaims injects JWT claims directly into the request context,
-// simulating what the Authenticate middleware does.
-func injectClaims(r *http.Request, role string) *http.Request {
-	claims := &auth.Claims{Role: role}
-	ctx := context.WithValue(r.Context(), contextKey("claims"), claims)
-	return r.WithContext(ctx)
-}
-
-// contextKey mirrors the unexported type in middleware — we use the exported
-// ClaimsFromContext helper instead of the key directly in tests.
-type contextKey string
 
 // okHandler is a simple handler that always returns 200.
 var okHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
