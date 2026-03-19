@@ -41,13 +41,6 @@ func (s *stubSender) Messages() []email.Message {
 // We create a real Sender but swap the underlying SMTP connection with a mock by
 // using SMTP_ENABLED=false and testing the notifier dispatch layer separately.
 
-func newTestMailer(stub *stubSender) *email.Mailer {
-	// Use a disabled sender so actual Send calls are no-ops, but we still test
-	// the notifier dispatch logic via the stubSender pattern below.
-	cfg := config.SMTPConfig{Enabled: false}
-	_ = stub
-	return email.NewMailer(email.NewSender(cfg), "https://test.omnir.io")
-}
 
 func TestEmailNotifier_EnqueueAndDeliver(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
