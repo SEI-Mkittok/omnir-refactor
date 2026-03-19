@@ -48,7 +48,7 @@ type TicketStatusCount struct {
 
 // TicketDailyMetric holds the number of tickets created on a given day.
 type TicketDailyMetric struct {
-	Date  string `json:"date"`  // YYYY-MM-DD
+	Date  string `json:"date"` // YYYY-MM-DD
 	Count int    `json:"count"`
 }
 

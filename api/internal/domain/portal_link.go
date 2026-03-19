@@ -10,17 +10,17 @@ import (
 // to a deal snapshot without requiring a CRM account. The token IS the
 // credential — revoked or expired links return 404.
 type PortalLink struct {
-	ID                uuid.UUID  `json:"id"`
-	OrgID             uuid.UUID  `json:"org_id"`
-	DealID            uuid.UUID  `json:"deal_id"`
-	CreatedByUserID   *uuid.UUID `json:"created_by_user_id,omitempty"`
-	Token             string     `json:"token"`
-	Label             *string    `json:"label,omitempty"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	RevokedAt         *time.Time `json:"revoked_at,omitempty"`
-	ViewCount         int        `json:"view_count"`
-	LastViewedAt      *time.Time `json:"last_viewed_at,omitempty"`
-	CreatedAt         time.Time  `json:"created_at"`
+	ID              uuid.UUID  `json:"id"`
+	OrgID           uuid.UUID  `json:"org_id"`
+	DealID          uuid.UUID  `json:"deal_id"`
+	CreatedByUserID *uuid.UUID `json:"created_by_user_id,omitempty"`
+	Token           string     `json:"token"`
+	Label           *string    `json:"label,omitempty"`
+	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	RevokedAt       *time.Time `json:"revoked_at,omitempty"`
+	ViewCount       int        `json:"view_count"`
+	LastViewedAt    *time.Time `json:"last_viewed_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 // IsActive returns false when the link has been revoked or has expired.
