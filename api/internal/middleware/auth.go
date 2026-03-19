@@ -63,7 +63,7 @@ func Authenticate(jwtSvc *auth.JWTService, apiKeyRepo repository.APIKeyRepositor
 
 // authenticateAPIKey validates an API key token, updates last_used_at, and calls next.
 // Returns true if the request was handled (either successfully or with 401).
-func authenticateAPIKey(w http.ResponseWriter, r *http.Request, next http.Handler, plaintext string, apiKeyRepo repository.APIKeyRepository, userRepo repository.UserRepository) bool {
+func authenticateAPIKey(w http.ResponseWriter, r *http.Request, next http.Handler, plaintext string, apiKeyRepo repository.APIKeyRepository, userRepo repository.UserRepository) bool { //nolint:unparam // always true by design — every code path handles the request
 	h := sha256.Sum256([]byte(plaintext))
 	keyHash := hex.EncodeToString(h[:])
 
