@@ -57,8 +57,8 @@ type CustomFieldDefinition struct {
 	ID         uuid.UUID             `json:"id"`
 	OrgID      uuid.UUID             `json:"org_id"`
 	EntityType CustomFieldEntityType `json:"entity_type"`
-	Name       string                `json:"name"`   // snake_case key used in JSON payloads
-	Label      string                `json:"label"`  // display name
+	Name       string                `json:"name"`  // snake_case key used in JSON payloads
+	Label      string                `json:"label"` // display name
 	FieldType  CustomFieldType       `json:"field_type"`
 	Options    []string              `json:"options,omitempty"` // for select/multi_select
 	Required   bool                  `json:"required"`
@@ -70,10 +70,10 @@ type CustomFieldDefinition struct {
 
 // CustomFieldDefinitionPatch holds optional fields for partial updates.
 type CustomFieldDefinitionPatch struct {
-	Label    *string   `json:"label,omitempty"`
-	Options  []string  `json:"options,omitempty"`
-	Required *bool     `json:"required,omitempty"`
-	OrderIdx *int      `json:"order_idx,omitempty"`
+	Label    *string  `json:"label,omitempty"`
+	Options  []string `json:"options,omitempty"`
+	Required *bool    `json:"required,omitempty"`
+	OrderIdx *int     `json:"order_idx,omitempty"`
 }
 
 // CustomFieldDefinitionFilter holds query parameters for listing definitions.

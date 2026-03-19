@@ -19,26 +19,26 @@ const (
 )
 
 type Contact struct {
-	ID              uuid.UUID       `json:"id"`
-	OrgID           uuid.UUID       `json:"org_id"`
-	FirstName       string          `json:"first_name"`
-	LastName        string          `json:"last_name"`
-	Email           *string         `json:"email,omitempty"`
-	Phone           *string         `json:"phone,omitempty"`
-	AccountID       *uuid.UUID      `json:"account_id,omitempty"`
-	OwnerID         uuid.UUID       `json:"owner_id"`
-	LeadSource      *string         `json:"lead_source,omitempty"`
-	LeadScore       int             `json:"lead_score"`
-	Stage           ContactStage    `json:"stage"`
-	Tags            []string        `json:"tags"`
-	CustomFields    json.RawMessage `json:"custom_fields,omitempty"`
+	ID                  uuid.UUID       `json:"id"`
+	OrgID               uuid.UUID       `json:"org_id"`
+	FirstName           string          `json:"first_name"`
+	LastName            string          `json:"last_name"`
+	Email               *string         `json:"email,omitempty"`
+	Phone               *string         `json:"phone,omitempty"`
+	AccountID           *uuid.UUID      `json:"account_id,omitempty"`
+	OwnerID             uuid.UUID       `json:"owner_id"`
+	LeadSource          *string         `json:"lead_source,omitempty"`
+	LeadScore           int             `json:"lead_score"`
+	Stage               ContactStage    `json:"stage"`
+	Tags                []string        `json:"tags"`
+	CustomFields        json.RawMessage `json:"custom_fields,omitempty"`
 	ConvertedAt         *time.Time      `json:"converted_at,omitempty"`
 	ConvertedBy         *uuid.UUID      `json:"converted_by,omitempty"`
 	ConvertedDealID     *uuid.UUID      `json:"converted_deal_id,omitempty"`
 	ConvertedFromLeadID *uuid.UUID      `json:"converted_from_lead_id,omitempty"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	DeletedAt       *time.Time      `json:"deleted_at,omitempty"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+	DeletedAt           *time.Time      `json:"deleted_at,omitempty"`
 }
 
 // ContactPatch holds optional fields for partial updates.
