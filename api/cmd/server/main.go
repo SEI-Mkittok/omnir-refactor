@@ -173,7 +173,6 @@ func main() {
 	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeDeal, "id")
 	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo)
 	sequenceHandler := handler.NewSequenceHandler(sequenceRepo)
-	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 

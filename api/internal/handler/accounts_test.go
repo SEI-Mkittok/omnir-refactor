@@ -168,6 +168,8 @@ func TestAccountHandler_Update(t *testing.T) {
 			accountID: accountID.String(),
 			body:      map[string]any{"name": "Updated Corp", "industry": "Finance"},
 			setupMock: func(m *mocks.MockAccountRepository) {
+				m.On("GetByID", mock.Anything, accountID).
+					Return(&domain.Account{ID: accountID, Name: "Old Corp"}, nil)
 				m.On("Update", mock.Anything, accountID, mock.AnythingOfType("domain.AccountPatch")).
 					Return(&domain.Account{ID: accountID, Name: "Updated Corp"}, nil)
 			},
@@ -178,7 +180,7 @@ func TestAccountHandler_Update(t *testing.T) {
 			accountID: uuid.New().String(),
 			body:      map[string]any{"name": "Updated"},
 			setupMock: func(m *mocks.MockAccountRepository) {
-				m.On("Update", mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.AnythingOfType("domain.AccountPatch")).
+				m.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).
 					Return(nil, domain.ErrNotFound)
 			},
 			wantStatus: http.StatusNotFound,
