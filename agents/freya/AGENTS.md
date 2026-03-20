@@ -70,3 +70,15 @@ Workflow:
 
 If you are unsure whether a PR is open, ask Völundr before pushing.
 
+
+## Open PR Immediately After Pushing (MANDATORY)
+
+After pushing a feature branch, you MUST open a PR within the same task:
+
+```
+gh pr create --base develop --head <your-branch> --title "<OMN-XXX> title" --body "Closes OMN-XXX"
+```
+
+Do NOT wait to be told. Push branch → open PR → notify Völundr in Paperclip.
+A branch with no PR is invisible to the review pipeline.
+
