@@ -229,11 +229,13 @@ export function QuotesPage() {
           <Spinner size="lg" />
         </div>
       ) : (
-        <Table
+        <Table<Quote>
           columns={columns}
           data={quotes}
+          keyExtractor={(q) => q.id}
           onRowClick={(q) => setSelectedQuoteId(q.id)}
-          emptyMessage="No quotes yet. Create one to get started."
+          emptyTitle="No quotes yet"
+          emptyDescription="Create one to get started."
         />
       )}
 
