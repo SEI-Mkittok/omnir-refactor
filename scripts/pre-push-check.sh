@@ -5,7 +5,7 @@ set -e
 cd "$(git rev-parse --show-toplevel)"
 
 echo "=== Go checks ==="
-cd omnir-go-backend
+cd api
 
 # Verify it compiles
 echo "→ Building..."
@@ -24,7 +24,7 @@ fi
 cd ..
 
 echo "=== Frontend checks ==="
-cd omnir-frontend
+cd web
 
 # Type check
 echo "→ Type checking..."
