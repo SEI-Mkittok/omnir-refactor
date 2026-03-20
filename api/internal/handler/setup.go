@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -16,11 +17,12 @@ import (
 // SetupHandler handles the fresh-install onboarding endpoints.
 type SetupHandler struct {
 	users  repository.UserRepository
+	orgs   repository.OrgRepository
 	jwtSvc *auth.JWTService
 }
 
-func NewSetupHandler(users repository.UserRepository, jwtSvc *auth.JWTService) *SetupHandler {
-	return &SetupHandler{users: users, jwtSvc: jwtSvc}
+func NewSetupHandler(users repository.UserRepository, orgs repository.OrgRepository, jwtSvc *auth.JWTService) *SetupHandler {
+	return &SetupHandler{users: users, orgs: orgs, jwtSvc: jwtSvc}
 }
 
 func (h *SetupHandler) Router() chi.Router {
@@ -91,23 +93,49 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ensure the default org row exists. In self-hosted deployments the migration
+	// seeds it, but we verify (and create if missing) here so that the JWT's
+	// org_id is guaranteed to match a real row in the orgs table.
+	org, err := h.orgs.GetByID(r.Context(), domain.DefaultOrgID)
+	if err != nil {
+		if !errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		// Org not seeded yet — create it now.
+		org, err = h.orgs.Create(r.Context(), &domain.Organization{
+			ID:   domain.DefaultOrgID,
+			Name: "Default",
+			Slug: "default",
+			Plan: domain.OrgPlanSingle,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+
 	// Create the first admin user under the default org.
+	// Inject org_id into context so the user repo scopes the INSERT correctly.
+	userCtx := domain.WithOrgID(r.Context(), org.ID)
 	user := &domain.User{
-		OrgID: domain.DefaultOrgID,
+		OrgID: org.ID,
 		Email: req.Email,
 		Name:  req.AdminName,
 		Role:  domain.UserRoleAdmin,
 	}
-	created, err := h.users.Create(r.Context(), user, string(hash))
+	created, err := h.users.Create(userCtx, user, string(hash))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
 	// Issue access and refresh JWTs via httpOnly cookies for immediate login.
+	// org.ID is the authoritative org_id — it matches the row the user was
+	// inserted into and what the OrgScopedPool will use for subsequent requests.
 	claims := auth.Claims{
 		UserID: created.ID,
-		OrgID:  created.OrgID,
+		OrgID:  org.ID,
 		Role:   string(created.Role),
 	}
 	accessToken, err := h.jwtSvc.Issue(claims, accessTokenTTL)
