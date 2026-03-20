@@ -80,6 +80,8 @@ func main() {
 	entityAttachmentRepo := postgres.NewEntityAttachmentRepo(db)
 	auditLogRepo := postgres.NewAuditLogRepo(db)
 	sequenceRepo := postgres.NewSequenceRepo(db)
+	productRepo := postgres.NewProductRepo(db)
+	quoteRepo := postgres.NewQuoteRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -176,6 +178,8 @@ func main() {
 	sequenceHandler := handler.NewSequenceHandler(sequenceRepo)
 	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
+	productHandler := handler.NewProductHandler(productRepo)
+	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -255,6 +259,9 @@ func main() {
 		r.Mount("/attachments", attachmentDownloadHandler.Router())
 		r.Mount("/admin/audit-log", auditLogHandler.Router())
 		r.Mount("/views", savedViewHandler.Router())
+		r.Mount("/products", productHandler.Router())
+		r.Mount("/quotes", quoteHandler.Router())
+		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 	})
 
 	r.Group(func(r chi.Router) {

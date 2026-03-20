@@ -966,3 +966,128 @@ export interface UpdateSequenceRequest {
 export interface EnrollRequest {
   contact_ids: string[]
 }
+
+// ---- Products ----
+
+export interface Product {
+  id: string
+  org_id: string
+  name: string
+  sku?: string
+  description?: string
+  unit_price_cents: number
+  currency: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateProductRequest {
+  name: string
+  sku?: string
+  description?: string
+  unit_price_cents: number
+  currency?: string
+}
+
+export interface UpdateProductRequest {
+  name?: string
+  sku?: string
+  description?: string
+  unit_price_cents?: number
+  currency?: string
+  is_active?: boolean
+}
+
+export interface ProductListParams {
+  page?: number
+  limit?: number
+  q?: string
+  active?: boolean
+}
+
+// ---- Quotes ----
+
+export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired'
+
+export interface QuoteLineItem {
+  id: string
+  quote_id: string
+  product_id?: string
+  product_name: string
+  description?: string
+  quantity: number
+  unit_price_cents: number
+  discount_pct: number
+  total_cents: number
+  sort_order: number
+  created_at: string
+}
+
+export interface QuoteLineItemInput {
+  product_id?: string
+  product_name: string
+  description?: string
+  quantity: number
+  unit_price_cents: number
+  discount_pct: number
+  sort_order?: number
+}
+
+export interface Quote {
+  id: string
+  org_id: string
+  deal_id?: string
+  contact_id?: string
+  title: string
+  status: QuoteStatus
+  currency: string
+  valid_until?: string
+  notes?: string
+  sent_at?: string
+  approved_at?: string
+  rejected_at?: string
+  created_by?: string
+  line_items: QuoteLineItem[]
+  total_cents: number
+  created_at: string
+  updated_at: string
+  contact?: Contact
+  deal?: Deal
+}
+
+export interface CreateQuoteRequest {
+  title: string
+  deal_id?: string
+  contact_id?: string
+  currency?: string
+  valid_until?: string
+  notes?: string
+  line_items?: QuoteLineItemInput[]
+}
+
+export interface UpdateQuoteRequest {
+  title?: string
+  status?: QuoteStatus
+  currency?: string
+  valid_until?: string
+  notes?: string
+  contact_id?: string
+  deal_id?: string
+  line_items?: QuoteLineItemInput[]
+}
+
+export interface QuoteListParams {
+  page?: number
+  limit?: number
+  q?: string
+  status?: QuoteStatus
+  deal_id?: string
+  contact_id?: string
+}
+
+export interface SendQuoteRequest {
+  to: string
+  subject?: string
+  message?: string
+}
