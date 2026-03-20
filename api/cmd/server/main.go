@@ -163,6 +163,8 @@ func main() {
 	emailHandler := handler.NewEmailHandler(emailRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
+	savedViewRepo := postgres.NewSavedViewRepo(db)
+	savedViewHandler := handler.NewSavedViewHandler(savedViewRepo)
 	inboundEmailHandler := handler.NewInboundEmailHandler(emailRepo, contactRepo, cfg.WebhookSecret, cfg.OrgMode)
 	dealPortalLinksHandler := handler.NewDealPortalLinksHandler(portalLinkRepo, dealRepo, noteRepo, orgRepo)
 
@@ -246,6 +248,7 @@ func main() {
 		r.Route("/deals/{id}/attachments", func(r chi.Router) { r.Mount("/", dealAttachmentHandler.Router()) })
 		r.Mount("/attachments", attachmentDownloadHandler.Router())
 		r.Mount("/admin/audit-log", auditLogHandler.Router())
+		r.Mount("/views", savedViewHandler.Router())
 	})
 
 	r.Group(func(r chi.Router) {
