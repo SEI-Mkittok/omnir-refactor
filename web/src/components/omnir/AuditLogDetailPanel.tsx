@@ -1,7 +1,22 @@
+import { LogIn, FileOutput } from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { useAuditLogEntry } from '@/hooks/useAuditLog'
 import { formatDate } from '@/lib/utils'
-import type { AuditChanges } from '@/api/types'
+import type { AuditAction, AuditChanges } from '@/api/types'
+
+const ACTION_COLORS: Record<AuditAction, string> = {
+  created: 'bg-green-100 text-green-700',
+  updated: 'bg-blue-100 text-blue-700',
+  deleted: 'bg-red-100 text-red-700',
+  converted: 'bg-purple-100 text-purple-700',
+  login: 'bg-slate-100 text-slate-700',
+  export: 'bg-amber-100 text-amber-700',
+}
+
+const ACTION_ICONS: Partial<Record<AuditAction, React.ReactNode>> = {
+  login: <LogIn className="h-3 w-3" />,
+  export: <FileOutput className="h-3 w-3" />,
+}
 
 interface AuditLogDetailPanelProps {
   entryId: string | null
@@ -70,7 +85,8 @@ export function AuditLogDetailPanel({ entryId, onClose }: AuditLogDetailPanelPro
           <dl className="grid grid-cols-2 gap-4">
             <Field label="Timestamp" value={formatDate(entry.created_at)} />
             <Field label="Action" value={
-              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 capitalize">
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ACTION_COLORS[entry.action] ?? 'bg-slate-100 text-slate-700'}`}>
+                {ACTION_ICONS[entry.action]}
                 {entry.action}
               </span>
             } />
