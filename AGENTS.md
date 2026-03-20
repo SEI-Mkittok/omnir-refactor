@@ -290,3 +290,13 @@ Workflow:
 
 If you are unsure whether a PR is open, ask Völundr before pushing.
 
+
+## Board Review Checklist (run every heartbeat)
+
+Always check ALL active statuses — not just todo/in_progress:
+- `todo` — unstarted, assigned
+- `in_progress` — being worked
+- `in_review` — **waiting on Völundr to review/merge/close**
+- `blocked` — needs unblocking
+
+`in_review` is MY queue. If something sits there, it's on me.
