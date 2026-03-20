@@ -10,6 +10,7 @@ import (
 )
 
 // MockSLAPolicyRepository is a testify mock implementing repository.SLAPolicyRepository.
+//nolint:revive // mock name mirrors interface by convention
 type MockSLAPolicyRepository struct {
 	mock.Mock
 }

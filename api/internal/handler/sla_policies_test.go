@@ -55,19 +55,19 @@ func TestSLAPolicyHandler_Create(t *testing.T) {
 		{
 			name:       "returns 422 for missing name",
 			body:       map[string]any{"response_time_hours": 8, "resolution_time_hours": 24},
-			setupMock:  func(m *mocks.MockSLAPolicyRepository) {},
+			setupMock:  func(_ *mocks.MockSLAPolicyRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for zero response_time_hours",
 			body:       map[string]any{"name": "Bad", "response_time_hours": 0, "resolution_time_hours": 24},
-			setupMock:  func(m *mocks.MockSLAPolicyRepository) {},
+			setupMock:  func(_ *mocks.MockSLAPolicyRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for zero resolution_time_hours",
 			body:       map[string]any{"name": "Bad", "response_time_hours": 4, "resolution_time_hours": 0},
-			setupMock:  func(m *mocks.MockSLAPolicyRepository) {},
+			setupMock:  func(_ *mocks.MockSLAPolicyRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}

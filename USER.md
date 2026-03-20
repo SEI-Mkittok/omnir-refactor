@@ -12,3 +12,8 @@
 - **Goal:** Full modernization of UI/UX and codebase
 - **Stretch goal:** Rebuild in Go (or similar modern language) + modern frontend
 - **Working style:** Directness appreciated, big-picture thinking + execution
+
+## Communication Preferences
+- **Exec summaries only** — brief update when starting or finishing a task
+- No play-by-play, no verbose tool output
+- Important stuff only

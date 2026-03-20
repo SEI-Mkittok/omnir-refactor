@@ -12,7 +12,7 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 )
 
-const apiKeyCols = `id, org_id, created_by, name, key_prefix, scopes, last_used_at, expires_at, revoked_at, created_at`
+const apiKeyCols = `id, org_id, created_by, name, key_prefix, scopes, last_used_at, expires_at, revoked_at, created_at` //nolint:gosec // not a credential, just a column list
 
 type APIKeyRepo struct {
 	db *pgxpool.Pool
