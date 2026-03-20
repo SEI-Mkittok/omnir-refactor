@@ -905,6 +905,8 @@ export interface EmailSequence {
   steps?: SequenceStep[]
   enrolled_count: number
   open_rate: number
+}
+
 // ---- Products ----
 
 export interface Product {
@@ -976,6 +978,8 @@ export interface UpdateSequenceRequest {
 
 export interface EnrollRequest {
   contact_ids: string[]
+}
+
 export interface CreateProductRequest {
   name: string
   description?: string

@@ -21,7 +21,6 @@ import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { DealForm } from '@/components/omnir/DealForm'
 import type { Deal, DealStage, CustomFieldValues, SavedView } from '@/api/types'
 import { LineItemsPanel } from '@/components/omnir/LineItemsPanel'
-import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 
 const STAGE_OPTIONS = [
   { label: 'Lead', value: 'lead' },
