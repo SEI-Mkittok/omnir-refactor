@@ -82,6 +82,7 @@ func main() {
 	sequenceRepo := postgres.NewSequenceRepo(db)
 	productRepo := postgres.NewProductRepo(db)
 	quoteRepo := postgres.NewQuoteRepo(db)
+	automationRepo := postgres.NewAutomationRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -102,6 +103,12 @@ func main() {
 	slaBreachWorker := worker.NewSLABreachWorker(slaInstanceRepo, notificationRepo, 5*time.Minute, logger)
 	slaBreachWorker.Start(workerCtx)
 
+	automationWorker := worker.NewAutomationWorker(
+		automationRepo, activityRepo, contactRepo, dealRepo, sequenceRepo,
+		mailer, time.Minute, logger,
+	)
+	automationWorker.Start(workerCtx)
+
 	if cfg.SMTP.Enabled {
 		logger.Info("email notifications enabled", "smtp_host", cfg.SMTP.Host)
 	} else {
@@ -112,10 +119,10 @@ func main() {
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo)
 	userHandler := handler.NewUserHandler(userRepo)
-	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo)
+	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
 	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)
-	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo)
+	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events)
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
@@ -180,6 +187,7 @@ func main() {
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	productHandler := handler.NewProductHandler(productRepo)
 	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
+	automationHandler := handler.NewAutomationHandler(automationRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -261,6 +269,7 @@ func main() {
 		r.Mount("/views", savedViewHandler.Router())
 		r.Mount("/products", productHandler.Router())
 		r.Mount("/quotes", quoteHandler.Router())
+		r.Mount("/automations", automationHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 	})
 
