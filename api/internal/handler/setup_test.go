@@ -26,17 +26,17 @@ func TestSetupHandler_Status(t *testing.T) {
 		wantBody   map[string]bool
 	}{
 		{
-			name: "returns setupRequired true when no users exist",
+			name: "returns setupRequired true when no admin user exists",
 			setupMock: func(m *mocks.MockUserRepository) {
-				m.On("CountAll", mock.Anything).Return(0, nil)
+				m.On("HasAdminUser", mock.Anything).Return(false, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   map[string]bool{"setupRequired": true},
 		},
 		{
-			name: "returns setupRequired false when users exist",
+			name: "returns setupRequired false when admin user exists",
 			setupMock: func(m *mocks.MockUserRepository) {
-				m.On("CountAll", mock.Anything).Return(1, nil)
+				m.On("HasAdminUser", mock.Anything).Return(true, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   map[string]bool{"setupRequired": false},
@@ -88,7 +88,7 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"password":  "securepassword",
 			},
 			setupMock: func(m *mocks.MockUserRepository) {
-				m.On("CountAll", mock.Anything).Return(0, nil)
+				m.On("HasAdminUser", mock.Anything).Return(false, nil)
 				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("string")).
 					Return(adminUser, nil)
 			},
@@ -102,7 +102,7 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"password":  "securepassword",
 			},
 			setupMock: func(m *mocks.MockUserRepository) {
-				m.On("CountAll", mock.Anything).Return(1, nil)
+				m.On("HasAdminUser", mock.Anything).Return(true, nil)
 			},
 			wantStatus: http.StatusConflict,
 		},
