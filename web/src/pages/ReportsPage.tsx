@@ -178,11 +178,7 @@ export function ReportsPage() {
     [dealData],
   )
 
-  const anyError =
-    (tickets.isError && !tickets.isPlaceholderData) ||
-    (leads.isError && !leads.isPlaceholderData) ||
-    (contacts.isError && !contacts.isPlaceholderData) ||
-    (deals.isError && !deals.isPlaceholderData)
+  const anyError = tickets.isError || leads.isError || contacts.isError || deals.isError
 
   return (
     <div className="space-y-6">
@@ -197,7 +193,7 @@ export function ReportsPage() {
 
       {anyError && (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-          Some report data could not be loaded. Showing available data.
+          One or more report endpoints returned an error. Check your connection or try refreshing.
         </div>
       )}
 
@@ -206,8 +202,8 @@ export function ReportsPage() {
         <SummaryCard
           label="Open Tickets"
           value={ticketData?.total_open ?? '—'}
-          color="bg-indigo-50 text-indigo-600"
-          loading={tickets.isLoading && !tickets.isPlaceholderData}
+          color="text-indigo-600"
+          loading={tickets.isLoading}
         />
         <SummaryCard
           label="Avg Resolution"
@@ -216,8 +212,8 @@ export function ReportsPage() {
               ? `${ticketData.avg_resolution_hours.toFixed(1)}h`
               : '—'
           }
-          color="bg-sky-50 text-sky-600"
-          loading={tickets.isLoading && !tickets.isPlaceholderData}
+          color="text-sky-600"
+          loading={tickets.isLoading}
         />
         <SummaryCard
           label="SLA Breach Rate"
@@ -234,15 +230,15 @@ export function ReportsPage() {
           color={
             ticketData?.breach_rate != null && ticketData.breach_rate > 0.15
               ? 'text-red-600'
-              : 'bg-emerald-50 text-emerald-600'
+              : 'text-emerald-600'
           }
-          loading={tickets.isLoading && !tickets.isPlaceholderData}
+          loading={tickets.isLoading}
         />
         <SummaryCard
           label="New Contacts"
           value={contactData?.new_count ?? '—'}
-          color="bg-violet-50 text-violet-600"
-          loading={contacts.isLoading && !contacts.isPlaceholderData}
+          color="text-violet-600"
+          loading={contacts.isLoading}
         />
         <SummaryCard
           label="Pipeline Value"
@@ -251,15 +247,15 @@ export function ReportsPage() {
               ? formatCurrency(dealData.pipeline_value_cents / 100)
               : '—'
           }
-          color="bg-green-50 text-green-600"
-          loading={deals.isLoading && !deals.isPlaceholderData}
+          color="text-green-600"
+          loading={deals.isLoading}
         />
       </div>
 
       {/* Row 1: Tickets over time + Deal pipeline by stage */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Tickets over time */}
-        {tickets.isLoading && !tickets.isPlaceholderData ? (
+        {tickets.isLoading ? (
           <SkeletonChart />
         ) : (
           <Card>
@@ -309,7 +305,7 @@ export function ReportsPage() {
         )}
 
         {/* Deal pipeline by stage */}
-        {deals.isLoading && !deals.isPlaceholderData ? (
+        {deals.isLoading ? (
           <SkeletonChart />
         ) : (
           <Card>
@@ -353,7 +349,7 @@ export function ReportsPage() {
       {/* Row 2: Lead conversion funnel + New contacts over time */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Lead conversion funnel */}
-        {leads.isLoading && !leads.isPlaceholderData ? (
+        {leads.isLoading ? (
           <SkeletonChart />
         ) : (
           <Card>
@@ -409,7 +405,7 @@ export function ReportsPage() {
         )}
 
         {/* New contacts over time */}
-        {contacts.isLoading && !contacts.isPlaceholderData ? (
+        {contacts.isLoading ? (
           <SkeletonChart />
         ) : (
           <Card>
