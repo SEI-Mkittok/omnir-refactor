@@ -34,6 +34,11 @@ type SequenceRepository interface {
 	// Analytics
 	GetAnalytics(ctx context.Context, sequenceID uuid.UUID) (*domain.SequenceAnalytics, error)
 
+	// GetEnrollmentByID fetches a single enrollment (no org scoping, used by tracking handler).
+	GetEnrollmentByID(ctx context.Context, id uuid.UUID) (*domain.SequenceEnrollment, error)
+	// GetActiveEnrollmentsByContact returns all active enrollments for a contact (no org scoping).
+	GetActiveEnrollmentsByContact(ctx context.Context, contactID uuid.UUID) ([]*domain.SequenceEnrollment, error)
+
 	// Execution engine — no org scoping (used by background worker)
 	PendingEnrollments(ctx context.Context) ([]*domain.SequenceEnrollment, error)
 	AdvanceEnrollment(ctx context.Context, id uuid.UUID, nextStep int, nextStepAt *time.Time) error

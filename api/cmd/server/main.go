@@ -172,8 +172,9 @@ func main() {
 	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeDeal, "id")
 	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo)
 	sequenceHandler := handler.NewSequenceHandler(sequenceRepo)
+	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
-	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, time.Minute, logger)
+	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
 	r := chi.NewRouter()
@@ -202,6 +203,11 @@ func main() {
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Public deal portal — token IS the credential, no JWT required.
 	r.Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
+	// Public sequence tracking — HMAC-signed tokens, no JWT required.
+	r.Mount("/track", sequenceTrackingHandler.TrackRouter())
+	r.Mount("/unsubscribe", sequenceTrackingHandler.UnsubscribeRouter())
+	// Bounce webhook — outside /api/v1 auth group, accepts webhook provider calls.
+	r.Mount("/api/emails/bounce", sequenceTrackingHandler.BounceRouter())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(30 * time.Second))

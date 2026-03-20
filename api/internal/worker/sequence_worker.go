@@ -8,25 +8,28 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/email"
 	"github.com/omnir/crm-api/internal/repository"
+	"github.com/omnir/crm-api/internal/seqtoken"
 )
 
 // SequenceWorker processes pending email sequence enrollments on a ticker.
 type SequenceWorker struct {
-	repo     repository.SequenceRepository
-	mailer   *email.Mailer
-	interval time.Duration
-	log      *slog.Logger
-	stop     chan struct{}
+	repo        repository.SequenceRepository
+	mailer      *email.Mailer
+	tokenSecret string
+	interval    time.Duration
+	log         *slog.Logger
+	stop        chan struct{}
 }
 
 // NewSequenceWorker creates a SequenceWorker that runs every interval.
-func NewSequenceWorker(repo repository.SequenceRepository, mailer *email.Mailer, interval time.Duration, log *slog.Logger) *SequenceWorker {
+func NewSequenceWorker(repo repository.SequenceRepository, mailer *email.Mailer, tokenSecret string, interval time.Duration, log *slog.Logger) *SequenceWorker {
 	return &SequenceWorker{
-		repo:     repo,
-		mailer:   mailer,
-		interval: interval,
-		log:      log,
-		stop:     make(chan struct{}),
+		repo:        repo,
+		mailer:      mailer,
+		tokenSecret: tokenSecret,
+		interval:    interval,
+		log:         log,
+		stop:        make(chan struct{}),
 	}
 }
 
@@ -89,7 +92,31 @@ func (w *SequenceWorker) processEnrollment(ctx context.Context, enrollment *doma
 
 	if step.Kind == domain.StepKindEmail {
 		if enrollment.ContactEmail != "" && step.Subject != "" {
-			if err := w.mailer.SendDirect(enrollment.ContactEmail, step.Subject, step.Body); err != nil {
+			baseClaims := seqtoken.Claims{
+				OrgID:        enrollment.OrgID,
+				SequenceID:   enrollment.SequenceID,
+				EnrollmentID: enrollment.ID,
+				StepID:       step.ID,
+			}
+			openToken, errO := seqtoken.Issue(w.tokenSecret, baseClaims)
+			clickToken, errC := seqtoken.Issue(w.tokenSecret, baseClaims)
+			unsubToken, errU := seqtoken.Issue(w.tokenSecret, baseClaims)
+
+			if errO != nil || errC != nil || errU != nil {
+				w.log.Warn("sequence worker: failed to generate tracking tokens",
+					"enrollment_id", enrollment.ID)
+			}
+
+			tokens := email.SequenceTokens{
+				OpenToken:        openToken,
+				ClickToken:       clickToken,
+				UnsubscribeToken: unsubToken,
+			}
+			htmlBody := step.Body
+			if htmlBody == "" {
+				htmlBody = "<p>" + step.Body + "</p>"
+			}
+			if err := w.mailer.SendSequenceEmail(enrollment.ContactEmail, step.Subject, htmlBody, tokens); err != nil {
 				w.log.Warn("sequence worker: failed to send email",
 					"enrollment_id", enrollment.ID,
 					"contact_email", enrollment.ContactEmail,

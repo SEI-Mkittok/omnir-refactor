@@ -354,6 +354,64 @@ func (r *SequenceRepo) ListEnrollments(ctx context.Context, sequenceID uuid.UUID
 	return enrollments, rows.Err()
 }
 
+// GetEnrollmentByID fetches a single enrollment by ID (no org scoping — used by tracking handler).
+func (r *SequenceRepo) GetEnrollmentByID(ctx context.Context, id uuid.UUID) (*domain.SequenceEnrollment, error) {
+	var e domain.SequenceEnrollment
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			se.id, se.sequence_id, se.contact_id, se.org_id, se.status,
+			se.current_step, se.enrolled_at, se.completed_at,
+			COALESCE(c.first_name||' '||c.last_name, '') AS contact_name,
+			COALESCE(c.email::text, '') AS contact_email
+		FROM sequence_enrollments se
+		LEFT JOIN contacts c ON c.id = se.contact_id
+		WHERE se.id = $1
+	`, id).Scan(
+		&e.ID, &e.SequenceID, &e.ContactID, &e.OrgID, &e.Status,
+		&e.CurrentStep, &e.EnrolledAt, &e.CompletedAt,
+		&e.ContactName, &e.ContactEmail,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &e, nil
+}
+
+// GetActiveEnrollmentsByContact returns all active enrollments for a given contact (no org scoping).
+func (r *SequenceRepo) GetActiveEnrollmentsByContact(ctx context.Context, contactID uuid.UUID) ([]*domain.SequenceEnrollment, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			se.id, se.sequence_id, se.contact_id, se.org_id, se.status,
+			se.current_step, se.enrolled_at, se.completed_at,
+			COALESCE(c.first_name||' '||c.last_name, '') AS contact_name,
+			COALESCE(c.email::text, '') AS contact_email
+		FROM sequence_enrollments se
+		LEFT JOIN contacts c ON c.id = se.contact_id
+		WHERE se.contact_id = $1 AND se.status = 'active'
+	`, contactID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var enrollments []*domain.SequenceEnrollment
+	for rows.Next() {
+		var e domain.SequenceEnrollment
+		if err := rows.Scan(
+			&e.ID, &e.SequenceID, &e.ContactID, &e.OrgID, &e.Status,
+			&e.CurrentStep, &e.EnrolledAt, &e.CompletedAt,
+			&e.ContactName, &e.ContactEmail,
+		); err != nil {
+			return nil, err
+		}
+		enrollments = append(enrollments, &e)
+	}
+	return enrollments, rows.Err()
+}
+
 // ---- UpdateEnrollmentStatus ----
 
 func (r *SequenceRepo) UpdateEnrollmentStatus(ctx context.Context, enrollmentID uuid.UUID, status domain.EnrollmentStatus) error {

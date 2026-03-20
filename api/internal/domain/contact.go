@@ -32,6 +32,8 @@ type Contact struct {
 	Stage               ContactStage    `json:"stage"`
 	Tags                []string        `json:"tags"`
 	CustomFields        json.RawMessage `json:"custom_fields,omitempty"`
+	EmailOptOut         bool            `json:"email_opt_out"`
+	BounceCount         int             `json:"bounce_count"`
 	ConvertedAt         *time.Time      `json:"converted_at,omitempty"`
 	ConvertedBy         *uuid.UUID      `json:"converted_by,omitempty"`
 	ConvertedDealID     *uuid.UUID      `json:"converted_deal_id,omitempty"`
