@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Download, ShieldCheck } from 'lucide-react'
+import { Download, ShieldCheck, LogIn, FileOutput } from 'lucide-react'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { downloadAuditLogCsv } from '@/api/auditLog'
 import { Table, type Column } from '@/components/ui/Table'
@@ -35,6 +35,11 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   converted: 'bg-purple-100 text-purple-700',
   login: 'bg-slate-100 text-slate-700',
   export: 'bg-amber-100 text-amber-700',
+}
+
+const ACTION_ICONS: Partial<Record<AuditAction, React.ReactNode>> = {
+  login: <LogIn className="h-3 w-3" />,
+  export: <FileOutput className="h-3 w-3" />,
 }
 
 export function AuditLogPage() {
@@ -103,8 +108,9 @@ export function AuditLogPage() {
       sortable: true,
       render: (e) => (
         <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ACTION_COLORS[e.action] ?? 'bg-slate-100 text-slate-700'}`}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ACTION_COLORS[e.action] ?? 'bg-slate-100 text-slate-700'}`}
         >
+          {ACTION_ICONS[e.action]}
           {e.action}
         </span>
       ),
