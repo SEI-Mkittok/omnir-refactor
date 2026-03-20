@@ -48,8 +48,9 @@ type Config struct {
 	LogLevel      string
 	OrgMode       OrgMode
 	SMTP          SMTPConfig
-	WebhookSecret string
-	Storage       StorageConfig
+	WebhookSecret       string
+	SequenceTokenSecret string
+	Storage             StorageConfig
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -81,7 +82,8 @@ func Load() *Config {
 			Password: getEnv("SMTP_PASSWORD", ""),
 			From:     getEnv("SMTP_FROM", "noreply@omnir.io"),
 		},
-		WebhookSecret: getEnv("WEBHOOK_SECRET", ""),
+		WebhookSecret:       getEnv("WEBHOOK_SECRET", ""),
+		SequenceTokenSecret: getEnv("SEQUENCE_TOKEN_SECRET", "sequence-dev-secret"),
 		Storage: StorageConfig{
 			Backend:       StorageBackend(getEnv("STORAGE_BACKEND", string(StorageBackendLocal))),
 			S3Endpoint:    getEnv("S3_ENDPOINT", ""),

@@ -22,6 +22,10 @@ type ContactRepository interface {
 	UpdateLeadScore(ctx context.Context, id uuid.UUID, patch domain.LeadScorePatch) (*domain.Contact, error)
 	ConvertLead(ctx context.Context, id, byUserID uuid.UUID, dealID *uuid.UUID) (*domain.Contact, error)
 	ListLeadSources(ctx context.Context) ([]string, error)
+
+	// Email opt-out and bounce tracking (OMN-398)
+	SetEmailOptOut(ctx context.Context, contactID uuid.UUID) error
+	IncrementBounceCount(ctx context.Context, contactID uuid.UUID) error
 }
 
 // AccountRepository defines the persistence contract for accounts.
