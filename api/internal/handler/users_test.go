@@ -152,28 +152,28 @@ func TestUserHandler_Create(t *testing.T) {
 			name:       "returns 422 for missing name",
 			claims:     adminClaims(adminID),
 			body:       map[string]any{"email": "alice@example.com", "password": "secret"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for missing email",
 			claims:     adminClaims(adminID),
 			body:       map[string]any{"name": "Alice", "password": "secret"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for missing password",
 			claims:     adminClaims(adminID),
 			body:       map[string]any{"name": "Alice", "email": "alice@example.com"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			claims:     adminClaims(adminID),
 			body:       nil,
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -184,7 +184,7 @@ func TestUserHandler_Create(t *testing.T) {
 				"email":    "alice@example.com",
 				"password": "secret",
 			},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
@@ -195,7 +195,7 @@ func TestUserHandler_Create(t *testing.T) {
 				"email":    "alice@example.com",
 				"password": "secret",
 			},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 	}
@@ -253,7 +253,7 @@ func TestUserHandler_GetMe(t *testing.T) {
 		{
 			name:       "returns 401 without claims",
 			claims:     nil,
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -324,14 +324,14 @@ func TestUserHandler_GetByID(t *testing.T) {
 			name:       "user cannot fetch other user",
 			targetID:   otherID.String(),
 			claims:     userClaims(regularID),
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "returns 403 without claims",
 			targetID:   otherID.String(),
 			claims:     nil,
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
@@ -348,7 +348,7 @@ func TestUserHandler_GetByID(t *testing.T) {
 			name:       "returns 400 for invalid uuid",
 			targetID:   "not-a-uuid",
 			claims:     adminClaims(adminID),
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -428,7 +428,7 @@ func TestUserHandler_Update(t *testing.T) {
 			targetID:   regularID.String(),
 			claims:     userClaims(regularID),
 			body:       map[string]any{"role": "admin"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
@@ -436,7 +436,7 @@ func TestUserHandler_Update(t *testing.T) {
 			targetID:   otherID.String(),
 			claims:     userClaims(regularID),
 			body:       map[string]any{"name": "Updated"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
@@ -444,7 +444,7 @@ func TestUserHandler_Update(t *testing.T) {
 			targetID:   otherID.String(),
 			claims:     nil,
 			body:       map[string]any{"name": "Updated"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -452,7 +452,7 @@ func TestUserHandler_Update(t *testing.T) {
 			targetID:   "not-a-uuid",
 			claims:     adminClaims(adminID),
 			body:       map[string]any{"name": "Updated"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -519,21 +519,21 @@ func TestUserHandler_Delete(t *testing.T) {
 			name:       "admin cannot self-delete",
 			targetID:   adminID.String(),
 			claims:     adminClaims(adminID),
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "non-admin gets 403",
 			targetID:   otherID.String(),
 			claims:     userClaims(uuid.New()),
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "no claims gets 403",
 			targetID:   otherID.String(),
 			claims:     nil,
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},
 		{
@@ -550,7 +550,7 @@ func TestUserHandler_Delete(t *testing.T) {
 			name:       "returns 400 for invalid uuid",
 			targetID:   "not-a-uuid",
 			claims:     adminClaims(adminID),
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

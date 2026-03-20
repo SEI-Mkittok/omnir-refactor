@@ -54,19 +54,19 @@ func TestAccountHandler_Create(t *testing.T) {
 		{
 			name:       "returns 422 for missing name",
 			body:       map[string]any{"owner_id": ownerID.String()},
-			setupMock:  func(m *mocks.MockAccountRepository) {},
+			setupMock:  func(_ *mocks.MockAccountRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for missing owner_id",
 			body:       map[string]any{"name": "Acme Corp"},
-			setupMock:  func(m *mocks.MockAccountRepository) {},
+			setupMock:  func(_ *mocks.MockAccountRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       nil,
-			setupMock:  func(m *mocks.MockAccountRepository) {},
+			setupMock:  func(_ *mocks.MockAccountRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -129,7 +129,7 @@ func TestAccountHandler_GetByID(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			accountID:  "not-a-uuid",
-			setupMock:  func(m *mocks.MockAccountRepository) {},
+			setupMock:  func(_ *mocks.MockAccountRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -187,7 +187,7 @@ func TestAccountHandler_Update(t *testing.T) {
 			name:       "returns 400 for invalid uuid",
 			accountID:  "not-a-uuid",
 			body:       map[string]any{"name": "Updated"},
-			setupMock:  func(m *mocks.MockAccountRepository) {},
+			setupMock:  func(_ *mocks.MockAccountRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -244,7 +244,7 @@ func TestAccountHandler_Delete(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			accountID:  "not-a-uuid",
-			setupMock:  func(m *mocks.MockAccountRepository) {},
+			setupMock:  func(_ *mocks.MockAccountRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

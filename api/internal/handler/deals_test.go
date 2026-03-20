@@ -97,13 +97,13 @@ func TestDealHandler_AddContact(t *testing.T) {
 		{
 			name:       "returns 422 for missing contact_id",
 			body:       map[string]any{"role": "influencer"},
-			setupMock:  func(m *mocks.MockDealRepository) {},
+			setupMock:  func(_ *mocks.MockDealRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       nil, // will send raw invalid bytes
-			setupMock:  func(m *mocks.MockDealRepository) {},
+			setupMock:  func(_ *mocks.MockDealRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

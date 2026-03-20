@@ -121,14 +121,14 @@ func TestContactHandler_UpdateLeadScore(t *testing.T) {
 			name:       "returns 400 for invalid id",
 			contactID:  "not-a-uuid",
 			body:       map[string]any{"score": 50},
-			setupMock:  func(m *mocks.MockContactRepository) {},
+			setupMock:  func(_ *mocks.MockContactRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for missing score and delta",
 			contactID:  contactID.String(),
 			body:       map[string]any{},
-			setupMock:  func(m *mocks.MockContactRepository) {},
+			setupMock:  func(_ *mocks.MockContactRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{

@@ -81,7 +81,7 @@ func (d *WebhookDispatcher) Start(ctx context.Context) {
 }
 
 // fanOut looks up webhooks subscribed to evt.Event and queues a delivery for each.
-func (d *WebhookDispatcher) fanOut(ctx context.Context, evt WebhookEvent) {
+func (d *WebhookDispatcher) fanOut(_ context.Context, evt WebhookEvent) {
 	payload := domain.WebhookEventPayload{
 		Event:    evt.Event,
 		OrgID:    evt.OrgID,

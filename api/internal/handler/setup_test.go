@@ -112,7 +112,7 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"email":    "admin@example.com",
 				"password": "securepassword",
 			},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
@@ -121,7 +121,7 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"adminName": "Admin",
 				"password":  "securepassword",
 			},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
@@ -131,13 +131,13 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"email":     "admin@example.com",
 				"password":  "short",
 			},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       nil,
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

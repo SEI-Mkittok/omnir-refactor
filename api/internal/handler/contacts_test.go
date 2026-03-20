@@ -51,13 +51,13 @@ func TestContactHandler_Create(t *testing.T) {
 		{
 			name:       "returns 422 for missing first_name",
 			body:       map[string]any{"last_name": "Lovelace", "owner_id": ownerID.String()},
-			setupMock:  func(m *mocks.MockContactRepository) {},
+			setupMock:  func(_ *mocks.MockContactRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for missing owner_id",
 			body:       map[string]any{"first_name": "Ada", "last_name": "Lovelace"},
-			setupMock:  func(m *mocks.MockContactRepository) {},
+			setupMock:  func(_ *mocks.MockContactRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}
@@ -114,7 +114,7 @@ func TestContactHandler_GetByID(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			contactID:  "not-a-uuid",
-			setupMock:  func(m *mocks.MockContactRepository) {},
+			setupMock:  func(_ *mocks.MockContactRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
