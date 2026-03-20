@@ -83,6 +83,7 @@ func main() {
 	productRepo := postgres.NewProductRepo(db)
 	quoteRepo := postgres.NewQuoteRepo(db)
 	automationRepo := postgres.NewAutomationRepo(db)
+	calendarConnectionRepo := postgres.NewCalendarConnectionRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -108,6 +109,14 @@ func main() {
 		mailer, time.Minute, logger,
 	)
 	automationWorker.Start(workerCtx)
+
+	calendarSyncWorker := worker.NewCalendarSyncWorker(
+		calendarConnectionRepo, activityRepo,
+		5*time.Minute, logger,
+		cfg.Calendar.GoogleClientID, cfg.Calendar.GoogleClientSecret,
+		cfg.Calendar.MicrosoftClientID, cfg.Calendar.MicrosoftClientSecret, cfg.Calendar.MicrosoftTenantID,
+	)
+	calendarSyncWorker.Start(workerCtx)
 
 	if cfg.SMTP.Enabled {
 		logger.Info("email notifications enabled", "smtp_host", cfg.SMTP.Host)
@@ -188,6 +197,7 @@ func main() {
 	productHandler := handler.NewProductHandler(productRepo)
 	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
 	automationHandler := handler.NewAutomationHandler(automationRepo)
+	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -270,6 +280,7 @@ func main() {
 		r.Mount("/products", productHandler.Router())
 		r.Mount("/quotes", quoteHandler.Router())
 		r.Mount("/automations", automationHandler.Router())
+		r.Mount("/calendar", calendarHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 	})
 

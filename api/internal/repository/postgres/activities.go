@@ -25,7 +25,7 @@ func NewActivityRepo(db *pgxpool.Pool) *ActivityRepo {
 
 const activityCols = `
 	id, org_id, type, subject, description, due_date, completed_at,
-	contact_id, account_id, deal_id, owner_id,
+	contact_id, account_id, deal_id, owner_id, calendar_event_id,
 	created_at, updated_at, deleted_at
 `
 
@@ -33,7 +33,7 @@ func scanActivity(row pgx.Row) (*domain.Activity, error) {
 	var a domain.Activity
 	err := row.Scan(
 		&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
-		&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID,
+		&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID, &a.CalendarEventID,
 		&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
 	if err != nil {
@@ -59,11 +59,13 @@ func (r *ActivityRepo) Create(ctx context.Context, a *domain.Activity) (*domain.
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO activities
 			(id, org_id, type, subject, description, due_date, completed_at,
-			 contact_id, account_id, deal_id, owner_id, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			 contact_id, account_id, deal_id, owner_id, calendar_event_id,
+			 created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		RETURNING `+activityCols,
 		a.ID, a.OrgID, a.Type, a.Subject, a.Description, a.DueDate, a.CompletedAt,
-		a.ContactID, a.AccountID, a.DealID, a.OwnerID, a.CreatedAt, a.UpdatedAt,
+		a.ContactID, a.AccountID, a.DealID, a.OwnerID, a.CalendarEventID,
+		a.CreatedAt, a.UpdatedAt,
 	)
 	return scanActivity(row)
 }
@@ -248,7 +250,7 @@ func (r *ActivityRepo) List(ctx context.Context, f domain.ActivityFilter) ([]*do
 		var a domain.Activity
 		if err := rows.Scan(
 			&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
-			&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID,
+			&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID, &a.CalendarEventID,
 			&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 		); err != nil {
 			return nil, 0, err
