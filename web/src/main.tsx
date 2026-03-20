@@ -28,6 +28,7 @@ import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
+import { AutomationsPage } from '@/pages/AutomationsPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -101,6 +102,7 @@ function AppRoutes() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/sequences" element={<SequencesPage />} />
         <Route path="/quotes" element={<QuotesPage />} />
+        <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route
           path="/users"
