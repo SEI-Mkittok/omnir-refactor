@@ -52,7 +52,7 @@ func TestNoteHandler_Create(t *testing.T) {
 			body: map[string]any{
 				"author_id": authorID.String(),
 			},
-			setupMock:  func(m *mocks.MockNoteRepository) {},
+			setupMock:  func(_ *mocks.MockNoteRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
@@ -60,7 +60,7 @@ func TestNoteHandler_Create(t *testing.T) {
 			body: map[string]any{
 				"content": "A note with no author",
 			},
-			setupMock:  func(m *mocks.MockNoteRepository) {},
+			setupMock:  func(_ *mocks.MockNoteRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}

@@ -193,7 +193,7 @@ func TestContactHandler_ConvertLead(t *testing.T) {
 			contactID: contactID.String(),
 			body:      map[string]any{"create_deal": false},
 			claims:    &auth.Claims{UserID: userID},
-			setupMocks: func(mc *mocks.MockContactRepository, md *mocks.MockDealRepository) {
+			setupMocks: func(mc *mocks.MockContactRepository, _ *mocks.MockDealRepository) {
 				mc.On("ConvertLead", mock.Anything, contactID, userID, (*uuid.UUID)(nil)).
 					Return(convertedContact, nil)
 			},
@@ -222,7 +222,7 @@ func TestContactHandler_ConvertLead(t *testing.T) {
 			contactID:  "bad-uuid",
 			body:       map[string]any{},
 			claims:     &auth.Claims{UserID: userID},
-			setupMocks: func(mc *mocks.MockContactRepository, md *mocks.MockDealRepository) {},
+			setupMocks: func(_ *mocks.MockContactRepository, _ *mocks.MockDealRepository) {},
 			withDeals:  false,
 			wantStatus: http.StatusBadRequest,
 		},
@@ -231,7 +231,7 @@ func TestContactHandler_ConvertLead(t *testing.T) {
 			contactID: contactID.String(),
 			body:      map[string]any{"create_deal": false},
 			claims:    &auth.Claims{UserID: userID},
-			setupMocks: func(mc *mocks.MockContactRepository, md *mocks.MockDealRepository) {
+			setupMocks: func(mc *mocks.MockContactRepository, _ *mocks.MockDealRepository) {
 				// ConvertLead uses COALESCE so calling it again returns unchanged contact.
 				mc.On("ConvertLead", mock.Anything, contactID, userID, (*uuid.UUID)(nil)).
 					Return(convertedContact, nil)

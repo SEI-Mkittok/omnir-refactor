@@ -153,13 +153,13 @@ func TestTicketHandler_Create(t *testing.T) {
 			body: map[string]any{
 				"description": "No subject",
 			},
-			setupMock:  func(m *mocks.MockTicketRepository) {},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       nil,
-			setupMock:  func(m *mocks.MockTicketRepository) {},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -222,7 +222,7 @@ func TestTicketHandler_GetByID(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			ticketID:   "not-a-uuid",
-			setupMock:  func(m *mocks.MockTicketRepository) {},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -274,14 +274,14 @@ func TestTicketHandler_Update(t *testing.T) {
 			name:       "returns 400 for invalid uuid",
 			ticketID:   "not-a-uuid",
 			body:       map[string]any{"status": "closed"},
-			setupMock:  func(m *mocks.MockTicketRepository) {},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			ticketID:   ticketID.String(),
 			body:       nil,
-			setupMock:  func(m *mocks.MockTicketRepository) {},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -344,7 +344,7 @@ func TestTicketHandler_Delete(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			ticketID:   "not-a-uuid",
-			setupMock:  func(m *mocks.MockTicketRepository) {},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -432,7 +432,7 @@ func TestTicketHandler_ListComments(t *testing.T) {
 			name:           "returns 400 for invalid ticket id",
 			ticketID:       "not-a-uuid",
 			claims:         &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAdmin)},
-			setupMock:      func(m *mocks.MockTicketCommentRepository) {},
+			setupMock:      func(_ *mocks.MockTicketCommentRepository) {},
 			wantStatus:     http.StatusBadRequest,
 			expectInternal: false,
 		},
@@ -532,7 +532,7 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 				Role:   string(domain.UserRoleAdmin),
 			},
 			body:       map[string]any{"is_internal": false},
-			setupMock:  func(m *mocks.MockTicketCommentRepository) {},
+			setupMock:  func(_ *mocks.MockTicketCommentRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
@@ -540,7 +540,7 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 			ticketID:   ticketID.String(),
 			claims:     &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAdmin)},
 			body:       nil,
-			setupMock:  func(m *mocks.MockTicketCommentRepository) {},
+			setupMock:  func(_ *mocks.MockTicketCommentRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -548,7 +548,7 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 			ticketID:   "not-a-uuid",
 			claims:     &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAdmin)},
 			body:       map[string]any{"body": "Comment"},
-			setupMock:  func(m *mocks.MockTicketCommentRepository) {},
+			setupMock:  func(_ *mocks.MockTicketCommentRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -619,14 +619,14 @@ func TestTicketHandler_DeleteComment(t *testing.T) {
 			name:       "returns 400 for invalid ticket id",
 			ticketID:   "not-a-uuid",
 			commentID:  commentID.String(),
-			setupMock:  func(m *mocks.MockTicketCommentRepository) {},
+			setupMock:  func(_ *mocks.MockTicketCommentRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid comment id",
 			ticketID:   ticketID.String(),
 			commentID:  "not-a-uuid",
-			setupMock:  func(m *mocks.MockTicketCommentRepository) {},
+			setupMock:  func(_ *mocks.MockTicketCommentRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

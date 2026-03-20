@@ -13,7 +13,7 @@ import (
 )
 
 // okHandler is a simple handler that always returns 200.
-var okHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var okHandler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 })
 

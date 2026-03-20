@@ -165,7 +165,7 @@ func TestContactHandler_Update_CustomFields(t *testing.T) {
 		{
 			name: "reject unknown custom field",
 			body: map[string]any{"custom_fields": map[string]any{"unknown_field": "value"}},
-			setupMocks: func(cr *mocks.MockContactRepository, cfr *mocks.MockCustomFieldDefinitionRepository) {
+			setupMocks: func(_ *mocks.MockContactRepository, cfr *mocks.MockCustomFieldDefinitionRepository) {
 				cfr.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{textDef}, nil)
 			},
 			wantStatus: http.StatusUnprocessableEntity,
@@ -173,7 +173,7 @@ func TestContactHandler_Update_CustomFields(t *testing.T) {
 		{
 			name: "reject invalid type",
 			body: map[string]any{"custom_fields": map[string]any{"notes": 42}},
-			setupMocks: func(cr *mocks.MockContactRepository, cfr *mocks.MockCustomFieldDefinitionRepository) {
+			setupMocks: func(_ *mocks.MockContactRepository, cfr *mocks.MockCustomFieldDefinitionRepository) {
 				cfr.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{textDef}, nil)
 			},
 			wantStatus: http.StatusUnprocessableEntity,
