@@ -2,6 +2,9 @@
 # Pre-push validation — agents MUST run this before pushing feature branches
 set -e
 
+# Ensure go is in PATH
+export PATH="/home/omnirdev/go/bin:$PATH"
+
 cd "$(git rev-parse --show-toplevel)"
 
 echo "=== Go checks ==="

@@ -304,6 +304,32 @@ type OutboundWebhookRepository interface {
 	ListDeliveries(ctx context.Context, webhookID uuid.UUID, limit int) ([]*domain.WebhookDelivery, error)
 }
 
+// ProductRepository defines the persistence contract for products.
+type ProductRepository interface {
+	Create(ctx context.Context, p *domain.Product) (*domain.Product, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.ProductPatch) (*domain.Product, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.ProductFilter) ([]*domain.Product, int, error)
+}
+
+// QuoteRepository defines the persistence contract for quotes.
+type QuoteRepository interface {
+	Create(ctx context.Context, q *domain.Quote) (*domain.Quote, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Quote, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.QuotePatch) (*domain.Quote, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.QuoteFilter) ([]*domain.Quote, int, error)
+	// ReplaceLineItems atomically replaces all line items for a quote.
+	ReplaceLineItems(ctx context.Context, quoteID uuid.UUID, items []domain.QuoteLineItemInput) ([]domain.QuoteLineItem, error)
+	// MarkSent sets status=sent and sent_at=now.
+	MarkSent(ctx context.Context, id uuid.UUID) (*domain.Quote, error)
+	// MarkApproved sets status=approved and approved_at=now.
+	MarkApproved(ctx context.Context, id uuid.UUID) (*domain.Quote, error)
+	// MarkRejected sets status=rejected and rejected_at=now.
+	MarkRejected(ctx context.Context, id uuid.UUID) (*domain.Quote, error)
+}
+
 // EntityAttachmentRepository manages file attachments for contacts, accounts, and deals.
 type EntityAttachmentRepository interface {
 	// Create inserts a new attachment record.
