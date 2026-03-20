@@ -23,6 +23,9 @@ interface TopBarProps {
   onMenuClick: () => void
 }
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+const shortcutLabel = isMac ? '⌘K' : 'Ctrl+K'
+
 export function TopBar({ onMenuClick }: TopBarProps) {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
@@ -161,7 +164,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
                 if (debouncedSearch.trim().length >= 2) setDropdownOpen(true)
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search… (⌘K)"
+              placeholder={`Search… (${shortcutLabel})`}
               className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               autoComplete="off"
             />
