@@ -22,7 +22,7 @@ func NewLocalBackend(basePath string) (*LocalBackend, error) {
 	return &LocalBackend{basePath: basePath}, nil
 }
 
-func (b *LocalBackend) Upload(_ context.Context, key string, r io.Reader, _ int64, contentType string) error {
+func (b *LocalBackend) Upload(_ context.Context, key string, r io.Reader, _ int64, _ string) error {
 	fullPath := b.fullPath(key)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return err
