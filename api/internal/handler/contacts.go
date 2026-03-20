@@ -15,10 +15,11 @@ import (
 )
 
 type ContactHandler struct {
-	repo       repository.ContactRepository
-	deals      repository.DealRepository
-	cfDefs     repository.CustomFieldDefinitionRepository
-	dispatcher chan<- worker.WebhookEvent
+	repo        repository.ContactRepository
+	deals       repository.DealRepository
+	cfDefs      repository.CustomFieldDefinitionRepository
+	dispatcher  chan<- worker.WebhookEvent
+	automations chan<- worker.AutomationEvent
 }
 
 func NewContactHandler(repo repository.ContactRepository) *ContactHandler {
@@ -40,6 +41,11 @@ func (h *ContactHandler) WithDispatcher(d chan<- worker.WebhookEvent) *ContactHa
 	return h
 }
 
+func (h *ContactHandler) WithAutomationEvents(ch chan<- worker.AutomationEvent) *ContactHandler {
+	h.automations = ch
+	return h
+}
+
 func (h *ContactHandler) emitWebhook(r *http.Request, event domain.WebhookEvent, entityID uuid.UUID, data any) {
 	if h.dispatcher == nil {
 		return
@@ -50,6 +56,33 @@ func (h *ContactHandler) emitWebhook(r *http.Request, event domain.WebhookEvent,
 	case h.dispatcher <- evt:
 	default:
 	}
+}
+
+func (h *ContactHandler) emitAutomation(r *http.Request, trigger domain.TriggerType, entityID uuid.UUID, entityType string, data map[string]interface{}) {
+	if h.automations == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.AutomationEvent{OrgID: orgID, TriggerType: trigger, EntityID: entityID, EntityType: entityType, Data: data}
+	select {
+	case h.automations <- evt:
+	default:
+	}
+}
+
+func contactToData(c *domain.Contact) map[string]interface{} {
+	d := map[string]interface{}{
+		"id":         c.ID.String(),
+		"org_id":     c.OrgID.String(),
+		"stage":      string(c.Stage),
+		"owner_id":   c.OwnerID.String(),
+		"first_name": c.FirstName,
+		"last_name":  c.LastName,
+	}
+	if c.Email != nil {
+		d["email"] = *c.Email
+	}
+	return d
 }
 
 func (h *ContactHandler) Router() chi.Router {
@@ -136,6 +169,7 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.emitWebhook(r, domain.WebhookEventContactCreated, created.ID, created)
+	h.emitAutomation(r, domain.TriggerContactCreated, created.ID, "contact", contactToData(created))
 	writeJSON(w, http.StatusCreated, created)
 }
 
