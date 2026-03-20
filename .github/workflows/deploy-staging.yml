@@ -115,11 +115,17 @@ jobs:
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
 
-      - name: Remove leftover migration containers
+      - name: Create S3 bucket (idempotent)
+        run: |
+          cd ~/omnir-crm
+          docker compose -f docker-compose.prod.yml --profile minio-init run --rm minio-init
+
+      - name: Remove leftover one-shot containers
         if: always()
         run: |
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml --profile migration rm -f migrate 2>/dev/null || true
+          docker compose -f docker-compose.prod.yml --profile minio-init rm -f minio-init 2>/dev/null || true
 
       - name: Cleanup old images
         run: docker system prune -f
