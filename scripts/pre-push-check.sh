@@ -2,10 +2,13 @@
 # Pre-push validation — agents MUST run this before pushing feature branches
 set -e
 
+# Ensure go is in PATH
+export PATH="/home/omnirdev/go/bin:$PATH"
+
 cd "$(git rev-parse --show-toplevel)"
 
 echo "=== Go checks ==="
-cd omnir-go-backend
+cd api
 
 # Verify it compiles
 echo "→ Building..."
@@ -24,7 +27,7 @@ fi
 cd ..
 
 echo "=== Frontend checks ==="
-cd omnir-frontend
+cd web
 
 # Type check
 echo "→ Type checking..."
