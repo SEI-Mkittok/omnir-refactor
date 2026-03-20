@@ -2,7 +2,7 @@
 -- Phase 9 Area 3: deal client portal links
 CREATE TABLE IF NOT EXISTS portal_links (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id              UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id              UUID        NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     deal_id             UUID        NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
     created_by_user_id  UUID        REFERENCES users(id) ON DELETE SET NULL,
     token               TEXT        NOT NULL UNIQUE,
