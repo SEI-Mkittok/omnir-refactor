@@ -111,6 +111,9 @@ type ReportsRepository interface {
 type UserRepository interface {
 	// CountAll returns the total number of non-deleted users across all orgs.
 	CountAll(ctx context.Context) (int, error)
+	// HasAdminUser returns true if any non-deleted admin user exists across all orgs.
+	// Used by the setup handler to determine whether initial setup is still required.
+	HasAdminUser(ctx context.Context) (bool, error)
 	// Create inserts a new user with a bcrypt password hash.
 	Create(ctx context.Context, u *domain.User, passwordHash string) (*domain.User, error)
 	// FindByEmail returns the user and their bcrypt password hash by email.

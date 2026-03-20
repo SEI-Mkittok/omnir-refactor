@@ -19,6 +19,11 @@ func (m *MockUserRepository) CountAll(ctx context.Context) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
+func (m *MockUserRepository) HasAdminUser(ctx context.Context) (bool, error) {
+	args := m.Called(ctx)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockUserRepository) Create(ctx context.Context, u *domain.User, passwordHash string) (*domain.User, error) {
 	args := m.Called(ctx, u, passwordHash)
 	if args.Get(0) == nil {
