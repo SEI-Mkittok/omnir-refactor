@@ -65,19 +65,19 @@ func TestAuthHandler_Login(t *testing.T) {
 		{
 			name:       "returns 422 for missing email",
 			body:       map[string]any{"password": password},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for missing password",
 			body:       map[string]any{"email": "user@example.com"},
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       nil,
-			setupMock:  func(m *mocks.MockUserRepository) {},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

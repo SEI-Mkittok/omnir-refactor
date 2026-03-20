@@ -50,7 +50,7 @@ func TestActivityHandler_Create(t *testing.T) {
 				"type":     "call",
 				"owner_id": ownerID.String(),
 			},
-			setupMock:  func(m *mocks.MockActivityRepository) {},
+			setupMock:  func(_ *mocks.MockActivityRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
@@ -60,7 +60,7 @@ func TestActivityHandler_Create(t *testing.T) {
 				"subject":  "Webinar",
 				"owner_id": ownerID.String(),
 			},
-			setupMock:  func(m *mocks.MockActivityRepository) {},
+			setupMock:  func(_ *mocks.MockActivityRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
@@ -69,7 +69,7 @@ func TestActivityHandler_Create(t *testing.T) {
 				"type":    "task",
 				"subject": "Follow up",
 			},
-			setupMock:  func(m *mocks.MockActivityRepository) {},
+			setupMock:  func(_ *mocks.MockActivityRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 	}
@@ -130,7 +130,7 @@ func TestActivityHandler_GetByID(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			activityID: "not-a-uuid",
-			setupMock:  func(m *mocks.MockActivityRepository) {},
+			setupMock:  func(_ *mocks.MockActivityRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
