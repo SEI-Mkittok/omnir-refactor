@@ -10,7 +10,7 @@ CREATE TYPE sequence_event_kind AS ENUM ('sent', 'opened', 'clicked', 'completed
 
 CREATE TABLE email_sequences (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     name        TEXT NOT NULL,
     description TEXT,
     status      sequence_status NOT NULL DEFAULT 'draft',
