@@ -25,7 +25,8 @@ func NewContactRepo(db *pgxpool.Pool) *ContactRepo {
 const contactCols = `
 	id, org_id, first_name, last_name, email, phone,
 	account_id, owner_id, lead_source, lead_score, stage, tags,
-	custom_fields, converted_at, converted_by, converted_deal_id, converted_from_lead_id,
+	custom_fields, email_opt_out, bounce_count,
+	converted_at, converted_by, converted_deal_id, converted_from_lead_id,
 	created_at, updated_at, deleted_at
 `
 
@@ -34,7 +35,8 @@ func scanContact(row pgx.Row) (*domain.Contact, error) {
 	err := row.Scan(
 		&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
 		&c.AccountID, &c.OwnerID, &c.LeadSource, &c.LeadScore, &c.Stage, &c.Tags,
-		&c.CustomFields, &c.ConvertedAt, &c.ConvertedBy, &c.ConvertedDealID, &c.ConvertedFromLeadID,
+		&c.CustomFields, &c.EmailOptOut, &c.BounceCount,
+		&c.ConvertedAt, &c.ConvertedBy, &c.ConvertedDealID, &c.ConvertedFromLeadID,
 		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
 	)
 	if err != nil {
@@ -335,6 +337,22 @@ func (r *ContactRepo) ConvertLead(ctx context.Context, id, byUserID uuid.UUID, d
 		WHERE %s
 		RETURNING %s`, whereClause, contactCols)
 	return scanContact(r.db.QueryRow(ctx, q, args...))
+}
+
+// SetEmailOptOut sets email_opt_out=true for a contact (no org scoping — used by tracking handler).
+func (r *ContactRepo) SetEmailOptOut(ctx context.Context, contactID uuid.UUID) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE contacts SET email_opt_out = TRUE, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
+		contactID)
+	return err
+}
+
+// IncrementBounceCount atomically increments bounce_count for a contact (no org scoping — used by bounce webhook).
+func (r *ContactRepo) IncrementBounceCount(ctx context.Context, contactID uuid.UUID) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE contacts SET bounce_count = bounce_count + 1, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
+		contactID)
+	return err
 }
 
 // ListLeadSources returns distinct non-null lead_source values for contacts
