@@ -23,7 +23,7 @@ func NewQuoteRepo(db *pgxpool.Pool) *QuoteRepo {
 const quoteCols = `
 	id, org_id, deal_id, contact_id, title, status, currency,
 	valid_until, notes, sent_at, approved_at, rejected_at,
-	created_by, created_at, updated_at
+	total_cents, created_by, created_at, updated_at
 `
 
 func scanQuote(row pgx.Row) (*domain.Quote, error) {
@@ -33,7 +33,7 @@ func scanQuote(row pgx.Row) (*domain.Quote, error) {
 		&q.ID, &q.OrgID, &q.DealID, &q.ContactID,
 		&q.Title, &q.Status, &q.Currency,
 		&q.ValidUntil, &notes, &q.SentAt, &q.ApprovedAt, &q.RejectedAt,
-		&q.CreatedBy, &q.CreatedAt, &q.UpdatedAt,
+		&q.TotalCents, &q.CreatedBy, &q.CreatedAt, &q.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -89,8 +89,19 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 		}
 		created.LineItems = items
 		created.ComputeTotal()
+		if err := r.persistTotal(ctx, created.ID, created.TotalCents); err != nil {
+			return nil, err
+		}
 	}
 	return created, nil
+}
+
+func (r *QuoteRepo) persistTotal(ctx context.Context, id uuid.UUID, total int64) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE quotes SET total_cents=$1, updated_at=NOW() WHERE id=$2`,
+		total, id,
+	)
+	return err
 }
 
 func (r *QuoteRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Quote, error) {
@@ -162,7 +173,16 @@ func (r *QuoteRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Quote
 	}
 
 	if patch.LineItems != nil {
-		if _, err := r.ReplaceLineItems(ctx, id, patch.LineItems); err != nil {
+		items, err := r.ReplaceLineItems(ctx, id, patch.LineItems)
+		if err != nil {
+			return nil, err
+		}
+		var total int64
+		for i := range items {
+			items[i].ComputeTotal()
+			total += items[i].TotalCents
+		}
+		if err := r.persistTotal(ctx, id, total); err != nil {
 			return nil, err
 		}
 	}
