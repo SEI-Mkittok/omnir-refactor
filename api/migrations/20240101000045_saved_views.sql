@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE saved_views (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id        UUID NOT NULL REFERENCES organizations(id),
+  org_id        UUID NOT NULL REFERENCES orgs(id),
   created_by    UUID NOT NULL REFERENCES users(id),
   entity_type   TEXT NOT NULL,
   name          TEXT NOT NULL,
