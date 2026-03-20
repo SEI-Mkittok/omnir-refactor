@@ -125,7 +125,7 @@ func TestNotificationHandler_MarkRead(t *testing.T) {
 		{
 			name:       "returns 400 for invalid uuid",
 			notifID:    "not-a-uuid",
-			setupMock:  func(m *mocks.MockNotificationRepository) {},
+			setupMock:  func(_ *mocks.MockNotificationRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

@@ -15,7 +15,7 @@ import (
 	"github.com/omnir/crm-api/internal/worker"
 )
 
-func TestEmailNotifier_EnqueueAndDeliver(t *testing.T) {
+func TestEmailNotifier_EnqueueAndDeliver(_ *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
