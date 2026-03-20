@@ -71,7 +71,7 @@ type postmarkPayload struct {
 	From      string           `json:"From"`
 	Subject   string           `json:"Subject"`
 	TextBody  string           `json:"TextBody"`
-	HtmlBody  string           `json:"HtmlBody"`
+	HTMLBody  string           `json:"HTMLBody"`
 	Headers   []postmarkHeader `json:"Headers"`
 }
 
@@ -93,7 +93,7 @@ func (p *postmarkPayload) body() string {
 	if p.TextBody != "" {
 		return p.TextBody
 	}
-	return p.HtmlBody
+	return p.HTMLBody
 }
 
 // HandlePostmark processes an inbound email webhook from Postmark.
