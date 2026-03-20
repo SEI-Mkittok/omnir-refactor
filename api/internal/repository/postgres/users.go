@@ -31,6 +31,14 @@ func (r *UserRepo) CountAll(ctx context.Context) (int, error) {
 	return count, err
 }
 
+// HasAdminUser returns true if at least one non-deleted admin user exists across all orgs.
+func (r *UserRepo) HasAdminUser(ctx context.Context) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE deleted_at IS NULL AND role = 'admin')`).Scan(&exists)
+	return exists, err
+}
+
 // Create inserts a new user with the given bcrypt password hash.
 func (r *UserRepo) Create(ctx context.Context, u *domain.User, passwordHash string) (*domain.User, error) {
 	if u.ID == uuid.Nil {

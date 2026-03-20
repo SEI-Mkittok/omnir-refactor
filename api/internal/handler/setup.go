@@ -33,12 +33,12 @@ func (h *SetupHandler) Router() chi.Router {
 // Status returns whether the app needs initial setup.
 // GET /api/setup/status → {"setup_required": true|false}
 func (h *SetupHandler) Status(w http.ResponseWriter, r *http.Request) {
-	count, err := h.users.CountAll(r.Context())
+	hasAdmin, err := h.users.HasAdminUser(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"setupRequired": count == 0})
+	writeJSON(w, http.StatusOK, map[string]bool{"setupRequired": !hasAdmin})
 }
 
 type setupRequest struct {
@@ -73,13 +73,13 @@ func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure no users exist yet.
-	count, err := h.users.CountAll(r.Context())
+	// Block setup if an admin user already exists.
+	hasAdmin, err := h.users.HasAdminUser(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	if count > 0 {
+	if hasAdmin {
 		writeError(w, http.StatusConflict, "setup already completed")
 		return
 	}
