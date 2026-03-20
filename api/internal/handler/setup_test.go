@@ -18,6 +18,13 @@ import (
 	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
+var defaultOrg = &domain.Organization{
+	ID:   domain.DefaultOrgID,
+	Name: "Default",
+	Slug: "default",
+	Plan: domain.OrgPlanSingle,
+}
+
 func TestSetupHandler_Status(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -45,11 +52,12 @@ func TestSetupHandler_Status(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(mocks.MockUserRepository)
-			tt.setupMock(mockRepo)
+			mockUsers := new(mocks.MockUserRepository)
+			mockOrgs := new(mocks.MockOrgRepository)
+			tt.setupMock(mockUsers)
 
 			jwtSvc := auth.NewJWTService("test-secret")
-			h := handler.NewSetupHandler(mockRepo, jwtSvc)
+			h := handler.NewSetupHandler(mockUsers, mockOrgs, jwtSvc)
 
 			req := httptest.NewRequest(http.MethodGet, "/status", nil)
 			rr := httptest.NewRecorder()
@@ -60,7 +68,7 @@ func TestSetupHandler_Status(t *testing.T) {
 			var body map[string]bool
 			require.NoError(t, json.NewDecoder(rr.Body).Decode(&body))
 			assert.Equal(t, tt.wantBody, body)
-			mockRepo.AssertExpectations(t)
+			mockUsers.AssertExpectations(t)
 		})
 	}
 }
@@ -75,22 +83,44 @@ func TestSetupHandler_Setup(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		body       map[string]any
-		setupMock  func(*mocks.MockUserRepository)
-		wantStatus int
+		name          string
+		body          map[string]any
+		setupUserMock func(*mocks.MockUserRepository)
+		setupOrgMock  func(*mocks.MockOrgRepository)
+		wantStatus    int
 	}{
 		{
-			name: "creates first admin user and sets auth cookies",
+			name: "creates first admin user when org already exists",
 			body: map[string]any{
 				"adminName": "Admin",
 				"email":     "admin@example.com",
 				"password":  "securepassword",
 			},
-			setupMock: func(m *mocks.MockUserRepository) {
+			setupUserMock: func(m *mocks.MockUserRepository) {
 				m.On("HasAdminUser", mock.Anything).Return(false, nil)
 				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("string")).
 					Return(adminUser, nil)
+			},
+			setupOrgMock: func(m *mocks.MockOrgRepository) {
+				m.On("GetByID", mock.Anything, domain.DefaultOrgID).Return(defaultOrg, nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "creates org when not found then creates admin user",
+			body: map[string]any{
+				"adminName": "Admin",
+				"email":     "admin@example.com",
+				"password":  "securepassword",
+			},
+			setupUserMock: func(m *mocks.MockUserRepository) {
+				m.On("HasAdminUser", mock.Anything).Return(false, nil)
+				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("string")).
+					Return(adminUser, nil)
+			},
+			setupOrgMock: func(m *mocks.MockOrgRepository) {
+				m.On("GetByID", mock.Anything, domain.DefaultOrgID).Return(nil, domain.ErrNotFound)
+				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.Organization")).Return(defaultOrg, nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -101,10 +131,11 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"email":     "admin@example.com",
 				"password":  "securepassword",
 			},
-			setupMock: func(m *mocks.MockUserRepository) {
+			setupUserMock: func(m *mocks.MockUserRepository) {
 				m.On("HasAdminUser", mock.Anything).Return(true, nil)
 			},
-			wantStatus: http.StatusConflict,
+			setupOrgMock:  func(_ *mocks.MockOrgRepository) {},
+			wantStatus:    http.StatusConflict,
 		},
 		{
 			name: "returns 422 for missing name",
@@ -112,8 +143,9 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"email":    "admin@example.com",
 				"password": "securepassword",
 			},
-			setupMock:  func(_ *mocks.MockUserRepository) {},
-			wantStatus: http.StatusUnprocessableEntity,
+			setupUserMock: func(_ *mocks.MockUserRepository) {},
+			setupOrgMock:  func(_ *mocks.MockOrgRepository) {},
+			wantStatus:    http.StatusUnprocessableEntity,
 		},
 		{
 			name: "returns 422 for missing email",
@@ -121,8 +153,9 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"adminName": "Admin",
 				"password":  "securepassword",
 			},
-			setupMock:  func(_ *mocks.MockUserRepository) {},
-			wantStatus: http.StatusUnprocessableEntity,
+			setupUserMock: func(_ *mocks.MockUserRepository) {},
+			setupOrgMock:  func(_ *mocks.MockOrgRepository) {},
+			wantStatus:    http.StatusUnprocessableEntity,
 		},
 		{
 			name: "returns 422 for password too short",
@@ -131,24 +164,28 @@ func TestSetupHandler_Setup(t *testing.T) {
 				"email":     "admin@example.com",
 				"password":  "short",
 			},
-			setupMock:  func(_ *mocks.MockUserRepository) {},
-			wantStatus: http.StatusUnprocessableEntity,
+			setupUserMock: func(_ *mocks.MockUserRepository) {},
+			setupOrgMock:  func(_ *mocks.MockOrgRepository) {},
+			wantStatus:    http.StatusUnprocessableEntity,
 		},
 		{
-			name:       "returns 400 for invalid JSON",
-			body:       nil,
-			setupMock:  func(_ *mocks.MockUserRepository) {},
-			wantStatus: http.StatusBadRequest,
+			name:          "returns 400 for invalid JSON",
+			body:          nil,
+			setupUserMock: func(_ *mocks.MockUserRepository) {},
+			setupOrgMock:  func(_ *mocks.MockOrgRepository) {},
+			wantStatus:    http.StatusBadRequest,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(mocks.MockUserRepository)
-			tt.setupMock(mockRepo)
+			mockUsers := new(mocks.MockUserRepository)
+			mockOrgs := new(mocks.MockOrgRepository)
+			tt.setupUserMock(mockUsers)
+			tt.setupOrgMock(mockOrgs)
 
 			jwtSvc := auth.NewJWTService("test-secret")
-			h := handler.NewSetupHandler(mockRepo, jwtSvc)
+			h := handler.NewSetupHandler(mockUsers, mockOrgs, jwtSvc)
 
 			var body []byte
 			if tt.body != nil {
@@ -181,7 +218,8 @@ func TestSetupHandler_Setup(t *testing.T) {
 				assert.Nil(t, resp["access_token"])
 			}
 
-			mockRepo.AssertExpectations(t)
+			mockUsers.AssertExpectations(t)
+			mockOrgs.AssertExpectations(t)
 		})
 	}
 }
