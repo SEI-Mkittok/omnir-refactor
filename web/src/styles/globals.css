@@ -4,14 +4,15 @@
 
 @layer base {
   :root {
+    /* ── shadcn/ui required HSL vars ─────────────────────── */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 238 82% 57%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 201 47% 19%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
@@ -20,10 +21,75 @@
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 238 82% 57%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 201 47% 19%;
     --radius: 0.5rem;
+
+    /* ── PraestOS Surfaces ───────────────────────────────── */
+    --surface-app:       #F7F8FA;
+    --surface-sidebar:   #FAFBFC;
+    --surface-card:      #FFFFFF;
+    --surface-overlay:   rgba(0, 0, 0, 0.32);
+
+    /* ── PraestOS Borders ────────────────────────────────── */
+    --border-default:    #E5E7EB;
+    --border-subtle:     #F0F1F3;
+    --border-focus:      #1B3A4B;
+
+    /* ── PraestOS Text ───────────────────────────────────── */
+    --text-primary:      #1A1D23;
+    --text-secondary:    #6B7280;
+    --text-label:        #7C8DB0;
+    --text-on-dark:      #FFFFFF;
+    --text-disabled:     #C4C9D4;
+
+    /* ── PraestOS Brand ──────────────────────────────────── */
+    --color-primary:       #1B3A4B;
+    --color-primary-hover: #152E3C;
+    --color-primary-light: #E8EDF2;
+
+    /* ── PraestOS Status ─────────────────────────────────── */
+    --color-success:  #22C55E;
+    --color-warning:  #F59E0B;
+    --color-danger:   #EF4444;
+    --color-info:     #3B82F6;
+    --color-neutral:  #9CA3AF;
+
+    /* ── Priority dots ───────────────────────────────────── */
+    --priority-critical: var(--color-danger);
+    --priority-high:     #F97316;
+    --priority-medium:   var(--color-info);
+    --priority-low:      var(--color-neutral);
+
+    /* ── Typography ──────────────────────────────────────── */
+    --font-sans: 'Inter', 'DM Sans', system-ui, sans-serif;
+    --letter-spacing-label: 0.05em;
+    --letter-spacing-tight: -0.01em;
+
+    /* ── Layout dimensions ───────────────────────────────── */
+    --sidebar-width:           210px;
+    --sidebar-width-collapsed:  60px;
+    --sidebar-current-width:   210px;   /* toggled by JS */
+    --topbar-height:            56px;
+
+    /* ── Border Radius ───────────────────────────────────── */
+    --radius-sm:   4px;
+    --radius-md:   8px;
+    --radius-lg:   12px;
+    --radius-pill: 9999px;
+
+    /* ── Shadow ──────────────────────────────────────────── */
+    --shadow-card:    0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-popover: 0 4px 16px rgba(0,0,0,0.10);
+    --shadow-modal:   0 8px 32px rgba(0,0,0,0.14);
+
+    /* ── Z-index ─────────────────────────────────────────── */
+    --z-sidebar:  100;
+    --z-topbar:   200;
+    --z-overlay:  300;
+    --z-modal:    400;
+    --z-toast:    500;
   }
 }
 
@@ -33,7 +99,14 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    background-color: var(--surface-app);
+    color: var(--text-primary);
   }
+}
+
+/* Collapsed sidebar state — toggled on #layout-root */
+#layout-root[data-sidebar-collapsed="true"] {
+  --sidebar-current-width: var(--sidebar-width-collapsed);
 }
 
 /* Custom scrollbar */
@@ -45,8 +118,17 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full;
+  background: var(--border-default);
+  border-radius: var(--radius-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400;
+  background: var(--text-disabled);
+}
+
+/* PWA / Mobile safe area utilities */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
