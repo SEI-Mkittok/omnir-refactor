@@ -23,10 +23,10 @@ import (
 
 const (
 	googleAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
-	googleTokenURL = "https://oauth2.googleapis.com/token"
+	googleTokenURL = "https://oauth2.googleapis.com/token" //nolint:gosec // OAuth endpoint URL, not a credential
 
 	microsoftAuthURL  = "https://login.microsoftonline.com/%s/oauth2/v2.0/authorize"
-	microsoftTokenURL = "https://login.microsoftonline.com/%s/oauth2/v2.0/token"
+	microsoftTokenURL = "https://login.microsoftonline.com/%s/oauth2/v2.0/token" //nolint:gosec // OAuth endpoint URL, not a credential
 )
 
 // oauthState tracks in-flight OAuth state values to prevent CSRF.
@@ -304,7 +304,7 @@ func (h *CalendarHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
 
 // TriggerSync allows an authenticated user to request an immediate sync.
 // The actual sync runs in the background worker; this endpoint just signals it.
-func (h *CalendarHandler) TriggerSync(w http.ResponseWriter, r *http.Request) {
+func (h *CalendarHandler) TriggerSync(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "sync queued"})
 }
 
@@ -318,7 +318,7 @@ type oauthTokenResponse struct {
 }
 
 func doTokenRequest(tokenURL string, body url.Values) (*oauthTokenResponse, error) {
-	resp, err := http.PostForm(tokenURL, body) //nolint:noctx
+	resp, err := http.PostForm(tokenURL, body) //nolint:noctx,gosec // tokenURL is a known OAuth provider endpoint
 	if err != nil {
 		return nil, fmt.Errorf("token request failed: %w", err)
 	}

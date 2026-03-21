@@ -58,13 +58,13 @@ func TestSavedViewHandler_List(t *testing.T) {
 		{
 			name:       "returns 400 for invalid entity type",
 			entityType: "invalid",
-			setupMock:  func(m *mocks.MockSavedViewRepository) {},
+			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for missing entity type",
 			entityType: "",
-			setupMock:  func(m *mocks.MockSavedViewRepository) {},
+			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -115,19 +115,19 @@ func TestSavedViewHandler_Create(t *testing.T) {
 		{
 			name:       "returns 422 for missing name",
 			body:       map[string]any{"entity_type": "contacts"},
-			setupMock:  func(m *mocks.MockSavedViewRepository) {},
+			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 422 for invalid entity_type",
 			body:       map[string]any{"entity_type": "widgets", "name": "My View"},
-			setupMock:  func(m *mocks.MockSavedViewRepository) {},
+			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 400 for invalid JSON",
 			body:       nil,
-			setupMock:  func(m *mocks.MockSavedViewRepository) {},
+			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -217,7 +217,7 @@ func TestSavedViewHandler_Update(t *testing.T) {
 			viewID:     "not-a-uuid",
 			claims:     userClaims(ownerID),
 			body:       map[string]any{"name": "Updated"},
-			setupMock:  func(m *mocks.MockSavedViewRepository) {},
+			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
 	}

@@ -9,16 +9,16 @@ import (
 
 // Product represents a product in the org's catalog.
 type Product struct {
-	ID             uuid.UUID  `json:"id"`
-	OrgID          uuid.UUID  `json:"org_id"`
-	Name           string     `json:"name"`
-	SKU            string     `json:"sku,omitempty"`
-	Description    string     `json:"description,omitempty"`
-	UnitPriceCents int64      `json:"unit_price_cents"`
-	Currency       string     `json:"currency"`
-	IsActive       bool       `json:"is_active"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID             uuid.UUID `json:"id"`
+	OrgID          uuid.UUID `json:"org_id"`
+	Name           string    `json:"name"`
+	SKU            string    `json:"sku,omitempty"`
+	Description    string    `json:"description,omitempty"`
+	UnitPriceCents int64     `json:"unit_price_cents"`
+	Currency       string    `json:"currency"`
+	IsActive       bool      `json:"is_active"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func (p *Product) Validate() error {

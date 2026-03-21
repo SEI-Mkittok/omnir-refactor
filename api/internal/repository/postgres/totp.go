@@ -12,7 +12,7 @@ import (
 
 type totpRepo struct{ db *pgxpool.Pool }
 
-func NewTOTPRepo(db *pgxpool.Pool) *totpRepo {
+func NewTOTPRepo(db *pgxpool.Pool) *totpRepo { //nolint:revive // internal package, unexported type is intentional
 	return &totpRepo{db: db}
 }
 

@@ -159,8 +159,14 @@ func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
 	_, err = conn.Exec(context.Background(),
 		`SELECT set_config('app.current_org_id', '', false)`)
 	require.NoError(t, err)
-	_, err = conn.Exec(context.Background(), `SET LOCAL ROLE omnir_app_test`)
+	// SET ROLE (session-scoped, persists across implicit transactions unlike SET LOCAL ROLE)
+	// so the non-superuser role is active for the subsequent query.
+	_, err = conn.Exec(context.Background(), `SET ROLE omnir_app_test`)
 	require.NoError(t, err)
+	defer func() {
+		// Reset role before returning connection to pool.
+		_, _ = conn.Exec(context.Background(), `RESET ROLE`)
+	}()
 
 	// With current_org_id = '' (NULL via current_org_id() function) and a
 	// non-superuser role, the policy org_id = current_org_id() evaluates to

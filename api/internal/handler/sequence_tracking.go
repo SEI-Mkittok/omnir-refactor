@@ -130,12 +130,6 @@ func (h *SequenceTrackingHandler) Unsubscribe(w http.ResponseWriter, r *http.Req
 
 // ─────────────── Bounce webhook ───────────────
 
-// bouncePayload is a minimal SendGrid/Mailgun-compatible bounce webhook body.
-// SendGrid sends an array; Mailgun sends a flat object. We handle both.
-type bouncePayload struct {
-	Email string `json:"email"`
-}
-
 // HandleBounce processes a bounce notification from SendGrid or Mailgun.
 // POST /api/emails/bounce
 func (h *SequenceTrackingHandler) HandleBounce(w http.ResponseWriter, r *http.Request) {
