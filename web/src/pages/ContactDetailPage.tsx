@@ -300,12 +300,12 @@ function OpportunitiesPanel({ deals: allDeals }: { deals: Deal[] }) {
                 borderColor: 'var(--border-subtle)',
               }}
               onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)'
-                ;(e.currentTarget as HTMLElement).style.background = 'var(--surface-card)'
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
+                (e.currentTarget as HTMLElement).style.background = 'var(--surface-card)'
               }}
               onMouseLeave={(e) => {
-                ;(e.currentTarget as HTMLElement).style.borderColor = 'var(--border-subtle)'
-                ;(e.currentTarget as HTMLElement).style.background = 'var(--surface-app)'
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-subtle)';
+                (e.currentTarget as HTMLElement).style.background = 'var(--surface-app)'
               }}
             >
               <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
