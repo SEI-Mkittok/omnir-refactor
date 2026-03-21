@@ -967,6 +967,99 @@ export interface EnrollRequest {
   contact_ids: string[]
 }
 
+// ---- Automations (OMN-413) ----
+
+export type AutomationStatus = 'draft' | 'active' | 'paused'
+
+export type TriggerType =
+  | 'contact_created'
+  | 'contact_updated'
+  | 'deal_created'
+  | 'deal_stage_changed'
+  | 'ticket_created'
+  | 'manual'
+
+export type ConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'is_set'
+  | 'is_not_set'
+
+export type ActionType = 'send_email' | 'create_task' | 'update_field' | 'add_tag' | 'webhook'
+
+export type AutomationRunStatus = 'pending' | 'running' | 'succeeded' | 'failed'
+
+export interface AutomationTrigger {
+  type: TriggerType
+  config: Record<string, unknown>
+}
+
+export interface AutomationCondition {
+  field: string
+  operator: ConditionOperator
+  value?: unknown
+}
+
+export interface AutomationAction {
+  type: ActionType
+  config: Record<string, unknown>
+}
+
+export interface Automation {
+  id: string
+  org_id: string
+  name: string
+  description: string
+  status: AutomationStatus
+  trigger: AutomationTrigger
+  conditions: AutomationCondition[]
+  actions: AutomationAction[]
+  created_by?: string
+  run_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AutomationRun {
+  id: string
+  automation_id: string
+  org_id: string
+  status: AutomationRunStatus
+  entity_type?: string
+  entity_id?: string
+  error_message?: string
+  started_at?: string
+  finished_at?: string
+  created_at: string
+}
+
+export interface CreateAutomationRequest {
+  name: string
+  description?: string
+  trigger: AutomationTrigger
+  conditions?: AutomationCondition[]
+  actions: AutomationAction[]
+}
+
+export interface UpdateAutomationRequest {
+  name?: string
+  description?: string
+  status?: AutomationStatus
+  trigger?: AutomationTrigger
+  conditions?: AutomationCondition[]
+  actions?: AutomationAction[]
+}
+
+export interface AutomationListParams {
+  page?: number
+  limit?: number
+  status?: AutomationStatus
+}
+
 // ---- Products ----
 
 export interface Product {

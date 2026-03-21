@@ -28,20 +28,21 @@ func (t ActivityType) IsValid() bool {
 
 // Activity represents a logged interaction or scheduled task linked to CRM entities.
 type Activity struct {
-	ID          uuid.UUID    `json:"id"`
-	OrgID       uuid.UUID    `json:"org_id"`
-	Type        ActivityType `json:"type"`
-	Subject     string       `json:"subject"`
-	Description *string      `json:"description,omitempty"`
-	DueDate     *time.Time   `json:"due_date,omitempty"`
-	CompletedAt *time.Time   `json:"completed_at,omitempty"`
-	ContactID   *uuid.UUID   `json:"contact_id,omitempty"`
-	AccountID   *uuid.UUID   `json:"account_id,omitempty"`
-	DealID      *uuid.UUID   `json:"deal_id,omitempty"`
-	OwnerID     uuid.UUID    `json:"owner_id"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
-	DeletedAt   *time.Time   `json:"deleted_at,omitempty"`
+	ID              uuid.UUID    `json:"id"`
+	OrgID           uuid.UUID    `json:"org_id"`
+	Type            ActivityType `json:"type"`
+	Subject         string       `json:"subject"`
+	Description     *string      `json:"description,omitempty"`
+	DueDate         *time.Time   `json:"due_date,omitempty"`
+	CompletedAt     *time.Time   `json:"completed_at,omitempty"`
+	ContactID       *uuid.UUID   `json:"contact_id,omitempty"`
+	AccountID       *uuid.UUID   `json:"account_id,omitempty"`
+	DealID          *uuid.UUID   `json:"deal_id,omitempty"`
+	OwnerID         uuid.UUID    `json:"owner_id"`
+	CalendarEventID *string      `json:"calendar_event_id,omitempty"`
+	CreatedAt       time.Time    `json:"created_at"`
+	UpdatedAt       time.Time    `json:"updated_at"`
+	DeletedAt       *time.Time   `json:"deleted_at,omitempty"`
 }
 
 // Validate checks required fields and value constraints on an Activity.
