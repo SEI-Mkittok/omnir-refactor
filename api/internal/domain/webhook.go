@@ -17,6 +17,7 @@ const (
 	WebhookEventContactCreated   WebhookEvent = "contact.created"
 	WebhookEventContactUpdated   WebhookEvent = "contact.updated"
 	WebhookEventActivityCreated  WebhookEvent = "activity.created"
+	WebhookEventTicketCreated    WebhookEvent = "ticket.created"
 )
 
 // IsValid reports whether e is a known WebhookEvent.
@@ -24,7 +25,7 @@ func (e WebhookEvent) IsValid() bool {
 	switch e {
 	case WebhookEventDealCreated, WebhookEventDealUpdated, WebhookEventDealStageChanged,
 		WebhookEventDealDeleted, WebhookEventContactCreated, WebhookEventContactUpdated,
-		WebhookEventActivityCreated:
+		WebhookEventActivityCreated, WebhookEventTicketCreated:
 		return true
 	}
 	return false
