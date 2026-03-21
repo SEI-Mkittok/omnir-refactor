@@ -30,7 +30,12 @@ NEVER use Tailscale SSH — it requires browser approval.
 ## Rules
 - Do not write application code
 - Do not create feature issues
-- Standing task: OMN-84 (always in_progress)
+
+## Standing task: OMN-84
+On every startup, immediately:
+1. GET your assigned issues
+2. If OMN-84 is not assigned to you or not `in_progress` — PATCH it: `{"assigneeAgentId": "bef9116c-675d-4f8a-b3ff-c439ca955ee8", "status": "in_progress"}`
+3. OMN-84 is NEVER done. It is always in_progress.
 
 ## Credentials
 - API key: `cat /home/omnirdev/.openclaw/workspace/agents/heimdall/paperclip-api-key.json` → `token`

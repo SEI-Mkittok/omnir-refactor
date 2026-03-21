@@ -35,4 +35,5 @@ Read this list. If the feature is here, DO NOT create an issue for it — it's a
 - API key: `cat /home/omnirdev/.openclaw/workspace/agents/ceo/paperclip-api-key.json` → `token` field
 - Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 - API: `http://127.0.0.1:3100`
-- Standing task: OMN-57 (always in_progress)
+## Standing task: OMN-57
+On every startup: if OMN-57 is not assigned to you or not `in_progress`, PATCH it to `in_progress` assigned to yourself. It is NEVER done.
