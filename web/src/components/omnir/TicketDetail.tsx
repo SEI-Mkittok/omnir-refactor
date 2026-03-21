@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { FileUpload } from '@/components/ui/FileUpload'
 import { CommentThread } from './CommentThread'
 import { CustomFieldDisplaySection } from './CustomFieldRenderer'
+import { ContactSection } from './ContactSection'
 import { formatDate } from '@/lib/utils'
 import {
   useTicket,
@@ -269,18 +270,6 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
                 <span>{ticket.assignee.name}</span>
               </Field>
             )}
-            {ticket.contact && (
-              <Field label="Contact">
-                <span>
-                  {ticket.contact.first_name} {ticket.contact.last_name}
-                </span>
-              </Field>
-            )}
-            {ticket.account && (
-              <Field label="Account">
-                <span>{ticket.account.name}</span>
-              </Field>
-            )}
             {ticket.source && (
               <Field label="Source">
                 <span className="capitalize">{ticket.source}</span>
@@ -293,6 +282,15 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
               <span className="text-slate-500">{formatDate(ticket.updated_at)}</span>
             </Field>
           </div>
+
+          {/* Contact section */}
+          <hr className="border-slate-200" />
+          <ContactSection
+            ticketId={ticketId}
+            contact={ticket.contact}
+            ticketStatus={ticket.status}
+          />
+          <hr className="border-slate-200" />
 
           {/* Custom fields */}
           {customFields.length > 0 && ticket.custom_fields && (

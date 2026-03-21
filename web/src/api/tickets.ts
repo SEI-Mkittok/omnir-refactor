@@ -58,4 +58,9 @@ export const ticketsApi = {
     })
     return data
   },
+
+  patchContact: async (id: string, contactId: string | null): Promise<Ticket> => {
+    const { data } = await apiClient.patch(`/tickets/${id}/contact`, { contact_id: contactId })
+    return data
+  },
 }
