@@ -9,7 +9,6 @@ import {
   GripVertical,
   X,
   Search,
-  ChevronDown,
   ExternalLink,
 } from 'lucide-react'
 import {

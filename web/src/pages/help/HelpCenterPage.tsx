@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { BookOpen, Search, ChevronRight, FileText, ArrowLeft } from 'lucide-react'
+import { BookOpen, Search, ChevronRight, FileText } from 'lucide-react'
 import { usePublicKbCategories, usePublicKbArticles } from '@/hooks/useKB'
 
 export function HelpCenterPage() {
@@ -75,7 +75,7 @@ export function HelpCenterPage() {
                   <div>
                     <p className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">{cat.name}</p>
                     <p className="text-sm text-slate-500 mt-0.5">
-                      {(cat as any).article_count ?? 0} article{(cat as any).article_count !== 1 ? 's' : ''}
+                      {cat.article_count ?? 0} article{cat.article_count !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-400 mt-auto self-end" />
