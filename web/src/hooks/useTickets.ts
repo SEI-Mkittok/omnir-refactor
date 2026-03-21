@@ -100,6 +100,18 @@ export function useAddTicketComment() {
   })
 }
 
+export function useUpdateTicketContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ticketId, contactId }: { ticketId: string; contactId: string | null }) =>
+      ticketsApi.patchContact(ticketId, contactId),
+    onSuccess: (_, { ticketId }) => {
+      qc.invalidateQueries({ queryKey: ticketKeys.detail(ticketId) })
+      qc.invalidateQueries({ queryKey: ticketKeys.lists() })
+    },
+  })
+}
+
 export function useUploadTicketAttachment() {
   const qc = useQueryClient()
   return useMutation({

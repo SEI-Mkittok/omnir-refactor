@@ -15,6 +15,11 @@ export const contactsApi = {
     return data
   },
 
+  search: async (q: string): Promise<Contact[]> => {
+    const { data } = await apiClient.get('/contacts', { params: { search: q, per_page: 10 } })
+    return data.data ?? []
+  },
+
   get: async (id: string): Promise<Contact> => {
     const { data } = await apiClient.get(`/contacts/${id}`)
     return data

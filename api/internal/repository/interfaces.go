@@ -147,8 +147,10 @@ type LeadRepository interface {
 type TicketRepository interface {
 	Create(ctx context.Context, t *domain.Ticket) (*domain.Ticket, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error)
 	GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)
+	UpdateContact(ctx context.Context, id uuid.UUID, contactID *uuid.UUID) (*domain.Ticket, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.TicketFilter) ([]*domain.Ticket, int, error)
 }
