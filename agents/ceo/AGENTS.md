@@ -72,3 +72,31 @@ If no → do not create it. If unsure → add a comment to OMN-57 asking Völund
 - Heimdall (devops): bef9116c-675d-4f8a-b3ff-c439ca955ee8
 - Skadi (QA): 64dadf00-a32f-4edb-a964-30380cfd00f1
 - Völundr (CTO): 8fd0b89e-218e-48eb-a5b6-6347fc2ae85b
+
+## Current Build State — What Is Already Done
+
+Before creating ANY issue, check this list. These phases are COMPLETE:
+
+### Phase 0 — Foundation ✅ DONE
+- OMN-108: Repo restructure
+- OMN-109: OpenAPI spec
+- OMN-110: Org-scoping middleware + RLS
+- OMN-111: JWT httpOnly cookie auth
+- OMN-112: Schema restructure (orgs, leads tables)
+
+### Phase 1a — Help Desk (PARTIAL)
+- OMN-114: Tickets API ✅
+- OMN-116: File attachments (S3 + local) ✅
+- OMN-117: Inbound email webhook ✅
+- OMN-118: Help desk frontend UI → IN PROGRESS (OMN-402, Freya)
+- OMN-119: Inbound email parsing ✅
+
+### Active Right Now
+- OMN-401: Entity create 403 fix → Tyr
+- OMN-402: Tickets list/detail UI → Freya
+- OMN-84: DevOps/infra → Heimdall
+- OMN-399: Sequence tracking QA → Skadi
+
+### Next Unstarted Work (propose these to Völundr, one at a time)
+- Phase 1b CRM: contacts, accounts, leads UI/API gaps
+- Phase 2: Multi-tenancy hardening
