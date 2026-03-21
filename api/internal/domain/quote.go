@@ -49,23 +49,23 @@ func (li *QuoteLineItem) ComputeTotal() {
 
 // Quote represents a sales quote linked to a deal.
 type Quote struct {
-	ID         uuid.UUID      `json:"id"`
-	OrgID      uuid.UUID      `json:"org_id"`
-	DealID     *uuid.UUID     `json:"deal_id,omitempty"`
-	ContactID  *uuid.UUID     `json:"contact_id,omitempty"`
-	Title      string         `json:"title"`
-	Status     QuoteStatus    `json:"status"`
-	Currency   string         `json:"currency"`
-	ValidUntil *time.Time     `json:"valid_until,omitempty"`
-	Notes      string         `json:"notes,omitempty"`
-	SentAt     *time.Time     `json:"sent_at,omitempty"`
-	ApprovedAt *time.Time     `json:"approved_at,omitempty"`
-	RejectedAt *time.Time     `json:"rejected_at,omitempty"`
-	CreatedBy  *uuid.UUID     `json:"created_by,omitempty"`
+	ID         uuid.UUID       `json:"id"`
+	OrgID      uuid.UUID       `json:"org_id"`
+	DealID     *uuid.UUID      `json:"deal_id,omitempty"`
+	ContactID  *uuid.UUID      `json:"contact_id,omitempty"`
+	Title      string          `json:"title"`
+	Status     QuoteStatus     `json:"status"`
+	Currency   string          `json:"currency"`
+	ValidUntil *time.Time      `json:"valid_until,omitempty"`
+	Notes      string          `json:"notes,omitempty"`
+	SentAt     *time.Time      `json:"sent_at,omitempty"`
+	ApprovedAt *time.Time      `json:"approved_at,omitempty"`
+	RejectedAt *time.Time      `json:"rejected_at,omitempty"`
+	CreatedBy  *uuid.UUID      `json:"created_by,omitempty"`
 	LineItems  []QuoteLineItem `json:"line_items,omitempty"`
-	TotalCents int64          `json:"total_cents"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
+	TotalCents int64           `json:"total_cents"`
+	CreatedAt  time.Time       `json:"created_at"`
+	UpdatedAt  time.Time       `json:"updated_at"`
 
 	// Joined
 	Contact *Contact `json:"contact,omitempty"`
@@ -105,14 +105,14 @@ type QuoteLineItemInput struct {
 
 // QuotePatch holds optional fields for partial quote updates.
 type QuotePatch struct {
-	Title      *string                  `json:"title,omitempty"`
-	Status     *QuoteStatus             `json:"status,omitempty"`
-	Currency   *string                  `json:"currency,omitempty"`
-	ValidUntil *time.Time               `json:"valid_until,omitempty"`
-	Notes      *string                  `json:"notes,omitempty"`
-	ContactID  *uuid.UUID               `json:"contact_id,omitempty"`
-	DealID     *uuid.UUID               `json:"deal_id,omitempty"`
-	LineItems  []QuoteLineItemInput     `json:"line_items,omitempty"`
+	Title      *string              `json:"title,omitempty"`
+	Status     *QuoteStatus         `json:"status,omitempty"`
+	Currency   *string              `json:"currency,omitempty"`
+	ValidUntil *time.Time           `json:"valid_until,omitempty"`
+	Notes      *string              `json:"notes,omitempty"`
+	ContactID  *uuid.UUID           `json:"contact_id,omitempty"`
+	DealID     *uuid.UUID           `json:"deal_id,omitempty"`
+	LineItems  []QuoteLineItemInput `json:"line_items,omitempty"`
 }
 
 // QuoteFilter holds query params for listing quotes.
