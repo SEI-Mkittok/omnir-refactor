@@ -271,7 +271,7 @@ type msTime struct {
 	TimeZone string `json:"timeZone"`
 }
 
-func (w *CalendarSyncWorker) fetchMicrosoftEvents(conn *domain.CalendarConnection) ([]domain.CalendarEvent, string, error) {
+func (w *CalendarSyncWorker) fetchMicrosoftEvents(conn *domain.CalendarConnection) ([]domain.CalendarEvent, string, error) { //nolint:unparam // cursor always "" — pagination not yet implemented for Microsoft
 	now := time.Now().UTC()
 	params := url.Values{
 		"startDateTime": {now.Add(-24 * time.Hour).Format(time.RFC3339)},
@@ -355,7 +355,7 @@ func (w *CalendarSyncWorker) refreshToken(ctx context.Context, conn *domain.Cale
 		return fmt.Errorf("unknown provider: %s", conn.Provider)
 	}
 
-	resp, err := http.PostForm(tokenURL, formBody) //nolint:noctx
+	resp, err := http.PostForm(tokenURL, formBody) //nolint:noctx,gosec // tokenURL is a known OAuth provider endpoint
 	if err != nil {
 		return fmt.Errorf("refresh request: %w", err)
 	}

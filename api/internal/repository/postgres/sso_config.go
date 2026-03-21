@@ -12,7 +12,7 @@ import (
 
 type ssoConfigRepo struct{ db *pgxpool.Pool }
 
-func NewSSOConfigRepo(db *pgxpool.Pool) *ssoConfigRepo {
+func NewSSOConfigRepo(db *pgxpool.Pool) *ssoConfigRepo { //nolint:revive // internal package, unexported type is intentional
 	return &ssoConfigRepo{db: db}
 }
 
