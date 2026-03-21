@@ -107,6 +107,83 @@ func (r *TicketRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket,
 	return scanTicket(r.db.QueryRow(ctx, q, args...))
 }
 
+const ticketDetailQuery = `
+	SELECT
+		t.id, t.org_id, t.subject, t.description, t.status, t.priority,
+		t.assignee_id, t.contact_id, t.account_id, t.source, t.email_message_id, t.tags,
+		t.custom_fields, t.sla_policy_id, t.first_responded_at, t.submitted_by_user_id,
+		t.created_at, t.updated_at, t.deleted_at,
+		c.id, c.first_name || ' ' || c.last_name, c.email, c.phone,
+		a.id, a.name
+	FROM tickets t
+	LEFT JOIN contacts c ON t.contact_id = c.id AND c.deleted_at IS NULL
+	LEFT JOIN accounts a ON c.account_id = a.id AND a.deleted_at IS NULL
+	WHERE t.id = $1 AND t.deleted_at IS NULL`
+
+func (r *TicketRepo) GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error) {
+	q := ticketDetailQuery
+	args := []any{id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND t.org_id = $2`
+		args = append(args, orgID)
+	}
+
+	var d domain.TicketDetail
+	var (
+		contactID    *uuid.UUID
+		contactName  *string
+		contactEmail *string
+		contactPhone *string
+		accountID    *uuid.UUID
+		accountName  *string
+	)
+	err := r.db.QueryRow(ctx, q, args...).Scan(
+		&d.ID, &d.OrgID, &d.Subject, &d.Description, &d.Status, &d.Priority,
+		&d.AssigneeID, &d.ContactID, &d.AccountID, &d.Source, &d.EmailMessageID, &d.Tags,
+		&d.CustomFields, &d.SLAPolicyID, &d.FirstRespondedAt, &d.SubmittedByUserID,
+		&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+		&contactID, &contactName, &contactEmail, &contactPhone,
+		&accountID, &accountName,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+
+	if contactID != nil {
+		d.Contact = &domain.TicketContactSummary{
+			ID:    *contactID,
+			Name:  *contactName,
+			Email: contactEmail,
+			Phone: contactPhone,
+		}
+	}
+	if accountID != nil {
+		d.Account = &domain.TicketAccountSummary{
+			ID:   *accountID,
+			Name: *accountName,
+		}
+	}
+
+	return &d, nil
+}
+
+func (r *TicketRepo) UpdateContact(ctx context.Context, id uuid.UUID, contactID *uuid.UUID) (*domain.Ticket, error) {
+	q := `UPDATE tickets SET contact_id = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`
+	args := []any{contactID, id}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id = $3`
+		args = append(args, orgID)
+	}
+
+	q += ` RETURNING ` + ticketCols
+	return scanTicket(r.db.QueryRow(ctx, q, args...))
+}
+
 func (r *TicketRepo) GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error) {
 	q := `SELECT ` + ticketCols + ` FROM tickets WHERE email_message_id=$1 AND deleted_at IS NULL`
 	args := []any{messageID}

@@ -88,9 +88,16 @@ func (r *OrgRepo) HasAny(ctx context.Context) (bool, error) {
 	return exists, err
 }
 
-// List returns all organizations ordered by name.
+// List returns all organizations ordered by name, with active user counts.
 func (r *OrgRepo) List(ctx context.Context) ([]*domain.Organization, error) {
-	rows, err := r.db.Query(ctx, `SELECT id, name, slug, plan, created_at FROM orgs ORDER BY name`)
+	rows, err := r.db.Query(ctx, `
+		SELECT o.id, o.name, o.slug, o.plan, o.created_at,
+		       COUNT(u.id) AS user_count
+		FROM orgs o
+		LEFT JOIN users u ON u.org_id = o.id AND u.deleted_at IS NULL
+		GROUP BY o.id
+		ORDER BY o.name
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +106,7 @@ func (r *OrgRepo) List(ctx context.Context) ([]*domain.Organization, error) {
 	var orgs []*domain.Organization
 	for rows.Next() {
 		var org domain.Organization
-		if err := rows.Scan(&org.ID, &org.Name, &org.Slug, &org.Plan, &org.CreatedAt); err != nil {
+		if err := rows.Scan(&org.ID, &org.Name, &org.Slug, &org.Plan, &org.CreatedAt, &org.UserCount); err != nil {
 			return nil, err
 		}
 		orgs = append(orgs, &org)

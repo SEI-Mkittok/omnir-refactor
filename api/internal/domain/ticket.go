@@ -95,6 +95,27 @@ type TicketFilter struct {
 	Order             string
 }
 
+// TicketContactSummary is the nested contact shape returned in TicketDetail.
+type TicketContactSummary struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Email *string   `json:"email,omitempty"`
+	Phone *string   `json:"phone,omitempty"`
+}
+
+// TicketAccountSummary is the nested account shape returned in TicketDetail.
+type TicketAccountSummary struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// TicketDetail extends Ticket with nested contact and account summaries.
+type TicketDetail struct {
+	Ticket
+	Contact *TicketContactSummary `json:"contact"`
+	Account *TicketAccountSummary `json:"account"`
+}
+
 // TicketComment is a reply or internal note attached to a ticket.
 type TicketComment struct {
 	ID         uuid.UUID  `json:"id"`

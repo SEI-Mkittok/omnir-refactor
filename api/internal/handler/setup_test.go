@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/omnir/crm-api/internal/auth"
+	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
@@ -57,7 +58,7 @@ func TestSetupHandler_Status(t *testing.T) {
 			tt.setupMock(mockUsers)
 
 			jwtSvc := auth.NewJWTService("test-secret")
-			h := handler.NewSetupHandler(mockUsers, mockOrgs, jwtSvc)
+			h := handler.NewSetupHandler(mockUsers, mockOrgs, jwtSvc, config.OrgModeSingle)
 
 			req := httptest.NewRequest(http.MethodGet, "/status", nil)
 			rr := httptest.NewRecorder()
@@ -185,7 +186,7 @@ func TestSetupHandler_Setup(t *testing.T) {
 			tt.setupOrgMock(mockOrgs)
 
 			jwtSvc := auth.NewJWTService("test-secret")
-			h := handler.NewSetupHandler(mockUsers, mockOrgs, jwtSvc)
+			h := handler.NewSetupHandler(mockUsers, mockOrgs, jwtSvc, config.OrgModeSingle)
 
 			var body []byte
 			if tt.body != nil {
@@ -222,4 +223,57 @@ func TestSetupHandler_Setup(t *testing.T) {
 			mockOrgs.AssertExpectations(t)
 		})
 	}
+}
+
+func TestSetupHandler_Setup_MultiMode(t *testing.T) {
+	adminUser := &domain.User{
+		ID:    uuid.New(),
+		OrgID: domain.DefaultOrgID,
+		Email: "admin@example.com",
+		Name:  "Admin",
+		Role:  domain.UserRoleAdmin,
+	}
+
+	t.Run("returns 404 when orgs already exist in multi mode", func(t *testing.T) {
+		mockUsers := new(mocks.MockUserRepository)
+		mockOrgs := new(mocks.MockOrgRepository)
+		mockOrgs.On("HasAny", mock.Anything).Return(true, nil)
+
+		h := handler.NewSetupHandler(mockUsers, mockOrgs, auth.NewJWTService("s"), config.OrgModeSaaS)
+
+		body, _ := json.Marshal(map[string]any{
+			"adminName": "Admin", "email": "admin@example.com", "password": "securepassword",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		h.Router().ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusNotFound, rr.Code)
+		mockOrgs.AssertExpectations(t)
+		mockUsers.AssertNotCalled(t, "HasAdminUser", mock.Anything)
+	})
+
+	t.Run("allows setup in multi mode when no orgs exist (bootstrap)", func(t *testing.T) {
+		mockUsers := new(mocks.MockUserRepository)
+		mockOrgs := new(mocks.MockOrgRepository)
+		mockOrgs.On("HasAny", mock.Anything).Return(false, nil)
+		mockUsers.On("HasAdminUser", mock.Anything).Return(false, nil)
+		mockOrgs.On("GetByID", mock.Anything, domain.DefaultOrgID).Return(defaultOrg, nil)
+		mockUsers.On("Create", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("string")).
+			Return(adminUser, nil)
+
+		h := handler.NewSetupHandler(mockUsers, mockOrgs, auth.NewJWTService("test-secret"), config.OrgModeSaaS)
+
+		body, _ := json.Marshal(map[string]any{
+			"adminName": "Admin", "email": "admin@example.com", "password": "securepassword",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		h.Router().ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusCreated, rr.Code)
+		mockOrgs.AssertExpectations(t)
+	})
 }

@@ -10,19 +10,21 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/omnir/crm-api/internal/auth"
+	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
 // SetupHandler handles the fresh-install onboarding endpoints.
 type SetupHandler struct {
-	users  repository.UserRepository
-	orgs   repository.OrgRepository
-	jwtSvc *auth.JWTService
+	users   repository.UserRepository
+	orgs    repository.OrgRepository
+	jwtSvc  *auth.JWTService
+	orgMode config.OrgMode
 }
 
-func NewSetupHandler(users repository.UserRepository, orgs repository.OrgRepository, jwtSvc *auth.JWTService) *SetupHandler {
-	return &SetupHandler{users: users, orgs: orgs, jwtSvc: jwtSvc}
+func NewSetupHandler(users repository.UserRepository, orgs repository.OrgRepository, jwtSvc *auth.JWTService, orgMode config.OrgMode) *SetupHandler {
+	return &SetupHandler{users: users, orgs: orgs, jwtSvc: jwtSvc, orgMode: orgMode}
 }
 
 func (h *SetupHandler) Router() chi.Router {
@@ -52,7 +54,21 @@ type setupRequest struct {
 
 // Setup creates the first admin user and seeds the default org.
 // POST /api/setup → {token, user} or 409 if already set up.
+// In multi-tenant mode this endpoint is disabled once any org exists; use POST /api/v1/auth/signup instead.
 func (h *SetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
+	// In non-single mode: block setup once orgs have been provisioned (use signup instead).
+	if h.orgMode != config.OrgModeSingle {
+		hasOrgs, err := h.orgs.HasAny(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		if hasOrgs {
+			writeError(w, http.StatusNotFound, "setup is not available in multi-tenant mode")
+			return
+		}
+	}
+
 	var req setupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")

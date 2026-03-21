@@ -55,7 +55,7 @@ type orgSignupRequest struct {
 // Returns 403 if ORG_MODE is not saas/multitenant/enterprise.
 func (h *OrgHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	if h.orgMode == config.OrgModeSingle {
-		writeError(w, http.StatusForbidden, "org signup is not available in single-tenant mode")
+		writeError(w, http.StatusNotFound, "org signup is not available in single-tenant mode")
 		return
 	}
 

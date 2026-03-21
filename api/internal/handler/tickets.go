@@ -45,6 +45,7 @@ func (h *TicketHandler) Router() chi.Router {
 	r.With(agentOnly).Post("/", h.Create)
 	r.Get("/{id}", h.GetByID)
 	r.With(agentOnly).Patch("/{id}", h.Update)
+	r.With(agentOnly).Patch("/{id}/contact", h.UpdateContact)
 	r.With(agentOnly).Delete("/{id}", h.Delete)
 
 	// Nested sub-resources
@@ -139,7 +140,28 @@ func (h *TicketHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
 		return
 	}
-	t, err := h.tickets.GetByID(r.Context(), id)
+	t, err := h.tickets.GetDetailByID(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, t)
+}
+
+func (h *TicketHandler) UpdateContact(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	var req struct {
+		ContactID *uuid.UUID `json:"contact_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	t, err := h.tickets.UpdateContact(r.Context(), id, req.ContactID)
 	if err != nil {
 		handleDomainErr(w, err)
 		return

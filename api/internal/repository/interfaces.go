@@ -147,8 +147,10 @@ type LeadRepository interface {
 type TicketRepository interface {
 	Create(ctx context.Context, t *domain.Ticket) (*domain.Ticket, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error)
 	GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)
+	UpdateContact(ctx context.Context, id uuid.UUID, contactID *uuid.UUID) (*domain.Ticket, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.TicketFilter) ([]*domain.Ticket, int, error)
 }
@@ -344,4 +346,33 @@ type EntityAttachmentRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.EntityAttachment, error)
 	// Delete removes an attachment record. Returns ErrNotFound when absent.
 	Delete(ctx context.Context, id uuid.UUID, entityType domain.EntityType, entityID uuid.UUID) error
+}
+
+// SSOConfigRepository manages per-org OIDC SSO configurations.
+type SSOConfigRepository interface {
+	// Upsert creates or updates the SSO config for an org.
+	Upsert(ctx context.Context, cfg *domain.SSOConfig) (*domain.SSOConfig, error)
+	// GetByOrgID returns the SSO config for the given org. Returns nil, nil when not found.
+	GetByOrgID(ctx context.Context, orgID uuid.UUID) (*domain.SSOConfig, error)
+	// GetByOrgSlug returns the SSO config by org slug. Used during SSO login flow.
+	GetByOrgSlug(ctx context.Context, slug string) (*domain.SSOConfig, error)
+}
+
+// TOTPRepository manages TOTP backup codes and user 2FA state.
+type TOTPRepository interface {
+	// SetSecret stores the (encrypted) TOTP secret for a user.
+	SetSecret(ctx context.Context, userID uuid.UUID, encryptedSecret string) error
+	// GetSecret returns the encrypted TOTP secret for a user.
+	GetSecret(ctx context.Context, userID uuid.UUID) (string, error)
+	// Activate marks TOTP as enabled for the user and replaces backup codes.
+	Activate(ctx context.Context, userID uuid.UUID, hashedCodes []string) error
+	// Disable clears the TOTP secret and backup codes for a user.
+	Disable(ctx context.Context, userID uuid.UUID) error
+	// IsEnabled returns whether TOTP is enabled for a user.
+	IsEnabled(ctx context.Context, userID uuid.UUID) (bool, error)
+	// FindUnusedBackupCode returns all unused backup code rows for the user,
+	// or (nil, nil) when not found.
+	FindUnusedBackupCode(ctx context.Context, userID uuid.UUID) ([]*domain.TOTPBackupCode, error)
+	// MarkBackupCodeUsed marks a backup code as used.
+	MarkBackupCodeUsed(ctx context.Context, codeID uuid.UUID) error
 }
