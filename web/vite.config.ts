@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Omnir CRM',
-        short_name: 'Omnir',
-        description: 'Omnir CRM — Modern customer relationship management',
+        name: 'PraestOS',
+        short_name: 'PraestOS',
+        description: 'PraestOS — Modern customer relationship management',
         theme_color: '#1B3A4B',
         background_color: '#F7F8FA',
         display: 'standalone',
