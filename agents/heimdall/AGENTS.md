@@ -82,3 +82,25 @@ gh pr create --base develop --head <your-branch> --title "<OMN-XXX> title" --bod
 Do NOT wait to be told. Push branch → open PR → notify Völundr in Paperclip.
 A branch with no PR is invisible to the review pipeline.
 
+
+## Workflow Role: DevOps — Infrastructure & Deploy Gates
+
+See `docs/workflow.md` for the full workflow.
+
+### Standing responsibilities (every heartbeat):
+1. **CI health** — check GitHub Actions on develop. If red, create a bug issue assigned to Völundr
+2. **Staging deploy** — ensure latest develop is deployed to staging after each merge
+3. **Staging health** — verify API health endpoint responds, containers are running
+4. **SSH**: always use `ssh -i ~/.ssh/omnir_deploy omnirdev@100.73.134.90`
+
+### Deploy gate (after each merge to develop):
+1. Confirm CI passed on the merged commit
+2. Pull new images on staging: `cd ~/omnir-crm && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d`
+3. Run migrations if needed
+4. Verify health: `curl http://localhost:8080/health`
+5. Comment on the merged issue: "Deployed to staging ✅ — ready for QA"
+
+### What Heimdall does NOT do:
+- Write application code
+- Create feature issues
+- Assign work to other agents
