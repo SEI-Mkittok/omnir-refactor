@@ -40,29 +40,31 @@ const (
 
 // CalendarConfig holds OAuth 2.0 credentials for Google Calendar and Microsoft Graph.
 type CalendarConfig struct {
-	GoogleClientID       string
-	GoogleClientSecret   string
-	GoogleRedirectURL    string
-	MicrosoftClientID    string
+	GoogleClientID        string
+	GoogleClientSecret    string
+	GoogleRedirectURL     string
+	MicrosoftClientID     string
 	MicrosoftClientSecret string
-	MicrosoftRedirectURL string
-	MicrosoftTenantID    string // "common" for multi-tenant
+	MicrosoftRedirectURL  string
+	MicrosoftTenantID     string // "common" for multi-tenant
 }
 
 // Config holds all runtime configuration loaded from environment variables.
 type Config struct {
-	Env           string
-	Port          string
-	DatabaseURL   string
-	JWTSecret     string
-	CORSOrigins   []string
-	LogLevel      string
-	OrgMode       OrgMode
-	SMTP          SMTPConfig
+	Env                 string
+	Port                string
+	DatabaseURL         string
+	JWTSecret           string
+	CORSOrigins         []string
+	LogLevel            string
+	OrgMode             OrgMode
+	SMTP                SMTPConfig
 	WebhookSecret       string
 	SequenceTokenSecret string
 	Storage             StorageConfig
 	Calendar            CalendarConfig
+	SSOEncryptionKey    string
+	SSOCallbackURL      string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -114,6 +116,8 @@ func Load() *Config {
 			MicrosoftRedirectURL:  getEnv("MICROSOFT_CALENDAR_REDIRECT_URL", "http://localhost:8080/api/v1/calendar/auth/microsoft/callback"),
 			MicrosoftTenantID:     getEnv("MICROSOFT_TENANT_ID", "common"),
 		},
+		SSOEncryptionKey: getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
+		SSOCallbackURL:   getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
 	}
 }
 

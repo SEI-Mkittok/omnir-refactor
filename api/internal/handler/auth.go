@@ -22,9 +22,10 @@ const (
 
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
-	users   repository.UserRepository
-	jwtSvc  *auth.JWTService
-	auditor Auditor
+	users    repository.UserRepository
+	jwtSvc   *auth.JWTService
+	auditor  Auditor
+	totpRepo repository.TOTPRepository
 }
 
 func NewAuthHandler(users repository.UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
@@ -34,6 +35,12 @@ func NewAuthHandler(users repository.UserRepository, jwtSvc *auth.JWTService) *A
 // WithAuditLog wires an audit log repository into the handler.
 func (h *AuthHandler) WithAuditLog(r repository.AuditLogRepository) *AuthHandler {
 	h.auditor = newAuditor(r)
+	return h
+}
+
+// WithTOTP wires a TOTP repository into the handler for 2FA support.
+func (h *AuthHandler) WithTOTP(totpRepo repository.TOTPRepository) *AuthHandler {
+	h.totpRepo = totpRepo
 	return h
 }
 
@@ -78,6 +85,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
+	}
+
+	// Check if TOTP 2FA is required for this user.
+	if h.totpRepo != nil {
+		enabled, err := h.totpRepo.IsEnabled(r.Context(), user.ID)
+		if err == nil && enabled {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"requires_2fa": true,
+				"user_id":      user.ID,
+			})
+			return
+		}
 	}
 
 	claims := auth.Claims{
