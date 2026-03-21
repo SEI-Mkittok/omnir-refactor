@@ -9,9 +9,10 @@ import (
 type UserRole string
 
 const (
-	UserRoleAdmin  UserRole = "admin"
-	UserRoleAgent  UserRole = "agent"
-	UserRoleClient UserRole = "client"
+	UserRoleSuperAdmin UserRole = "super_admin" // cross-org operator; can list orgs and switch context
+	UserRoleAdmin      UserRole = "admin"
+	UserRoleAgent      UserRole = "agent"
+	UserRoleClient     UserRole = "client"
 )
 
 type User struct {

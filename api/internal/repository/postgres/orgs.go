@@ -80,3 +80,29 @@ func (r *OrgRepo) SlugExists(ctx context.Context, slug string) (bool, error) {
 	).Scan(&exists)
 	return exists, err
 }
+
+// HasAny reports whether at least one organization row exists.
+func (r *OrgRepo) HasAny(ctx context.Context) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM orgs LIMIT 1)`).Scan(&exists)
+	return exists, err
+}
+
+// List returns all organizations ordered by name.
+func (r *OrgRepo) List(ctx context.Context) ([]*domain.Organization, error) {
+	rows, err := r.db.Query(ctx, `SELECT id, name, slug, plan, created_at FROM orgs ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orgs []*domain.Organization
+	for rows.Next() {
+		var org domain.Organization
+		if err := rows.Scan(&org.ID, &org.Name, &org.Slug, &org.Plan, &org.CreatedAt); err != nil {
+			return nil, err
+		}
+		orgs = append(orgs, &org)
+	}
+	return orgs, rows.Err()
+}

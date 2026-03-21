@@ -216,6 +216,10 @@ type OrgRepository interface {
 	GetBySlug(ctx context.Context, slug string) (*domain.Organization, error)
 	// SlugExists reports whether a given slug is already in use.
 	SlugExists(ctx context.Context, slug string) (bool, error)
+	// HasAny reports whether at least one organization row exists.
+	HasAny(ctx context.Context) (bool, error)
+	// List returns all organizations ordered by name. Used by super_admin tenant switcher.
+	List(ctx context.Context) ([]*domain.Organization, error)
 }
 
 // EmailRepository defines the persistence contract for contact emails.
