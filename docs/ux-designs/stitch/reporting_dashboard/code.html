@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PraestOS | Reporting Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-tint": "#515f74",
+                        "outline-variant": "#a9b4b9",
+                        "inverse-surface": "#0b0f10",
+                        "surface-container-low": "#f0f4f7",
+                        "tertiary-container": "#dbdafb",
+                        "on-secondary-fixed": "#324052",
+                        "tertiary": "#5c5d78",
+                        "on-secondary-container": "#445365",
+                        "secondary-dim": "#465467",
+                        "on-tertiary": "#fbf7ff",
+                        "on-primary-fixed-variant": "#4e5c71",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#566166",
+                        "tertiary-fixed-dim": "#cdccec",
+                        "on-surface": "#2a3439",
+                        "surface-container-highest": "#d9e4ea",
+                        "primary": "#515f74",
+                        "on-primary-fixed": "#324053",
+                        "inverse-on-surface": "#9a9d9f",
+                        "on-secondary-fixed-variant": "#4e5d6f",
+                        "tertiary-fixed": "#dbdafb",
+                        "tertiary-dim": "#50516c",
+                        "primary-dim": "#455367",
+                        "on-tertiary-container": "#4b4c67",
+                        "error-dim": "#4e0309",
+                        "on-tertiary-fixed-variant": "#555671",
+                        "surface-bright": "#f7f9fb",
+                        "primary-container": "#d5e3fc",
+                        "primary-fixed": "#d5e3fc",
+                        "surface-dim": "#cfdce3",
+                        "secondary": "#526073",
+                        "on-primary-container": "#455367",
+                        "secondary-fixed": "#d4e4fa",
+                        "surface": "#f7f9fb",
+                        "error": "#9f403d",
+                        "inverse-primary": "#d8e6ff",
+                        "on-tertiary-fixed": "#383a53",
+                        "on-primary": "#f6f7ff",
+                        "surface-container-high": "#e1e9ee",
+                        "outline": "#717c82",
+                        "error-container": "#fe8983",
+                        "surface-container": "#e8eff3",
+                        "background": "#f7f9fb",
+                        "secondary-fixed-dim": "#c6d6ec",
+                        "on-error-container": "#752121",
+                        "on-background": "#2a3439",
+                        "secondary-container": "#d4e4fa",
+                        "surface-variant": "#d9e4ea",
+                        "on-secondary": "#f7f9ff",
+                        "on-error": "#fff7f6",
+                        "primary-fixed-dim": "#c7d5ed"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- TopNavBar (Shared Component) -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#f7f9fb] dark:bg-slate-900 flex justify-between items-center w-full px-6 py-3 max-w-full font-inter tracking-tight text-sm font-medium transition-all duration-200 ease-in-out border-b-0">
+<div class="flex items-center gap-8">
+<span class="text-lg font-bold text-[#515F74] dark:text-white tracking-tighter">PraestOS</span>
+<nav class="hidden md:flex gap-6 items-center h-full">
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Dashboard</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Accounts</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Leads</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Tickets</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-[#515F74] p-2 hover:bg-[#e8eff3] rounded-md cursor-pointer transition-all">notifications</span>
+</div>
+<span class="material-symbols-outlined text-[#515F74] p-2 hover:bg-[#e8eff3] rounded-md cursor-pointer transition-all">settings</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="User Profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC11sBN1WPfQpmAj96Bfh1Z0h7j1wbUl1Nd-KWRQ10ftlH4zotNS0RNbxAgr0xyjcGT7RgFsZjYXH8WYcsAH5gEt61lOnYGD_BpJQ8V2mSTKmWurAmGwfZHQMSO1feyt9Rc3V89SyYMNMgj77ouq2OKluYIn9XjUn3u93PUHErFCNV1wOdZuydDbTUPYhNFTS7tNNENypLmROhsJmmwDZZYv_8m91RlhSj1iPmvZrxYOVqKKlml-z-MbeYN74wfRwoHbbdXjJZ9_gc"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Shared Component) -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden lg:flex flex-col bg-[#f0f4f7] dark:bg-slate-950 p-4 space-y-2 z-40 transition-transform pt-20">
+<div class="mb-8 px-2">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-[#515F74] flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">analytics</span>
+</div>
+<div>
+<h2 class="text-xl font-black text-[#515F74] dark:text-white leading-tight">Rational Archive</h2>
+<p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Management Suite</p>
+</div>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 rounded-sm font-medium text-[13px] active:scale-[0.98] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 rounded-sm font-medium text-[13px] active:scale-[0.98] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">supervised_user_circle</span>
+                Clients
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 rounded-sm font-medium text-[13px] active:scale-[0.98] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">filter_list</span>
+                Pipeline
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 rounded-sm font-medium text-[13px] active:scale-[0.98] transition-all" href="#">
+<span class="material-symbols-outlined text-lg">confirmation_number</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 bg-[#ffffff] dark:bg-slate-800 text-[#515F74] dark:text-white shadow-sm rounded-sm font-medium text-[13px] active:scale-[0.98] transition-all" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">insert_chart</span>
+                Analytics
+            </a>
+</nav>
+<div class="mt-auto pt-4 space-y-1">
+<button class="w-full bg-primary text-on-primary py-2.5 px-4 mb-4 rounded-md font-bold text-[13px] tracking-tight hover:opacity-90 transition-all">New Ticket</button>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 rounded-sm text-[13px]" href="#">
+<span class="material-symbols-outlined text-lg">help_outline</span>
+                Help
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 rounded-sm text-[13px]" href="#">
+<span class="material-symbols-outlined text-lg">logout</span>
+                Logout
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-20 pb-12 px-8 lg:px-16 min-h-screen">
+<!-- Editorial Header Section -->
+<header class="flex flex-col md:flex-row justify-between items-end gap-4 mb-12">
+<div class="max-w-xl">
+<p class="text-[11px] font-bold uppercase tracking-[0.2em] text-outline mb-2">Operational Intelligence</p>
+<h1 class="text-[3.5rem] font-black text-primary leading-none tracking-tighter mb-4">Reporting Dashboard</h1>
+<p class="text-on-surface-variant text-body-md font-medium leading-relaxed">A comprehensive overview of PraestOS system velocity, client engagement, and resolution efficiency for the current fiscal quarter.</p>
+</div>
+<div class="flex gap-2">
+<button class="px-5 py-2.5 bg-surface-container-low text-primary font-bold text-sm rounded-md hover:bg-surface-container-high transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">download</span> Export
+                </button>
+<button class="px-5 py-2.5 bg-primary text-on-primary font-bold text-sm rounded-md hover:opacity-90 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">calendar_today</span> Oct 2023 - Jan 2024
+                </button>
+</div>
+</header>
+<!-- KPI Grid: The "Rational" Anchors -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+<!-- Metric Card 1 -->
+<div class="bg-surface-container-lowest p-8 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-6">
+<span class="material-symbols-outlined text-3xl text-primary opacity-20">speed</span>
+<span class="bg-primary-container text-on-primary-container px-2 py-1 text-[10px] font-bold tracking-widest rounded-sm">+12.4%</span>
+</div>
+<p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Avg Response Time</p>
+<h3 class="text-4xl font-black text-on-surface tracking-tighter">1.4h</h3>
+<div class="mt-8 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="bg-primary h-full w-3/4"></div>
+</div>
+</div>
+<!-- Metric Card 2 -->
+<div class="bg-surface-container-lowest p-8 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-6">
+<span class="material-symbols-outlined text-3xl text-primary opacity-20">verified</span>
+<span class="bg-primary-container text-on-primary-container px-2 py-1 text-[10px] font-bold tracking-widest rounded-sm">Target Met</span>
+</div>
+<p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Resolution Rate</p>
+<h3 class="text-4xl font-black text-on-surface tracking-tighter">94.2%</h3>
+<div class="mt-8 flex gap-1 items-end h-12">
+<div class="flex-1 bg-surface-container-high h-[40%]"></div>
+<div class="flex-1 bg-surface-container-high h-[60%]"></div>
+<div class="flex-1 bg-surface-container-high h-[50%]"></div>
+<div class="flex-1 bg-primary h-[90%]"></div>
+<div class="flex-1 bg-surface-container-high h-[75%]"></div>
+<div class="flex-1 bg-surface-container-high h-[85%]"></div>
+</div>
+</div>
+<!-- Metric Card 3 -->
+<div class="bg-surface-container-lowest p-8 relative overflow-hidden group">
+<div class="flex justify-between items-start mb-6">
+<span class="material-symbols-outlined text-3xl text-primary opacity-20">bolt</span>
+<span class="text-error font-bold text-[10px] tracking-widest">-2.1%</span>
+</div>
+<p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Conversion Velocity</p>
+<h3 class="text-4xl font-black text-on-surface tracking-tighter">4.8d</h3>
+<div class="mt-8 h-12 flex items-center">
+<svg class="w-full h-full text-primary" preserveaspectratio="none" viewbox="0 0 100 40">
+<path d="M0 35 Q 25 35, 50 15 T 100 5" fill="none" stroke="currentColor" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</section>
+<!-- Bento Grid: Deep Data Visuals -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Ticket Resolution Trends (Main Chart) -->
+<div class="lg:col-span-8 bg-surface-container-lowest p-8">
+<div class="flex justify-between items-center mb-10">
+<div>
+<h4 class="text-lg font-bold text-on-surface tracking-tight">Resolution Efficiency</h4>
+<p class="text-[12px] text-on-surface-variant">Daily ticket closure vs. volume</p>
+</div>
+<div class="flex gap-4 items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-[11px] font-medium text-on-surface-variant">Closed</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-surface-container-highest"></span>
+<span class="text-[11px] font-medium text-on-surface-variant">Total</span>
+</div>
+</div>
+</div>
+<div class="h-64 flex items-end gap-2 border-b border-outline-variant/20 pb-1">
+<div class="flex-1 bg-surface-container-low relative group h-[40%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[80%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Mon</span>
+</div>
+<div class="flex-1 bg-surface-container-low relative group h-[55%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[90%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Tue</span>
+</div>
+<div class="flex-1 bg-surface-container-low relative group h-[45%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[70%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Wed</span>
+</div>
+<div class="flex-1 bg-surface-container-low relative group h-[70%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[85%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Thu</span>
+</div>
+<div class="flex-1 bg-surface-container-low relative group h-[90%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[95%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Fri</span>
+</div>
+<div class="flex-1 bg-surface-container-low relative group h-[30%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[60%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Sat</span>
+</div>
+<div class="flex-1 bg-surface-container-low relative group h-[20%]">
+<div class="absolute inset-x-0 bottom-0 bg-primary h-[40%] transition-all"></div>
+<span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-bold text-outline uppercase tracking-tighter">Sun</span>
+</div>
+</div>
+</div>
+<!-- Lead Distribution (Mini Chart) -->
+<div class="lg:col-span-4 bg-primary text-on-primary p-8 flex flex-col justify-between">
+<div>
+<h4 class="text-lg font-bold tracking-tight mb-2">Lead Sources</h4>
+<p class="text-primary-container text-xs">Origin allocation for the week</p>
+</div>
+<div class="py-6 space-y-4">
+<div>
+<div class="flex justify-between text-[11px] font-bold uppercase tracking-widest mb-1.5">
+<span>Direct Outreach</span>
+<span>42%</span>
+</div>
+<div class="h-1 w-full bg-primary-dim rounded-full">
+<div class="bg-primary-container h-full w-[42%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-[11px] font-bold uppercase tracking-widest mb-1.5">
+<span>Organic Search</span>
+<span>28%</span>
+</div>
+<div class="h-1 w-full bg-primary-dim rounded-full">
+<div class="bg-primary-container h-full w-[28%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-[11px] font-bold uppercase tracking-widest mb-1.5">
+<span>Referral</span>
+<span>30%</span>
+</div>
+<div class="h-1 w-full bg-primary-dim rounded-full">
+<div class="bg-primary-container h-full w-[30%]"></div>
+</div>
+</div>
+</div>
+<button class="w-full py-2 bg-on-primary text-primary text-[11px] font-black uppercase tracking-widest rounded-sm hover:bg-primary-container transition-colors">View Deep Dive</button>
+</div>
+<!-- Recent Archives (Data Table) -->
+<div class="lg:col-span-12 bg-surface-container-lowest p-8 mt-6">
+<div class="flex justify-between items-center mb-8">
+<h4 class="text-lg font-bold text-on-surface tracking-tight">Active Archives &amp; Tasks</h4>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary">more_horiz</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="text-[10px] font-black uppercase tracking-[0.15em] text-outline border-b border-surface-container">
+<th class="pb-4 px-2">Client ID</th>
+<th class="pb-4 px-2">Lead Name</th>
+<th class="pb-4 px-2">Stage</th>
+<th class="pb-4 px-2">Velocity</th>
+<th class="pb-4 px-2">Assigned</th>
+<th class="pb-4 px-2 text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container/50">
+<tr class="group hover:bg-surface-container-low transition-colors">
+<td class="py-5 px-2 text-xs font-bold text-on-surface">#PR-8821</td>
+<td class="py-5 px-2 text-sm font-medium">Global Nexus Corp</td>
+<td class="py-5 px-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-surface-container-high text-primary text-[10px] font-bold uppercase">Negotiation</span>
+</td>
+<td class="py-5 px-2 text-xs font-mono">1.2d</td>
+<td class="py-5 px-2 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center">
+<span class="text-[8px] font-bold">JD</span>
+</div>
+<span class="text-xs font-medium text-on-surface-variant">J. Doe</span>
+</td>
+<td class="py-5 px-2 text-right">
+<button class="text-primary hover:underline text-[11px] font-black uppercase tracking-widest">Detail</button>
+</td>
+</tr>
+<tr class="group hover:bg-surface-container-low transition-colors">
+<td class="py-5 px-2 text-xs font-bold text-on-surface">#PR-7742</td>
+<td class="py-5 px-2 text-sm font-medium">Synthesis Systems</td>
+<td class="py-5 px-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-primary-container text-on-primary-container text-[10px] font-bold uppercase">Onboarding</span>
+</td>
+<td class="py-5 px-2 text-xs font-mono">4.5d</td>
+<td class="py-5 px-2 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-tertiary-container flex items-center justify-center">
+<span class="text-[8px] font-bold">AK</span>
+</div>
+<span class="text-xs font-medium text-on-surface-variant">A. Khan</span>
+</td>
+<td class="py-5 px-2 text-right">
+<button class="text-primary hover:underline text-[11px] font-black uppercase tracking-widest">Detail</button>
+</td>
+</tr>
+<tr class="group hover:bg-surface-container-low transition-colors">
+<td class="py-5 px-2 text-xs font-bold text-on-surface">#PR-9012</td>
+<td class="py-5 px-2 text-sm font-medium">Vertex Media</td>
+<td class="py-5 px-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded-sm bg-error-container text-on-error-container text-[10px] font-bold uppercase">Stalled</span>
+</td>
+<td class="py-5 px-2 text-xs font-mono">12.8d</td>
+<td class="py-5 px-2 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="text-[8px] font-bold">MS</span>
+</div>
+<span class="text-xs font-medium text-on-surface-variant">M. Smith</span>
+</td>
+<td class="py-5 px-2 text-right">
+<button class="text-primary hover:underline text-[11px] font-black uppercase tracking-widest">Detail</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+<!-- Contextual FAB (Suppressing on complex dashboard unless primary action needed) -->
+<!-- Hidden based on suppression rule for high-density pages -->
+</body></html>

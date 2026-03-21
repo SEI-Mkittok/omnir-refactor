@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ticket Detail - PraestOS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-highest": "#d9e4ea",
+              "surface-container-lowest": "#ffffff",
+              "tertiary-fixed-dim": "#cdccec",
+              "on-secondary-container": "#445365",
+              "surface-variant": "#d9e4ea",
+              "on-tertiary-fixed-variant": "#555671",
+              "on-error-container": "#752121",
+              "secondary-dim": "#465467",
+              "surface-tint": "#515f74",
+              "surface-dim": "#cfdce3",
+              "primary": "#515f74",
+              "on-error": "#fff7f6",
+              "tertiary-dim": "#50516c",
+              "inverse-surface": "#0b0f10",
+              "outline": "#717c82",
+              "inverse-primary": "#d8e6ff",
+              "primary-fixed": "#d5e3fc",
+              "secondary-fixed-dim": "#c6d6ec",
+              "background": "#f7f9fb",
+              "primary-fixed-dim": "#c7d5ed",
+              "on-primary-container": "#455367",
+              "on-secondary-fixed-variant": "#4e5d6f",
+              "on-background": "#2a3439",
+              "on-surface-variant": "#566166",
+              "secondary": "#526073",
+              "inverse-on-surface": "#9a9d9f",
+              "surface-container": "#e8eff3",
+              "on-secondary-fixed": "#324052",
+              "on-tertiary-fixed": "#383a53",
+              "on-primary": "#f6f7ff",
+              "tertiary": "#5c5d78",
+              "error": "#9f403d",
+              "surface-bright": "#f7f9fb",
+              "error-container": "#fe8983",
+              "surface-container-high": "#e1e9ee",
+              "surface-container-low": "#f0f4f7",
+              "on-secondary": "#f7f9ff",
+              "error-dim": "#4e0309",
+              "surface": "#f7f9fb",
+              "tertiary-fixed": "#dbdafb",
+              "on-surface": "#2a3439",
+              "on-tertiary": "#fbf7ff",
+              "tertiary-container": "#dbdafb",
+              "primary-dim": "#455367",
+              "on-primary-fixed-variant": "#4e5c71",
+              "secondary-container": "#d4e4fa",
+              "on-primary-fixed": "#324053",
+              "secondary-fixed": "#d4e4fa",
+              "primary-container": "#d5e3fc",
+              "outline-variant": "#a9b4b9",
+              "on-tertiary-container": "#4b4c67"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body antialiased">
+<!-- Sidebar Shell (SideNavBar) -->
+<aside class="fixed left-0 top-0 h-screen w-64 bg-[#e8eff3] dark:bg-slate-900 flex flex-col py-8 px-4 gap-y-2 z-50">
+<div class="mb-8 px-2">
+<h1 class="text-xl font-black text-[#515F74] dark:text-slate-100 tracking-tighter">PraestOS</h1>
+<p class="text-xs uppercase tracking-widest text-[#566166] opacity-60">Rational Archive</p>
+</div>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+                Contacts
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="corporate_fare">corporate_fare</span>
+                Accounts
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+                Leads
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-[#ffffff] dark:bg-slate-800 text-[#515F74] dark:text-white rounded-sm shadow-sm transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined" data-icon="confirmation_number">confirmation_number</span>
+                Tickets
+            </a>
+</nav>
+<div class="mt-auto px-2">
+<button class="w-full bg-primary text-on-primary py-2.5 rounded-md text-sm font-semibold hover:opacity-90 transition-opacity">
+                New Entry
+            </button>
+</div>
+</aside>
+<div class="ml-64 min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-40 bg-[#f7f9fb] dark:bg-slate-950 flex items-center justify-between px-8 h-16 w-full font-['Inter'] antialiased tracking-tight">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline cursor-pointer" data-icon="arrow_back">arrow_back</span>
+<nav class="flex items-center gap-6 text-sm">
+<span class="text-[#515F74] font-semibold">Ticket Details</span>
+<span class="text-[#566166] dark:text-slate-500 hover:bg-[#e8eff3] px-2 py-1 rounded transition-colors cursor-pointer">History</span>
+<span class="text-[#566166] dark:text-slate-500 hover:bg-[#e8eff3] px-2 py-1 rounded transition-colors cursor-pointer">Audit Log</span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#515F74] cursor-pointer" data-icon="notifications">notifications</span>
+<div class="h-8 w-8 rounded-full bg-surface-container-highest overflow-hidden cursor-pointer active:opacity-80 transition-all">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="Avatar of a system administrator" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBz8v9o6wOm50LR_HyKO4riJhTSIFiM5FMO8VJO9JF2Opa2Y2otWz-fLYwkZH_Z8Dy-kvZk8zyau49JJ2E6QNVLgAOkYfP1rJj6xIrz0xgn8RgBvPjdUU7l54EJwqOlyx6lO2JzERdxzEH_Tfgf2tTIkjDAqmBbl-ZFX6u4Qk_P9toEgKrU7XBPLwpwW6OFa42XfJWU2ec8D4YplAXXFg7BssSXkBB7MeSHlaxlooskW0aVkvaDsLipoAgxGvr1fmjEBYyuXaFoLxA"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 p-8 grid grid-cols-12 gap-8 max-w-[1600px] mx-auto w-full">
+<!-- Ticket Detail Header Section -->
+<section class="col-span-12 mb-4">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="text-xs font-bold tracking-widest text-primary uppercase bg-primary-container px-2 py-0.5 rounded">#PR-8821</span>
+<span class="text-xs font-medium text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+                                Opened 2 hours ago
+                            </span>
+</div>
+<h2 class="text-3xl font-extrabold tracking-tighter text-on-surface">Cloud Database Latency in EU-West-1 Region</h2>
+</div>
+<div class="flex gap-3">
+<div class="bg-surface-container px-4 py-2 rounded-lg">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Status</label>
+<div class="flex items-center gap-2">
+<span class="h-2 w-2 rounded-full bg-blue-500"></span>
+<span class="text-sm font-semibold">In Progress</span>
+</div>
+</div>
+<div class="bg-surface-container px-4 py-2 rounded-lg">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Priority</label>
+<div class="flex items-center gap-2 text-error">
+<span class="material-symbols-outlined text-sm" data-icon="priority_high">priority_high</span>
+<span class="text-sm font-semibold">High Priority</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Left Column: Comment Thread -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Thread Header -->
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+<h3 class="text-lg font-bold tracking-tight">Comment Thread</h3>
+<div class="flex gap-2">
+<button class="text-xs font-semibold px-3 py-1.5 rounded bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors">Sort: Newest</button>
+<button class="text-xs font-semibold px-3 py-1.5 rounded bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors">Filter</button>
+</div>
+</div>
+<!-- Messages -->
+<div class="space-y-8">
+<!-- Client Message -->
+<div class="flex gap-4 items-start">
+<div class="h-10 w-10 shrink-0 rounded-full bg-surface-container-highest overflow-hidden">
+<img alt="John Doe" class="w-full h-full object-cover" data-alt="Portrait of a male client" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEWjKLhCqEKN8eXADwBtJS0WURN8_vsqEUsgoW4NMU8tdoX_F3LsYKipQRJ26J5pTbt_DiOvhuSAxFKdgKxHJnpSPoZWxPhOoTKuQVOu4lY-W_vHRFw01eqF8BI2ODHAiBNQC1Do1ZJfwHNIbvCyRlBLaArrvmgj_8RpWCWZzzFKwx6Cw0FyZbaK78c9YRxI5vj7qi8jt0oRi49_yiMAoKgz5_OsaGsFltAuA4IIM2fbbrWYBkQFoGUAxRasdC7j03xiD5LFkZD3g"/>
+</div>
+<div class="flex-1">
+<div class="flex items-baseline justify-between mb-2">
+<span class="font-bold text-sm">Johnathan Doe <span class="font-normal text-on-surface-variant text-xs ml-2">Client</span></span>
+<span class="text-[11px] text-on-surface-variant uppercase font-medium">10:42 AM</span>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/10 leading-relaxed text-[15px]">
+<p>We are seeing significant degradation in API response times specifically for the EU-West-1 endpoints. Our internal monitoring shows latency spikes starting around 09:00 UTC. Is there an ongoing service disruption?</p>
+</div>
+</div>
+</div>
+<!-- Internal Note -->
+<div class="flex gap-4 items-start ml-4">
+<div class="h-10 w-10 shrink-0 rounded-full bg-tertiary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="lock" data-weight="fill">lock</span>
+</div>
+<div class="flex-1">
+<div class="flex items-baseline justify-between mb-2">
+<span class="font-bold text-sm text-on-tertiary-container">Sarah Jenkins <span class="font-normal text-xs ml-2 italic text-on-surface-variant">Internal Note</span></span>
+<span class="text-[11px] text-on-surface-variant uppercase font-medium">11:05 AM</span>
+</div>
+<div class="bg-tertiary-container/30 p-5 rounded-xl border border-tertiary-container/50 leading-relaxed text-[15px]">
+<p class="mb-2 italic font-medium text-on-tertiary-container">System investigation required.</p>
+<p>Checked the AWS health dashboard, no reports there. Running internal diagnostics on our load balancers now. Possible issue with the latest patch deployed at 08:30.</p>
+</div>
+</div>
+</div>
+<!-- Agent Response -->
+<div class="flex gap-4 items-start">
+<div class="h-10 w-10 shrink-0 rounded-full bg-primary-container flex items-center justify-center">
+<img alt="Sarah Jenkins" class="w-full h-full object-cover rounded-full" data-alt="Female agent portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBypbIzXBnIFQiZMHBPTZSWCg87T1X6Dpjt90lxJoJkKRb_dblzTnE7EnuyYThC4MLr7kDMTDWf0bMgAQftWUFQptWNfsmY3jPQchu09D7ByG-goiFHNQv7VlGD6KPdiWGgAG4iHQfjjavvG9CzpQ5LltFev9HHFo7Y4GSYACohO2jAJJC50X80VYXoKcHm29OY3emZihh7vIDrSYDFDZ2UiJ4CmILGlDJ_nHR50jxBqkwSvsB59fOZ7GnpekhSeuYCQ3NLkvPuI-o"/>
+</div>
+<div class="flex-1">
+<div class="flex items-baseline justify-between mb-2">
+<span class="font-bold text-sm">Sarah Jenkins <span class="font-normal text-primary text-xs ml-2">Support Agent</span></span>
+<span class="text-[11px] text-on-surface-variant uppercase font-medium">11:12 AM</span>
+</div>
+<div class="bg-primary/5 p-5 rounded-xl border border-primary/10 leading-relaxed text-[15px]">
+<p>Hi John, thank you for reaching out. We are currently investigating the latency issues you reported. Our engineering team is looking into the regional node performance. I will update you as soon as we have more information.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Rich Text Editor / Reply Section -->
+<div class="mt-12 bg-surface-container-low rounded-xl border border-outline-variant/30 overflow-hidden">
+<div class="flex items-center gap-1 p-2 bg-surface-container border-b border-outline-variant/20">
+<button class="p-1.5 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined text-xl" data-icon="format_bold">format_bold</span></button>
+<button class="p-1.5 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined text-xl" data-icon="format_italic">format_italic</span></button>
+<button class="p-1.5 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined text-xl" data-icon="format_list_bulleted">format_list_bulleted</span></button>
+<button class="p-1.5 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined text-xl" data-icon="link">link</span></button>
+<div class="w-px h-6 bg-outline-variant/30 mx-1"></div>
+<button class="p-1.5 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined text-xl" data-icon="attach_file">attach_file</span></button>
+</div>
+<textarea class="w-full p-6 bg-transparent border-none focus:ring-0 text-[15px] min-h-[160px] placeholder:text-outline-variant/60" placeholder="Type your reply or internal note here..."></textarea>
+<div class="flex items-center justify-between p-4 bg-surface-container-lowest">
+<div class="flex items-center gap-4">
+<label class="flex items-center gap-2 cursor-pointer group">
+<div class="w-4 h-4 border-2 border-primary rounded-sm flex items-center justify-center bg-white group-hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-[10px] text-primary" data-icon="check" data-weight="fill">check</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-wider">Internal Note</span>
+</label>
+<span class="text-xs text-on-surface-variant italic">Only visible to agents</span>
+</div>
+<div class="flex gap-3">
+<button class="px-6 py-2.5 text-sm font-bold text-primary hover:bg-primary-container rounded transition-colors">Save as Draft</button>
+<button class="px-8 py-2.5 text-sm font-bold bg-primary text-on-primary rounded shadow-md hover:shadow-lg hover:opacity-90 transition-all">Submit Reply</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Sidebar -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<!-- Contact Information Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden">
+<div class="p-5 border-b border-surface-container-low flex items-center justify-between">
+<h4 class="font-bold tracking-tight text-sm uppercase text-on-surface-variant">Contact Information</h4>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors" data-icon="open_in_new">open_in_new</span>
+</div>
+<div class="p-6 space-y-5">
+<div class="flex items-center gap-4">
+<div class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl text-primary" data-icon="person">person</span>
+</div>
+<div>
+<h5 class="font-bold text-lg">Johnathan Doe</h5>
+<p class="text-xs text-on-surface-variant">Lead Solutions Architect</p>
+</div>
+</div>
+<div class="space-y-3 pt-2">
+<div class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-outline text-lg" data-icon="mail">mail</span>
+<span class="font-medium">j.doe@cloudarch-systems.io</span>
+</div>
+<div class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-outline text-lg" data-icon="call">call</span>
+<span class="font-medium">+44 (0) 20 7946 0128</span>
+</div>
+<div class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-outline text-lg" data-icon="location_on">location_on</span>
+<span class="font-medium">London, United Kingdom</span>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-surface-container-low">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-2">Company</label>
+<div class="flex items-center justify-between bg-surface-container-low p-3 rounded-lg hover:bg-surface-container transition-colors cursor-pointer group">
+<span class="font-bold text-sm">CloudArch Systems Ltd.</span>
+<span class="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100 transition-opacity" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Device Information Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden">
+<div class="p-5 border-b border-surface-container-low flex items-center justify-between">
+<h4 class="font-bold tracking-tight text-sm uppercase text-on-surface-variant">Device Information</h4>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors text-lg" data-icon="search">search</span>
+</div>
+<div class="p-6 space-y-4">
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Device Name</label>
+<p class="text-sm font-semibold">MacBook Pro 16"</p>
+</div>
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">OS</label>
+<p class="text-sm font-semibold">macOS Sequoia</p>
+</div>
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Serial Number</label>
+<p class="text-sm font-mono font-medium">C02FX1ZZMD6M</p>
+</div>
+<div class="pt-2">
+<a class="text-xs font-bold text-primary flex items-center gap-1 hover:underline cursor-pointer" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="devices">devices</span>
+                                Lookup Device
+                            </a>
+</div>
+</div>
+</div>
+<!-- Ticket Properties Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden">
+<div class="p-5 border-b border-surface-container-low">
+<h4 class="font-bold tracking-tight text-sm uppercase text-on-surface-variant">Ticket Properties</h4>
+</div>
+<div class="p-6 space-y-6">
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-2">Assigned To</label>
+<div class="flex items-center gap-3 bg-surface-container-low p-2 pr-4 rounded-full w-fit hover:bg-surface-container-high transition-colors cursor-pointer">
+<img alt="Sarah Jenkins" class="w-8 h-8 rounded-full border border-white" data-alt="Portrait of Sarah Jenkins" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLIG24xPalNGUW2TxyhPOOkx9uPhYFuxNcicYDrFtRj-ARm1rnlq6OlodS6MFvdOh1cFhM-k8G4y_e-_3jY8A2iPIf0SGA8PWxFkW21p72C8ncoGVi3yoXKZ8WhscJdxc4zDyo6o5nhkTjzv01tNbgegkvF0VUpsJopBtrDBuqLicLMSFwQHZ3-R9-LLTpEM-5tUZL7m8vnRAdSC1CVDaBj99plhzedeStwM3iocMqoqYQzj7FUqnV8RolV2t4OHki2FBG9d1bGww"/>
+<span class="text-sm font-semibold">Sarah Jenkins</span>
+<span class="material-symbols-outlined text-sm" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-2">Source</label>
+<div class="flex items-center gap-2 text-sm font-medium">
+<span class="material-symbols-outlined text-primary" data-icon="language">language</span>
+<span>Customer Portal</span>
+</div>
+</div>
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-2">Category</label>
+<span class="text-xs font-bold px-3 py-1 rounded-full bg-surface-container-high text-on-surface">Infrastructure / Latency</span>
+</div>
+<div class="pt-4 border-t border-surface-container-low">
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-3">SLA Status</label>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold">
+<span>Response Time</span>
+<span class="text-error">0h 42m overdue</span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-error w-full h-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Product Details Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 shadow-sm overflow-hidden">
+<div class="p-5 border-b border-surface-container-low flex items-center justify-between">
+<h4 class="font-bold tracking-tight text-sm uppercase text-on-surface-variant">Product Details</h4>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors text-lg" data-icon="inventory_2">inventory_2</span>
+</div>
+<div class="p-6 space-y-4">
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Product Name</label>
+<p class="text-sm font-semibold text-primary">Enterprise Cloud Database</p>
+</div>
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">License Key</label>
+<p class="text-sm font-mono font-medium truncate">XXXX-YYYY-ZZZZ-1234</p>
+</div>
+<div>
+<label class="block text-[10px] uppercase font-bold text-on-surface-variant tracking-wider mb-1">Support Tier</label>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="h-1.5 w-1.5 rounded-full bg-primary"></span>
+<span class="text-sm font-semibold">Tier 3 (Enterprise)</span>
+</div>
+</div>
+<div class="pt-2">
+<a class="text-xs font-bold text-primary flex items-center gap-1 hover:underline cursor-pointer" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="database">database</span>
+                                Product Lookup
+                            </a>
+</div>
+</div>
+</div>
+<!-- Recent Activity/Tags -->
+<div class="p-6 bg-surface-container-low rounded-xl border border-outline-variant/5">
+<h4 class="font-bold tracking-tight text-xs uppercase text-on-surface-variant mb-4">Internal Tags</h4>
+<div class="flex flex-wrap gap-2">
+<span class="bg-surface-container-lowest text-[10px] font-bold px-2 py-1 border border-outline-variant/20 rounded uppercase">#aws</span>
+<span class="bg-surface-container-lowest text-[10px] font-bold px-2 py-1 border border-outline-variant/20 rounded uppercase">#eu-west-1</span>
+<span class="bg-surface-container-lowest text-[10px] font-bold px-2 py-1 border border-outline-variant/20 rounded uppercase">#p1_incident</span>
+<button class="bg-transparent text-[10px] font-bold px-2 py-1 border border-dashed border-outline-variant/40 rounded uppercase hover:bg-surface-container-high transition-colors">Add Tag +</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

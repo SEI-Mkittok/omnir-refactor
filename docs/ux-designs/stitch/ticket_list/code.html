@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tickets - PraestOS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-highest": "#d9e4ea",
+              "surface-container-lowest": "#ffffff",
+              "tertiary-fixed-dim": "#cdccec",
+              "on-secondary-container": "#445365",
+              "surface-variant": "#d9e4ea",
+              "on-tertiary-fixed-variant": "#555671",
+              "on-error-container": "#752121",
+              "secondary-dim": "#465467",
+              "surface-tint": "#515f74",
+              "surface-dim": "#cfdce3",
+              "primary": "#515f74",
+              "on-error": "#fff7f6",
+              "tertiary-dim": "#50516c",
+              "inverse-surface": "#0b0f10",
+              "outline": "#717c82",
+              "inverse-primary": "#d8e6ff",
+              "primary-fixed": "#d5e3fc",
+              "secondary-fixed-dim": "#c6d6ec",
+              "background": "#f7f9fb",
+              "primary-fixed-dim": "#c7d5ed",
+              "on-primary-container": "#455367",
+              "on-secondary-fixed-variant": "#4e5d6f",
+              "on-background": "#2a3439",
+              "on-surface-variant": "#566166",
+              "secondary": "#526073",
+              "inverse-on-surface": "#9a9d9f",
+              "surface-container": "#e8eff3",
+              "on-secondary-fixed": "#324052",
+              "on-tertiary-fixed": "#383a53",
+              "on-primary": "#f6f7ff",
+              "tertiary": "#5c5d78",
+              "error": "#9f403d",
+              "surface-bright": "#f7f9fb",
+              "error-container": "#fe8983",
+              "surface-container-high": "#e1e9ee",
+              "surface-container-low": "#f0f4f7",
+              "on-secondary": "#f7f9ff",
+              "error-dim": "#4e0309",
+              "surface": "#f7f9fb",
+              "tertiary-fixed": "#dbdafb",
+              "on-surface": "#2a3439",
+              "on-tertiary": "#fbf7ff",
+              "tertiary-container": "#dbdafb",
+              "primary-dim": "#455367",
+              "on-primary-fixed-variant": "#4e5c71",
+              "secondary-container": "#d4e4fa",
+              "on-primary-fixed": "#324053",
+              "secondary-fixed": "#d4e4fa",
+              "primary-container": "#d5e3fc",
+              "outline-variant": "#a9b4b9",
+              "on-tertiary-container": "#4b4c67"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            font-size: 1.25rem;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background flex h-screen overflow-hidden antialiased">
+<!-- SideNavBar (The Anchor) -->
+<aside class="hidden md:flex flex-col py-8 px-4 gap-y-2 bg-[#e8eff3] dark:bg-slate-900 border-none w-64 h-screen shrink-0">
+<div class="px-2 mb-8">
+<h1 class="text-xl font-black text-[#515F74] dark:text-slate-100 tracking-tighter">PraestOS</h1>
+<p class="text-[0.6875rem] font-medium text-on-surface-variant/70 uppercase tracking-widest">Rational Archive</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined">group</span>
+                Contacts
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined">corporate_fare</span>
+                Accounts
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] dark:text-slate-400 hover:text-[#2a3439] hover:bg-[#e1e9ee] transition-all duration-150 ease-in-out font-medium text-sm" href="#">
+<span class="material-symbols-outlined">filter_list</span>
+                Leads
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-[#ffffff] dark:bg-slate-800 text-[#515F74] dark:text-white rounded-sm shadow-sm font-medium text-sm" href="#">
+<span class="material-symbols-outlined">confirmation_number</span>
+                Tickets
+            </a>
+</nav>
+<div class="mt-auto px-2">
+<button class="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 rounded-md font-semibold text-sm shadow-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-sm">add</span>
+                New Entry
+            </button>
+</div>
+</aside>
+<div class="flex-1 flex flex-col min-w-0 bg-surface overflow-hidden">
+<!-- TopAppBar -->
+<header class="flex items-center justify-between px-6 h-16 w-full bg-[#f7f9fb] dark:bg-slate-950 font-['Inter'] antialiased tracking-tight shrink-0">
+<div class="flex items-center gap-4">
+<span class="md:hidden material-symbols-outlined text-primary cursor-pointer">menu</span>
+<h2 class="text-lg font-bold tracking-tighter text-[#2a3439] dark:text-slate-100">Tickets Archive</h2>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-md pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary transition-all" placeholder="Search archive..." type="text"/>
+</div>
+<button class="material-symbols-outlined text-[#515F74] dark:text-slate-400 hover:bg-[#e8eff3] p-2 rounded-full transition-colors">notifications</button>
+<div class="h-8 w-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden border border-outline-variant/20">
+<img alt="User profile" class="h-full w-full object-cover" data-alt="Headshot of a professional man wearing a dark shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_0LN3xhHRA7x0gvQXWPcHDuTcIYXH0tDPuoqqqb6ZKlwdqPI9o0Kk5YdduDbI9C4fL5yovfRuyp2x2sdzUaFNG_N8h32dUkevX-qUHjnrsukHdBmXpCiouZabUiWzslZvexYycrh6Bwt_xpvNKr2j-r4H4wyCWYiN3Ljb_p9ZAaeMw0Dee_pxky5QLkhPemumbpBehHToX52nHaeBPQoZsJpjHTpE2GJa74YW5O9jLLlCazCEiMfwoJoSfsFuRHuPHN9RMsSyvlU"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<main class="flex-1 overflow-y-auto p-6 lg:p-10 space-y-8">
+<!-- Page Header & Action Bar -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="space-y-1">
+<span class="text-[0.6875rem] font-bold text-primary uppercase tracking-[0.2em]">Support Queue</span>
+<h1 class="text-4xl lg:text-5xl font-extrabold text-on-surface tracking-tighter">Active Tickets</h1>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/15 text-on-surface px-4 py-2 rounded-md text-sm font-medium hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">download</span>
+                        Export CSV
+                    </button>
+<button class="flex items-center gap-2 bg-primary text-on-primary px-5 py-2 rounded-md text-sm font-semibold shadow-sm hover:opacity-95 transition-all">
+<span class="material-symbols-outlined">add_circle</span>
+                        New Ticket
+                    </button>
+</div>
+</div>
+<!-- Robust Filter Bar -->
+<section class="bg-surface-container-low p-4 rounded-xl flex flex-wrap items-center gap-4 border border-outline-variant/5">
+<div class="flex flex-col gap-1.5">
+<label class="text-[0.625rem] font-bold text-on-surface-variant uppercase tracking-wider pl-1">Status</label>
+<select class="bg-surface-container-lowest border border-outline-variant/20 rounded-md text-sm px-3 py-1.5 min-w-[140px] focus:ring-primary focus:border-primary">
+<option>All Statuses</option>
+<option>Open</option>
+<option>Pending</option>
+<option>Resolved</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[0.625rem] font-bold text-on-surface-variant uppercase tracking-wider pl-1">Priority</label>
+<select class="bg-surface-container-lowest border border-outline-variant/20 rounded-md text-sm px-3 py-1.5 min-w-[140px] focus:ring-primary focus:border-primary">
+<option>All Priorities</option>
+<option>Critical</option>
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="text-[0.625rem] font-bold text-on-surface-variant uppercase tracking-wider pl-1">Assigned To</label>
+<select class="bg-surface-container-lowest border border-outline-variant/20 rounded-md text-sm px-3 py-1.5 min-w-[140px] focus:ring-primary focus:border-primary">
+<option>Any Agent</option>
+<option>Me</option>
+<option>Unassigned</option>
+</select>
+</div>
+<div class="ml-auto self-end">
+<button class="text-primary text-xs font-semibold hover:underline px-2 py-2 transition-all">Clear Filters</button>
+</div>
+</section>
+<!-- Data Table (The Archive Component) -->
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden border-none ring-1 ring-outline-variant/10 shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container/50 border-b border-outline-variant/10">
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest">Subject</th>
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest">Contact</th>
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest">Status</th>
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest">Priority</th>
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest">Assigned To</th>
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest">Created At</th>
+<th class="px-6 py-4 text-[0.6875rem] font-bold text-on-surface-variant uppercase tracking-widest"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<!-- Ticket 1 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-semibold text-on-surface">Cloud Storage limit reached</span>
+<span class="text-xs text-on-surface-variant/70">#INC-4829</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="h-6 w-6 rounded-full bg-secondary-container text-[10px] flex items-center justify-center font-bold text-on-secondary-container">JS</div>
+<span class="text-sm text-on-surface">Julian Smith</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">Open</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-error"></span>
+<span class="text-xs font-medium text-on-surface">Critical</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-sm text-on-surface">Sarah Connor</span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs text-on-surface-variant">2h ago</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</button>
+</td>
+</tr>
+<!-- Ticket 2 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-semibold text-on-surface">API Authentication Failure</span>
+<span class="text-xs text-on-surface-variant/70">#INC-4828</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="h-6 w-6 rounded-full bg-primary-container text-[10px] flex items-center justify-center font-bold text-on-primary-container">AL</div>
+<span class="text-sm text-on-surface">Aris Luna</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">Pending</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-orange-400"></span>
+<span class="text-xs font-medium text-on-surface">High</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-sm text-on-surface">Alex Rivera</span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs text-on-surface-variant">Oct 24, 14:20</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</button>
+</td>
+</tr>
+<!-- Ticket 3 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-semibold text-on-surface">Dashboard widgets not loading</span>
+<span class="text-xs text-on-surface-variant/70">#INC-4825</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="h-6 w-6 rounded-full bg-tertiary-container text-[10px] flex items-center justify-center font-bold text-on-tertiary-container">EM</div>
+<span class="text-sm text-on-surface">Elena Marks</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">Resolved</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-blue-400"></span>
+<span class="text-xs font-medium text-on-surface">Medium</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-sm text-on-surface">Sarah Connor</span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs text-on-surface-variant">Oct 23, 09:15</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</button>
+</td>
+</tr>
+<!-- Ticket 4 -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-5">
+<div class="flex flex-col">
+<span class="text-sm font-semibold text-on-surface">Incorrect billing on invoice #293</span>
+<span class="text-xs text-on-surface-variant/70">#INC-4822</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="h-6 w-6 rounded-full bg-outline-variant text-[10px] flex items-center justify-center font-bold text-white">TB</div>
+<span class="text-sm text-on-surface">Tom Baker</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">Open</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-1.5">
+<span class="h-2 w-2 rounded-full bg-slate-400"></span>
+<span class="text-xs font-medium text-on-surface">Low</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-sm text-on-surface italic opacity-50">Unassigned</span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs text-on-surface-variant">Oct 22, 17:00</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">more_vert</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Table Footer -->
+<div class="px-6 py-4 bg-surface-container-low border-t border-outline-variant/10 flex items-center justify-between">
+<span class="text-xs text-on-surface-variant">Showing 4 of 124 tickets</span>
+<div class="flex gap-2">
+<button class="h-8 w-8 flex items-center justify-center rounded border border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-30">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="h-8 w-8 flex items-center justify-center rounded border border-outline-variant/20 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Contextual Stats Cards (Bento style hint) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+<div class="bg-surface-container-low p-6 rounded-xl space-y-4">
+<div class="flex items-center justify-between">
+<span class="text-[0.625rem] font-bold text-on-surface-variant uppercase tracking-widest">Average Response Time</span>
+<span class="material-symbols-outlined text-primary">timer</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-on-surface tracking-tighter">1.4h</span>
+<span class="text-xs font-bold text-emerald-600">↓ 12%</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl space-y-4">
+<div class="flex items-center justify-between">
+<span class="text-[0.625rem] font-bold text-on-surface-variant uppercase tracking-widest">Resolution Rate</span>
+<span class="material-symbols-outlined text-primary">task_alt</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-on-surface tracking-tighter">94%</span>
+<span class="text-xs font-bold text-emerald-600">↑ 2%</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl space-y-4">
+<div class="flex items-center justify-between">
+<span class="text-[0.625rem] font-bold text-on-surface-variant uppercase tracking-widest">First Touch Resolution</span>
+<span class="material-symbols-outlined text-primary">bolt</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-3xl font-black text-on-surface tracking-tighter">68%</span>
+<span class="text-xs font-bold text-error">↓ 4%</span>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Mobile Navigation (BottomNavBar) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest h-16 border-t border-outline-variant/10 flex items-center justify-around px-2 z-50">
+<a class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-medium">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-medium">Contacts</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">confirmation_number</span>
+<span class="text-[10px] font-bold">Tickets</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">Settings</span>
+</a>
+</nav>
+</body></html>

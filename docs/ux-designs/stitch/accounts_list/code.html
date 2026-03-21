@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#515f74",
+              "outline-variant": "#a9b4b9",
+              "inverse-surface": "#0b0f10",
+              "surface-container-low": "#f0f4f7",
+              "tertiary-container": "#dbdafb",
+              "on-secondary-fixed": "#324052",
+              "tertiary": "#5c5d78",
+              "on-secondary-container": "#445365",
+              "secondary-dim": "#465467",
+              "on-tertiary": "#fbf7ff",
+              "on-primary-fixed-variant": "#4e5c71",
+              "surface-container-lowest": "#ffffff",
+              "on-surface-variant": "#566166",
+              "tertiary-fixed-dim": "#cdccec",
+              "on-surface": "#2a3439",
+              "surface-container-highest": "#d9e4ea",
+              "primary": "#515f74",
+              "on-primary-fixed": "#324053",
+              "inverse-on-surface": "#9a9d9f",
+              "on-secondary-fixed-variant": "#4e5d6f",
+              "tertiary-fixed": "#dbdafb",
+              "tertiary-dim": "#50516c",
+              "primary-dim": "#455367",
+              "on-tertiary-container": "#4b4c67",
+              "error-dim": "#4e0309",
+              "on-tertiary-fixed-variant": "#555671",
+              "surface-bright": "#f7f9fb",
+              "primary-container": "#d5e3fc",
+              "primary-fixed": "#d5e3fc",
+              "surface-dim": "#cfdce3",
+              "secondary": "#526073",
+              "on-primary-container": "#455367",
+              "secondary-fixed": "#d4e4fa",
+              "surface": "#f7f9fb",
+              "error": "#9f403d",
+              "inverse-primary": "#d8e6ff",
+              "on-tertiary-fixed": "#383a53",
+              "on-primary": "#f6f7ff",
+              "surface-container-high": "#e1e9ee",
+              "outline": "#717c82",
+              "error-container": "#fe8983",
+              "surface-container": "#e8eff3",
+              "background": "#f7f9fb",
+              "secondary-fixed-dim": "#c6d6ec",
+              "on-error-container": "#752121",
+              "on-background": "#2a3439",
+              "secondary-container": "#d4e4fa",
+              "surface-variant": "#d9e4ea",
+              "on-secondary": "#f7f9ff",
+              "on-error": "#fff7f6",
+              "primary-fixed-dim": "#c7d5ed"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#f0f4f7] dark:bg-slate-950 flex flex-col h-full p-4 space-y-2">
+<div class="mb-8 px-2">
+<h1 class="text-xl font-black text-[#515F74] dark:text-white tracking-tighter">Rational Archive</h1>
+<p class="text-[11px] uppercase tracking-widest text-on-surface-variant font-bold opacity-60">Management Suite</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-colors rounded-sm active:scale-[0.98] transition-transform font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-[#ffffff] dark:bg-slate-800 text-[#515F74] dark:text-white shadow-sm rounded-sm active:scale-[0.98] transition-transform font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="supervised_user_circle">supervised_user_circle</span>
+                Clients
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-colors rounded-sm active:scale-[0.98] transition-transform font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+                Pipeline
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-colors rounded-sm active:scale-[0.98] transition-transform font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="confirmation_number">confirmation_number</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-colors rounded-sm active:scale-[0.98] transition-transform font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="insert_chart">insert_chart</span>
+                Analytics
+            </a>
+</nav>
+<div class="pt-4 mt-auto border-t border-outline-variant/10 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-colors rounded-sm font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+                Help
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-[#e1e9ee] dark:hover:bg-slate-800 transition-colors rounded-sm font-inter text-[13px] font-medium leading-none" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                Logout
+            </a>
+</div>
+</aside>
+<main class="ml-64 min-h-screen flex flex-col">
+<header class="bg-[#f7f9fb] dark:bg-slate-900 flex justify-between items-center w-full px-12 py-6 max-w-full font-inter tracking-tight text-sm font-medium">
+<div class="flex items-center gap-8">
+<span class="text-lg font-bold text-[#515F74] dark:text-white tracking-tighter">PraestOS</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Dashboard</a>
+<a class="text-[#515F74] dark:text-white border-b-2 border-[#515F74] dark:border-slate-400 pb-1" href="#">Accounts</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Leads</a>
+<a class="text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Tickets</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant opacity-50" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-surface-container-lowest border border-outline-variant/15 text-xs focus:ring-0 focus:border-primary transition-all w-64 rounded-sm" placeholder="Global search..." type="text"/>
+</div>
+<button class="p-2 hover:bg-[#e8eff3] dark:hover:bg-slate-800 rounded-md transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-primary-container flex items-center justify-center text-[10px] font-bold text-on-primary-container">
+                    JD
+                </div>
+</div>
+</header>
+<section class="flex-1 px-12 py-10">
+<div class="mb-12 flex items-baseline gap-4">
+<h2 class="text-[3.5rem] font-black tracking-tighter leading-none text-primary">Accounts</h2>
+<span class="text-[0.6875rem] font-medium tracking-widest text-on-surface-variant uppercase bg-surface-container px-2 py-0.5">Directory 2024.04</span>
+</div>
+<div class="bg-surface-container-lowest p-6 mb-8 flex flex-wrap items-center justify-between gap-4 border border-outline-variant/10">
+<div class="flex items-center gap-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant opacity-50 text-sm" data-icon="filter_list">filter_list</span>
+<select class="pl-9 pr-8 py-2 bg-surface-container-low border-none text-[13px] font-medium focus:ring-1 focus:ring-primary rounded-sm appearance-none">
+<option>All Industries</option>
+<option>Technology</option>
+<option>Fintech</option>
+<option>Health</option>
+</select>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant opacity-50 text-sm" data-icon="sort">sort</span>
+<select class="pl-9 pr-8 py-2 bg-surface-container-low border-none text-[13px] font-medium focus:ring-1 focus:ring-primary rounded-sm appearance-none">
+<option>Last Updated</option>
+<option>Name A-Z</option>
+<option>Priority</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-4 py-2 bg-surface-container-high text-on-surface text-[13px] font-semibold hover:bg-surface-variant transition-colors flex items-center gap-2 rounded-sm">
+<span class="material-symbols-outlined text-[18px]" data-icon="file_download">file_download</span>
+                        Export Archive
+                    </button>
+<button class="px-4 py-2 bg-primary text-on-primary text-[13px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-2 rounded-sm">
+<span class="material-symbols-outlined text-[18px]" data-icon="add">add</span>
+                        New Account
+                    </button>
+</div>
+</div>
+<div class="overflow-hidden bg-surface-container-lowest border border-outline-variant/10">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-[0.05em] font-bold text-on-surface-variant">Account Name</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-[0.05em] font-bold text-on-surface-variant">Industry</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-[0.05em] font-bold text-on-surface-variant">Website</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-[0.05em] font-bold text-on-surface-variant">Primary Contact</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-[0.05em] font-bold text-on-surface-variant text-right">Activity</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/5">
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-primary" data-icon="corporate_fare">corporate_fare</span>
+</div>
+<div>
+<div class="text-[13px] font-bold text-on-surface">Aetheric Dynamics</div>
+<div class="text-[11px] text-on-surface-variant">ID: AD-9902</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[11px] font-bold uppercase tracking-tight rounded-sm">Aerospace</span>
+</td>
+<td class="px-6 py-5">
+<a class="text-[13px] text-primary hover:underline font-medium" href="#">aetheric.io</a>
+</td>
+<td class="px-6 py-5">
+<div class="text-[13px] font-medium text-on-surface">Dr. Elena Thorne</div>
+<div class="text-[11px] text-on-surface-variant">CTO</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="inline-flex items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+<span class="text-[11px] font-medium text-on-surface-variant">Active</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-primary" data-icon="account_balance">account_balance</span>
+</div>
+<div>
+<div class="text-[13px] font-bold text-on-surface">Obsidian Capital</div>
+<div class="text-[11px] text-on-surface-variant">ID: OC-1145</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-0.5 bg-tertiary-container text-on-tertiary-container text-[11px] font-bold uppercase tracking-tight rounded-sm">Fintech</span>
+</td>
+<td class="px-6 py-5">
+<a class="text-[13px] text-primary hover:underline font-medium" href="#">obsidiangroup.com</a>
+</td>
+<td class="px-6 py-5">
+<div class="text-[13px] font-medium text-on-surface">Marcus Vane</div>
+<div class="text-[11px] text-on-surface-variant">Managing Director</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="inline-flex items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+<span class="text-[11px] font-medium text-on-surface-variant">Pending</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-primary" data-icon="biotech">biotech</span>
+</div>
+<div>
+<div class="text-[13px] font-bold text-on-surface">Synthetix Labs</div>
+<div class="text-[11px] text-on-surface-variant">ID: SL-2241</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-0.5 bg-secondary-container text-on-secondary-container text-[11px] font-bold uppercase tracking-tight rounded-sm">Biotech</span>
+</td>
+<td class="px-6 py-5">
+<a class="text-[13px] text-primary hover:underline font-medium" href="#">synthetix.bio</a>
+</td>
+<td class="px-6 py-5">
+<div class="text-[13px] font-medium text-on-surface">Sarah Jenkins</div>
+<div class="text-[11px] text-on-surface-variant">Head of R&amp;D</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="inline-flex items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+<span class="text-[11px] font-medium text-on-surface-variant">Active</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded-sm">
+<span class="material-symbols-outlined text-primary" data-icon="cloud_queue">cloud_queue</span>
+</div>
+<div>
+<div class="text-[13px] font-bold text-on-surface">Nebula Systems</div>
+<div class="text-[11px] text-on-surface-variant">ID: NS-8830</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-0.5 bg-primary-container text-on-primary-container text-[11px] font-bold uppercase tracking-tight rounded-sm">Infrastructure</span>
+</td>
+<td class="px-6 py-5">
+<a class="text-[13px] text-primary hover:underline font-medium" href="#">nebula.cloud</a>
+</td>
+<td class="px-6 py-5">
+<div class="text-[13px] font-medium text-on-surface">Ivan Petrov</div>
+<div class="text-[11px] text-on-surface-variant">Lead Architect</div>
+</td>
+<td class="px-6 py-5 text-right">
+<div class="inline-flex items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-on-surface-variant opacity-20"></div>
+<span class="text-[11px] font-medium text-on-surface-variant">Archived</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="mt-8 flex items-center justify-between">
+<p class="text-[11px] text-on-surface-variant font-medium tracking-wide">SHOWING 4 OF 142 ACCOUNTS</p>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 flex items-center justify-center border border-outline-variant/20 hover:bg-surface-container-low transition-colors rounded-sm">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center bg-primary text-on-primary text-[11px] font-bold rounded-sm">1</button>
+<button class="w-8 h-8 flex items-center justify-center hover:bg-surface-container-low text-[11px] font-bold transition-colors rounded-sm">2</button>
+<button class="w-8 h-8 flex items-center justify-center hover:bg-surface-container-low text-[11px] font-bold transition-colors rounded-sm">3</button>
+<button class="w-8 h-8 flex items-center justify-center border border-outline-variant/20 hover:bg-surface-container-low transition-colors rounded-sm">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+<footer class="mt-auto px-12 py-8 bg-surface-container-low/50 border-t border-outline-variant/5">
+<div class="flex justify-between items-center opacity-40">
+<span class="text-[10px] font-bold tracking-widest uppercase">Rational Archive v4.2.0</span>
+<span class="text-[10px] font-bold tracking-widest uppercase">© 2024 PRAESTOS CORP</span>
+</div>
+</footer>
+</main>
+</body></html>

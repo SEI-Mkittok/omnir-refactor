@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-background": "#2a3439",
+                        "inverse-primary": "#d8e6ff",
+                        "on-tertiary-container": "#4b4c67",
+                        "primary": "#515f74",
+                        "inverse-surface": "#0b0f10",
+                        "primary-dim": "#455367",
+                        "on-secondary-container": "#445365",
+                        "secondary-fixed-dim": "#c6d6ec",
+                        "secondary": "#526073",
+                        "on-secondary": "#f7f9ff",
+                        "background": "#f7f9fb",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#752121",
+                        "primary-fixed": "#d5e3fc",
+                        "on-surface-variant": "#566166",
+                        "tertiary-fixed-dim": "#cdccec",
+                        "secondary-fixed": "#d4e4fa",
+                        "surface": "#f7f9fb",
+                        "on-primary-container": "#455367",
+                        "error": "#9f403d",
+                        "on-tertiary-fixed-variant": "#555671",
+                        "on-secondary-fixed-variant": "#4e5d6f",
+                        "error-container": "#fe8983",
+                        "on-error": "#fff7f6",
+                        "primary-container": "#d5e3fc",
+                        "surface-container-high": "#e1e9ee",
+                        "outline-variant": "#a9b4b9",
+                        "surface-container": "#e8eff3",
+                        "outline": "#717c82",
+                        "tertiary": "#5c5d78",
+                        "on-tertiary": "#fbf7ff",
+                        "surface-dim": "#cfdce3",
+                        "surface-container-highest": "#d9e4ea",
+                        "secondary-dim": "#465467",
+                        "tertiary-fixed": "#dbdafb",
+                        "on-surface": "#2a3439",
+                        "surface-tint": "#515f74",
+                        "on-tertiary-fixed": "#383a53",
+                        "primary-fixed-dim": "#c7d5ed",
+                        "on-primary": "#f6f7ff",
+                        "inverse-on-surface": "#9a9d9f",
+                        "surface-bright": "#f7f9fb",
+                        "tertiary-container": "#dbdafb",
+                        "on-primary-fixed": "#324053",
+                        "error-dim": "#4e0309",
+                        "tertiary-dim": "#50516c",
+                        "surface-container-low": "#f0f4f7",
+                        "surface-variant": "#d9e4ea",
+                        "secondary-container": "#d4e4fa",
+                        "on-primary-fixed-variant": "#4e5c71",
+                        "on-secondary-fixed": "#324052"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Top Navigation Bar -->
+<header class="bg-[#f7f9fb] text-[#515f74] font-['Inter'] font-medium text-sm tracking-tight docked full-width top-0 h-14 flex justify-between items-center px-6 w-full border-b border-[#a9b4b9]/15 fixed z-50">
+<div class="flex items-center gap-8">
+<span class="text-lg font-bold tracking-tighter text-[#515f74]">Vtiger CRM</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-[#566166] hover:text-[#2a3439] transition-colors" href="#">Dashboard</a>
+<a class="text-[#2a3439] border-b-2 border-[#515f74] pb-1" href="#">Contacts</a>
+<a class="text-[#566166] hover:text-[#2a3439] transition-colors" href="#">Leads</a>
+<a class="text-[#566166] hover:text-[#2a3439] transition-colors" href="#">Opportunities</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined hover:bg-[#e8eff3] p-2 rounded-lg transition-colors">history</button>
+<button class="material-symbols-outlined hover:bg-[#e8eff3] p-2 rounded-lg transition-colors">notifications</button>
+<div class="h-8 w-8 rounded-full bg-surface-container-highest overflow-hidden border border-outline-variant/20">
+<img class="w-full h-full object-cover" data-alt="User profile portrait of a woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-VauptW703D0qZoz6jzDynJzRzdHq0d-zsOfttIiDu7DClNFRz8lUb21WQRYTMB8oEnLYvv8AKXtsPUHKd7Z_j-zy4AvZEsEWGtKaTPZ13xGmmefx7Yz7_NTvSfeoHzHm9le-iEmn-am_RAxN7t7_EbFmAcfE1HbtDaDRvwiSNRFgukHZabrGD7e5AS4tRp8rg8q6oWvtuRwBlvzEVrjhHka1ZqpjkZcaiDzz9uAl-Ytf6UoqFb-r5GfjnAg2fQOhP39WaDMXyJc"/>
+</div>
+</div>
+</header>
+<!-- Side Navigation Bar -->
+<aside class="bg-[#f0f4f7] text-[#515f74] font-['Inter'] text-[13px] leading-tight h-screen w-64 flex-col fixed left-0 top-0 pt-14 flex flex-col gap-1 p-4 border-r border-[#a9b4b9]/15 hidden md:flex">
+<div class="mb-6 px-2">
+<div class="flex items-center gap-3 py-4">
+<div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary">archive</span>
+</div>
+<div>
+<div class="text-base font-semibold text-[#2a3439]">Rational Archive</div>
+<div class="text-[11px] uppercase tracking-wider text-on-surface-variant">CRM Enterprise</div>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] hover:bg-[#e1e9ee] rounded-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">account_tree</span>
+                Pipeline
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 bg-white text-[#2a3439] font-semibold rounded-md shadow-[0_1px_2px_rgba(0,0,0,0.05)]" href="#">
+<span class="material-symbols-outlined text-[20px]">inventory_2</span>
+                Inventory
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] hover:bg-[#e1e9ee] rounded-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">campaign</span>
+                Marketing
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] hover:bg-[#e1e9ee] rounded-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">support_agent</span>
+                Support
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] hover:bg-[#e1e9ee] rounded-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">query_stats</span>
+                Analytics
+            </a>
+</nav>
+<div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] hover:bg-[#e1e9ee] rounded-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#566166] hover:bg-[#e1e9ee] rounded-md transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+                Sign Out
+            </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:pl-64 pt-14 min-h-screen">
+<div class="max-w-7xl mx-auto p-8">
+<!-- Breadcrumbs -->
+<nav class="mb-8">
+<ol class="flex items-center gap-2 text-label-sm text-on-surface-variant font-medium">
+<li><a class="hover:text-primary transition-colors" href="#">Contacts</a></li>
+<li><span class="material-symbols-outlined text-[16px]">chevron_right</span></li>
+<li class="text-on-surface">Katherine Vance</li>
+</ol>
+</nav>
+<!-- Profile Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+<div class="flex items-center gap-6">
+<div class="w-24 h-24 rounded-xl bg-surface-container-highest overflow-hidden border border-outline-variant/30">
+<img class="w-full h-full object-cover" data-alt="Portrait of Katherine Vance" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdjNL4C2luXZh8TrkGY6Ju9MwK9Litey7gR7ojBdBJKurHKcbOZrcMBvPTrT1LCf49xJhWtGhL4C7zzmHG_2UFdSiDQrnTnl8eOqUw4E0qoNWAFWPJKpiB9mNBQA02qnKpXxtHAQTn2NIKQDgM4k24_z6C-UD7SH8M82OSQPFN1tDgo9UaUOBsrgotaQkFI93ogRcvNhDGQG7GZ1qwqQ8ykUlbwB-pbcbYWZkiZpRE-qJG7vu2dRoJj-zVYAxb9WozZaHEAlz27Kk"/>
+</div>
+<div>
+<h1 class="text-[3.5rem] font-bold tracking-tight leading-none text-on-background">Katherine Vance</h1>
+<p class="text-lg text-on-surface-variant mt-2 flex items-center gap-2">
+                            Chief Product Officer at <span class="text-tertiary font-semibold">Stellar Dynamics</span>
+</p>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-lowest border border-outline-variant/30 px-5 py-2.5 rounded-md text-sm font-semibold text-primary hover:bg-surface-container-low transition-colors flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">edit</span> Edit Record
+                    </button>
+<button class="bg-primary text-on-primary px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-primary-dim transition-colors flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">mail</span> Send Email
+                    </button>
+</div>
+</div>
+<!-- Bento Content Grid -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Left Column: Contact & Info -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<!-- Contact Details Card -->
+<div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-6">Contact Information</h3>
+<div class="space-y-5">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary">email</span>
+<div>
+<div class="text-xs text-on-surface-variant">Business Email</div>
+<div class="text-sm font-medium">k.vance@stellardynamics.com</div>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary">call</span>
+<div>
+<div class="text-xs text-on-surface-variant">Direct Phone</div>
+<div class="text-sm font-medium">+1 (415) 555-0198</div>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary">location_on</span>
+<div>
+<div class="text-xs text-on-surface-variant">Location</div>
+<div class="text-sm font-medium">San Francisco, CA</div>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary">language</span>
+<div>
+<div class="text-xs text-on-surface-variant">Website</div>
+<div class="text-sm font-medium text-primary">stellardynamics.io</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tags & Labels -->
+<div class="bg-surface-container-low p-6 rounded-xl">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Record Status</h3>
+<div class="flex flex-wrap gap-2">
+<span class="bg-tertiary-container text-on-tertiary-fixed px-2.5 py-1 rounded text-[11px] font-bold">VIP CUSTOMER</span>
+<span class="bg-primary-container text-on-primary-container px-2.5 py-1 rounded text-[11px] font-bold">TECH SECTOR</span>
+<span class="bg-surface-container-highest text-on-surface px-2.5 py-1 rounded text-[11px] font-bold">ACTIVE PIPELINE</span>
+</div>
+</div>
+</div>
+<!-- Right Column: Timeline & Opps -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Interactions Timeline -->
+<div class="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/10">
+<div class="flex items-center justify-between mb-8">
+<h3 class="text-xl font-bold text-on-surface">Interaction Timeline</h3>
+<button class="text-xs font-bold text-primary hover:underline">View All Activity</button>
+</div>
+<div class="relative space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-surface-container">
+<!-- Timeline Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-tertiary flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[14px] text-white">call</span>
+</div>
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="text-sm font-bold">Outbound Call - Quarterly Review</span>
+<span class="text-xs text-on-surface-variant">Today, 10:24 AM</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">Discussed Q3 expansion plans. Katherine is interested in the enterprise tier upgrade for 50+ seats. Follow up scheduled for Friday.</p>
+</div>
+</div>
+<!-- Timeline Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[14px] text-white">mail</span>
+</div>
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="text-sm font-bold">Email Received - Pricing Inquiry</span>
+<span class="text-xs text-on-surface-variant">Yesterday, 4:15 PM</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">"Can you send over the technical documentation for the API integration?" - Responded with whitepaper attached.</p>
+</div>
+</div>
+<!-- Timeline Item -->
+<div class="relative pl-10">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-surface-container-highest flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">calendar_today</span>
+</div>
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="text-sm font-bold">In-Person Meeting at HQ</span>
+<span class="text-xs text-on-surface-variant">Oct 12, 2023</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">Full demo conducted for the C-suite team. Positive feedback on the analytics dashboard speed.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Related Opportunities & Notes (Split Row) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Opportunities -->
+<div class="bg-surface-container-low p-6 rounded-xl">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-6">Open Opportunities</h3>
+<div class="space-y-4">
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/10 hover:shadow-md transition-shadow cursor-pointer">
+<div class="text-sm font-bold mb-1">Cloud Migration v2</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-tertiary font-semibold">$45,000.00</span>
+<span class="text-on-surface-variant">Proposal Sent</span>
+</div>
+<div class="w-full h-1 bg-surface-container rounded-full mt-3 overflow-hidden">
+<div class="bg-tertiary h-full w-3/4"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/10 hover:shadow-md transition-shadow cursor-pointer opacity-80">
+<div class="text-sm font-bold mb-1">API Add-on Package</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-tertiary font-semibold">$8,200.00</span>
+<span class="text-on-surface-variant">Discovery</span>
+</div>
+<div class="w-full h-1 bg-surface-container rounded-full mt-3 overflow-hidden">
+<div class="bg-tertiary h-full w-1/4"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Notes Area -->
+<div class="bg-surface-container-lowest border border-outline-variant/15 p-6 rounded-xl flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Private Notes</h3>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">lock</span>
+</div>
+<textarea class="flex-1 bg-transparent border-none focus:ring-0 text-sm italic text-on-surface-variant resize-none placeholder:text-outline-variant" placeholder="Add a private note about this contact...">Prefers communication via direct email rather than portal. Main decision maker for the Stellar account. Anniversary of partnership in December.</textarea>
+<div class="flex justify-end mt-4">
+<button class="text-xs font-bold text-primary px-3 py-1 rounded hover:bg-surface-container-low">Auto-Save active</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Meta Info -->
+<footer class="mt-16 pt-8 border-t border-outline-variant/15 flex flex-col md:flex-row justify-between items-center text-[11px] text-on-surface-variant font-medium tracking-wide">
+<div class="flex items-center gap-4 mb-4 md:mb-0">
+<span>RECORD ID: VT-882910</span>
+<span>CREATED: SEPT 14, 2023</span>
+<span>LAST MODIFIED: 2 HOURS AGO</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="hover:text-on-surface transition-colors">Export as PDF</button>
+<button class="hover:text-on-surface transition-colors">Audit Log</button>
+<button class="text-error hover:text-error-dim transition-colors">Delete Record</button>
+</div>
+</footer>
+</div>
+</main>
+<!-- Contextual FAB (Hidden on detail page as per instructions, but kept as placeholder for logic) -->
+<!-- Suppressed on Details per protocol -->
+</body></html>
