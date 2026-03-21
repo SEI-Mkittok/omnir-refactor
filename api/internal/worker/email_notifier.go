@@ -71,6 +71,8 @@ func (n *EmailNotifier) deliver(job domain.EmailJob) {
 		err = n.mailer.SendResolved(job.ToEmail, job.ToName, job.TicketID, job.TicketSubject, "resolved")
 	case domain.EmailEventClosed:
 		err = n.mailer.SendResolved(job.ToEmail, job.ToName, job.TicketID, job.TicketSubject, "closed")
+	case domain.EmailEventComment:
+		err = n.mailer.SendComment(job.ToEmail, job.ToName, job.TicketID, job.TicketSubject, job.CommentBody)
 	default:
 		n.logger.Warn("email_notifier: unknown event kind", "kind", job.Kind)
 		return

@@ -105,6 +105,26 @@ func rewriteLinks(html, baseURL, clickToken string) string {
 	})
 }
 
+// SendComment sends an email notifying a ticket participant about a new comment.
+func (m *Mailer) SendComment(toEmail, recipientName, ticketID, subject, commentBody string) error {
+	html, text, err := RenderComment(TicketCommentData{
+		RecipientName: recipientName,
+		TicketID:      ticketID,
+		Subject:       subject,
+		CommentBody:   commentBody,
+		AppURL:        m.appURL,
+	})
+	if err != nil {
+		return err
+	}
+	return m.sender.Send(Message{
+		To:      toEmail,
+		Subject: fmt.Sprintf("[Omnir] New comment on ticket #%s", ticketID),
+		HTML:    html,
+		Text:    text,
+	})
+}
+
 // SendResolved sends an email notifying the reporter that ticket was resolved or closed.
 func (m *Mailer) SendResolved(toEmail, reporterName, ticketID, subject, status string) error {
 	html, text, err := RenderResolved(TicketResolvedData{

@@ -165,7 +165,8 @@ func main() {
 		logger.Info("storage: local backend", "path", basePath)
 	}
 
-	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, storageBackend)
+	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, storageBackend).
+		WithEmailNotifier(emailNotifier, userRepo, contactRepo, logger)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
 	inboundWebhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger)

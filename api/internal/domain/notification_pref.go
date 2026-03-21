@@ -33,6 +33,7 @@ const (
 	EmailEventAssigned EmailEventKind = "assigned"
 	EmailEventResolved EmailEventKind = "resolved"
 	EmailEventClosed   EmailEventKind = "closed"
+	EmailEventComment  EmailEventKind = "comment"
 )
 
 // EmailJob is an item queued for async delivery.
@@ -42,4 +43,5 @@ type EmailJob struct {
 	ToName        string
 	TicketID      string // string form of UUID for URL building
 	TicketSubject string
+	CommentBody   string // populated for EmailEventComment
 }
