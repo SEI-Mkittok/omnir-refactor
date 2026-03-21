@@ -35,7 +35,7 @@ const SORT_OPTIONS = [
 
 export function ContactsPage() {
   const [searchParams] = useSearchParams()
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [stage, setStage] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
