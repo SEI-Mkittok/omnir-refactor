@@ -25,6 +25,7 @@ import { PortalTicketsPage } from '@/pages/portal/PortalTicketsPage'
 import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
 import { PortalTicketDetailPage } from '@/pages/portal/PortalTicketDetailPage'
 import { TicketsPage } from '@/pages/TicketsPage'
+import { TicketDetailPage } from '@/pages/TicketDetailPage'
 import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
@@ -102,6 +103,7 @@ function AppRoutes() {
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/tickets/:id" element={<TicketDetailPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/sequences" element={<SequencesPage />} />
