@@ -30,6 +30,11 @@ import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
 import { CalendarPage } from '@/pages/CalendarPage'
+import { KnowledgeBasePage } from '@/pages/KnowledgeBasePage'
+import { HelpCenterPage } from '@/pages/help/HelpCenterPage'
+import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
+import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
+import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -82,6 +87,12 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<Navigate to="/login" replace />} />
 
+      {/* Public help center routes (no auth) */}
+      <Route path="/help/:orgSlug" element={<HelpCenterPage />} />
+      <Route path="/help/:orgSlug/c/:categorySlug" element={<HelpCategoryPage />} />
+      <Route path="/help/:orgSlug/a/:articleSlug" element={<HelpArticlePage />} />
+      <Route path="/help/:orgSlug/search" element={<HelpSearchPage />} />
+
       {/* Client portal routes */}
       <Route path="/portal/login" element={<PortalLoginPage />} />
       <Route path="/portal" element={<PortalShell />}>
@@ -99,6 +110,7 @@ function AppRoutes() {
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/kb" element={<KnowledgeBasePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/sequences" element={<SequencesPage />} />
