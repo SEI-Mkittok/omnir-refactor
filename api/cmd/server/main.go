@@ -126,7 +126,7 @@ func main() {
 		logger.Info("email notifications disabled")
 	}
 
-	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc)
+	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc, cfg.OrgMode)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo)
 	userHandler := handler.NewUserHandler(userRepo)
