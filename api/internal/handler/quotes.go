@@ -14,7 +14,6 @@ import (
 	"github.com/omnir/crm-api/internal/repository"
 )
 
-
 type QuoteHandler struct {
 	repo   repository.QuoteRepository
 	mailer *email.Mailer

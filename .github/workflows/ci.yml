@@ -73,6 +73,22 @@ jobs:
               | psql -h localhost -U omnir -d omnir_crm_test -v ON_ERROR_STOP=1
           done
 
+      - name: Create non-superuser app role for RLS integration tests
+        env:
+          PGPASSWORD: omnir_dev
+        run: |
+          psql -h localhost -U omnir -d omnir_crm_test -c "
+            DO \$\$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omnir_app_test') THEN
+                CREATE ROLE omnir_app_test LOGIN PASSWORD 'test';
+              END IF;
+            END \$\$;
+            GRANT CONNECT ON DATABASE omnir_crm_test TO omnir_app_test;
+            GRANT USAGE ON SCHEMA public TO omnir_app_test;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO omnir_app_test;
+            GRANT EXECUTE ON FUNCTION current_org_id() TO omnir_app_test;
+          "
+
       - name: API integration tests
         working-directory: api
         env:
