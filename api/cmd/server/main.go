@@ -19,6 +19,7 @@ import (
 	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/email"
+	enrichmentpkg "github.com/omnir/crm-api/internal/enrichment"
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository/postgres"
@@ -86,6 +87,7 @@ func main() {
 	calendarConnectionRepo := postgres.NewCalendarConnectionRepo(db)
 	ssoConfigRepo := postgres.NewSSOConfigRepo(db)
 	totpRepo := postgres.NewTOTPRepo(db)
+	enrichmentCacheRepo := postgres.NewEnrichmentCacheRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -204,6 +206,8 @@ func main() {
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL)
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
+	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
+	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -247,6 +251,7 @@ func main() {
 		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
 		r.Mount("/leads", leadHandler.Router())
+		r.Mount("/enrich", enrichmentHandler.Router())
 		r.Route("/leads/{id}/notes", func(r chi.Router) {
 			r.Mount("/", leadNoteHandler.Router())
 		})
@@ -255,6 +260,9 @@ func main() {
 		})
 		r.Route("/contacts/{id}/emails", func(r chi.Router) {
 			r.Mount("/", emailHandler.ContactEmailRouter())
+		})
+		r.Route("/contacts/{id}", func(r chi.Router) {
+			r.Mount("/", enrichmentHandler.ContactEnrichRouter())
 		})
 		r.Mount("/accounts", accountHandler.Router())
 		r.Route("/accounts/{id}/notes", func(r chi.Router) { r.Mount("/", accountNoteHandler.Router()) })
