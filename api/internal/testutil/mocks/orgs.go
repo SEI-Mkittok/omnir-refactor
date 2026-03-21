@@ -47,3 +47,11 @@ func (m *MockOrgRepository) HasAny(ctx context.Context) (bool, error) {
 	args := m.Called(ctx)
 	return args.Bool(0), args.Error(1)
 }
+
+func (m *MockOrgRepository) List(ctx context.Context) ([]*domain.Organization, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Organization), args.Error(1)
+}
