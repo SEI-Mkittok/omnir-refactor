@@ -977,6 +977,7 @@ export type TriggerType =
   | 'deal_created'
   | 'deal_stage_changed'
   | 'ticket_created'
+  | 'activity_overdue'
   | 'manual'
 
 export type ConditionOperator =
@@ -989,7 +990,12 @@ export type ConditionOperator =
   | 'is_set'
   | 'is_not_set'
 
-export type ActionType = 'send_email' | 'create_task' | 'update_field' | 'add_tag' | 'webhook'
+export type ActionType =
+  | 'assign_owner'
+  | 'send_email'
+  | 'enroll_in_sequence'
+  | 'create_activity'
+  | 'webhook'
 
 export type AutomationRunStatus = 'pending' | 'running' | 'succeeded' | 'failed'
 
