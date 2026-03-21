@@ -1,227 +1,175 @@
 import { useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, Building2, Globe, Users, TrendingUp, Upload, Download } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Plus, Building2, Globe, Users, Download, Upload, ExternalLink } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useAccounts, useAccount, useAccountContacts, useAccountDeals, useDeleteAccount, useUpdateAccount } from '@/hooks/useAccounts'
+import { useAccounts } from '@/hooks/useAccounts'
 import { useUpdateView } from '@/hooks/useViews'
-import { FilterBar } from '@/components/ui/FilterBar'
-import { Table, type Column } from '@/components/ui/Table'
-import { SidePanel } from '@/components/ui/SidePanel'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Spinner } from '@/components/ui/Spinner'
-import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
-import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { ViewPinBar } from '@/components/omnir/ViewPinBar'
-import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
-import { formatDate, formatCurrency } from '@/lib/utils'
-import { ImportModal } from '@/components/omnir/ImportModal'
 import { AccountForm } from '@/components/omnir/AccountForm'
+import { ImportModal } from '@/components/omnir/ImportModal'
 import { downloadExportCsv } from '@/api/importExport'
-import type { Account, CustomFieldValues, SavedView } from '@/api/types'
+import { formatDate, formatRelativeTime } from '@/lib/utils'
+import type { Account, SavedView } from '@/api/types'
 
-const INDUSTRY_OPTIONS = [
-  { label: 'Technology', value: 'Technology' },
-  { label: 'Finance', value: 'Finance' },
-  { label: 'Healthcare', value: 'Healthcare' },
-  { label: 'Retail', value: 'Retail' },
-  { label: 'Manufacturing', value: 'Manufacturing' },
-  { label: 'Education', value: 'Education' },
-  { label: 'Other', value: 'Other' },
-]
+// ── Industry Badge ────────────────────────────────────────────────────────────
 
-const SORT_OPTIONS = [
-  { label: 'Name A–Z', value: 'name:asc' },
-  { label: 'Name Z–A', value: 'name:desc' },
-  { label: 'Newest', value: 'created_at:desc' },
-  { label: 'Oldest', value: 'created_at:asc' },
-]
+const INDUSTRY_STYLES: Record<string, { bg: string; text: string }> = {
+  aerospace:     { bg: '#EFF6FF', text: '#1D4ED8' },
+  fintech:       { bg: '#F0FDF4', text: '#15803D' },
+  healthcare:    { bg: '#FFF7ED', text: '#C2410C' },
+  retail:        { bg: '#FAF5FF', text: '#7C3AED' },
+  technology:    { bg: '#F0F9FF', text: '#0369A1' },
+  manufacturing: { bg: '#FEF3C7', text: '#92400E' },
+}
 
-// ---- Account detail panel ----
-
-function AccountDetail({ accountId, onClose }: { accountId: string; onClose: () => void }) {
-  const { data: account, isLoading } = useAccount(accountId)
-  const { data: contacts, isLoading: contactsLoading } = useAccountContacts(accountId)
-  const { data: deals, isLoading: dealsLoading } = useAccountDeals(accountId)
-  const deleteAccount = useDeleteAccount()
-  const updateAccount = useUpdateAccount()
-  const { data: customFields = [] } = useCustomFieldDefinitions('account')
-
-  if (isLoading) {
-    return (
-      <SidePanel open title="Account" onClose={onClose}>
-        <div className="flex items-center justify-center py-12">
-          <Spinner size="lg" />
-        </div>
-      </SidePanel>
-    )
-  }
-
-  if (!account) return null
-
+function IndustryBadge({ industry }: { industry: string | undefined }) {
+  if (!industry) return <span style={{ color: 'var(--text-label)' }}>—</span>
+  const key = industry.toLowerCase()
+  const style = INDUSTRY_STYLES[key] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
   return (
-    <SidePanel
-      open
-      title={account.name}
-      onClose={onClose}
-      width="lg"
-      actions={
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={async () => {
-            if (confirm('Delete this account?')) {
-              await deleteAccount.mutateAsync(account.id)
-              onClose()
-            }
-          }}
-        >
-          Delete
-        </Button>
-      }
+    <span
+      className="inline-flex items-center font-semibold uppercase"
+      style={{
+        background: style.bg,
+        color: style.text,
+        fontSize: 11,
+        letterSpacing: '0.04em',
+        padding: '2px 10px',
+        borderRadius: 'var(--radius-pill)',
+        border: `1px solid ${style.text}4D`,
+      }}
     >
-      <div className="space-y-6">
-        {/* Core fields */}
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-700 uppercase tracking-wide">Details</h3>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
-            {account.industry && (
-              <>
-                <dt className="font-medium text-slate-500">Industry</dt>
-                <dd className="text-slate-900">{account.industry}</dd>
-              </>
-            )}
-            {account.size && (
-              <>
-                <dt className="font-medium text-slate-500">Size</dt>
-                <dd className="text-slate-900">{account.size} employees</dd>
-              </>
-            )}
-            {account.domain && (
-              <>
-                <dt className="font-medium text-slate-500">Domain</dt>
-                <dd>
-                  <a
-                    href={`https://${account.domain}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-indigo-600 hover:underline flex items-center gap-1"
-                  >
-                    <Globe className="h-3.5 w-3.5" />
-                    {account.domain}
-                  </a>
-                </dd>
-              </>
-            )}
-            {account.phone && (
-              <>
-                <dt className="font-medium text-slate-500">Phone</dt>
-                <dd className="text-slate-900">{account.phone}</dd>
-              </>
-            )}
-            {account.address && (
-              <>
-                <dt className="font-medium text-slate-500">Address</dt>
-                <dd className="text-slate-900">{account.address}</dd>
-              </>
-            )}
-            <dt className="font-medium text-slate-500">Created</dt>
-            <dd className="text-slate-900">{formatDate(account.created_at)}</dd>
-          </dl>
-        </div>
-
-        {/* Custom Fields */}
-        <CustomFieldEditableSection
-          fields={customFields}
-          values={account.custom_fields as CustomFieldValues | undefined}
-          onSave={async (cf) => { await updateAccount.mutateAsync({ id: accountId, payload: { custom_fields: cf as Record<string, unknown> } }) }}
-        />
-
-        {/* Linked contacts */}
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Contacts
-            {contacts && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600">
-                {contacts.length}
-              </span>
-            )}
-          </h3>
-          {contactsLoading ? (
-            <Spinner />
-          ) : contacts && contacts.length > 0 ? (
-            <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-              {contacts.map((c) => (
-                <li key={c.id} className="px-3 py-2.5 text-sm">
-                  <span className="font-medium text-slate-900">
-                    {c.first_name} {c.last_name}
-                  </span>
-                  {c.title && <span className="ml-2 text-slate-500">{c.title}</span>}
-                  <div className="text-xs text-slate-400 mt-0.5">{c.email}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-400">No contacts linked yet.</p>
-          )}
-        </div>
-
-        {/* Linked deals */}
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Deals
-            {deals && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600">
-                {deals.length}
-              </span>
-            )}
-          </h3>
-          {dealsLoading ? (
-            <Spinner />
-          ) : deals && deals.length > 0 ? (
-            <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-              {deals.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center justify-between gap-1 px-3 py-2.5 text-sm">
-                  <span className="min-w-0 truncate font-medium text-slate-900">{d.title}</span>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="text-indigo-600 font-semibold">
-                      {formatCurrency(d.value, d.currency)}
-                    </span>
-                    <Badge variant="default">{d.stage}</Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-400">No deals linked yet.</p>
-          )}
-        </div>
-
-        {/* Attachments */}
-        <AttachmentsPanel entityType="account" entityId={accountId} />
-      </div>
-    </SidePanel>
+      {industry.toUpperCase()}
+    </span>
   )
 }
 
-// ---- Main page ----
+// ── Activity Status Dot ───────────────────────────────────────────────────────
+
+function deriveStatus(account: Account): 'active' | 'pending' | 'archived' {
+  const updatedAt = new Date(account.updated_at).getTime()
+  const createdAt = new Date(account.created_at).getTime()
+  const now = Date.now()
+  const dayMs = 86400000
+  if (now - updatedAt < 90 * dayMs) {
+    if (now - createdAt < 7 * dayMs) return 'pending'
+    return 'active'
+  }
+  return 'archived'
+}
+
+const STATUS_STYLES = {
+  active:   { dot: '#22C55E', label: 'Active' },
+  pending:  { dot: '#F59E0B', label: 'Pending' },
+  archived: { dot: '#9CA3AF', label: 'Archived' },
+}
+
+function ActivityStatusDot({ account }: { account: Account }) {
+  const status = deriveStatus(account)
+  const { dot, label } = STATUS_STYLES[status]
+  return (
+    <span className="flex items-center gap-1.5">
+      <span
+        className="inline-block rounded-full shrink-0"
+        style={{ width: 8, height: 8, background: dot }}
+      />
+      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+        {label}
+      </span>
+    </span>
+  )
+}
+
+// ── Skeleton row ──────────────────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <tr style={{ height: 60 }}>
+      {[3, 2, 2, 1, 1.5, 1.5].map((w, i) => (
+        <td key={i} className="px-4 py-3">
+          <div
+            className="h-3 animate-pulse rounded"
+            style={{ width: `${w * 50}px`, background: 'var(--border-subtle)' }}
+          />
+        </td>
+      ))}
+    </tr>
+  )
+}
+
+// ── Filter Select ─────────────────────────────────────────────────────────────
+
+function FilterSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { label: string; value: string }[]
+  placeholder: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-md border text-sm font-medium transition-colors"
+      style={{
+        height: 36,
+        padding: '0 12px',
+        borderColor: value ? 'var(--color-primary)' : 'var(--border-default)',
+        color: value ? 'var(--color-primary)' : 'var(--text-secondary)',
+        background: value ? 'var(--color-primary-light)' : 'var(--surface-card)',
+        cursor: 'pointer',
+        outline: 'none',
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+const INDUSTRY_OPTIONS = [
+  { label: 'Aerospace', value: 'aerospace' },
+  { label: 'Fintech', value: 'fintech' },
+  { label: 'Healthcare', value: 'healthcare' },
+  { label: 'Retail', value: 'retail' },
+  { label: 'Technology', value: 'technology' },
+  { label: 'Manufacturing', value: 'manufacturing' },
+  { label: 'Other', value: 'other' },
+]
+
+const STATUS_OPTIONS = [
+  { label: 'Active', value: 'active' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Archived', value: 'archived' },
+]
+
+const TABLE_HEADERS = ['Account', 'Industry', 'Website', 'Contacts', 'Status', 'Created']
 
 export function AccountsPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [industry, setIndustry] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
-  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
   const [showImport, setShowImport] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [activeView, setActiveView] = useState<SavedView | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const updateView = useUpdateView()
-  const debouncedSearch = useDebounce(search, 300)
+  const debouncedSearch = useDebounce(search, 200)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
   const currentFilters = {
@@ -247,7 +195,7 @@ export function AccountsPage() {
     setHasUnsavedChanges(false)
   }
 
-  const { data, isLoading } = useAccounts({
+  const { data, isLoading, isError, refetch } = useAccounts({
     page,
     per_page: 20,
     search: debouncedSearch || undefined,
@@ -256,8 +204,14 @@ export function AccountsPage() {
     sort_dir: sortDir,
   })
 
-  const accounts = data?.data ?? []
+  const allAccounts = data?.data ?? []
+  // Client-side status filter (backend doesn't support it)
+  const accounts = statusFilter
+    ? allAccounts.filter((a) => deriveStatus(a) === statusFilter)
+    : allAccounts
   const meta = data?.meta
+
+  const hasFilters = !!(search || industry || statusFilter)
 
   const handleSort = useCallback((key: string) => {
     setSortKey((prev) => {
@@ -265,79 +219,24 @@ export function AccountsPage() {
       if (prevKey === key) return `${key}:${prevDir === 'asc' ? 'desc' : 'asc'}`
       return `${key}:asc`
     })
-  }, [])
+    markChanged()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const columns: Column<Account>[] = [
-    {
-      key: 'name',
-      header: 'Name',
-      sortable: true,
-      render: (a) => (
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
-            <Building2 className="h-4 w-4 text-slate-500" />
-          </div>
-          <span className="font-medium text-slate-900">{a.name}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'domain',
-      header: 'Domain',
-      hideOnMobile: true,
-      render: (a) => a.domain ? (
-        <span className="flex items-center gap-1 text-slate-600">
-          <Globe className="h-3.5 w-3.5" />
-          {a.domain}
-        </span>
-      ) : <span className="text-slate-400">—</span>,
-    },
-    {
-      key: 'industry',
-      header: 'Industry',
-      sortable: true,
-      render: (a) => <span className="text-slate-600">{a.industry ?? '—'}</span>,
-    },
-    {
-      key: 'size',
-      header: 'Size',
-      hideOnMobile: true,
-      render: (a) => a.size ? (
-        <span className="flex items-center gap-1 text-slate-600">
-          <Users className="h-3.5 w-3.5" />
-          {a.size}
-        </span>
-      ) : <span className="text-slate-400">—</span>,
-    },
-    {
-      key: 'created_at',
-      header: 'Created',
-      sortable: true,
-      hideOnMobile: true,
-      render: (a) => <span className="text-slate-500 text-xs">{formatDate(a.created_at)}</span>,
-    },
-  ]
+  // Opening with ?openId= from other pages
+  const _openId = searchParams.get('openId')
 
   return (
-    <div className="space-y-4">
+    <div className="p-6" style={{ maxWidth: 'var(--content-max-width, 1280px)' }}>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {activeView ? activeView.name : 'Accounts'}
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            {meta ? `${meta.total} total` : 'Loading…'}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+        <h1
+          className="font-bold"
+          style={{ fontSize: 36, color: 'var(--text-primary)', letterSpacing: '-0.01em', lineHeight: 1.1 }}
+        >
+          {activeView ? activeView.name : 'Accounts.'}
+        </h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4" />
-            Import
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={() =>
               downloadExportCsv('accounts', {
                 ...(debouncedSearch ? { q: debouncedSearch } : {}),
@@ -345,14 +244,35 @@ export function AccountsPage() {
                 ...(sortBy ? { sort: sortBy, order: sortDir } : {}),
               })
             }
+            className="flex items-center gap-1.5 rounded-md border text-sm font-medium transition-colors"
+            style={{
+              height: 36,
+              padding: '0 14px',
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-secondary)',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
           >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button onClick={() => setShowCreate(true)}>
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 rounded-md text-sm font-semibold text-white transition-colors"
+            style={{
+              height: 36,
+              padding: '0 16px',
+              background: 'var(--color-primary)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-primary-hover)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-primary)' }}
+          >
             <Plus className="h-4 w-4" />
-            Add Account
-          </Button>
+            New Account
+          </button>
         </div>
       </div>
 
@@ -368,73 +288,170 @@ export function AccountsPage() {
         onUpdateView={handleUpdateView}
       />
 
-      {/* Filters */}
-      <FilterBar
-        searchValue={search}
-        onSearchChange={(v) => { setSearch(v); setPage(1); markChanged() }}
-        searchPlaceholder="Search accounts…"
-        filters={[
-          {
-            label: 'Industry',
-            value: industry,
-            options: INDUSTRY_OPTIONS,
-            onChange: (v) => { setIndustry(v); setPage(1); markChanged() },
-          },
-          {
-            label: 'Sort',
-            value: sortKey,
-            options: SORT_OPTIONS,
-            onChange: (v) => { setSortKey(v); setPage(1); markChanged() },
-          },
-        ]}
-      />
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <FilterSelect
+          value={industry}
+          onChange={(v) => { setIndustry(v); setPage(1); markChanged() }}
+          options={INDUSTRY_OPTIONS}
+          placeholder="All Industries"
+        />
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => { setStatusFilter(v); setPage(1) }}
+          options={STATUS_OPTIONS}
+          placeholder="All Statuses"
+        />
+        {hasFilters && (
+          <button
+            className="text-sm"
+            style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+            onClick={() => { setSearch(''); setIndustry(''); setStatusFilter(''); setPage(1) }}
+          >
+            Clear filters
+          </button>
+        )}
+        <div className="ml-auto">
+          <input
+            type="search"
+            placeholder="Search accounts…"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); markChanged() }}
+            className="rounded-full border text-sm px-4 transition-colors focus:outline-none"
+            style={{
+              height: 36,
+              width: 220,
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-primary)',
+              background: 'var(--surface-card)',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--border-focus)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)' }}
+          />
+        </div>
+      </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-        <Table
-          columns={columns}
-          data={accounts}
-          isLoading={isLoading}
-          sortBy={sortBy}
-          sortDir={sortDir}
-          onSort={handleSort}
-          onRowClick={(a) => setSelectedId(a.id)}
-          emptyIcon={Building2}
-          emptyTitle="No accounts found"
-          emptyDescription="Try adjusting your search or filters."
-          keyExtractor={(a) => a.id}
-        />
-
-        {meta && meta.total_pages > 1 && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
-            <p className="text-sm text-slate-500">
-              Page {meta.page} of {meta.total_pages}
+      <div
+        className="rounded-xl border overflow-hidden"
+        style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+      >
+        {isError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+              ⚠ Something went wrong.
             </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
+            <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Couldn&apos;t load accounts. Check your connection and try again.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="text-sm font-medium"
+              style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <table className="w-full" aria-label="Accounts">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
+                {TABLE_HEADERS.map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left font-semibold uppercase tracking-widest text-left"
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-label)',
+                      letterSpacing: 'var(--letter-spacing-label)',
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+              ) : accounts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <Building2
+                      className="mx-auto mb-3"
+                      style={{ width: 48, height: 48, color: 'var(--text-label)' }}
+                    />
+                    <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+                      {hasFilters ? 'No accounts match your filters.' : 'No accounts yet.'}
+                    </p>
+                    <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
+                      {hasFilters
+                        ? ''
+                        : 'Add your first account to start tracking company relationships.'}
+                    </p>
+                    {hasFilters && (
+                      <button
+                        className="text-sm font-medium"
+                        style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        onClick={() => { setSearch(''); setIndustry(''); setStatusFilter(''); setPage(1) }}
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                accounts.map((account) => (
+                  <AccountRow
+                    key={account.id}
+                    account={account}
+                    onClick={() => navigate(`/accounts/${account.id}`)}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+
+        {/* Pagination */}
+        {meta && meta.total_pages > 1 && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t"
+            style={{ borderColor: 'var(--border-default)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Showing {(meta.page - 1) * meta.per_page + 1}–
+              {Math.min(meta.page * meta.per_page, meta.total)} of {meta.total} accounts
+            </p>
+            <div className="flex items-center gap-1">
+              <PageButton
+                label="←"
                 disabled={page <= 1}
+                active={false}
                 onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              />
+              {Array.from({ length: Math.min(meta.total_pages, 7) }, (_, i) => {
+                const pg = i + 1
+                return (
+                  <PageButton
+                    key={pg}
+                    label={String(pg)}
+                    disabled={false}
+                    active={page === pg}
+                    onClick={() => setPage(pg)}
+                  />
+                )
+              })}
+              <PageButton
+                label="→"
                 disabled={page >= meta.total_pages}
+                active={false}
                 onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
+              />
             </div>
           </div>
         )}
       </div>
-
-      {selectedId && (
-        <AccountDetail accountId={selectedId} onClose={() => setSelectedId(null)} />
-      )}
 
       {showCreate && <AccountForm onClose={() => setShowCreate(false)} />}
 
@@ -445,5 +462,140 @@ export function AccountsPage() {
         entityLabel="Accounts"
       />
     </div>
+  )
+}
+
+// ── Table Row ─────────────────────────────────────────────────────────────────
+
+function AccountRow({ account, onClick }: { account: Account; onClick: () => void }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <tr
+      tabIndex={0}
+      style={{
+        height: 60,
+        cursor: 'pointer',
+        background: hovered ? 'var(--surface-app)' : 'transparent',
+        transition: 'background 150ms',
+      }}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={`${account.name}, ${account.industry ?? 'No industry'}`}
+    >
+      {/* Account */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+            style={{ background: 'var(--color-primary-light)' }}
+          >
+            <Building2 className="h-4 w-4" style={{ color: 'var(--color-primary)' }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+              {account.name}
+            </p>
+            {account.domain && (
+              <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
+                {account.domain}
+              </p>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Industry */}
+      <td className="px-4 py-3">
+        <IndustryBadge industry={account.industry} />
+      </td>
+
+      {/* Website */}
+      <td className="px-4 py-3 hidden md:table-cell">
+        {account.domain ? (
+          <a
+            href={`https://${account.domain}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 text-sm hover:underline"
+            style={{ color: 'var(--text-secondary)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="truncate max-w-[140px]">{account.domain}</span>
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+        ) : (
+          <span style={{ color: 'var(--text-label)' }}>—</span>
+        )}
+      </td>
+
+      {/* Contacts */}
+      <td className="px-4 py-3 hidden sm:table-cell">
+        <div className="flex items-center gap-1">
+          <Users className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+          <span
+            className="text-sm font-medium"
+            style={{
+              color:
+                (account.contacts?.length ?? 0) === 0
+                  ? 'var(--text-label)'
+                  : 'var(--text-primary)',
+            }}
+          >
+            {account.contacts?.length ?? 0}
+          </span>
+        </div>
+      </td>
+
+      {/* Status */}
+      <td className="px-4 py-3">
+        <ActivityStatusDot account={account} />
+      </td>
+
+      {/* Created */}
+      <td className="px-4 py-3 hidden lg:table-cell">
+        <span
+          className="text-sm"
+          title={formatDate(account.created_at)}
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          {formatRelativeTime(account.created_at)}
+        </span>
+      </td>
+    </tr>
+  )
+}
+
+// ── Pagination Button ─────────────────────────────────────────────────────────
+
+function PageButton({
+  label,
+  disabled,
+  active,
+  onClick,
+}: {
+  label: string
+  disabled: boolean
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className="flex items-center justify-center rounded-md text-sm font-medium transition-colors"
+      style={{
+        width: 32,
+        height: 32,
+        border: '1px solid',
+        borderColor: active ? 'var(--color-primary)' : 'var(--border-default)',
+        background: active ? 'var(--color-primary)' : 'transparent',
+        color: active ? '#FFFFFF' : disabled ? 'var(--text-disabled)' : 'var(--text-secondary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >
+      {label}
+    </button>
   )
 }
