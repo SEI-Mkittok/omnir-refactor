@@ -376,3 +376,12 @@ type TOTPRepository interface {
 	// MarkBackupCodeUsed marks a backup code as used.
 	MarkBackupCodeUsed(ctx context.Context, codeID uuid.UUID) error
 }
+
+// EnrichmentCacheRepository manages domain enrichment cache entries.
+type EnrichmentCacheRepository interface {
+	// GetByDomain returns the cached enrichment for a domain, or nil if not found.
+	// TTL enforcement (30-day expiry) is handled by the caller.
+	GetByDomain(ctx context.Context, d string) (*domain.EnrichmentCache, error)
+	// Upsert inserts or replaces the enrichment cache entry for the given domain.
+	Upsert(ctx context.Context, entry *domain.EnrichmentCache) (*domain.EnrichmentCache, error)
+}

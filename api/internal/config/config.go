@@ -65,6 +65,7 @@ type Config struct {
 	Calendar            CalendarConfig
 	SSOEncryptionKey    string
 	SSOCallbackURL      string
+	ClearbitAPIKey      string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -118,6 +119,7 @@ func Load() *Config {
 		},
 		SSOEncryptionKey: getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
 		SSOCallbackURL:   getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
+		ClearbitAPIKey:   getEnv("CLEARBIT_API_KEY", ""),
 	}
 }
 
