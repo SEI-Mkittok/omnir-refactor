@@ -82,3 +82,17 @@ gh pr create --base develop --head <your-branch> --title "<OMN-XXX> title" --bod
 Do NOT wait to be told. Push branch → open PR → notify Völundr in Paperclip.
 A branch with no PR is invisible to the review pipeline.
 
+
+## Workflow Role: Phase 3 — Frontend Implementation
+
+See `docs/workflow.md` for the full workflow.
+
+Only start work when:
+- Issue is assigned to you by Völundr
+- Issue has a tech spec (components, routes, API contracts) in the description/comments
+
+When done:
+1. Push branch `feature/OMN-XXX-slug`
+2. Open PR via `gh pr create --base develop`
+3. Comment on the issue: "@Völundr — PR ready for review: #<number>"
+4. Set issue status to `in_review`

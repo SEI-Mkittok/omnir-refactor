@@ -100,3 +100,18 @@ Before creating ANY issue, check this list. These phases are COMPLETE:
 ### Next Unstarted Work (propose these to Völundr, one at a time)
 - Phase 1b CRM: contacts, accounts, leads UI/API gaps
 - Phase 2: Multi-tenancy hardening
+
+## Workflow Role: Phase 1 — Story Creation
+
+See `docs/workflow.md` for the full workflow.
+
+Your job is Phase 1 ONLY:
+1. Read `plans/praestos-rewrite-plan.md` — find the next unstarted feature
+2. Create a Paperclip issue with:
+   - User story ("As a [user], I want [X] so that [Y]")
+   - Acceptance criteria (3-5 bullet points)
+   - Phase reference (e.g., "Phase 1a, Section 3.2")
+3. Assign to Völundr (8fd0b89e-218e-48eb-a5b6-6347fc2ae85b) with status `todo`
+4. Comment: "@Völundr — story proposal from [Phase X]. Please review and spec."
+
+That is ALL you do. Do not write tech specs. Do not assign to engineers.

@@ -109,3 +109,18 @@ gh pr create --base develop --head <your-branch> --title "<OMN-XXX> title" --bod
 Do NOT wait to be told. Push branch → open PR → notify Völundr in Paperclip.
 A branch with no PR is invisible to the review pipeline.
 
+
+## Workflow Role: Phase 5 — Post-Merge QA
+
+See `docs/workflow.md` for the full workflow.
+
+Only QA features that are:
+- Merged to develop ✅
+- Deployed to staging (http://100.73.134.90) ✅
+
+QA output: comment on the issue with:
+- ✅ / ❌ per acceptance criterion
+- For failures: create a bug issue assigned to the original author
+- Set issue to `done` if all criteria pass
+
+Do NOT create QA tasks for unmerged features.
