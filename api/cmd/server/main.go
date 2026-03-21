@@ -84,6 +84,8 @@ func main() {
 	quoteRepo := postgres.NewQuoteRepo(db)
 	automationRepo := postgres.NewAutomationRepo(db)
 	calendarConnectionRepo := postgres.NewCalendarConnectionRepo(db)
+	ssoConfigRepo := postgres.NewSSOConfigRepo(db)
+	totpRepo := postgres.NewTOTPRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -126,7 +128,7 @@ func main() {
 
 	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
-	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo)
+	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo)
 	userHandler := handler.NewUserHandler(userRepo)
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
@@ -198,6 +200,8 @@ func main() {
 	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
 	automationHandler := handler.NewAutomationHandler(automationRepo)
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
+	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL)
+	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -223,6 +227,8 @@ func main() {
 	r.Mount("/api/setup", setupHandler.Router())
 	r.Mount("/api/orgs", orgHandler.Router())
 	r.Mount("/api/auth", authHandler.Router())
+	// Public SSO login/callback — no JWT required.
+	r.Mount("/auth/sso", ssoHandler.Router())
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Public deal portal — token IS the credential, no JWT required.
@@ -282,6 +288,8 @@ func main() {
 		r.Mount("/automations", automationHandler.Router())
 		r.Mount("/calendar", calendarHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
+		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
+		r.Route("/users/me/2fa", func(r chi.Router) { r.Mount("/", twoFAHandler.Router()) })
 	})
 
 	r.Group(func(r chi.Router) {
