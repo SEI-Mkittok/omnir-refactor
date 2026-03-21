@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound, SlidersHorizontal, KeyRound, Clock, LifeBuoy, ShieldCheck, Mail, FileText, Zap, CalendarDays } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
+import { orgsApi } from '@/api/orgs'
 
 const baseNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -32,8 +34,20 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems
+
+  // Fetch org list to display current org name in the header (super_admin only).
+  const isSuperAdmin = user?.role === 'super_admin'
+  const { data: orgsData } = useQuery({
+    queryKey: ['orgs'],
+    queryFn: () => orgsApi.list(),
+    staleTime: 60_000,
+    enabled: isSuperAdmin,
+  })
+  const currentOrg = isSuperAdmin
+    ? (orgsData?.data ?? []).find((o) => o.id === user?.org_id)
+    : null
   return (
     <>
       {/* Mobile overlay */}
@@ -58,13 +72,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             : undefined
         )}
       >
-        {/* Logo */}
+        {/* Logo + current org name */}
         <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-white">Omnir</span>
+            <div className="min-w-0">
+              <span className="text-lg font-bold text-white">Omnir</span>
+              {currentOrg && (
+                <p className="truncate text-xs text-slate-400 leading-tight">{currentOrg.name}</p>
+              )}
+            </div>
           </div>
           {onClose && (
             <button
