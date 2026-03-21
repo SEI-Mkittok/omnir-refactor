@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PraestOS | New Support Ticket</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-tint": "#515f74",
+                        "outline-variant": "#a9b4b9",
+                        "inverse-surface": "#0b0f10",
+                        "surface-container-low": "#f0f4f7",
+                        "tertiary-container": "#dbdafb",
+                        "on-secondary-fixed": "#324052",
+                        "tertiary": "#5c5d78",
+                        "on-secondary-container": "#445365",
+                        "secondary-dim": "#465467",
+                        "on-tertiary": "#fbf7ff",
+                        "on-primary-fixed-variant": "#4e5c71",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#566166",
+                        "tertiary-fixed-dim": "#cdccec",
+                        "on-surface": "#2a3439",
+                        "surface-container-highest": "#d9e4ea",
+                        "primary": "#515f74",
+                        "on-primary-fixed": "#324053",
+                        "inverse-on-surface": "#9a9d9f",
+                        "on-secondary-fixed-variant": "#4e5d6f",
+                        "tertiary-fixed": "#dbdafb",
+                        "tertiary-dim": "#50516c",
+                        "primary-dim": "#455367",
+                        "on-tertiary-container": "#4b4c67",
+                        "error-dim": "#4e0309",
+                        "on-tertiary-fixed-variant": "#555671",
+                        "surface-bright": "#f7f9fb",
+                        "primary-container": "#d5e3fc",
+                        "primary-fixed": "#d5e3fc",
+                        "surface-dim": "#cfdce3",
+                        "secondary": "#526073",
+                        "on-primary-container": "#455367",
+                        "secondary-fixed": "#d4e4fa",
+                        "surface": "#f7f9fb",
+                        "error": "#9f403d",
+                        "inverse-primary": "#d8e6ff",
+                        "on-tertiary-fixed": "#383a53",
+                        "on-primary": "#f6f7ff",
+                        "surface-container-high": "#e1e9ee",
+                        "outline": "#717c82",
+                        "error-container": "#fe8983",
+                        "surface-container": "#e8eff3",
+                        "background": "#f7f9fb",
+                        "secondary-fixed-dim": "#c6d6ec",
+                        "on-error-container": "#752121",
+                        "on-background": "#2a3439",
+                        "secondary-container": "#d4e4fa",
+                        "surface-variant": "#d9e4ea",
+                        "on-secondary": "#f7f9ff",
+                        "on-error": "#fff7f6",
+                        "primary-fixed-dim": "#c7d5ed"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-container">
+<!-- TopNavBar - Rendered based on Shared Component JSON -->
+<header class="bg-[#f7f9fb] dark:bg-slate-900 border-b-0 flex justify-between items-center w-full px-6 py-3 max-w-full sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<span class="text-lg font-bold text-[#515F74] dark:text-white tracking-tighter">PraestOS</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="font-inter tracking-tight text-sm font-medium text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Dashboard</a>
+<a class="font-inter tracking-tight text-sm font-medium text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Accounts</a>
+<a class="font-inter tracking-tight text-sm font-medium text-slate-500 dark:text-slate-500 hover:text-[#515F74] transition-colors" href="#">Leads</a>
+<a class="font-inter tracking-tight text-sm font-medium text-[#515F74] dark:text-white border-b-2 border-[#515F74] dark:border-slate-400 pb-1" href="#">Tickets</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-[#e8eff3] dark:hover:bg-slate-800 rounded-md transition-all duration-200 ease-in-out text-[#515F74] dark:text-slate-300">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 hover:bg-[#e8eff3] dark:hover:bg-slate-800 rounded-md transition-all duration-200 ease-in-out text-[#515F74] dark:text-slate-300">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-surface-container overflow-hidden ml-2">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Professional user profile headshot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyou9dy7rcn9ycW4AnfTHK4NLTGGeOdiyRWTFZRXLElVOMFgb1VVhxh04cEXHuXGwarxw12EelbMZbHmTTCdxP5DgjspKECEl_TU1-UrXkWJXuX_k8s2wM4ZQpUyCp8uErclbFsPWpSTpr816IuV7kYH1bOK_Brrzgf23jBqeFoMycf0wiO2oCAiFSmivonHFEOfz-NNtrU-rLSJCUAglADliNxGtZSwN6HFvWlbocY4iwy3d7ZAdUSh1g0erztQElVn8PnQZuC7o"/>
+</div>
+</div>
+</header>
+<main class="min-h-[calc(100vh-64px)] flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 bg-surface">
+<!-- Contextual Header -->
+<div class="w-full max-w-2xl mb-12">
+<div class="flex flex-col gap-1">
+<span class="text-[0.6875rem] font-medium tracking-widest text-on-surface-variant uppercase">Rational Archive / Support Portal</span>
+<h1 class="text-[2rem] font-bold tracking-tight text-on-surface leading-tight">Submit New Ticket</h1>
+<p class="text-on-surface-variant text-sm mt-2 max-w-md">Our technical team typically responds within 4 hours. Please provide as much structural detail as possible.</p>
+</div>
+</div>
+<!-- Form Container using Tonal Nesting -->
+<div class="w-full max-w-2xl">
+<div class="bg-surface-container-low rounded-xl p-8 space-y-8 shadow-sm">
+<form action="#" class="space-y-6" method="POST">
+<!-- Subject Field -->
+<div class="space-y-2">
+<label class="text-[0.6875rem] font-semibold text-on-surface-variant uppercase tracking-wider" for="subject">Subject</label>
+<input class="w-full bg-surface-container-lowest border-outline-variant border-opacity-15 focus:border-primary focus:ring-0 rounded-md py-3 px-4 text-sm placeholder:text-outline-variant transition-all duration-200 outline-none" id="subject" name="subject" placeholder="Concise summary of the request" type="text"/>
+</div>
+<!-- Issue Description -->
+<div class="space-y-2">
+<label class="text-[0.6875rem] font-semibold text-on-surface-variant uppercase tracking-wider" for="description">Issue Description</label>
+<textarea class="w-full bg-surface-container-lowest border-outline-variant border-opacity-15 focus:border-primary focus:ring-0 rounded-md py-3 px-4 text-sm placeholder:text-outline-variant transition-all duration-200 outline-none resize-none" id="description" name="description" placeholder="Document the sequence of events or specific technical requirements..." rows="6"></textarea>
+</div>
+<!-- Attachment Upload (The Functional Archive Feel) -->
+<div class="space-y-2">
+<label class="text-[0.6875rem] font-semibold text-on-surface-variant uppercase tracking-wider">Supporting Documents</label>
+<div class="group relative flex items-center justify-center w-full h-32 border-2 border-dashed border-outline-variant border-opacity-20 rounded-md bg-surface-container-lowest hover:bg-surface-container-high transition-colors cursor-pointer">
+<input class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" type="file"/>
+<div class="flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-outline text-3xl mb-2" data-icon="upload_file">upload_file</span>
+<p class="text-[13px] font-medium text-on-surface-variant">Click to upload or drag files here</p>
+<p class="text-[11px] text-outline mt-1">PDF, PNG, LOG (Max 10MB)</p>
+</div>
+</div>
+</div>
+<!-- Action Tier -->
+<div class="pt-4 flex items-center justify-between border-t border-outline-variant border-opacity-10">
+<button class="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-lg" data-icon="close">close</span>
+                            Discard Draft
+                        </button>
+<div class="flex gap-3">
+<button class="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-md text-sm font-semibold hover:bg-surface-container-highest transition-colors" type="button">
+                                Save for Later
+                            </button>
+<button class="bg-primary text-on-primary px-8 py-2.5 rounded-md text-sm font-semibold shadow-sm hover:bg-primary-dim active:scale-[0.98] transition-all" type="submit">
+                                Submit Ticket
+                            </button>
+</div>
+</div>
+</form>
+</div>
+<!-- Helpful Information Panel (Asymmetric Placement) -->
+<div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-3">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-xl" data-icon="verified_user">verified_user</span>
+<h3 class="text-sm font-bold tracking-tight uppercase">System Integrity</h3>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">
+                        All submissions are archived within the Rational Management Suite for compliance and historical auditing. Ensure no plaintext passwords are included in descriptions.
+                    </p>
+</div>
+<div class="space-y-3">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-xl" data-icon="auto_awesome">auto_awesome</span>
+<h3 class="text-sm font-bold tracking-tight uppercase">Smart Categorization</h3>
+</div>
+<p class="text-xs text-on-surface-variant leading-relaxed">
+                        Our Rational Archive engine will automatically tag your ticket based on keywords to route it to the appropriate specialist tier immediately.
+                    </p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation for Mobile -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 bg-[#f7f9fb] flex justify-around py-3 px-4 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-medium">Dashboard</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="supervised_user_circle">supervised_user_circle</span>
+<span class="text-[10px] font-medium">Clients</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#515F74]" href="#">
+<span class="material-symbols-outlined" data-icon="confirmation_number" style="font-variation-settings: 'FILL' 1;">confirmation_number</span>
+<span class="text-[10px] font-bold">Tickets</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined" data-icon="insert_chart">insert_chart</span>
+<span class="text-[10px] font-medium">Analytics</span>
+</a>
+</nav>
+</body></html>
