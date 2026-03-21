@@ -92,6 +92,54 @@ func RenderAssigned(data TicketAssignedData) (html, text string, err error) {
 	return
 }
 
+// TicketCommentData is passed to the comment notification email templates.
+type TicketCommentData struct {
+	RecipientName string
+	TicketID      string
+	Subject       string
+	CommentBody   string
+	AppURL        string
+}
+
+var commentHTML = template.Must(template.New("comment_html").Parse(`<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;color:#1e293b;max-width:600px;margin:0 auto;padding:24px">
+  <h2 style="color:#4f46e5">New comment on ticket #{{.TicketID}}</h2>
+  <p>Hi {{.RecipientName}},</p>
+  <p>A new comment has been added to ticket <strong>#{{.TicketID}}: {{.Subject}}</strong>:</p>
+  <blockquote style="border-left:3px solid #4f46e5;padding:8px 16px;margin:16px 0;color:#475569">
+    {{.CommentBody}}
+  </blockquote>
+  <p>
+    <a href="{{.AppURL}}/tickets/{{.TicketID}}"
+       style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">
+      View ticket
+    </a>
+  </p>
+  <p style="color:#94a3b8;font-size:12px">You are receiving this because you are associated with this ticket.</p>
+</body>
+</html>`))
+
+var commentText = texttemplate.Must(texttemplate.New("comment_text").Parse(`Hi {{.RecipientName}},
+
+A new comment has been added to ticket #{{.TicketID}}: {{.Subject}}
+
+  {{.CommentBody}}
+
+View ticket: {{.AppURL}}/tickets/{{.TicketID}}
+`))
+
+// RenderComment returns HTML and plaintext email bodies for a new comment notification.
+func RenderComment(data TicketCommentData) (html, text string, err error) {
+	html, err = renderHTML(commentHTML, data)
+	if err != nil {
+		return
+	}
+	text, err = renderText(commentText, data)
+	return
+}
+
 // RenderResolved returns HTML and plaintext email bodies for the resolved/closed event.
 func RenderResolved(data TicketResolvedData) (html, text string, err error) {
 	html, err = renderHTML(resolvedHTML, data)

@@ -48,6 +48,24 @@ func TestRenderResolved(t *testing.T) {
 	assert.Contains(t, text, "xyz-456")
 }
 
+func TestRenderComment(t *testing.T) {
+	html, text, err := email.RenderComment(email.TicketCommentData{
+		RecipientName: "Carol Davis",
+		TicketID:      "cmt-789",
+		Subject:       "API not responding",
+		CommentBody:   "We are investigating the issue.",
+		AppURL:        "https://app.example.com",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, html, "Carol Davis")
+	assert.Contains(t, html, "cmt-789")
+	assert.Contains(t, html, "API not responding")
+	assert.Contains(t, html, "We are investigating the issue.")
+	assert.Contains(t, html, "https://app.example.com/tickets/cmt-789")
+	assert.Contains(t, text, "Carol Davis")
+	assert.Contains(t, text, "cmt-789")
+}
+
 // ---- SMTP sender with mock server ----
 
 // mockSMTPServer starts a minimal SMTP server that records received DATA payloads.
@@ -196,4 +214,19 @@ func TestMailer_SendResolved(t *testing.T) {
 	msgs := received()
 	require.Len(t, msgs, 1)
 	assert.Contains(t, msgs[0], "resolved")
+}
+
+func TestMailer_SendComment(t *testing.T) {
+	addr, received := mockSMTPServer(t)
+	host, port, _ := net.SplitHostPort(addr)
+	cfg := config.SMTPConfig{Enabled: true, Host: host, Port: port, From: "noreply@omnir.io"}
+	m := email.NewMailer(email.NewSender(cfg), "https://app.omnir.io")
+
+	err := m.SendComment("user@example.com", "Alice", "ticket-uuid-003", "Slow dashboard", "We are working on it.")
+	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+
+	msgs := received()
+	require.Len(t, msgs, 1)
+	assert.Contains(t, msgs[0], "ticket-uuid-003")
 }
