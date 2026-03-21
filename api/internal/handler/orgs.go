@@ -9,18 +9,20 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
 var nonAlphanumRE = regexp.MustCompile(`[^a-z0-9]+`)
 
-// OrgHandler handles org-level endpoints (SaaS signup).
+// OrgHandler handles org-level endpoints (SaaS signup, tenant listing, tenant switching).
 type OrgHandler struct {
 	orgs    repository.OrgRepository
 	users   repository.UserRepository
@@ -40,6 +42,8 @@ func NewOrgHandler(
 func (h *OrgHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/signup", h.Signup)
+	r.Get("/", h.List)
+	r.Post("/{orgId}/switch", h.Switch)
 	return r
 }
 
@@ -159,6 +163,79 @@ func (h *OrgHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"org":  org,
 		"user": created,
+	})
+}
+
+// List returns all organizations. Super-admin only.
+// GET /api/orgs
+// Returns 403 if the caller does not hold the super_admin role.
+func (h *OrgHandler) List(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok || claims.Role != string(domain.UserRoleSuperAdmin) {
+		writeError(w, http.StatusForbidden, "super_admin role required")
+		return
+	}
+
+	orgs, err := h.orgs.List(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if orgs == nil {
+		orgs = []*domain.Organization{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": orgs})
+}
+
+// Switch re-issues JWTs scoped to a different org. Super-admin only.
+// POST /api/orgs/{orgId}/switch
+// Returns 403 if not super_admin, 400 on bad UUID, 404 if org does not exist.
+func (h *OrgHandler) Switch(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok || claims.Role != string(domain.UserRoleSuperAdmin) {
+		writeError(w, http.StatusForbidden, "super_admin role required")
+		return
+	}
+
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid org id")
+		return
+	}
+
+	org, err := h.orgs.GetByID(r.Context(), orgID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "org not found")
+		return
+	}
+
+	// Re-issue tokens retaining the super_admin role but switching org context.
+	newClaims := auth.Claims{
+		UserID: claims.UserID,
+		OrgID:  org.ID,
+		Role:   claims.Role,
+	}
+	accessToken, err := h.jwtSvc.Issue(newClaims, accessTokenTTL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	refreshToken, err := h.jwtSvc.Issue(newClaims, refreshTokenTTL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	secure := r.TLS != nil
+	setAccessCookie(w, accessToken, secure)
+	setRefreshCookie(w, refreshToken, secure)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"org": org,
+		"user": map[string]any{
+			"id":   claims.UserID,
+			"role": claims.Role,
+		},
 	})
 }
 
