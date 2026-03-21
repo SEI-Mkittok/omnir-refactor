@@ -80,3 +80,12 @@ func (r *OrgRepo) SlugExists(ctx context.Context, slug string) (bool, error) {
 	).Scan(&exists)
 	return exists, err
 }
+
+// HasAny reports whether at least one organization row exists.
+func (r *OrgRepo) HasAny(ctx context.Context) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM orgs LIMIT 1)`,
+	).Scan(&exists)
+	return exists, err
+}

@@ -42,3 +42,8 @@ func (m *MockOrgRepository) SlugExists(ctx context.Context, slug string) (bool, 
 	args := m.Called(ctx, slug)
 	return args.Bool(0), args.Error(1)
 }
+
+func (m *MockOrgRepository) HasAny(ctx context.Context) (bool, error) {
+	args := m.Called(ctx)
+	return args.Bool(0), args.Error(1)
+}
