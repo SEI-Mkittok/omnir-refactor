@@ -124,7 +124,7 @@ func main() {
 		logger.Info("email notifications disabled")
 	}
 
-	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc)
+	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc, cfg.OrgMode)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo)
 	userHandler := handler.NewUserHandler(userRepo)
@@ -223,6 +223,8 @@ func main() {
 	r.Mount("/api/setup", setupHandler.Router())
 	r.Mount("/api/orgs", orgHandler.Router())
 	r.Mount("/api/auth", authHandler.Router())
+	// Public alias for org signup — same handler, versioned path, no JWT required.
+	r.Post("/api/v1/auth/signup", orgHandler.Signup)
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Public deal portal — token IS the credential, no JWT required.
