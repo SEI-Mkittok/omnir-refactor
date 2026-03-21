@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound, SlidersHorizontal, KeyRound, Clock, LifeBuoy, ShieldCheck, Mail } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, TrendingUp, UserCog, X, BarChart2, UserRound, SlidersHorizontal, KeyRound, Clock, LifeBuoy, ShieldCheck, Mail, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
@@ -10,6 +10,7 @@ const baseNavItems = [
   { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/deals', icon: TrendingUp, label: 'Deals' },
   { to: '/tickets', icon: LifeBuoy, label: 'Help Desk' },
+  { to: '/quotes', icon: FileText, label: 'Quotes' },
   { to: '/sequences', icon: Mail, label: 'Sequences' },
   { to: '/reports', icon: BarChart2, label: 'Reports' },
 ]
