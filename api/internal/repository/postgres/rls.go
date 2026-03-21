@@ -8,7 +8,10 @@ import (
 )
 
 // orgScopedTables are all tables that carry an org_id column and have RLS
-// policies defined (migrations 20240101000014 and 20240101000020).
+// policies defined (migrations 20240101000014, 20240101000020, and
+// 20240101000050). When ORG_MODE is 'saas', 'multitenant', or 'enterprise',
+// EnableRLS applies FORCE ROW LEVEL SECURITY to every table in this list so
+// that the database enforces tenant isolation even for the application DB role.
 var orgScopedTables = []string{
 	"users",
 	"accounts",
@@ -20,6 +23,7 @@ var orgScopedTables = []string{
 	"notifications",
 	"tickets",
 	"ticket_comments",
+	"ticket_attachments",
 	"leads",
 }
 
