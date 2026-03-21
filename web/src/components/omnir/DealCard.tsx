@@ -1,7 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Building2, Calendar, GripVertical } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
+import { Calendar } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Deal } from '@/api/types'
 import { cn } from '@/lib/utils'
@@ -10,51 +9,70 @@ interface DealCardProps {
   deal: Deal
   onClick?: () => void
   isDragging?: boolean
+  /** keyboard-dnd: this card is "picked up" */
+  isKeyboardActive?: boolean
 }
 
-export function DealCard({ deal, onClick, isDragging }: DealCardProps) {
-  const probabilityColor =
-    deal.probability !== undefined
-      ? deal.probability >= 70
-        ? 'green'
-        : deal.probability >= 40
-          ? 'yellow'
-          : 'red'
-      : 'gray'
+function dealAgeDays(deal: Deal): number {
+  const created = new Date(deal.created_at)
+  return Math.floor((Date.now() - created.getTime()) / 86_400_000)
+}
+
+export function DealCard({ deal, onClick, isDragging, isKeyboardActive }: DealCardProps) {
+  const age = dealAgeDays(deal)
 
   return (
     <div
       className={cn(
-        'rounded-lg border border-slate-200 bg-white p-3 shadow-sm cursor-pointer hover:shadow-md transition-shadow',
-        isDragging && 'opacity-50 shadow-lg'
+        'rounded-lg border bg-white p-4 cursor-pointer transition-all',
+        'hover:border-[#1B3A4B]/30 hover:shadow-md',
+        isDragging
+          ? 'opacity-50 shadow-lg border-[#1B3A4B]/40'
+          : 'border-[#E5E7EB] shadow-sm',
+        isKeyboardActive && 'ring-2 ring-[#1B3A4B] border-[#1B3A4B]/40'
       )}
       onClick={onClick}
     >
-      <p className="font-medium text-slate-900 text-sm leading-snug">{deal.title}</p>
-
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-base font-bold text-indigo-600">
-          {formatCurrency(deal.value, deal.currency)}
-        </span>
-        {deal.probability !== undefined && (
-          <Badge variant={probabilityColor as 'green' | 'yellow' | 'red' | 'gray'}>
-            {deal.probability}%
-          </Badge>
+      {/* Category tag row */}
+      <div className="flex items-start justify-between mb-2">
+        {deal.account?.name ? (
+          <span className="text-[10px] font-bold text-[#7C8DB0] uppercase tracking-tight px-1.5 py-0.5 bg-[#E8EDF2] rounded">
+            {deal.account.name.slice(0, 14)}
+          </span>
+        ) : (
+          <span className="text-[10px] font-bold text-[#7C8DB0] uppercase tracking-tight px-1.5 py-0.5 bg-[#E8EDF2] rounded">
+            Deal
+          </span>
+        )}
+        {age > 14 && (
+          <span className="text-[9px] font-semibold text-[#F59E0B] bg-amber-50 px-1.5 py-0.5 rounded">
+            {age}d
+          </span>
         )}
       </div>
 
-      <div className="mt-2 space-y-1">
-        {deal.account?.name && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Building2 className="h-3 w-3 shrink-0" />
-            <span className="truncate">{deal.account.name}</span>
-          </div>
-        )}
-        {deal.close_date && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Calendar className="h-3 w-3 shrink-0" />
+      {/* Title */}
+      <h4 className="text-sm font-semibold text-[#1A1D23] leading-snug mb-1">{deal.title}</h4>
+
+      {/* Contact */}
+      {deal.contact && (
+        <p className="text-xs text-[#6B7280] mb-3">
+          {deal.contact.first_name} {deal.contact.last_name}
+        </p>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-[#E5E7EB]">
+        <span className="text-sm font-bold text-[#1B3A4B]">
+          {formatCurrency(deal.value, deal.currency)}
+        </span>
+        {deal.close_date ? (
+          <div className="flex items-center gap-1 text-[10px] text-[#6B7280]">
+            <Calendar className="h-3 w-3" />
             <span>{formatDate(deal.close_date)}</span>
           </div>
+        ) : (
+          <span className="text-[10px] text-[#6B7280]">{age}d old</span>
         )}
       </div>
     </div>
@@ -64,9 +82,10 @@ export function DealCard({ deal, onClick, isDragging }: DealCardProps) {
 interface SortableDealCardProps {
   deal: Deal
   onClick?: () => void
+  isKeyboardActive?: boolean
 }
 
-export function SortableDealCard({ deal, onClick }: SortableDealCardProps) {
+export function SortableDealCard({ deal, onClick, isKeyboardActive }: SortableDealCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: deal.id })
 
@@ -76,15 +95,15 @@ export function SortableDealCard({ deal, onClick }: SortableDealCardProps) {
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="relative group">
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute left-1 top-1/2 -translate-y-1/2 cursor-grab opacity-0 group-hover:opacity-50 active:cursor-grabbing z-10"
-      >
-        <GripVertical className="h-4 w-4 text-slate-400" />
+    <div ref={setNodeRef} style={style}>
+      <div {...attributes} {...listeners}>
+        <DealCard
+          deal={deal}
+          onClick={onClick}
+          isDragging={isDragging}
+          isKeyboardActive={isKeyboardActive}
+        />
       </div>
-      <DealCard deal={deal} onClick={onClick} isDragging={isDragging} />
     </div>
   )
 }
