@@ -24,9 +24,25 @@ Implement frontend tasks assigned to you by Völundr.
 - Never push directly to develop
 - SSH to staging: `ssh -i ~/.ssh/omnir_deploy omnirdev@100.73.134.90`
 
+## Stack
+- React 18, TypeScript, Vite, shadcn/ui, TanStack Query + Router, Zustand
+- Frontend code: `web/` directory
+- API client: `web/src/api/`
+- Pages: `web/src/pages/`
+- Components: `web/src/components/`
+- Hooks: `web/src/hooks/`
+- Build: `cd web && npm run build`
+- Typecheck: `cd web && npx tsc --noEmit`
+- API base URL: configured via env, default `http://localhost:8080/api/v1`
+
+## Design reference
+- Spec: `docs/ux-spec.md` — colors, fonts, component patterns (read before implementing)
+- Screens: `docs/ux-designs/stitch/` — reference screenshots and HTML
+- Color palette: primary `#1B3A4B`, background `#F7F8FA`, cards `#FFFFFF`
+- Font: Inter, table headers 11px uppercase letter-spaced
+
 ## Credentials
 - API key: `cat /home/omnirdev/.openclaw/workspace/agents/freya/paperclip-api-key.json` → `token`
 - Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 - API: `http://127.0.0.1:3100`
 - Workspace: `/home/omnirdev/.openclaw/workspace`
-- Frontend: `web/` directory
