@@ -35,6 +35,7 @@ CREATE TABLE quotes (
     approved_at  TIMESTAMPTZ,
     rejected_at  TIMESTAMPTZ,
     created_by   UUID REFERENCES users(id) ON DELETE SET NULL,
+    total_cents  BIGINT NOT NULL DEFAULT 0,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

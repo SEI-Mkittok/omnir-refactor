@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, TrendingUp, LayoutGrid, List, Download } from 'lucide-react'
+import { Plus, TrendingUp, LayoutGrid, List, Download, FileText } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
 import { useUpdateView } from '@/hooks/useViews'
@@ -19,6 +19,8 @@ import { formatDate, formatCurrency } from '@/lib/utils'
 import { downloadExportCsv } from '@/api/importExport'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { DealForm } from '@/components/omnir/DealForm'
+import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
+import { useDealQuotes } from '@/hooks/useQuotes'
 import type { Deal, DealStage, CustomFieldValues, SavedView } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -162,10 +164,58 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
         {/* Activity Timeline */}
         <ActivityTimeline dealId={deal.id} />
 
+        {/* Quotes */}
+        <DealQuotesSection dealId={deal.id} />
+
         {/* Attachments */}
         <AttachmentsPanel entityType="deal" entityId={deal.id} />
       </div>
     </SidePanel>
+  )
+}
+
+function DealQuotesSection({ dealId }: { dealId: string }) {
+  const { data, isLoading } = useDealQuotes(dealId)
+  const quotes = data?.data ?? []
+  const [showCreate, setShowCreate] = useState(false)
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-semibold text-slate-700">Quotes</p>
+        <Button variant="outline" size="sm" onClick={() => setShowCreate(true)}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> New quote
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <Spinner size="sm" />
+      ) : quotes.length === 0 ? (
+        <p className="text-sm text-slate-400">No quotes yet.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {quotes.map((q) => (
+            <div
+              key={q.id}
+              className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <span className="text-sm font-medium text-slate-900 truncate">{q.title}</span>
+                <QuoteStatusBadge status={q.status} />
+              </div>
+              <span className="text-sm font-semibold text-indigo-600 ml-2 shrink-0">
+                {formatCurrency(q.total_cents / 100, q.currency)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <QuoteBuilder dealId={dealId} onClose={() => setShowCreate(false)} />
+      )}
+    </div>
   )
 }
 
