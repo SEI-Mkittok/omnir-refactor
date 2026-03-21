@@ -107,10 +107,10 @@ func TestRLS_NoteTenantIsolation(t *testing.T) {
 	})
 }
 
-// TestRLS_NullOrgContextBlocksAll verifies that when FORCE RLS is active and
-// no org_id is set in the session, the RLS policy (org_id = current_org_id())
-// evaluates to false for every row (NULL = anything is NULL, never TRUE).
-// This prevents accidental data exposure when org context is absent.
+// TestRLS_NullOrgContextBlocksAll verifies that FORCE ROW LEVEL SECURITY blocks
+// all rows when no org context is set. This test requires a non-superuser DB role
+// (omnir_app_test) because PostgreSQL superusers bypass FORCE RLS unconditionally.
+// The CI workflow creates this role; local runs skip if the role is unavailable.
 func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
 	pool, _ := setupDB(t)
 
@@ -138,35 +138,31 @@ func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
 	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
 	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
 
-	// FORCE ROW LEVEL SECURITY only applies to non-superuser roles — PostgreSQL
-	// superusers always bypass RLS. In CI, POSTGRES_USER creates a superuser.
-	// The CI workflow creates omnir_app_test (non-superuser) in a setup step.
-	// We open a direct connection as omnir_app_test so FORCE RLS is enforced
-	// as it would be in production.
+	// Connect as the non-superuser app role. FORCE RLS applies only to
+	// non-superusers — the omnir_app_test role is created by the CI setup step.
+	// Skip the test if the role is not available (local dev without the role).
 	testDSN := os.Getenv("TEST_DATABASE_URL")
 	if testDSN == "" {
 		testDSN = "postgres://localhost/omnir_crm_test?sslmode=disable"
 	}
-	// Replace the superuser credentials with the non-superuser app role.
-	appDSN := strings.Replace(testDSN,
-		"omnir:omnir_dev@", "omnir_app_test:test@", 1)
-
-	appPool, err := pgxpool.New(context.Background(), appDSN)
-	require.NoError(t, err, "failed to connect as omnir_app_test — is the role created?")
+	appDSN := strings.Replace(testDSN, "omnir:omnir_dev@", "omnir_app_test:test@", 1)
+	appPool, connErr := pgxpool.New(context.Background(), appDSN)
+	if connErr != nil {
+		t.Skipf("skipping: omnir_app_test role unavailable (%v)", connErr)
+	}
 	defer appPool.Close()
 
 	appConn, err := appPool.Acquire(context.Background())
 	require.NoError(t, err)
 	defer appConn.Release()
 
-	// Clear org context to simulate a connection with no tenant context.
+	// Explicitly clear any existing org context on this connection.
 	_, err = appConn.Exec(context.Background(),
 		`SELECT set_config('app.current_org_id', '', false)`)
 	require.NoError(t, err)
 
-	// With current_org_id = '' (NULL via current_org_id() function) and a
-	// non-superuser role, the policy org_id = current_org_id() evaluates to
-	// NULL (never true) for every row — all rows are blocked.
+	// With current_org_id = '' → current_org_id() returns NULL →
+	// policy org_id = NULL evaluates to NULL (never true) → no rows visible.
 	var count int
 	err = appConn.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM contacts WHERE id=$1`, contactA).Scan(&count)
