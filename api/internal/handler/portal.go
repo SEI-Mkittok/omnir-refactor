@@ -133,8 +133,15 @@ func (h *PortalHandler) ListTickets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, paginated(tickets, total, filter.Page, filter.Limit))
 }
 
+// portalTicketDetail is the response shape for GET /portal/tickets/{id}.
+// It includes the ticket and all public (non-internal) comments.
+type portalTicketDetail struct {
+	*domain.Ticket
+	Comments []*domain.TicketComment `json:"comments"`
+}
+
 // GetTicket handles GET /portal/tickets/{id}.
-// Returns the ticket only if it was submitted by the authenticated client user.
+// Returns the ticket with its public comments if submitted by the authenticated client user.
 func (h *PortalHandler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r)
 	if !ok {
@@ -160,7 +167,21 @@ func (h *PortalHandler) GetTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, t)
+	// Fetch public (non-internal) comments for this ticket.
+	isInternal := false
+	comments, err := h.comments.List(r.Context(), domain.TicketCommentFilter{
+		TicketID:   id,
+		IsInternal: &isInternal,
+	})
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if comments == nil {
+		comments = []*domain.TicketComment{}
+	}
+
+	writeJSON(w, http.StatusOK, portalTicketDetail{Ticket: t, Comments: comments})
 }
 
 // CreateComment handles POST /portal/tickets/{id}/comments.
