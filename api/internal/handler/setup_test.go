@@ -135,8 +135,8 @@ func TestSetupHandler_Setup(t *testing.T) {
 			setupUserMock: func(m *mocks.MockUserRepository) {
 				m.On("HasAdminUser", mock.Anything).Return(true, nil)
 			},
-			setupOrgMock:  func(_ *mocks.MockOrgRepository) {},
-			wantStatus:    http.StatusConflict,
+			setupOrgMock: func(_ *mocks.MockOrgRepository) {},
+			wantStatus:   http.StatusConflict,
 		},
 		{
 			name: "returns 422 for missing name",
