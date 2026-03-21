@@ -21,6 +21,7 @@ type DealHandler struct {
 	repo          repository.DealRepository
 	cfDefs        repository.CustomFieldDefinitionRepository
 	dispatcher    chan<- worker.WebhookEvent
+	automations   chan<- worker.AutomationEvent
 	notifications repository.NotificationRepository
 	slaInstances  repository.SLAInstanceRepository
 	slaPolicies   repository.SLAPolicyRepository
@@ -37,6 +38,11 @@ func (h *DealHandler) WithCustomFields(r repository.CustomFieldDefinitionReposit
 
 func (h *DealHandler) WithDispatcher(d chan<- worker.WebhookEvent) *DealHandler {
 	h.dispatcher = d
+	return h
+}
+
+func (h *DealHandler) WithAutomationEvents(ch chan<- worker.AutomationEvent) *DealHandler {
+	h.automations = ch
 	return h
 }
 
@@ -60,6 +66,28 @@ func (h *DealHandler) emitWebhook(r *http.Request, event domain.WebhookEvent, en
 	select {
 	case h.dispatcher <- evt:
 	default:
+	}
+}
+
+func (h *DealHandler) emitAutomation(r *http.Request, trigger domain.TriggerType, entityID uuid.UUID, data map[string]interface{}) {
+	if h.automations == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.AutomationEvent{OrgID: orgID, TriggerType: trigger, EntityID: entityID, EntityType: "deal", Data: data}
+	select {
+	case h.automations <- evt:
+	default:
+	}
+}
+
+func dealToData(d *domain.Deal) map[string]interface{} {
+	return map[string]interface{}{
+		"id":       d.ID.String(),
+		"org_id":   d.OrgID.String(),
+		"stage":    string(d.Stage),
+		"owner_id": d.OwnerID.String(),
+		"title":    d.Title,
 	}
 }
 
@@ -150,6 +178,7 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.emitWebhook(r, domain.WebhookEventDealCreated, created.ID, created)
+	h.emitAutomation(r, domain.TriggerDealCreated, created.ID, dealToData(created))
 	h.attachSLAInstances(r.Context(), created.ID, domain.SLAEntityTypeDeal, created.CreatedAt)
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -218,6 +247,7 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.emitWebhook(r, domain.WebhookEventDealUpdated, d.ID, d)
 	if patch.Stage != nil {
 		h.emitWebhook(r, domain.WebhookEventDealStageChanged, d.ID, d)
+		h.emitAutomation(r, domain.TriggerDealStageChanged, d.ID, dealToData(d))
 	}
 	writeJSON(w, http.StatusOK, d)
 }
