@@ -69,3 +69,31 @@ apiClient.interceptors.response.use(
 )
 
 export default apiClient
+
+// mgmtClient targets /api (management routes: /api/orgs, /api/auth, /api/setup).
+// These routes live outside the versioned /api/v1 namespace.
+const MGMT_BASE = import.meta.env.VITE_AUTH_URL || '/api'
+
+export const mgmtClient = axios.create({
+  baseURL: MGMT_BASE,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+
+mgmtClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+      try {
+        await axios.post(`${MGMT_BASE}/auth/refresh`, null, { withCredentials: true })
+        return mgmtClient(originalRequest)
+      } catch {
+        useAuthStore.getState().logout()
+        return Promise.reject(error)
+      }
+    }
+    return Promise.reject(error)
+  }
+)
