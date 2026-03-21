@@ -122,3 +122,10 @@ Roadmap: `plans/2026-03-17-omnir-crm-roadmap.md`
 - Always do data migrations BEFORE adding CHECK constraints (constraint violation on existing rows)
 - goose staging deploys need `-allow-missing` flag when DB may have gaps from out-of-order deployments
 - Migration files need `-- +goose Up` header or goose ignores them entirely
+
+## Current Sprint (2026-03-21)
+- Phase 2 in progress — multi-tenancy hardening
+- Phase 3 queued for overnight (email notifications, client portal)
+- Odin PAUSED — planning via scripts/plan-next.sh only
+- Workflow: Völundr specs → assigns → engineer PRs → Völundr merges → Heimdall deploys → Skadi QAs
+- Standing: OMN-454 parent, OMN-455/456 (Tyr), OMN-457 (Freya after backend done)
