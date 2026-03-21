@@ -30,6 +30,14 @@ func (m *MockTicketRepository) GetByID(ctx context.Context, id uuid.UUID) (*doma
 	return args.Get(0).(*domain.Ticket), args.Error(1)
 }
 
+func (m *MockTicketRepository) GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.TicketDetail), args.Error(1)
+}
+
 func (m *MockTicketRepository) GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error) {
 	args := m.Called(ctx, messageID)
 	if args.Get(0) == nil {
@@ -40,6 +48,14 @@ func (m *MockTicketRepository) GetByEmailMessageID(ctx context.Context, messageI
 
 func (m *MockTicketRepository) Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error) {
 	args := m.Called(ctx, id, patch)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Ticket), args.Error(1)
+}
+
+func (m *MockTicketRepository) UpdateContact(ctx context.Context, id uuid.UUID, contactID *uuid.UUID) (*domain.Ticket, error) {
+	args := m.Called(ctx, id, contactID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

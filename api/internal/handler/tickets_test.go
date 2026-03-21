@@ -205,8 +205,8 @@ func TestTicketHandler_GetByID(t *testing.T) {
 			name:     "returns ticket by id",
 			ticketID: ticketID.String(),
 			setupMock: func(m *mocks.MockTicketRepository) {
-				m.On("GetByID", mock.Anything, ticketID).
-					Return(&domain.Ticket{ID: ticketID, Subject: "Test ticket"}, nil)
+				m.On("GetDetailByID", mock.Anything, ticketID).
+					Return(&domain.TicketDetail{Ticket: domain.Ticket{ID: ticketID, Subject: "Test ticket"}}, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -214,7 +214,7 @@ func TestTicketHandler_GetByID(t *testing.T) {
 			name:     "returns 404 for unknown id",
 			ticketID: uuid.New().String(),
 			setupMock: func(m *mocks.MockTicketRepository) {
-				m.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).
+				m.On("GetDetailByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).
 					Return(nil, domain.ErrNotFound)
 			},
 			wantStatus: http.StatusNotFound,
@@ -363,6 +363,92 @@ func TestTicketHandler_Delete(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			h.Delete(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			mockTickets.AssertExpectations(t)
+		})
+	}
+}
+
+func TestTicketHandler_UpdateContact(t *testing.T) {
+	ticketID := uuid.New()
+	contactID := uuid.New()
+
+	tests := []struct {
+		name       string
+		ticketID   string
+		body       map[string]any
+		setupMock  func(*mocks.MockTicketRepository)
+		wantStatus int
+	}{
+		{
+			name:     "sets contact successfully",
+			ticketID: ticketID.String(),
+			body:     map[string]any{"contact_id": contactID.String()},
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("UpdateContact", mock.Anything, ticketID, &contactID).
+					Return(&domain.Ticket{ID: ticketID, ContactID: &contactID}, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "clears contact with null",
+			ticketID: ticketID.String(),
+			body:     map[string]any{"contact_id": nil},
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("UpdateContact", mock.Anything, ticketID, (*uuid.UUID)(nil)).
+					Return(&domain.Ticket{ID: ticketID}, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid uuid",
+			ticketID:   "not-a-uuid",
+			body:       map[string]any{"contact_id": contactID.String()},
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			ticketID:   ticketID.String(),
+			body:       nil,
+			setupMock:  func(_ *mocks.MockTicketRepository) {},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when ticket not found",
+			ticketID: ticketID.String(),
+			body:     map[string]any{"contact_id": contactID.String()},
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("UpdateContact", mock.Anything, ticketID, mock.Anything).
+					Return(nil, domain.ErrNotFound)
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockTickets := new(mocks.MockTicketRepository)
+			mockComments := new(mocks.MockTicketCommentRepository)
+			mockAttachments := new(mocks.MockTicketAttachmentRepository)
+			tt.setupMock(mockTickets)
+
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+			var body []byte
+			if tt.body != nil {
+				body, _ = json.Marshal(tt.body)
+			} else {
+				body = []byte("not-json")
+			}
+
+			req := httptest.NewRequest(http.MethodPatch, "/api/v1/tickets/"+tt.ticketID+"/contact", bytes.NewReader(body))
+			req = withURLParam(req, "id", tt.ticketID)
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			h.UpdateContact(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			mockTickets.AssertExpectations(t)
