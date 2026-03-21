@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 	"github.com/omnir/crm-api/internal/storage"
+	"github.com/omnir/crm-api/internal/worker"
 )
 
 // TicketHandler serves the /tickets resource and its sub-resources.
@@ -22,6 +25,12 @@ type TicketHandler struct {
 	comments    repository.TicketCommentRepository
 	attachments repository.TicketAttachmentRepository
 	storage     storage.Backend
+
+	// optional — set via WithEmailNotifier
+	emailNotifier *worker.EmailNotifier
+	users         repository.UserRepository
+	contacts      repository.ContactRepository
+	logger        *slog.Logger
 }
 
 func NewTicketHandler(
@@ -31,6 +40,16 @@ func NewTicketHandler(
 	store storage.Backend,
 ) *TicketHandler {
 	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments, storage: store}
+}
+
+// WithEmailNotifier wires async email notifications into the ticket handler.
+// userRepo and contactRepo are used to resolve email addresses for notifications.
+func (h *TicketHandler) WithEmailNotifier(n *worker.EmailNotifier, users repository.UserRepository, contacts repository.ContactRepository, logger *slog.Logger) *TicketHandler {
+	h.emailNotifier = n
+	h.users = users
+	h.contacts = contacts
+	h.logger = logger
+	return h
 }
 
 func (h *TicketHandler) Router() chi.Router {
@@ -185,6 +204,9 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if h.emailNotifier != nil {
+		go h.notifyOnUpdate(t, patch)
+	}
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -268,6 +290,13 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if h.emailNotifier != nil && !created.IsInternal {
+		commenterRole := ""
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			commenterRole = claims.Role
+		}
+		go h.notifyOnComment(ticketID, created.Body, commenterRole)
 	}
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -449,4 +478,105 @@ func (h *TicketHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- Email notification helpers ----
+
+// notifyOnUpdate fires email notifications for ticket.assigned and ticket.resolved/closed events.
+// Called in a goroutine — must not use the HTTP request context.
+func (h *TicketHandler) notifyOnUpdate(t *domain.Ticket, patch domain.TicketPatch) {
+	ctx := context.Background()
+
+	// ticket.assigned — notify the new assignee
+	if patch.AssigneeID != nil && t.AssigneeID != nil {
+		user, err := h.users.GetByID(ctx, *t.AssigneeID)
+		if err != nil {
+			h.logger.Warn("ticket notify: cannot load assignee", "user_id", t.AssigneeID, "err", err)
+		} else {
+			h.emailNotifier.Enqueue(domain.EmailJob{
+				Kind:          domain.EmailEventAssigned,
+				ToEmail:       user.Email,
+				ToName:        user.Name,
+				TicketID:      t.ID.String(),
+				TicketSubject: t.Subject,
+			})
+		}
+	}
+
+	// ticket.resolved / ticket.closed — notify the requester (contact)
+	if patch.Status != nil && (*patch.Status == domain.TicketStatusResolved || *patch.Status == domain.TicketStatusClosed) {
+		if t.ContactID == nil {
+			return
+		}
+		contact, err := h.contacts.GetByID(ctx, *t.ContactID)
+		if err != nil {
+			h.logger.Warn("ticket notify: cannot load contact", "contact_id", t.ContactID, "err", err)
+			return
+		}
+		if contact.Email == nil || *contact.Email == "" {
+			return
+		}
+		kind := domain.EmailEventResolved
+		if *patch.Status == domain.TicketStatusClosed {
+			kind = domain.EmailEventClosed
+		}
+		name := contact.FirstName
+		if contact.LastName != "" {
+			name += " " + contact.LastName
+		}
+		h.emailNotifier.Enqueue(domain.EmailJob{
+			Kind:          kind,
+			ToEmail:       *contact.Email,
+			ToName:        name,
+			TicketID:      t.ID.String(),
+			TicketSubject: t.Subject,
+		})
+	}
+}
+
+// notifyOnComment fires a comment notification to the appropriate ticket participant.
+// commenterRole is the JWT role string of the author ("client", "agent", "admin", etc).
+// Called in a goroutine — must not use the HTTP request context.
+func (h *TicketHandler) notifyOnComment(ticketID uuid.UUID, body, commenterRole string) {
+	ctx := context.Background()
+
+	detail, err := h.tickets.GetDetailByID(ctx, ticketID)
+	if err != nil {
+		h.logger.Warn("ticket notify: cannot load ticket detail for comment notification", "ticket_id", ticketID, "err", err)
+		return
+	}
+
+	if commenterRole == string(domain.UserRoleClient) {
+		// Client commented — notify the assignee (agent)
+		if detail.AssigneeID == nil {
+			return
+		}
+		user, err := h.users.GetByID(ctx, *detail.AssigneeID)
+		if err != nil {
+			h.logger.Warn("ticket notify: cannot load assignee for comment notification", "user_id", detail.AssigneeID, "err", err)
+			return
+		}
+		h.emailNotifier.Enqueue(domain.EmailJob{
+			Kind:          domain.EmailEventComment,
+			ToEmail:       user.Email,
+			ToName:        user.Name,
+			TicketID:      detail.ID.String(),
+			TicketSubject: detail.Subject,
+			CommentBody:   body,
+		})
+	} else {
+		// Agent/admin commented — notify the requester (contact)
+		if detail.Contact == nil || detail.Contact.Email == nil || *detail.Contact.Email == "" {
+			return
+		}
+		name := detail.Contact.Name
+		h.emailNotifier.Enqueue(domain.EmailJob{
+			Kind:          domain.EmailEventComment,
+			ToEmail:       *detail.Contact.Email,
+			ToName:        name,
+			TicketID:      detail.ID.String(),
+			TicketSubject: detail.Subject,
+			CommentBody:   body,
+		})
+	}
 }

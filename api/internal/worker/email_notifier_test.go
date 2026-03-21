@@ -24,7 +24,7 @@ func TestEmailNotifier_EnqueueAndDeliver(_ *testing.T) {
 	n := worker.NewEmailNotifier(mailer, logger)
 	n.Start(ctx, 1)
 
-	// Enqueue two jobs.
+	// Enqueue three jobs covering all event kinds.
 	n.Enqueue(domain.EmailJob{
 		Kind:          domain.EmailEventAssigned,
 		ToEmail:       "agent@test.com",
@@ -38,6 +38,14 @@ func TestEmailNotifier_EnqueueAndDeliver(_ *testing.T) {
 		ToName:        "Client",
 		TicketID:      "t-002",
 		TicketSubject: "Cannot export",
+	})
+	n.Enqueue(domain.EmailJob{
+		Kind:          domain.EmailEventComment,
+		ToEmail:       "user@test.com",
+		ToName:        "User",
+		TicketID:      "t-003",
+		TicketSubject: "Slow dashboard",
+		CommentBody:   "We are looking into this.",
 	})
 
 	// Give workers time to drain.
