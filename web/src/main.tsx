@@ -26,6 +26,7 @@ import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
 import { PortalTicketDetailPage } from '@/pages/portal/PortalTicketDetailPage'
 import { TicketsPage } from '@/pages/TicketsPage'
 import { TicketDetailPage } from '@/pages/TicketDetailPage'
+import { ContactDetailPage } from '@/pages/ContactDetailPage'
 import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
@@ -99,6 +100,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/contacts/:id" element={<ContactDetailPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/deals" element={<DealsPage />} />

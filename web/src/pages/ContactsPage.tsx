@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Plus, Users, Upload, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useContacts } from '@/hooks/useContacts'
@@ -35,6 +35,7 @@ const SORT_OPTIONS = [
 
 export function ContactsPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [stage, setStage] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
@@ -221,7 +222,7 @@ export function ContactsPage() {
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={handleSort}
-          onRowClick={(c) => setSelectedId(c.id)}
+          onRowClick={(c) => navigate(`/contacts/${c.id}`)}
           emptyIcon={Users}
           emptyTitle="No contacts found"
           emptyDescription="Try adjusting your search or filters."
