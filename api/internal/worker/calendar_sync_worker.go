@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	googleEventsURL    = "https://www.googleapis.com/calendar/v3/calendars/%s/events"
-	googleRefreshURL   = "https://oauth2.googleapis.com/token"
-	microsoftEventsURL = "https://graph.microsoft.com/v1.0/me/calendarView"
+	googleEventsURL     = "https://www.googleapis.com/calendar/v3/calendars/%s/events"
+	googleRefreshURL    = "https://oauth2.googleapis.com/token"
+	microsoftEventsURL  = "https://graph.microsoft.com/v1.0/me/calendarView"
 	microsoftRefreshURL = "https://login.microsoftonline.com/%s/oauth2/v2.0/token"
 )
 
@@ -31,11 +31,11 @@ type CalendarSyncWorker struct {
 	log         *slog.Logger
 
 	// OAuth credentials for token refresh.
-	googleClientID       string
-	googleClientSecret   string
-	microsoftClientID    string
+	googleClientID        string
+	googleClientSecret    string
+	microsoftClientID     string
 	microsoftClientSecret string
-	microsoftTenantID    string
+	microsoftTenantID     string
 }
 
 // NewCalendarSyncWorker creates a new CalendarSyncWorker.
@@ -172,12 +172,12 @@ type googleEventsResponse struct {
 }
 
 type googleEvent struct {
-	ID      string            `json:"id"`
-	Summary string            `json:"summary"`
-	Description string        `json:"description"`
-	Status  string            `json:"status"`
-	Start   googleEventTime   `json:"start"`
-	End     googleEventTime   `json:"end"`
+	ID          string          `json:"id"`
+	Summary     string          `json:"summary"`
+	Description string          `json:"description"`
+	Status      string          `json:"status"`
+	Start       googleEventTime `json:"start"`
+	End         googleEventTime `json:"end"`
 }
 
 type googleEventTime struct {
@@ -257,13 +257,13 @@ type msEventsResponse struct {
 }
 
 type msEvent struct {
-	ID           string    `json:"id"`
-	Subject      string    `json:"subject"`
-	BodyPreview  string    `json:"bodyPreview"`
-	Start        msTime    `json:"start"`
-	End          msTime    `json:"end"`
-	IsAllDay     bool      `json:"isAllDay"`
-	IsCancelled  bool      `json:"isCancelled"`
+	ID          string `json:"id"`
+	Subject     string `json:"subject"`
+	BodyPreview string `json:"bodyPreview"`
+	Start       msTime `json:"start"`
+	End         msTime `json:"end"`
+	IsAllDay    bool   `json:"isAllDay"`
+	IsCancelled bool   `json:"isCancelled"`
 }
 
 type msTime struct {
@@ -271,7 +271,7 @@ type msTime struct {
 	TimeZone string `json:"timeZone"`
 }
 
-func (w *CalendarSyncWorker) fetchMicrosoftEvents(conn *domain.CalendarConnection) ([]domain.CalendarEvent, string, error) {
+func (w *CalendarSyncWorker) fetchMicrosoftEvents(conn *domain.CalendarConnection) ([]domain.CalendarEvent, string, error) { //nolint:unparam // cursor always "" — pagination not yet implemented for Microsoft
 	now := time.Now().UTC()
 	params := url.Values{
 		"startDateTime": {now.Add(-24 * time.Hour).Format(time.RFC3339)},
@@ -329,8 +329,8 @@ func (w *CalendarSyncWorker) refreshToken(ctx context.Context, conn *domain.Cale
 	}
 
 	var (
-		tokenURL     string
-		formBody     url.Values
+		tokenURL string
+		formBody url.Values
 	)
 
 	switch conn.Provider {
@@ -355,7 +355,7 @@ func (w *CalendarSyncWorker) refreshToken(ctx context.Context, conn *domain.Cale
 		return fmt.Errorf("unknown provider: %s", conn.Provider)
 	}
 
-	resp, err := http.PostForm(tokenURL, formBody) //nolint:noctx
+	resp, err := http.PostForm(tokenURL, formBody) //nolint:noctx,gosec // tokenURL is a known OAuth provider endpoint
 	if err != nil {
 		return fmt.Errorf("refresh request: %w", err)
 	}
@@ -410,4 +410,3 @@ func doCalendarRequest(reqURL, accessToken string) ([]byte, error) {
 	}
 	return body, nil
 }
-

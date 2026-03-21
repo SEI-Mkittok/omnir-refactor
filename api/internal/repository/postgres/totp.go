@@ -12,7 +12,7 @@ import (
 
 type totpRepo struct{ db *pgxpool.Pool }
 
-func NewTOTPRepo(db *pgxpool.Pool) *totpRepo {
+func NewTOTPRepo(db *pgxpool.Pool) *totpRepo { //nolint:revive // internal package, unexported type is intentional
 	return &totpRepo{db: db}
 }
 
@@ -35,7 +35,7 @@ func (r *totpRepo) Activate(ctx context.Context, userID uuid.UUID, hashedCodes [
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx,
 		`UPDATE users SET totp_enabled = true WHERE id = $1`, userID); err != nil {
@@ -61,7 +61,7 @@ func (r *totpRepo) Disable(ctx context.Context, userID uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx,
 		`UPDATE users SET totp_secret = NULL, totp_enabled = false WHERE id = $1`, userID); err != nil {

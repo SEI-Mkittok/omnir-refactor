@@ -10,9 +10,9 @@ import (
 type SSOConfig struct {
 	ID               uuid.UUID         `json:"id"`
 	OrgID            uuid.UUID         `json:"org_id"`
-	Provider         string            `json:"provider"`     // google | oidc
+	Provider         string            `json:"provider"` // google | oidc
 	ClientID         string            `json:"client_id"`
-	ClientSecret     string            `json:"-"`            // never serialised
+	ClientSecret     string            `json:"-"` // never serialised
 	IssuerURL        string            `json:"issuer_url"`
 	AttributeMapping map[string]string `json:"attribute_mapping,omitempty"`
 	Enabled          bool              `json:"enabled"`

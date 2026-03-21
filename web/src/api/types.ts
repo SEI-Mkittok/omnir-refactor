@@ -31,6 +31,7 @@ export type UserRole = 'super_admin' | 'admin' | 'agent' | 'client' | 'user' | '
 
 export interface User {
   id: string
+  org_id: string
   email: string
   name: string
   role: UserRole
@@ -648,8 +649,10 @@ export interface Org {
   id: string
   name: string
   slug: string
+  plan?: string
+  user_count?: number
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface CreateOrgRequest {

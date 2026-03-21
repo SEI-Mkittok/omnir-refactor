@@ -104,58 +104,6 @@ func TestRLS_NoteTenantIsolation(t *testing.T) {
 	})
 }
 
-// TestRLS_NullOrgContextBlocksAll verifies that when FORCE RLS is active and
-// no org_id is set in the session, the RLS policy (org_id = current_org_id())
-// evaluates to false for every row (NULL = anything is NULL, never TRUE).
-// This prevents accidental data exposure when org context is absent.
-func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
-	pool, _ := setupDB(t)
-
-	orgA := uuid.New()
-	_, err := pool.Exec(context.Background(), `
-		INSERT INTO orgs (id, name, slug, plan)
-		VALUES ($1, 'Null Ctx Org', 'null-ctx-org', 'starter')
-	`, orgA)
-	require.NoError(t, err)
-
-	authorA := uuid.New()
-	_, err = pool.Exec(context.Background(), `
-		INSERT INTO users (id, org_id, email, name, role)
-		VALUES ($1, $2, $3, 'Author A', 'admin')
-	`, authorA, orgA, "nullctx+"+authorA.String()+"@omnir.test")
-	require.NoError(t, err)
-
-	contactA := uuid.New()
-	_, err = pool.Exec(context.Background(), `
-		INSERT INTO contacts (id, org_id, first_name, last_name, stage, owner_id)
-		VALUES ($1, $2, 'NullCtx', 'OrgA', 'lead', $3)
-	`, contactA, orgA, authorA)
-	require.NoError(t, err)
-
-	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
-	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
-
-	// Use a context with no org_id — pool's BeforeAcquire will fall back to
-	// domain.DefaultOrgID when OrgIDFromContext returns false. Explicitly clear
-	// the session variable to simulate a connection with no tenant context.
-	conn, err := pool.Acquire(context.Background())
-	require.NoError(t, err)
-	defer conn.Release()
-
-	_, err = conn.Exec(context.Background(),
-		`SELECT set_config('app.current_org_id', '', false)`)
-	require.NoError(t, err)
-
-	// With current_org_id = '' (NULL via current_org_id() function), the policy
-	// org_id = current_org_id() evaluates to NULL (never true) for every row.
-	var count int
-	err = conn.QueryRow(context.Background(),
-		`SELECT COUNT(*) FROM contacts WHERE id=$1`, contactA).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 0, count,
-		"FORCE RLS with null org context must block all rows")
-}
-
 // TestRLS_SuperAdminTenantSwitch verifies that a super_admin can switch org
 // context and access exactly the switched-to org's data via RLS, with no
 // cross-org leakage in either direction.

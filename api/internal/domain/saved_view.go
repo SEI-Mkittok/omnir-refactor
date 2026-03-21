@@ -46,13 +46,13 @@ type SavedView struct {
 
 // SavedViewPatch holds optional fields for partial updates to a saved view.
 type SavedViewPatch struct {
-	Name        *string             `json:"name,omitempty"`
-	Filters     json.RawMessage     `json:"filters,omitempty"`
-	SortBy      *string             `json:"sort_by,omitempty"`
-	SortDir     *string             `json:"sort_dir,omitempty"`
-	IsShared    *bool               `json:"is_shared,omitempty"`
-	IsPinned    *bool               `json:"is_pinned,omitempty"`
-	PinnedOrder *int                `json:"pinned_order,omitempty"`
+	Name        *string         `json:"name,omitempty"`
+	Filters     json.RawMessage `json:"filters,omitempty"`
+	SortBy      *string         `json:"sort_by,omitempty"`
+	SortDir     *string         `json:"sort_dir,omitempty"`
+	IsShared    *bool           `json:"is_shared,omitempty"`
+	IsPinned    *bool           `json:"is_pinned,omitempty"`
+	PinnedOrder *int            `json:"pinned_order,omitempty"`
 }
 
 // SavedViewFilter scopes a list query to the caller's visible views.

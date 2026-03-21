@@ -288,3 +288,56 @@ func TestOrgSignup_SaaS_SlugNormalization(t *testing.T) {
 		return o.Slug == "my-amazing-corp"
 	}))
 }
+
+// --- List (super_admin tenant switcher) ---
+
+func TestOrgHandler_List_SuperAdminReturnsOrgs(t *testing.T) {
+	orgRepo := &mocks.MockOrgRepository{}
+	userRepo := &mocks.MockUserRepository{}
+
+	orgA := &domain.Organization{ID: uuid.New(), Name: "Acme", Slug: "acme", Plan: domain.OrgPlanStarter}
+	orgB := &domain.Organization{ID: uuid.New(), Name: "Globex", Slug: "globex", Plan: domain.OrgPlanPro}
+	orgRepo.On("List", mock.Anything).Return([]*domain.Organization{orgA, orgB}, nil)
+
+	jwtSvc := auth.NewJWTService("test-secret")
+	h := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, config.OrgModeSaaS)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = withClaims(req, &auth.Claims{
+		UserID: uuid.New(),
+		OrgID:  orgA.ID,
+		Role:   "super_admin",
+	})
+
+	rec := httptest.NewRecorder()
+	h.Router().ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	data, ok := body["data"].([]any)
+	require.True(t, ok, "expected 'data' array in response")
+	assert.Len(t, data, 2)
+	orgRepo.AssertExpectations(t)
+}
+
+func TestOrgHandler_List_NonSuperAdminForbidden(t *testing.T) {
+	orgRepo := &mocks.MockOrgRepository{}
+	userRepo := &mocks.MockUserRepository{}
+
+	jwtSvc := auth.NewJWTService("test-secret")
+	h := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, config.OrgModeSaaS)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = withClaims(req, &auth.Claims{
+		UserID: uuid.New(),
+		OrgID:  uuid.New(),
+		Role:   "admin",
+	})
+
+	rec := httptest.NewRecorder()
+	h.Router().ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	orgRepo.AssertNotCalled(t, "List", mock.Anything)
+}
