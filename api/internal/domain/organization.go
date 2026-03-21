@@ -27,6 +27,7 @@ type Organization struct {
 	Slug      string    `json:"slug"`
 	Plan      OrgPlan   `json:"plan"`
 	CreatedAt time.Time `json:"created_at"`
+	UserCount int       `json:"user_count,omitempty"`
 }
 
 type orgContextKey struct{}
