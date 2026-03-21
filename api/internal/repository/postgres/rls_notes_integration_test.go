@@ -4,7 +4,6 @@ package postgres_test
 
 import (
 	"context"
-	"context"
 	"testing"
 
 	"github.com/google/uuid"
