@@ -97,15 +97,25 @@ jobs:
       - name: Sync prod compose to deploy dir
         run: cp $GITHUB_WORKSPACE/infra/docker-compose.prod.yml ~/omnir-crm/docker-compose.prod.yml
 
-      - name: Log in to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Log in to GHCR (isolated — does not touch ~/.docker/config.json)
+        env:
+          # Use a temp dir so CI auth never overwrites the persistent PAT
+          # stored in ~/.docker/config.json by the omnirdev user.
+          DOCKER_CONFIG: /tmp/ci-docker-config-${{ github.run_id }}
+        run: |
+          mkdir -p "$DOCKER_CONFIG"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Pull latest images
+        env:
+          DOCKER_CONFIG: /tmp/ci-docker-config-${{ github.run_id }}
         run: |
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml pull
 
       - name: Deploy
+        env:
+          DOCKER_CONFIG: /tmp/ci-docker-config-${{ github.run_id }}
         run: |
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
@@ -126,6 +136,10 @@ jobs:
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml --profile migration rm -f migrate 2>/dev/null || true
           docker compose -f docker-compose.prod.yml --profile minio-init rm -f minio-init 2>/dev/null || true
+
+      - name: Clean up CI docker auth (leave persistent PAT intact)
+        if: always()
+        run: rm -rf /tmp/ci-docker-config-${{ github.run_id }}
 
       - name: Cleanup old images
         run: docker system prune -f
