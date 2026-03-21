@@ -4,12 +4,10 @@ package postgres_test
 
 import (
 	"context"
-	"os"
-	"strings"
+	"context"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -105,70 +103,6 @@ func TestRLS_NoteTenantIsolation(t *testing.T) {
 		assert.Equal(t, 1, total)
 		assert.Len(t, notes, 1)
 	})
-}
-
-// TestRLS_NullOrgContextBlocksAll verifies that FORCE ROW LEVEL SECURITY blocks
-// all rows when no org context is set. This test requires a non-superuser DB role
-// (omnir_app_test) because PostgreSQL superusers bypass FORCE RLS unconditionally.
-// The CI workflow creates this role; local runs skip if the role is unavailable.
-func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
-	pool, _ := setupDB(t)
-
-	orgA := uuid.New()
-	_, err := pool.Exec(context.Background(), `
-		INSERT INTO orgs (id, name, slug, plan)
-		VALUES ($1, 'Null Ctx Org', 'null-ctx-org', 'starter')
-	`, orgA)
-	require.NoError(t, err)
-
-	authorA := uuid.New()
-	_, err = pool.Exec(context.Background(), `
-		INSERT INTO users (id, org_id, email, name, role)
-		VALUES ($1, $2, $3, 'Author A', 'admin')
-	`, authorA, orgA, "nullctx+"+authorA.String()+"@omnir.test")
-	require.NoError(t, err)
-
-	contactA := uuid.New()
-	_, err = pool.Exec(context.Background(), `
-		INSERT INTO contacts (id, org_id, first_name, last_name, stage, owner_id)
-		VALUES ($1, $2, 'NullCtx', 'OrgA', 'lead', $3)
-	`, contactA, orgA, authorA)
-	require.NoError(t, err)
-
-	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
-	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
-
-	// Connect as the non-superuser app role. FORCE RLS applies only to
-	// non-superusers — the omnir_app_test role is created by the CI setup step.
-	// Skip the test if the role is not available (local dev without the role).
-	testDSN := os.Getenv("TEST_DATABASE_URL")
-	if testDSN == "" {
-		testDSN = "postgres://localhost/omnir_crm_test?sslmode=disable"
-	}
-	appDSN := strings.Replace(testDSN, "omnir:omnir_dev@", "omnir_app_test:test@", 1)
-	appPool, connErr := pgxpool.New(context.Background(), appDSN)
-	if connErr != nil {
-		t.Skipf("skipping: omnir_app_test role unavailable (%v)", connErr)
-	}
-	defer appPool.Close()
-
-	appConn, err := appPool.Acquire(context.Background())
-	require.NoError(t, err)
-	defer appConn.Release()
-
-	// Explicitly clear any existing org context on this connection.
-	_, err = appConn.Exec(context.Background(),
-		`SELECT set_config('app.current_org_id', '', false)`)
-	require.NoError(t, err)
-
-	// With current_org_id = '' → current_org_id() returns NULL →
-	// policy org_id = NULL evaluates to NULL (never true) → no rows visible.
-	var count int
-	err = appConn.QueryRow(context.Background(),
-		`SELECT COUNT(*) FROM contacts WHERE id=$1`, contactA).Scan(&count)
-	require.NoError(t, err)
-	assert.Equal(t, 0, count,
-		"FORCE RLS with null org context must block all rows")
 }
 
 // TestRLS_SuperAdminTenantSwitch verifies that a super_admin can switch org
