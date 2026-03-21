@@ -385,3 +385,23 @@ type EnrichmentCacheRepository interface {
 	// Upsert inserts or replaces the enrichment cache entry for the given domain.
 	Upsert(ctx context.Context, entry *domain.EnrichmentCache) (*domain.EnrichmentCache, error)
 }
+
+// KBCategoryRepository defines persistence for knowledge base categories.
+type KBCategoryRepository interface {
+	Create(ctx context.Context, c *domain.KBCategory) (*domain.KBCategory, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.KBCategory, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.KBCategoryPatch) (*domain.KBCategory, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.KBCategoryFilter) ([]*domain.KBCategory, int, error)
+}
+
+// KBArticleRepository defines persistence for knowledge base articles.
+type KBArticleRepository interface {
+	Create(ctx context.Context, a *domain.KBArticle) (*domain.KBArticle, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.KBArticle, error)
+	Update(ctx context.Context, id uuid.UUID, patch domain.KBArticlePatch) (*domain.KBArticle, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter domain.KBArticleFilter) ([]*domain.KBArticle, int, error)
+	IncrementViewCount(ctx context.Context, id uuid.UUID) error
+	Suggest(ctx context.Context, orgID uuid.UUID, subject string, limit int) ([]*domain.KBSuggestResult, error)
+}
