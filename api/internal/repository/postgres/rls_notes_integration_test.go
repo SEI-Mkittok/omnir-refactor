@@ -135,19 +135,36 @@ func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
 	require.NoError(t, postgres.EnableRLS(context.Background(), pool))
 	t.Cleanup(func() { _ = postgres.DisableRLS(context.Background(), pool) })
 
-	// Use a context with no org_id — pool's BeforeAcquire will fall back to
-	// domain.DefaultOrgID when OrgIDFromContext returns false. Explicitly clear
-	// the session variable to simulate a connection with no tenant context.
+	// FORCE ROW LEVEL SECURITY only applies to non-superuser roles — PostgreSQL
+	// superusers always bypass RLS. In CI, POSTGRES_USER creates a superuser.
+	// We create a non-superuser role and SET ROLE to it for this assertion so
+	// that FORCE RLS is actually enforced as it would be in production.
 	conn, err := pool.Acquire(context.Background())
 	require.NoError(t, err)
 	defer conn.Release()
 
+	// Create a non-superuser app role if it doesn't exist; grant table access.
+	_, err = conn.Exec(context.Background(), `
+		DO $$ BEGIN
+			IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'omnir_app_test') THEN
+				CREATE ROLE omnir_app_test LOGIN PASSWORD 'test';
+			END IF;
+		END $$
+	`)
+	require.NoError(t, err)
+	_, err = conn.Exec(context.Background(), `GRANT SELECT ON contacts TO omnir_app_test`)
+	require.NoError(t, err)
+
+	// Clear org context and switch to the non-superuser role so FORCE RLS applies.
 	_, err = conn.Exec(context.Background(),
 		`SELECT set_config('app.current_org_id', '', false)`)
 	require.NoError(t, err)
+	_, err = conn.Exec(context.Background(), `SET LOCAL ROLE omnir_app_test`)
+	require.NoError(t, err)
 
-	// With current_org_id = '' (NULL via current_org_id() function), the policy
-	// org_id = current_org_id() evaluates to NULL (never true) for every row.
+	// With current_org_id = '' (NULL via current_org_id() function) and a
+	// non-superuser role, the policy org_id = current_org_id() evaluates to
+	// NULL (never true) for every row — all rows are blocked.
 	var count int
 	err = conn.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM contacts WHERE id=$1`, contactA).Scan(&count)
