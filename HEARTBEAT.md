@@ -2,44 +2,41 @@
 
 Run every heartbeat. In order.
 
-## 1. Board Review (ALL statuses)
+## 1. Self-assign standing task
+PATCH OMN-58 to `in_progress` assigned to Völundr if not already.
 
+## 2. Board Review (ALL statuses)
 Check for issues needing action:
-- `in_review` → my queue, review and merge/close immediately
+- `in_review` → my queue, review PR and merge/close immediately
 - `blocked` → unblock or cancel if stale
-- `backlog` → activate (set to `todo`) or cancel if old roadmap
+- `backlog` → activate (set `todo`) or cancel if old roadmap
 - `todo` unassigned → assign to right agent
 
-## 2. PR Review
-
-- Check open PRs: `gh pr list` or GitHub API
+## 3. PR Review
+- Check open PRs: GitHub API
 - For each open PR: check CI status, diff, approve + merge or request changes
+- Delete branch after merge
 - No PR should sit open >1 heartbeat without action
 
-## 3. Branch Cleanup
+## 4. Branch Cleanup
+After every merge, delete the branch.
+Periodically delete branches fully merged into develop.
 
-After every merge, delete the branch:
-```bash
-git push origin --delete <branch>
-```
-Also periodically: delete all branches fully merged into develop:
-```bash
-git fetch origin --prune
-# delete any branch with 0 commits ahead of develop
-```
+## 5. Agent Sanity Check
+- Verify Tyr/Freya are only working on their assigned issue
+- Cancel any issues with issueNumber > 457 that aren't standing tasks (Phase 2 only: 454-457)
+- If new rogue issues exist: cancel them and re-pause the offending agent
 
-## 4. Odin Watch
-
-- Check OMN-57 comments for new proposals from Odin
-- Review proposed issues — spec them out and assign to engineers or cancel
-- Ensure Odin is NOT assigning directly to engineers
-
-## 5. CI Health
-
+## 6. CI Health
 - Check latest CI run on develop — must be green
-- If red, fix before assigning new work to agents
+- If red, fix before anything else
 
-## 6. Stale Issue Check
+## 7. Phase Progress Gate
+- Phase 2 tasks: OMN-455 (Tyr RLS), OMN-456 (Tyr org signup), OMN-457 (Freya tenant switcher)
+- Sequence: 455 → merge → assign 456 → merge → activate Freya → assign 457
+- When Phase 2 done: run `bash scripts/plan-next.sh` for Phase 3
 
-- Any issue with `issueNumber < 107` that isn't OMN-57/58/84 → cancel it
-- Any Phase 9/10/11 issue → cancel immediately
+## Paused agents (do NOT unpause without explicit reason)
+- Odin: paused — use scripts/plan-next.sh for planning
+- Skadi: paused — activate per-task after each merge
+- Freya: paused — activate only after OMN-455+456 merged
