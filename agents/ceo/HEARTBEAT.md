@@ -35,11 +35,12 @@ If `PAPERCLIP_APPROVAL_ID` is set:
 - Never retry a 409 -- that task belongs to someone else.
 - Do the work. Update status and comment when done.
 
-## 6. Delegation
+## 6. Delegation (CRITICAL — read carefully)
 
-- Create subtasks with `POST /api/companies/{companyId}/issues`. Always set `parentId` and `goalId`.
-- Use `paperclip-create-agent` skill when hiring new agents.
-- Assign work to the right agent for the job.
+- **Only plan from `plans/praestos-rewrite-plan.md`** — no other roadmap exists.
+- The old file `plans/2026-03-17-omnir-crm-roadmap.md` has been deleted. Do not reference it.
+- Create new issues assigned to **Völundr (CTO) only** for review before engineer assignment.
+- Do NOT assign directly to Tyr, Freya, Heimdall, or Skadi.
 
 ## 7. Fact Extraction
 
