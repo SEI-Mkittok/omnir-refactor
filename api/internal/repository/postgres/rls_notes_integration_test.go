@@ -4,9 +4,12 @@ package postgres_test
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -138,24 +141,34 @@ func TestRLS_NullOrgContextBlocksAll(t *testing.T) {
 	// FORCE ROW LEVEL SECURITY only applies to non-superuser roles — PostgreSQL
 	// superusers always bypass RLS. In CI, POSTGRES_USER creates a superuser.
 	// The CI workflow creates omnir_app_test (non-superuser) in a setup step.
-	// We SET ROLE to it so FORCE RLS is enforced as it would be in production.
-	conn, err := pool.Acquire(context.Background())
-	require.NoError(t, err)
-	defer conn.Release()
+	// We open a direct connection as omnir_app_test so FORCE RLS is enforced
+	// as it would be in production.
+	testDSN := os.Getenv("TEST_DATABASE_URL")
+	if testDSN == "" {
+		testDSN = "postgres://localhost/omnir_crm_test?sslmode=disable"
+	}
+	// Replace the superuser credentials with the non-superuser app role.
+	appDSN := strings.Replace(testDSN,
+		"omnir:omnir_dev@", "omnir_app_test:test@", 1)
 
-	// Clear org context and switch to the non-superuser role so FORCE RLS applies.
-	_, err = conn.Exec(context.Background(),
+	appPool, err := pgxpool.New(context.Background(), appDSN)
+	require.NoError(t, err, "failed to connect as omnir_app_test — is the role created?")
+	defer appPool.Close()
+
+	appConn, err := appPool.Acquire(context.Background())
+	require.NoError(t, err)
+	defer appConn.Release()
+
+	// Clear org context to simulate a connection with no tenant context.
+	_, err = appConn.Exec(context.Background(),
 		`SELECT set_config('app.current_org_id', '', false)`)
 	require.NoError(t, err)
-	_, err = conn.Exec(context.Background(), `SET ROLE omnir_app_test`)
-	require.NoError(t, err)
-	defer func() { _, _ = conn.Exec(context.Background(), `RESET ROLE`) }()
 
 	// With current_org_id = '' (NULL via current_org_id() function) and a
 	// non-superuser role, the policy org_id = current_org_id() evaluates to
 	// NULL (never true) for every row — all rows are blocked.
 	var count int
-	err = conn.QueryRow(context.Background(),
+	err = appConn.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM contacts WHERE id=$1`, contactA).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count,
