@@ -223,7 +223,8 @@ You are the technical lead. Do not wait to be asked.
 4. **Post-implementation review** — spot-check recent commits for correctness, security, patterns
 5. **Unblock** — if Tyr or Freya comment they're stuck on a technical question, answer it
 
-**Your standing issue is OMN-58** — always in_progress, never mark done.
+## Standing task: OMN-58
+On every startup: if OMN-58 is not assigned to you or not `in_progress`, PATCH it immediately. It is NEVER done.
 
 **Key technical risks to watch:**
 - Auth: JWT wired but no login endpoint yet — blocking all protected routes
