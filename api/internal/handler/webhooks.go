@@ -19,6 +19,7 @@ import (
 	"github.com/omnir/crm-api/internal/config"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/repository"
+	"github.com/omnir/crm-api/internal/worker"
 )
 
 // WebhookHandler handles inbound email webhooks from Postmark and Mailgun.
@@ -27,13 +28,14 @@ import (
 // signature verification (Mailgun) or HTTP Basic Auth (Postmark) using
 // WEBHOOK_SECRET.
 type WebhookHandler struct {
-	tickets  repository.TicketRepository
-	comments repository.TicketCommentRepository
-	contacts repository.ContactRepository
-	users    repository.UserRepository
-	secret   string
-	orgMode  config.OrgMode
-	logger   *slog.Logger
+	tickets    repository.TicketRepository
+	comments   repository.TicketCommentRepository
+	contacts   repository.ContactRepository
+	users      repository.UserRepository
+	secret     string
+	orgMode    config.OrgMode
+	logger     *slog.Logger
+	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewWebhookHandler(
@@ -56,10 +58,31 @@ func NewWebhookHandler(
 	}
 }
 
+// WithDispatcher wires an outbound webhook dispatcher so that ticket.created
+// events are fanned out to registered webhook endpoints.
+func (h *WebhookHandler) WithDispatcher(d chan<- worker.WebhookEvent) *WebhookHandler {
+	h.dispatcher = d
+	return h
+}
+
+func (h *WebhookHandler) dispatch(evt worker.WebhookEvent) {
+	if h.dispatcher == nil {
+		return
+	}
+	select {
+	case h.dispatcher <- evt:
+	default:
+		h.logger.Warn("webhook dispatcher channel full, dropping event", "event", evt.Event)
+	}
+}
+
 func (h *WebhookHandler) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Post("/postmark", h.HandlePostmark)
 	r.Post("/mailgun", h.HandleMailgun)
+	// /inbound accepts the Mailgun webhook format and is the canonical
+	// endpoint for generic email-to-ticket ingestion.
+	r.Post("/inbound", h.HandleMailgun)
 	return r
 }
 
@@ -281,6 +304,14 @@ func (h *WebhookHandler) ingest(ctx context.Context, e *parsedEmail) error {
 		"subject", created.Subject,
 		"contact_id", contactID,
 	)
+
+	h.dispatch(worker.WebhookEvent{
+		OrgID:    created.OrgID,
+		EntityID: created.ID,
+		Event:    domain.WebhookEventTicketCreated,
+		Data:     created,
+	})
+
 	return nil
 }
 
