@@ -42,6 +42,7 @@ const TRIGGER_LABELS: Record<TriggerType, string> = {
   deal_created: 'Deal Created',
   deal_stage_changed: 'Deal Stage Changed',
   ticket_created: 'Ticket Created',
+  activity_overdue: 'Activity Overdue',
   manual: 'Manual (Run via API)',
 }
 
@@ -57,10 +58,10 @@ const OPERATOR_LABELS: Record<ConditionOperator, string> = {
 }
 
 const ACTION_LABELS: Record<ActionType, string> = {
+  assign_owner: 'Assign Owner',
   send_email: 'Send Email',
-  create_task: 'Create Task',
-  update_field: 'Update Field',
-  add_tag: 'Add Tag',
+  enroll_in_sequence: 'Enroll in Sequence',
+  create_activity: 'Create Activity',
   webhook: 'Call Webhook',
 }
 
@@ -263,13 +264,41 @@ function ActionConfigFields({
     )
   }
 
-  if (action.type === 'create_task') {
+  if (action.type === 'assign_owner') {
+    return (
+      <div className="pl-4">
+        <input
+          type="text"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          placeholder="Owner user ID"
+          value={cfg.owner_id ?? ''}
+          onChange={(e) => setConfig('owner_id', e.target.value)}
+        />
+      </div>
+    )
+  }
+
+  if (action.type === 'enroll_in_sequence') {
+    return (
+      <div className="pl-4">
+        <input
+          type="text"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          placeholder="Sequence ID"
+          value={cfg.sequence_id ?? ''}
+          onChange={(e) => setConfig('sequence_id', e.target.value)}
+        />
+      </div>
+    )
+  }
+
+  if (action.type === 'create_activity') {
     return (
       <div className="space-y-2 pl-4">
         <input
           type="text"
           className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          placeholder="Task title"
+          placeholder="Activity title"
           value={cfg.title ?? ''}
           onChange={(e) => setConfig('title', e.target.value)}
         />
@@ -279,41 +308,6 @@ function ActionConfigFields({
           placeholder="Due in (days)"
           value={cfg.due_in_days ?? ''}
           onChange={(e) => setConfig('due_in_days', e.target.value)}
-        />
-      </div>
-    )
-  }
-
-  if (action.type === 'update_field') {
-    return (
-      <div className="space-y-2 pl-4">
-        <input
-          type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          placeholder="Field name (e.g. status)"
-          value={cfg.field ?? ''}
-          onChange={(e) => setConfig('field', e.target.value)}
-        />
-        <input
-          type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          placeholder="New value"
-          value={cfg.value ?? ''}
-          onChange={(e) => setConfig('value', e.target.value)}
-        />
-      </div>
-    )
-  }
-
-  if (action.type === 'add_tag') {
-    return (
-      <div className="pl-4">
-        <input
-          type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          placeholder="Tag name"
-          value={cfg.tag ?? ''}
-          onChange={(e) => setConfig('tag', e.target.value)}
         />
       </div>
     )
