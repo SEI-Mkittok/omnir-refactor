@@ -3,6 +3,8 @@ import { Outlet, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { BottomTabBar } from './BottomTabBar'
+import { OfflineBanner } from '@/components/ui/OfflineBanner'
 
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -17,11 +19,14 @@ export function AppShell() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex flex-1 flex-col overflow-hidden">
+        <OfflineBanner />
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-auto p-4 pb-safe lg:p-6">
           <Outlet />
         </main>
+
+        <BottomTabBar />
       </div>
     </div>
   )
