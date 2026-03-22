@@ -11,6 +11,7 @@ import { getOnboardingState, type OnboardingState } from '@/api/onboarding'
 import { InstallPromptBanner } from '@/components/ui/InstallPromptBanner'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { usersApi } from '@/api/users'
 
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -23,10 +24,12 @@ export function AppShell() {
   const [onboardingState, setOnboardingState] = useState<OnboardingState | null>(null)
   const [showResumeBanner, setShowResumeBanner] = useState(false)
 
-  // Restore session from cookie on mount, then check onboarding state
+  // Restore session from cookie on mount, then check onboarding state.
+  // Uses apiClient (via usersApi.me) so the 401 → refresh interceptor fires
+  // automatically when the access_token cookie has expired, avoiding the
+  // "flash dashboard → redirect to login" bug caused by bare fetch().
   useEffect(() => {
-    fetch('/api/v1/users/me', { credentials: 'include' })
-      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+    usersApi.me()
       .then((data) => {
         if (data?.id) {
           setUser(data)
