@@ -125,15 +125,10 @@ func (h *DealHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.Page = n
 		}
 	}
-	// Accept ?per_page (frontend) or ?limit (canonical).
-	if limitVal := q.Get("per_page"); limitVal == "" {
-		if v := q.Get("limit"); v != "" {
-			if n, err := strconv.Atoi(v); err == nil && n <= 200 {
-				filter.Limit = n
-			}
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n <= 200 {
+			filter.Limit = n
 		}
-	} else if n, err := strconv.Atoi(limitVal); err == nil && n <= 200 {
-		filter.Limit = n
 	}
 	if v := q.Get("owner_id"); v != "" {
 		if id, err := uuid.Parse(v); err == nil {

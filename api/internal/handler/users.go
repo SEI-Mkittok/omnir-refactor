@@ -58,15 +58,10 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.Page = n
 		}
 	}
-	// Accept ?per_page (frontend) or ?limit (canonical).
-	if limitVal := q.Get("per_page"); limitVal == "" {
-		if v := q.Get("limit"); v != "" {
-			if n, err := strconv.Atoi(v); err == nil && n <= 200 {
-				filter.Limit = n
-			}
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n <= 200 {
+			filter.Limit = n
 		}
-	} else if n, err := strconv.Atoi(limitVal); err == nil && n <= 200 {
-		filter.Limit = n
 	}
 	if v := q.Get("role"); v != "" {
 		role := domain.UserRole(v)

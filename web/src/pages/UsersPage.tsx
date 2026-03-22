@@ -265,8 +265,8 @@ export function UsersPage() {
   const { mutate: deleteUser } = useDeleteUser()
 
   const users = data?.data ?? []
-  const total = data?.total ?? 0
-  const totalPages = data?.total_pages ?? 1
+  const total = data?.meta?.total ?? 0
+  const totalPages = data?.meta?.total_pages ?? 1
 
   const handleSort = useCallback((key: string) => {
     setSortKey((prev) => {

@@ -4,18 +4,11 @@ import type {
   CreateUserRequest,
   UpdateUserRequest,
   UserListParams,
+  PaginatedResponse,
 } from './types'
 
-interface UserListResponse {
-  data: User[]
-  total: number
-  page: number
-  limit: number
-  total_pages: number
-}
-
 export const usersApi = {
-  list: async (params?: UserListParams): Promise<UserListResponse> => {
+  list: async (params?: UserListParams): Promise<PaginatedResponse<User>> => {
     const { data } = await apiClient.get('/users', { params })
     return data
   },

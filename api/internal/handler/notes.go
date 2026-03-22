@@ -56,15 +56,10 @@ func (h *NoteHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.Page = n
 		}
 	}
-	// Accept ?per_page (frontend) or ?limit (canonical).
-	if limitVal := q.Get("per_page"); limitVal == "" {
-		if v := q.Get("limit"); v != "" {
-			if n, err2 := strconv.Atoi(v); err2 == nil && n <= 200 {
-				filter.Limit = n
-			}
+	if v := q.Get("limit"); v != "" {
+		if n, err2 := strconv.Atoi(v); err2 == nil && n <= 200 {
+			filter.Limit = n
 		}
-	} else if n, err2 := strconv.Atoi(limitVal); err2 == nil && n <= 200 {
-		filter.Limit = n
 	}
 	if filter.Limit == 0 {
 		filter.Limit = 50
