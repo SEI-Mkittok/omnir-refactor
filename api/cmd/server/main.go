@@ -270,7 +270,7 @@ func main() {
 	// Public SSO login/callback — no JWT required.
 	r.Mount("/auth/sso", ssoHandler.Router())
 	// API-style SSO: POST /api/auth/sso/microsoft|google, GET /api/auth/sso/callback
-	r.Mount("/api/auth/sso", ssoHandler.ApiRouter())
+	r.Mount("/api/auth/sso", ssoHandler.APIRouter())
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Public deal portal — token IS the credential, no JWT required.

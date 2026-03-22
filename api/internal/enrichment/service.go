@@ -153,6 +153,7 @@ func (s *Service) fetchDNS(d string) (*domain.EnrichmentData, error) {
 	_, err := net.LookupHost(d)
 	if err != nil {
 		// Domain doesn't resolve — still return a best-effort result.
+		_ = err
 	}
 
 	// Derive company name: strip TLD and capitalise.

@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE org_onboarding (
+CREATE TABLE IF NOT EXISTS org_onboarding (
     org_id          UUID PRIMARY KEY REFERENCES orgs(id) ON DELETE CASCADE,
     completed_steps JSONB        NOT NULL DEFAULT '[]',
     completed_at    TIMESTAMPTZ,
@@ -12,7 +12,7 @@ ALTER TABLE org_onboarding ENABLE ROW LEVEL SECURITY;
 CREATE POLICY org_onboarding_org_isolation ON org_onboarding
     USING (org_id = current_setting('app.current_org_id', true)::uuid);
 
-CREATE TABLE org_invites (
+CREATE TABLE IF NOT EXISTS org_invites (
     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id      UUID        NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     email       TEXT        NOT NULL,

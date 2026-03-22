@@ -102,7 +102,7 @@ func (n *PushNotifier) send(userID, orgID uuid.UUID, payload pushPayload) {
 func (n *PushNotifier) NotifyTicketAssigned(orgID, userID, ticketID uuid.UUID, subject string) {
 	n.send(userID, orgID, pushPayload{
 		Title: "Ticket assigned to you",
-		Body:  fmt.Sprintf("%s", subject),
+		Body:  subject,
 		URL:   fmt.Sprintf("/tickets/%s", ticketID),
 	})
 }
