@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Search, X, Inbox, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { TicketForm } from '@/components/omnir/TicketForm'
 import * as RadixSelect from '@radix-ui/react-select'
 import { ChevronDown as ChevronDownIcon, Check } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -507,6 +508,7 @@ export function TicketsPage() {
   const { status, priority, search, page, setStatus, setPriority, setSearch, setPage, reset } =
     useTicketFilterStore()
   const [sortKey, setSortKey] = useState('created_at:desc')
+  const [showNewTicket, setShowNewTicket] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const debouncedSearch = useDebounce(search, 300)
@@ -546,7 +548,7 @@ export function TicketsPage() {
           Tickets.
         </h1>
         <button
-          onClick={() => navigate('/tickets/new')}
+          onClick={() => setShowNewTicket(true)}
           className="inline-flex h-9 items-center gap-2 rounded-md bg-[var(--color-primary)] px-4 text-[14px] font-medium text-white hover:bg-[var(--color-primary-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
         >
           <Plus className="h-4 w-4" />
@@ -626,6 +628,13 @@ export function TicketsPage() {
         hasActiveFilters={hasActiveFilters}
         onClearFilters={() => reset()}
       />
+
+      {showNewTicket && (
+        <TicketForm
+          onClose={() => setShowNewTicket(false)}
+          onCreated={(ticketId) => navigate(`/tickets/${ticketId}`)}
+        />
+      )}
     </div>
   )
 }
