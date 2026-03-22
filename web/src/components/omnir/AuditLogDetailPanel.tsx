@@ -8,7 +8,7 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   created: 'bg-green-100 text-green-700',
   updated: 'bg-blue-100 text-blue-700',
   deleted: 'bg-red-100 text-red-700',
-  converted: 'bg-purple-100 text-purple-700',
+  converted: 'bg-teal-100 text-teal-700',
   login: 'bg-slate-100 text-slate-700',
   export: 'bg-amber-100 text-amber-700',
 }
@@ -75,7 +75,7 @@ export function AuditLogDetailPanel({ entryId, onClose }: AuditLogDetailPanelPro
     <SidePanel open={!!entryId} onClose={onClose} title="Audit Log Entry" width="lg">
       {isLoading && (
         <div className="flex items-center justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
         </div>
       )}
 

@@ -81,7 +81,7 @@ export function PortalSubmitPage() {
                 aria-invalid={!!errors.description}
                 aria-describedby={errors.description ? 'description-error' : undefined}
                 {...register('description')}
-                className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
               {errors.description && (
                 <p id="description-error" className="mt-1 text-xs text-red-500">{errors.description.message}</p>
@@ -95,7 +95,7 @@ export function PortalSubmitPage() {
               <select
                 id="priority"
                 {...register('priority')}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] bg-white"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>

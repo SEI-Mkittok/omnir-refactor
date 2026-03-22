@@ -292,7 +292,7 @@ function LeadForm({ open, onClose }: { open: boolean; onClose: () => void }) {
               <select
                 value={form.status}
                 onChange={set('status')}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               >
                 <option value="new">New</option>
                 <option value="contacted">Contacted</option>

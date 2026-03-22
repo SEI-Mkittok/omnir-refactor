@@ -95,7 +95,7 @@ function TriggerPicker({
     <div className="space-y-2">
       <label className="block text-sm font-medium text-slate-700">Trigger</label>
       <select
-        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         value={value.type}
         onChange={(e) => onChange({ type: e.target.value as TriggerType, config: {} })}
       >
@@ -134,7 +134,7 @@ function ConditionRow({
   return (
     <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
       <select
-        className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         value={condition.field}
         onChange={(e) => onChange({ ...condition, field: e.target.value })}
       >
@@ -145,7 +145,7 @@ function ConditionRow({
         ))}
       </select>
       <select
-        className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         value={condition.operator}
         onChange={(e) => onChange({ ...condition, operator: e.target.value as ConditionOperator })}
       >
@@ -158,7 +158,7 @@ function ConditionRow({
       {showValue && (
         <input
           type="text"
-          className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Value"
           value={(condition.value as string) ?? ''}
           onChange={(e) => onChange({ ...condition, value: e.target.value })}
@@ -241,20 +241,20 @@ function ActionConfigFields({
       <div className="space-y-2 pl-4">
         <input
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="To (e.g. {{contact.email}})"
           value={cfg.to ?? ''}
           onChange={(e) => setConfig('to', e.target.value)}
         />
         <input
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Subject"
           value={cfg.subject ?? ''}
           onChange={(e) => setConfig('subject', e.target.value)}
         />
         <textarea
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Body"
           rows={3}
           value={cfg.body ?? ''}
@@ -269,7 +269,7 @@ function ActionConfigFields({
       <div className="pl-4">
         <input
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Owner user ID"
           value={cfg.owner_id ?? ''}
           onChange={(e) => setConfig('owner_id', e.target.value)}
@@ -283,7 +283,7 @@ function ActionConfigFields({
       <div className="pl-4">
         <input
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Sequence ID"
           value={cfg.sequence_id ?? ''}
           onChange={(e) => setConfig('sequence_id', e.target.value)}
@@ -297,14 +297,14 @@ function ActionConfigFields({
       <div className="space-y-2 pl-4">
         <input
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Activity title"
           value={cfg.title ?? ''}
           onChange={(e) => setConfig('title', e.target.value)}
         />
         <input
           type="number"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="Due in (days)"
           value={cfg.due_in_days ?? ''}
           onChange={(e) => setConfig('due_in_days', e.target.value)}
@@ -318,13 +318,13 @@ function ActionConfigFields({
       <div className="space-y-2 pl-4">
         <input
           type="url"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           placeholder="URL"
           value={cfg.url ?? ''}
           onChange={(e) => setConfig('url', e.target.value)}
         />
         <select
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           value={cfg.method ?? 'POST'}
           onChange={(e) => setConfig('method', e.target.value)}
         >
@@ -353,11 +353,11 @@ function ActionRow({
   return (
     <div className="rounded-md border border-slate-200 bg-slate-50 p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-xs font-bold text-[var(--color-primary)]">
           {idx + 1}
         </span>
         <select
-          className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           value={action.type}
           onChange={(e) =>
             onChange({ type: e.target.value as ActionType, config: {} })
@@ -484,7 +484,7 @@ function BuilderModal({ initial, onClose, onSave, saving }: BuilderModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-indigo-600" />
+            <Zap className="h-5 w-5 text-[var(--color-primary)]" />
             <h2 className="text-lg font-semibold text-slate-900">
               {initial ? 'Edit Automation' : 'New Automation'}
             </h2>
@@ -507,7 +507,7 @@ function BuilderModal({ initial, onClose, onSave, saving }: BuilderModalProps) {
               <input
                 type="text"
                 required
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                 placeholder="e.g. Welcome new contacts"
                 value={state.name}
                 onChange={(e) => update('name', e.target.value)}
@@ -517,7 +517,7 @@ function BuilderModal({ initial, onClose, onSave, saving }: BuilderModalProps) {
               <label className="block text-sm font-medium text-slate-700">Description</label>
               <input
                 type="text"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                 placeholder="What does this automation do?"
                 value={state.description}
                 onChange={(e) => update('description', e.target.value)}
@@ -631,7 +631,7 @@ function AutomationDetailPanel({
       {/* Header */}
       <div className="flex items-center justify-between border-b px-6 py-4">
         <div className="flex items-center gap-2 min-w-0">
-          <Zap className="h-5 w-5 shrink-0 text-indigo-600" />
+          <Zap className="h-5 w-5 shrink-0 text-[var(--color-primary)]" />
           <h2 className="truncate text-base font-semibold text-slate-900">{automation.name}</h2>
         </div>
         <button
@@ -700,7 +700,7 @@ function AutomationDetailPanel({
           <ol className="mt-2 space-y-2">
             {automation.actions.map((a, i) => (
               <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-xs font-bold text-[var(--color-primary)]">
                   {i + 1}
                 </span>
                 {ACTION_LABELS[a.type] ?? a.type}
@@ -812,7 +812,7 @@ export function AutomationsPage() {
               onClick={() => setStatusFilter(s as AutomationStatus | '')}
               className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
                 statusFilter === s
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-[var(--color-primary)] text-white'
                   : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
               }`}
             >
@@ -844,12 +844,12 @@ export function AutomationsPage() {
               <div
                 key={a.id}
                 className={`flex cursor-pointer items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors ${
-                  selectedId === a.id ? 'bg-indigo-50' : ''
+                  selectedId === a.id ? 'bg-[var(--color-primary-light)]' : ''
                 }`}
                 onClick={() => setSelectedId(a.id === selectedId ? null : a.id)}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
-                  <Zap className="h-5 w-5 text-indigo-600" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-light)]">
+                  <Zap className="h-5 w-5 text-[var(--color-primary)]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium text-slate-900">{a.name}</p>

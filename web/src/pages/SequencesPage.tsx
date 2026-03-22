@@ -104,7 +104,7 @@ function StepEditor({ step, onChange, onRemove }: StepEditorProps) {
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Subject</label>
             <input
-              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
               placeholder="Email subject line..."
               value={step.subject ?? ''}
               onChange={(e) => onChange({ ...step, subject: e.target.value })}
@@ -113,7 +113,7 @@ function StepEditor({ step, onChange, onRemove }: StepEditorProps) {
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Body</label>
             <textarea
-              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
               rows={5}
               placeholder="Write your email body..."
               value={step.body ?? ''}
@@ -127,7 +127,7 @@ function StepEditor({ step, onChange, onRemove }: StepEditorProps) {
           <input
             type="number"
             min={1}
-            className="w-20 rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-20 rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
             value={step.wait_duration_hours ?? 24}
             onChange={(e) =>
               onChange({ ...step, wait_duration_hours: Number(e.target.value) })
@@ -439,7 +439,7 @@ function BuilderView({ sequence, onBack }: BuilderViewProps) {
             onClick={() => setTab(id)}
             className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               tab === id
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -539,7 +539,7 @@ function BuilderView({ sequence, onBack }: BuilderViewProps) {
             )}
             {(!contacts || contacts.length === 0) && (
               <textarea
-                className="mb-4 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="mb-4 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
                 rows={4}
                 placeholder="contact-uuid-1&#10;contact-uuid-2"
                 value={enrollIds}
@@ -601,7 +601,7 @@ function CreateSequenceModal({
             <label className="mb-1 block text-sm font-medium text-slate-700">Name</label>
             <input
               autoFocus
-              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
               placeholder="e.g. Onboarding drip"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -612,7 +612,7 @@ function CreateSequenceModal({
               Description <span className="font-normal text-slate-400">(optional)</span>
             </label>
             <textarea
-              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
               rows={2}
               placeholder="Brief description..."
               value={description}
@@ -679,7 +679,7 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
             onClick={() => setStatusFilter(s)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               statusFilter === s
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-[var(--color-primary)] text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -703,7 +703,7 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
           {sequences.map((seq) => (
             <div
               key={seq.id}
-              className="flex cursor-pointer items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:shadow-sm"
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 hover:border-[var(--color-primary)] hover:shadow-sm"
               onClick={() => onOpen(seq)}
             >
               <div className="flex-1 min-w-0">

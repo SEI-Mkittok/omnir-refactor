@@ -324,7 +324,7 @@ export function TotpEnrollPage() {
               type="checkbox"
               checked={acknowledged}
               onChange={(e) => setAcknowledged(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--border-focus)]"
             />
             <span className="text-sm text-slate-700">
               I have saved my backup codes in a safe place.

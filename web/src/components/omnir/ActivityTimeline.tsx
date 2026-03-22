@@ -80,7 +80,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 space-y-3"
+      className="rounded-lg border border-[var(--color-primary-light)] bg-[var(--color-primary-light)] p-3 space-y-3"
     >
       {/* Type selector */}
       <div className="flex flex-wrap gap-1.5">
@@ -94,7 +94,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
               className={cn(
                 'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                 type === t
-                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
               )}
             >
@@ -121,7 +121,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         rows={2}
-        className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+        className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
       />
 
       {/* Due date */}
@@ -131,7 +131,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+          className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
         />
       </div>
 
@@ -229,7 +229,7 @@ function ActivityItem({ activity, isLast }: ActivityItemProps) {
                 {activity.description.length > 120 && (
                   <button
                     onClick={() => setExpanded((v) => !v)}
-                    className="flex items-center gap-0.5 text-xs text-indigo-500 hover:text-indigo-700 mt-0.5"
+                    className="flex items-center gap-0.5 text-xs text-[var(--color-primary)] hover:text-[var(--color-primary)] mt-0.5"
                   >
                     <ChevronDown
                       className={cn('h-3 w-3 transition-transform', expanded && 'rotate-180')}

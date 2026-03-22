@@ -134,18 +134,18 @@ export function ImportModal({ open, onClose, entity, entityLabel }: ImportModalP
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5 text-indigo-600" />
+            <Upload className="h-5 w-5 text-[var(--color-primary)]" />
             Import {entityLabel}
           </DialogTitle>
         </DialogHeader>
 
         {/* Step indicator */}
         <div className="flex items-center gap-1.5 text-xs text-slate-500 -mt-2">
-          <span className={step === 'upload' ? 'text-indigo-600 font-medium' : ''}>1. Upload</span>
+          <span className={step === 'upload' ? 'text-[var(--color-primary)] font-medium' : ''}>1. Upload</span>
           <ArrowRight className="h-3 w-3" />
-          <span className={step === 'mapping' ? 'text-indigo-600 font-medium' : ''}>2. Map fields</span>
+          <span className={step === 'mapping' ? 'text-[var(--color-primary)] font-medium' : ''}>2. Map fields</span>
           <ArrowRight className="h-3 w-3" />
-          <span className={step === 'results' ? 'text-indigo-600 font-medium' : ''}>3. Results</span>
+          <span className={step === 'results' ? 'text-[var(--color-primary)] font-medium' : ''}>3. Results</span>
         </div>
 
         {/* ── Step 1: Upload ── */}
@@ -177,7 +177,7 @@ export function ImportModal({ open, onClose, entity, entityLabel }: ImportModalP
                     {header}
                   </span>
                   <select
-                    className="w-1/2 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="w-1/2 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                     value={mappings[header] ?? '__skip__'}
                     onChange={(e) =>
                       setMappings((m) => ({ ...m, [header]: e.target.value }))

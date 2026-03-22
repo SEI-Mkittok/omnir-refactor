@@ -90,7 +90,7 @@ export function SaveViewModal({
                 type="checkbox"
                 checked={isShared}
                 onChange={(e) => setIsShared(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600"
+                className="rounded border-slate-300 text-[var(--color-primary)]"
               />
               Share with team
             </label>
@@ -99,7 +99,7 @@ export function SaveViewModal({
                 type="checkbox"
                 checked={isPinned}
                 onChange={(e) => setIsPinned(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600"
+                className="rounded border-slate-300 text-[var(--color-primary)]"
               />
               Pin to view bar
             </label>

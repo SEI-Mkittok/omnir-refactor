@@ -263,7 +263,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
               <select
                 value={form.stage}
                 onChange={set('stage')}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               >
                 <option value="lead">Lead</option>
                 <option value="prospect">Prospect</option>

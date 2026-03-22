@@ -67,7 +67,7 @@ function SortableCategoryRow({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer select-none transition-colors ${
         isDragging ? 'opacity-50 z-50' : ''
-      } ${isSelected ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-slate-50 border border-transparent'}`}
+      } ${isSelected ? 'bg-[var(--color-primary-light)] border border-[var(--color-primary-light)]' : 'hover:bg-slate-50 border border-transparent'}`}
       onClick={onSelect}
     >
       <button
@@ -80,7 +80,7 @@ function SortableCategoryRow({
       </button>
       <span className="flex-1 text-sm font-medium text-slate-800 truncate">{category.name}</span>
       <button
-        className="p-1 text-slate-400 hover:text-indigo-600"
+        className="p-1 text-slate-400 hover:text-[var(--color-primary)]"
         onClick={(e) => { e.stopPropagation(); onEdit() }}
       >
         <Pencil className="h-3.5 w-3.5" />
@@ -125,7 +125,7 @@ function CategoryFormDialog({
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && name.trim() && onSave(name.trim())}
             placeholder="e.g. Getting Started"
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           />
         </div>
         <div className="flex justify-end gap-2">
@@ -194,7 +194,7 @@ function ArticleEditor({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Article title…"
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
           />
           {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
@@ -206,7 +206,7 @@ function ArticleEditor({
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             >
               <option value="">Uncategorized</option>
               {categories.map((c) => (
@@ -219,7 +219,7 @@ function ArticleEditor({
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as KbArticleStatus)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             >
               <option value="draft">Draft</option>
               <option value="published">Published</option>
@@ -301,7 +301,7 @@ function ArticleListTable({
             <tr key={a.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-4 py-3">
                 <button
-                  className="text-left font-medium text-slate-900 hover:text-indigo-600 transition-colors line-clamp-1"
+                  className="text-left font-medium text-slate-900 hover:text-[var(--color-primary)] transition-colors line-clamp-1"
                   onClick={() => onEdit(a)}
                 >
                   {a.title}
@@ -326,14 +326,14 @@ function ArticleListTable({
                 <div className="flex items-center justify-end gap-1">
                   <button
                     title={a.status === 'published' ? 'Unpublish' : 'Publish'}
-                    className="p-1.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                    className="p-1.5 rounded text-slate-400 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
                     onClick={() => onToggleStatus(a)}
                   >
                     {a.status === 'published' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                   <button
                     title="Edit"
-                    className="p-1.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                    className="p-1.5 rounded text-slate-400 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
                     onClick={() => onEdit(a)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -499,7 +499,7 @@ export function KnowledgeBasePage() {
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Categories</span>
             <button
-              className="rounded p-0.5 text-slate-400 hover:text-indigo-600"
+              className="rounded p-0.5 text-slate-400 hover:text-[var(--color-primary)]"
               onClick={() => setShowCategoryForm(true)}
               title="Add category"
             >
@@ -511,7 +511,7 @@ export function KnowledgeBasePage() {
           <div
             className={`flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer text-sm font-medium transition-colors ${
               selectedCategoryId === null
-                ? 'bg-indigo-50 border border-indigo-200 text-indigo-800'
+                ? 'bg-[var(--color-primary-light)] border border-[var(--color-primary-light)] text-[var(--color-primary)]'
                 : 'text-slate-700 hover:bg-slate-50 border border-transparent'
             }`}
             onClick={() => setSelectedCategoryId(null)}
@@ -551,13 +551,13 @@ export function KnowledgeBasePage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search articles…"
-                className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as '' | 'draft' | 'published')}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none"
             >
               <option value="">All statuses</option>
               <option value="published">Published</option>

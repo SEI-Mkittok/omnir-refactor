@@ -30,8 +30,8 @@ export function ContactCard({ contact, onClick }: ContactCardProps) {
     >
       <CardContent className="pt-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-            <User className="h-5 w-5 text-indigo-600" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)]">
+            <User className="h-5 w-5 text-[var(--color-primary)]" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">

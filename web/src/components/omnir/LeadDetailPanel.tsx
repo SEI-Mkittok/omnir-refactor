@@ -83,7 +83,7 @@ function EditableField({ label, value, onSave, placeholder = '—', type = 'text
         {editing ? (
           <div className="mt-1 flex items-center gap-1.5">
             <Input ref={inputRef} type={type} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={handleKeyDown} className="h-7 text-sm" disabled={saving} />
-            <button onClick={commit} disabled={saving} className="flex h-6 w-6 items-center justify-center rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" title="Save">
+            <button onClick={commit} disabled={saving} className="flex h-6 w-6 items-center justify-center rounded bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)] disabled:opacity-50" title="Save">
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
             </button>
             <button onClick={cancel} disabled={saving} className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50" title="Cancel">
