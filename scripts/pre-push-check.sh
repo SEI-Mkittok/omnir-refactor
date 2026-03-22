@@ -7,6 +7,17 @@ export PATH="/home/omnirdev/go/bin:$PATH"
 
 cd "$(git rev-parse --show-toplevel)"
 
+echo "=== Migration version check ==="
+DUPES=$(ls api/migrations/*.sql 2>/dev/null | sed 's/.*\///' | sed 's/_.*//' | sort | uniq -d)
+if [ -n "$DUPES" ]; then
+  echo "❌ DUPLICATE MIGRATION VERSIONS DETECTED:"
+  echo "$DUPES"
+  echo ""
+  echo "Rename the conflicting files before pushing."
+  exit 1
+fi
+echo "→ No duplicate migration versions ✓"
+
 echo "=== Go checks ==="
 cd api
 
