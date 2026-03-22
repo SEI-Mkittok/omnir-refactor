@@ -45,7 +45,7 @@ export function LeadConvertModal({ lead, open, onClose, onConverted }: LeadConve
     if (mode === 'contact_and_deal' && dealTitle.trim()) {
       await createDeal.mutateAsync({
         title: dealTitle.trim(),
-        value: dealValue ? Math.round(parseFloat(dealValue) * 100) : 0,
+        value_cents: dealValue ? Math.round(parseFloat(dealValue) * 100) : 0,
         contact_id: contactId,
       })
     }

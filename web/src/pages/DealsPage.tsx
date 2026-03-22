@@ -109,7 +109,7 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
             {stageLabel[deal.stage]}
           </Badge>
           <span className="text-2xl font-bold text-[#1B3A4B]">
-            {formatCurrency(deal.value, deal.currency)}
+            {formatCurrency(deal.value_cents / 100, deal.currency)}
           </span>
         </div>
 
@@ -338,7 +338,7 @@ export function DealsPage() {
     const activeDeals = all.filter((d) => d.stage !== 'closed_won' && d.stage !== 'closed_lost')
     const wonDeals = all.filter((d) => d.stage === 'closed_won')
     const closedDeals = all.filter((d) => d.stage === 'closed_won' || d.stage === 'closed_lost')
-    const pipelineValue = activeDeals.reduce((s, d) => s + (d.value ?? 0), 0)
+    const pipelineValue = activeDeals.reduce((s, d) => s + ((d.value_cents ?? 0) / 100), 0)
     const winRate = closedDeals.length > 0 ? (wonDeals.length / closedDeals.length) * 100 : 0
     const now = Date.now()
     const avgAge = all.length > 0
@@ -368,7 +368,7 @@ export function DealsPage() {
       sortable: true,
       render: (d) => (
         <span className="font-semibold text-[#1B3A4B]">
-          {formatCurrency(d.value, d.currency)}
+          {formatCurrency(d.value_cents / 100, d.currency)}
         </span>
       ),
     },

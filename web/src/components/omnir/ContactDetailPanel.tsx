@@ -504,9 +504,9 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
                     )}
                   </div>
                   <div className="ml-3 flex shrink-0 items-center gap-2">
-                    {deal.value > 0 && (
+                    {deal.value_cents > 0 && (
                       <span className="font-semibold text-[var(--color-primary)]">
-                        {formatCurrency(deal.value, deal.currency)}
+                        {formatCurrency(deal.value_cents / 100, deal.currency)}
                       </span>
                     )}
                     <Badge variant="default">{deal.stage.replace('_', ' ')}</Badge>

@@ -172,7 +172,7 @@ function DealsList({ accountId }: { accountId: string }) {
                     {d.title}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {formatCurrency(d.value ?? 0)}
+                    {formatCurrency((d.value_cents ?? 0) / 100)}
                   </p>
                 </div>
                 <span

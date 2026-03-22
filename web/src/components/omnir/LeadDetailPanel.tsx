@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import {
-  User,
+  User as UserIcon,
   Mail,
   Pencil,
   Check,
@@ -17,11 +17,12 @@ import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads'
+import { useUsers } from '@/hooks/useUsers'
 import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
 import { LeadScoreBadge } from '@/components/omnir/LeadScoreBadge'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
-import type { LeadStatus, UpdateLeadRequest, CustomFieldValues } from '@/api/types'
+import type { Lead, LeadStatus, UpdateLeadRequest, CustomFieldValues, User } from '@/api/types'
 
 // ── Status badge helpers ─────────────────────────────────────────────────────
 
@@ -186,6 +187,65 @@ function ScoreStepper({ score, onSave }: ScoreStepperProps) {
   )
 }
 
+// ── Owner selector ───────────────────────────────────────────────────────────
+
+function OwnerSelector({ current, onSave }: { current?: User; onSave: (ownerId: string | null) => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const { data: usersResult } = useUsers({ limit: 100 })
+  const users = usersResult?.data ?? []
+
+  const select = async (userId: string | null) => {
+    if (userId === (current?.id ?? null)) { setOpen(false); return }
+    setSaving(true)
+    try { await onSave(userId) } finally { setSaving(false); setOpen(false) }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={saving}
+        className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg px-2 py-1 transition-colors"
+      >
+        {current ? (
+          <>
+            <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">
+              {current.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
+            <span>{current.name}</span>
+          </>
+        ) : (
+          <span className="text-slate-400">Unassigned</span>
+        )}
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" /> : <span className="text-xs text-slate-400">▾</span>}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-10 mt-1 min-w-[180px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          <button
+            onClick={() => select(null)}
+            className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50', !current && 'bg-slate-50 font-semibold')}
+          >
+            <span className="text-slate-400">Unassigned</span>
+          </button>
+          {users.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => select(u.id)}
+              className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50', u.id === current?.id && 'bg-slate-50 font-semibold')}
+            >
+              <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">
+                {u.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+              </div>
+              <span>{u.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main panel ───────────────────────────────────────────────────────────────
 
 interface LeadDetailPanelProps {
@@ -296,7 +356,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
           {/* Details */}
           <div>
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-700">
-              <User className="h-4 w-4" />
+              <UserIcon className="h-4 w-4" />
               Details
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
@@ -328,6 +388,17 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
               <EditableField label="Email" value={lead.email} onSave={(v) => patch({ email: v })} type="email" />
               <EditableField label="Phone" value={lead.phone} onSave={(v) => patch({ phone: v })} placeholder="No phone" type="tel" />
             </div>
+          </div>
+
+          {/* Owner */}
+          <div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Assigned To
+            </h3>
+            <OwnerSelector
+              current={lead.owner}
+              onSave={(ownerId) => patch({ owner_id: ownerId ?? undefined })}
+            />
           </div>
 
           {/* Custom fields */}

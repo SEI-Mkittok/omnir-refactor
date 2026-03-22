@@ -36,7 +36,7 @@ export function DealForm({ onClose }: DealFormProps) {
 
     const payload: CreateDealRequest = {
       title: title.trim(),
-      value: numValue,
+      value_cents: Math.round(numValue * 100),
       stage,
       ...(closeDate ? { close_date: closeDate } : {}),
     }

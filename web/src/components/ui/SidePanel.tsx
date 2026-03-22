@@ -51,7 +51,7 @@ export function SidePanel({
       {/* Panel */}
       <div
         className={cn(
-          'fixed right-0 top-0 z-50 flex h-full flex-col bg-white shadow-xl transition-transform duration-300',
+          'fixed right-0 top-[var(--topbar-height)] z-50 flex h-[calc(100vh-var(--topbar-height))] flex-col bg-white shadow-xl transition-transform duration-300',
           widthClass[width],
           open ? 'translate-x-0' : 'translate-x-full'
         )}

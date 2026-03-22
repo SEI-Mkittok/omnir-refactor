@@ -70,6 +70,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
   const [sendSubject, setSendSubject] = useState(title ? `Quote: ${title}` : 'Your Quote')
   const [sendMessage, setSendMessage] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const { data: productsResult } = useProducts({ active: true, limit: 200 })
   const products = productsResult?.data ?? []
@@ -144,15 +145,20 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
 
   async function handleSave() {
     if (!validate()) return
-    const payload = buildPayload()
-    let saved: Quote
-    if (isEdit && quote) {
-      saved = await updateQuote.mutateAsync({ id: quote.id, payload })
-    } else {
-      saved = await createQuote.mutateAsync(payload as CreateQuoteRequest)
+    setApiError(null)
+    try {
+      const payload = buildPayload()
+      let saved: Quote
+      if (isEdit && quote) {
+        saved = await updateQuote.mutateAsync({ id: quote.id, payload })
+      } else {
+        saved = await createQuote.mutateAsync(payload as CreateQuoteRequest)
+      }
+      onSaved?.(saved)
+      onClose()
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Failed to save quote. Please try again.')
     }
-    onSaved?.(saved)
-    onClose()
   }
 
   async function handleSend() {
@@ -161,22 +167,26 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
       setErrors((prev) => ({ ...prev, sendTo: 'Recipient email required' }))
       return
     }
+    setApiError(null)
+    try {
+      // Save first if new
+      let quoteId = quote?.id
+      if (!quoteId) {
+        const saved = await createQuote.mutateAsync(buildPayload() as CreateQuoteRequest)
+        quoteId = saved.id
+      } else if (isEdit) {
+        await updateQuote.mutateAsync({ id: quoteId, payload: buildPayload() })
+      }
 
-    // Save first if new
-    let quoteId = quote?.id
-    if (!quoteId) {
-      const saved = await createQuote.mutateAsync(buildPayload() as CreateQuoteRequest)
-      quoteId = saved.id
-    } else if (isEdit) {
-      await updateQuote.mutateAsync({ id: quoteId, payload: buildPayload() })
+      await sendQuote.mutateAsync({
+        id: quoteId,
+        payload: { to: sendTo.trim(), subject: sendSubject, message: sendMessage },
+      })
+      setShowSendModal(false)
+      onClose()
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Failed to send quote. Please try again.')
     }
-
-    await sendQuote.mutateAsync({
-      id: quoteId,
-      payload: { to: sendTo.trim(), subject: sendSubject, message: sendMessage },
-    })
-    setShowSendModal(false)
-    onClose()
   }
 
   const isPending = createQuote.isPending || updateQuote.isPending || sendQuote.isPending
@@ -422,6 +432,9 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
         </div>
 
         {/* Footer */}
+        {apiError && (
+          <div className="border-t border-red-200 bg-red-50 px-6 py-2 text-sm text-red-600">{apiError}</div>
+        )}
         <div className="border-t border-slate-200 px-6 py-4 flex justify-between gap-3">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <div className="flex gap-2">

@@ -150,7 +150,7 @@ export function SearchPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-900">{d.title}</p>
                   <p className="text-xs text-slate-500 truncate">
-                    {d.stage.replace('_', ' ')}{d.value ? ` · $${d.value.toLocaleString()}` : ''}
+                    {d.stage.replace('_', ' ')}{d.value_cents ? ` · $${(d.value_cents / 100).toLocaleString()}` : ''}
                   </p>
                 </div>
               </button>
