@@ -37,7 +37,7 @@ export function HelpCenterPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search articles…"
-              className="w-full rounded-xl border-0 bg-white pl-12 pr-4 py-4 text-slate-900 text-base shadow-lg placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-xl border-0 bg-white pl-12 pr-4 py-4 text-slate-900 text-base shadow-lg placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
             />
             <button
               type="submit"
@@ -67,18 +67,18 @@ export function HelpCenterPage() {
                 <Link
                   key={cat.id}
                   to={`/help/${orgSlug}/c/${cat.slug}`}
-                  className="group flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-5 hover:border-indigo-300 hover:shadow-sm transition-all"
+                  className="group flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-5 hover:border-[var(--color-primary)] hover:shadow-sm transition-all"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 group-hover:bg-indigo-100 transition-colors">
-                    <FileText className="h-5 w-5 text-indigo-600" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary-light)] group-hover:bg-[var(--color-primary-light)] transition-colors">
+                    <FileText className="h-5 w-5 text-[var(--color-primary)]" />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">{cat.name}</p>
+                    <p className="font-semibold text-slate-900 group-hover:text-[var(--color-primary)] transition-colors">{cat.name}</p>
                     <p className="text-sm text-slate-500 mt-0.5">
                       {cat.article_count ?? 0} article{cat.article_count !== 1 ? 's' : ''}
                     </p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-400 mt-auto self-end" />
+                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[var(--color-primary)] mt-auto self-end" />
                 </Link>
               ))}
             </div>
@@ -106,11 +106,11 @@ export function HelpCenterPage() {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <FileText className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="text-sm font-medium text-slate-800 group-hover:text-indigo-700 transition-colors truncate">
+                    <span className="text-sm font-medium text-slate-800 group-hover:text-[var(--color-primary)] transition-colors truncate">
                       {article.title}
                     </span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-400 shrink-0 ml-3" />
+                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[var(--color-primary)] shrink-0 ml-3" />
                 </Link>
               ))}
             </div>

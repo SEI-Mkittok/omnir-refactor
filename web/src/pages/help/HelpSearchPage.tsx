@@ -46,7 +46,7 @@ export function HelpSearchPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search articles…"
-            className="w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 py-4 text-slate-900 text-base shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 py-4 text-slate-900 text-base shadow-sm placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
           />
         </form>
 
@@ -71,7 +71,7 @@ export function HelpSearchPage() {
             <p className="text-sm text-slate-500">Try different keywords or browse the categories.</p>
             <Link
               to={`/help/${orgSlug}`}
-              className="inline-block mt-4 text-sm text-indigo-600 hover:underline"
+              className="inline-block mt-4 text-sm text-[var(--color-primary)] hover:underline"
             >
               Browse Help Center
             </Link>
@@ -87,7 +87,7 @@ export function HelpSearchPage() {
                 <div className="flex items-start gap-3 min-w-0">
                   <FileText className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 group-hover:text-indigo-700 transition-colors">
+                    <p className="text-sm font-medium text-slate-800 group-hover:text-[var(--color-primary)] transition-colors">
                       {article.title}
                     </p>
                     {article.excerpt && (
@@ -95,7 +95,7 @@ export function HelpSearchPage() {
                     )}
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-400 shrink-0 ml-auto" />
+                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[var(--color-primary)] shrink-0 ml-auto" />
               </Link>
             ))}
           </div>

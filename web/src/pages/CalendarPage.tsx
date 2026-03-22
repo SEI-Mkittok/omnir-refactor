@@ -36,7 +36,7 @@ const MONTH_NAMES = [
 
 const ACTIVITY_TYPE_COLORS: Record<ActivityType, string> = {
   call: 'bg-blue-100 text-blue-800 border-blue-200',
-  email: 'bg-purple-100 text-purple-800 border-purple-200',
+  email: 'bg-teal-100 text-teal-800 border-teal-200',
   meeting: 'bg-green-100 text-green-800 border-green-200',
   task: 'bg-orange-100 text-orange-800 border-orange-200',
   note: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -125,7 +125,7 @@ function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Type</label>
             <select
-              className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+              className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               value={form.type}
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ActivityType }))}
             >
@@ -158,7 +158,7 @@ function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
               Description <span className="text-slate-400">(optional)</span>
             </label>
             <textarea
-              className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 resize-none"
+              className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)] resize-none"
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -225,8 +225,8 @@ function MonthGrid({ year, month, activityMap, onDayClick }: MonthGridProps) {
             <div
               key={key}
               className={cn(
-                'min-h-[90px] p-1.5 cursor-pointer hover:bg-indigo-50/50 transition-colors',
-                today && 'bg-indigo-50'
+                'min-h-[90px] p-1.5 cursor-pointer hover:bg-[var(--color-primary-light)]/50 transition-colors',
+                today && 'bg-[var(--color-primary-light)]'
               )}
               onClick={() => onDayClick(key)}
             >
@@ -235,7 +235,7 @@ function MonthGrid({ year, month, activityMap, onDayClick }: MonthGridProps) {
                   className={cn(
                     'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
                     today
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-[var(--color-primary)] text-white'
                       : 'text-slate-700'
                   )}
                 >
@@ -288,8 +288,8 @@ function WeekGrid({ weekStart, activityMap, onDayClick }: WeekGridProps) {
             <div
               key={key}
               className={cn(
-                'min-h-[300px] cursor-pointer hover:bg-indigo-50/50 transition-colors',
-                today && 'bg-indigo-50'
+                'min-h-[300px] cursor-pointer hover:bg-[var(--color-primary-light)]/50 transition-colors',
+                today && 'bg-[var(--color-primary-light)]'
               )}
               onClick={() => onDayClick(key)}
             >
@@ -297,7 +297,7 @@ function WeekGrid({ weekStart, activityMap, onDayClick }: WeekGridProps) {
               <div
                 className={cn(
                   'border-b border-slate-200 px-2 py-2 text-center',
-                  today && 'border-indigo-200'
+                  today && 'border-[var(--color-primary-light)]'
                 )}
               >
                 <p className="text-[11px] font-medium text-slate-500 uppercase">
@@ -306,7 +306,7 @@ function WeekGrid({ weekStart, activityMap, onDayClick }: WeekGridProps) {
                 <span
                   className={cn(
                     'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold mt-0.5',
-                    today ? 'bg-indigo-600 text-white' : 'text-slate-800'
+                    today ? 'bg-[var(--color-primary)] text-white' : 'text-slate-800'
                   )}
                 >
                   {date.getDate()}
@@ -615,7 +615,7 @@ export function CalendarPage() {
                   className={cn(
                     'px-3 py-1.5 font-medium transition-colors',
                     viewMode === 'month'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-[var(--color-primary)] text-white'
                       : 'bg-white text-slate-600 hover:bg-slate-50'
                   )}
                 >
@@ -626,7 +626,7 @@ export function CalendarPage() {
                   className={cn(
                     'px-3 py-1.5 font-medium transition-colors border-l border-slate-200',
                     viewMode === 'week'
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-[var(--color-primary)] text-white'
                       : 'bg-white text-slate-600 hover:bg-slate-50'
                   )}
                 >

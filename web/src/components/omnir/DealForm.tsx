@@ -66,7 +66,7 @@ export function DealForm({ onClose }: DealFormProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Acme Corp — Enterprise plan"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             />
             {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
           </div>
@@ -84,7 +84,7 @@ export function DealForm({ onClose }: DealFormProps) {
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="0.00"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
               {errors.value && <p className="text-xs text-red-600">{errors.value}</p>}
             </div>
@@ -97,7 +97,7 @@ export function DealForm({ onClose }: DealFormProps) {
                 id="deal-stage"
                 value={stage}
                 onChange={(e) => setStage(e.target.value as DealStage)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               >
                 {STAGE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -115,7 +115,7 @@ export function DealForm({ onClose }: DealFormProps) {
               type="date"
               value={closeDate}
               onChange={(e) => setCloseDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             />
           </div>
 

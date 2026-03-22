@@ -98,9 +98,9 @@ export function SearchPage() {
               <button
                 key={c.id}
                 onClick={() => navigate(`/contacts?openId=${c.id}`)}
-                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
+                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors group"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 text-xs font-semibold group-hover:bg-indigo-200">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-semibold group-hover:bg-[var(--color-primary-light)]">
                   {c.first_name[0]}{c.last_name[0]}
                 </div>
                 <div className="min-w-0">
@@ -119,7 +119,7 @@ export function SearchPage() {
               <button
                 key={a.id}
                 onClick={() => navigate(`/accounts?openId=${a.id}`)}
-                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
+                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors group"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
                   <Building2 className="h-4 w-4" />
@@ -142,7 +142,7 @@ export function SearchPage() {
               <button
                 key={d.id}
                 onClick={() => navigate(`/deals?openId=${d.id}`)}
-                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
+                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors group"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                   <TrendingUp className="h-4 w-4" />
@@ -165,7 +165,7 @@ export function SearchPage() {
               <button
                 key={t.id}
                 onClick={() => navigate(`/tickets?openId=${t.id}`)}
-                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
+                className="w-full text-left flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors group"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600">
                   <LifeBuoy className="h-4 w-4" />

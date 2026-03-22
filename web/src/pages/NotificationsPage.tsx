@@ -144,11 +144,11 @@ export function NotificationsPage() {
                 key={n.id}
                 onClick={() => handleClick(n)}
                 className={`flex cursor-pointer items-start gap-4 px-5 py-4 transition-colors hover:bg-slate-50 ${
-                  isUnread ? 'bg-indigo-50/40' : ''
+                  isUnread ? 'bg-[var(--color-primary-light)]/40' : ''
                 }`}
               >
                 <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  isUnread ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'
+                  isUnread ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]' : 'bg-slate-100 text-slate-500'
                 }`}>
                   <Icon className="h-4 w-4" />
                 </div>
@@ -167,9 +167,9 @@ export function NotificationsPage() {
                   <p className="mt-1 text-xs text-slate-400">{formatRelativeTime(n.created_at)}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  {isUnread && <span className="h-2 w-2 rounded-full bg-indigo-500" />}
+                  {isUnread && <span className="h-2 w-2 rounded-full bg-[var(--color-primary-light)]0" />}
                   {path && (
-                    <span className="text-xs text-indigo-600 hover:underline">View →</span>
+                    <span className="text-xs text-[var(--color-primary)] hover:underline">View →</span>
                   )}
                 </div>
               </div>
@@ -182,7 +182,7 @@ export function NotificationsPage() {
               <button
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 text-sm text-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 transition-colors"
               >
                 {isFetchingNextPage ? (
                   <>

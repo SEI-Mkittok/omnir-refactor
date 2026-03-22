@@ -151,7 +151,7 @@ function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Applies to priority</label>
             <select
-              className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+              className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               value={form.priority_filter}
               onChange={(e) => setForm((f) => ({ ...f, priority_filter: e.target.value as SLAPriorityFilter }))}
             >

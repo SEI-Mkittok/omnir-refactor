@@ -43,7 +43,7 @@ export function FilterBar({
           key={filter.label}
           value={filter.value}
           onChange={(e) => filter.onChange(e.target.value)}
-          className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
+          className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] text-slate-700"
         >
           <option value="">{filter.label}</option>
           {filter.options.map((opt) => (

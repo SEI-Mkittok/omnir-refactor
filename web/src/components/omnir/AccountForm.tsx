@@ -59,7 +59,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="Acme Corp"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             />
             {nameError && <p className="text-xs text-red-600">{nameError}</p>}
           </div>
@@ -73,7 +73,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
                 id="account-industry"
                 value={form.industry ?? ''}
                 onChange={set('industry')}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               >
                 <option value="">Select…</option>
                 {INDUSTRY_OPTIONS.map((o) => (
@@ -90,7 +90,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
                 id="account-size"
                 value={form.size ?? ''}
                 onChange={set('size')}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               >
                 <option value="">Select…</option>
                 {SIZE_OPTIONS.map((o) => (
@@ -111,7 +111,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
                 value={form.domain ?? ''}
                 onChange={set('domain')}
                 placeholder="acme.com"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
 
@@ -125,7 +125,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
                 value={form.phone ?? ''}
                 onChange={set('phone')}
                 placeholder="+1 555 000 0000"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
           </div>
@@ -140,7 +140,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
               value={form.website ?? ''}
               onChange={set('website')}
               placeholder="https://acme.com"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             />
           </div>
 

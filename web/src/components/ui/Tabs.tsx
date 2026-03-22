@@ -27,7 +27,7 @@ export function TabsTrigger({
       className={cn(
         'inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-500 transition-colors',
         'hover:text-slate-700',
-        'data-[state=active]:border-indigo-500 data-[state=active]:text-indigo-600',
+        'data-[state=active]:border-[var(--border-focus)] data-[state=active]:text-[var(--color-primary)]',
         'disabled:pointer-events-none disabled:opacity-50',
         className
       )}

@@ -64,7 +64,7 @@ export function LeadConvertModal({ lead, open, onClose, onConverted }: LeadConve
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-indigo-600" />
+            <ArrowRightLeft className="h-5 w-5 text-[var(--color-primary)]" />
             Convert Lead to Contact
           </DialogTitle>
           <DialogDescription>
@@ -99,11 +99,11 @@ export function LeadConvertModal({ lead, open, onClose, onConverted }: LeadConve
                 className={cn(
                   'flex flex-col items-start gap-1.5 rounded-lg border-2 p-3 text-left transition-colors',
                   mode === 'contact'
-                    ? 'border-indigo-500 bg-indigo-50'
+                    ? 'border-[var(--border-focus)] bg-[var(--color-primary-light)]'
                     : 'border-slate-200 hover:border-slate-300',
                 )}
               >
-                <UserCheck className={cn('h-4 w-4', mode === 'contact' ? 'text-indigo-600' : 'text-slate-400')} />
+                <UserCheck className={cn('h-4 w-4', mode === 'contact' ? 'text-[var(--color-primary)]' : 'text-slate-400')} />
                 <span className="text-sm font-medium text-slate-900">Contact only</span>
                 <span className="text-xs text-slate-500">Create contact, no deal</span>
               </button>
@@ -113,11 +113,11 @@ export function LeadConvertModal({ lead, open, onClose, onConverted }: LeadConve
                 className={cn(
                   'flex flex-col items-start gap-1.5 rounded-lg border-2 p-3 text-left transition-colors',
                   mode === 'contact_and_deal'
-                    ? 'border-indigo-500 bg-indigo-50'
+                    ? 'border-[var(--border-focus)] bg-[var(--color-primary-light)]'
                     : 'border-slate-200 hover:border-slate-300',
                 )}
               >
-                <TrendingUp className={cn('h-4 w-4', mode === 'contact_and_deal' ? 'text-indigo-600' : 'text-slate-400')} />
+                <TrendingUp className={cn('h-4 w-4', mode === 'contact_and_deal' ? 'text-[var(--color-primary)]' : 'text-slate-400')} />
                 <span className="text-sm font-medium text-slate-900">Contact + Deal</span>
                 <span className="text-xs text-slate-500">Create contact and deal</span>
               </button>

@@ -56,7 +56,7 @@ function EmailItem({ email }: { email: ContactEmail }) {
         <div
           className={cn(
             'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-            isOutbound ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'
+            isOutbound ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]' : 'bg-slate-100 text-slate-500'
           )}
         >
           {isOutbound ? (
@@ -80,7 +80,7 @@ function EmailItem({ email }: { email: ContactEmail }) {
               {expanded ? email.body : preview}
             </p>
             {email.body.length > 140 && (
-              <span className="mt-0.5 flex items-center gap-0.5 text-xs text-indigo-500 hover:text-indigo-700">
+              <span className="mt-0.5 flex items-center gap-0.5 text-xs text-[var(--color-primary)] hover:text-[var(--color-primary)]">
                 {expanded ? (
                   <><ChevronUp className="h-3 w-3" /> Show less</>
                 ) : (

@@ -52,7 +52,7 @@ export function SetupPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 shadow-lg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-primary)] shadow-lg">
             <TrendingUp className="h-7 w-7 text-white" />
           </div>
           <h1 className="mt-4 text-2xl font-bold text-slate-900">Welcome to Omnir</h1>

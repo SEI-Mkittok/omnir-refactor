@@ -41,7 +41,7 @@ function ViewRow({ view, isActive, onSelect, onDelete, onUpdate }: ViewRowProps)
   return (
     <div
       className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${
-        isActive ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-slate-50'
+        isActive ? 'bg-[var(--color-primary-light)] ring-1 ring-[var(--color-primary-light)]' : 'hover:bg-slate-50'
       }`}
     >
       <button

@@ -102,7 +102,7 @@ export function OrgOnboardingPage() {
               Go to dashboard
             </Button>
             <button
-              className="mt-3 w-full text-sm text-indigo-600 hover:underline"
+              className="mt-3 w-full text-sm text-[var(--color-primary)] hover:underline"
               onClick={() => {
                 setStep('form')
                 setCreatedOrg(null)
@@ -121,7 +121,7 @@ export function OrgOnboardingPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 shadow-lg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--color-primary)] shadow-lg">
             <TrendingUp className="h-7 w-7 text-white" />
           </div>
           <h1 className="mt-4 text-2xl font-bold text-slate-900">New organization</h1>
@@ -158,7 +158,7 @@ export function OrgOnboardingPage() {
               <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Slug
               </label>
-              <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 focus-within:bg-white focus-within:ring-1 focus-within:ring-indigo-500">
+              <div className="flex items-center rounded-md border border-slate-200 bg-slate-50 focus-within:bg-white focus-within:ring-1 focus-within:ring-[var(--border-focus)]">
                 <span className="select-none pl-3 text-sm text-slate-400">omnir.io/</span>
                 <input
                   type="text"

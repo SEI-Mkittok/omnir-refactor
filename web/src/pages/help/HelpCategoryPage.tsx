@@ -30,8 +30,8 @@ export function HelpCategoryPage() {
 
       <div className="mx-auto max-w-3xl px-4 py-10 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
-            <BookOpen className="h-5 w-5 text-indigo-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)]">
+            <BookOpen className="h-5 w-5 text-[var(--color-primary)]" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{category?.name ?? categorySlug}</h1>
@@ -61,7 +61,7 @@ export function HelpCategoryPage() {
                 <div className="flex items-start sm:items-center gap-3 min-w-0">
                   <FileText className="h-4 w-4 text-slate-400 shrink-0 mt-0.5 sm:mt-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 group-hover:text-indigo-700 transition-colors">
+                    <p className="text-sm font-medium text-slate-800 group-hover:text-[var(--color-primary)] transition-colors">
                       {article.title}
                     </p>
                     {article.excerpt && (
@@ -69,7 +69,7 @@ export function HelpCategoryPage() {
                     )}
                   </div>
                 </div>
-                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-400 shrink-0 self-end sm:self-center ml-auto" />
+                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-[var(--color-primary)] shrink-0 self-end sm:self-center ml-auto" />
               </Link>
             ))}
           </div>
@@ -78,7 +78,7 @@ export function HelpCategoryPage() {
         <div className="text-center">
           <Link
             to={`/help/${orgSlug}`}
-            className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+            className="text-sm text-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
           >
             ← Back to all categories
           </Link>
