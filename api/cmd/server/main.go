@@ -138,6 +138,21 @@ func main() {
 	teamsHandler := handler.NewTeamsHandler(teamsConnectionRepo)
 	onboardingHandler := handler.NewOnboardingHandler(onboardingRepo, userRepo, mailer, appURL)
 
+	pushSubscriptionRepo := postgres.NewPushSubscriptionRepo(db)
+	pushNotifier := worker.NewPushNotifier(
+		pushSubscriptionRepo,
+		cfg.VAPIDPublicKey,
+		cfg.VAPIDPrivateKey,
+		getEnv("VAPID_SUBJECT", "mailto:support@omnir.io"),
+		logger,
+	)
+	pushHandler := handler.NewPushHandler(pushSubscriptionRepo, cfg.VAPIDPublicKey)
+	if pushNotifier.Enabled() {
+		logger.Info("web push notifications enabled")
+	} else {
+		logger.Info("web push notifications disabled (VAPID keys not set)")
+	}
+
 	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc, cfg.OrgMode)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo)
@@ -145,7 +160,7 @@ func main() {
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
 	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)
-	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier)
+	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
 	activityHandler := handler.NewActivityHandler(activityRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
@@ -179,7 +194,8 @@ func main() {
 
 	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, storageBackend).
 		WithEmailNotifier(emailNotifier, userRepo, contactRepo, logger).
-		WithTeamsNotifier(teamsNotifier)
+		WithTeamsNotifier(teamsNotifier).
+		WithPushNotifier(pushNotifier)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
 	inboundWebhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger).
@@ -326,6 +342,7 @@ func main() {
 		r.Mount("/integrations/teams", teamsHandler.Router())
 		r.Mount("/billing", billingHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())
+		r.Mount("/push", pushHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
 		r.Route("/users/me/2fa", func(r chi.Router) { r.Mount("/", twoFAHandler.Router()) })

@@ -76,6 +76,8 @@ type Config struct {
 	SSOAPICallbackURL   string
 	ClearbitAPIKey      string
 	Stripe              StripeConfig
+	VAPIDPublicKey      string
+	VAPIDPrivateKey     string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -137,6 +139,8 @@ func Load() *Config {
 			ProPriceID:        getEnv("STRIPE_PRO_PRICE_ID", ""),
 			EnterprisePriceID: getEnv("STRIPE_ENTERPRISE_PRICE_ID", ""),
 		},
+		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
+		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
 	}
 }
 
