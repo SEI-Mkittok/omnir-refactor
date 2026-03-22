@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
-  UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, X,
+  UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, X, CreditCard,
   BookOpen, FileText, Mail, Zap, CalendarDays, Rocket,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -64,6 +64,7 @@ const ADMIN_GROUP = {
     { to: '/api-keys', icon: KeyRound, label: 'API Keys' },
     { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
     { to: '/admin/audit', icon: ShieldCheck, label: 'Audit Log' },
+    { to: '/settings/billing', icon: CreditCard, label: 'Billing' },
   ],
 }
 
