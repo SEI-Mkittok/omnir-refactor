@@ -55,3 +55,8 @@ func (m *MockOrgRepository) List(ctx context.Context) ([]*domain.Organization, e
 	}
 	return args.Get(0).([]*domain.Organization), args.Error(1)
 }
+
+func (m *MockOrgRepository) UpdateName(ctx context.Context, orgID uuid.UUID, name string) error {
+	args := m.Called(ctx, orgID, name)
+	return args.Error(0)
+}
