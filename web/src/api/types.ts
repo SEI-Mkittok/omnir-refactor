@@ -197,7 +197,7 @@ export type DealStage =
 export interface Deal {
   id: string
   title: string
-  value: number
+  value_cents: number
   currency?: string
   stage: DealStage
   probability?: number
@@ -219,7 +219,7 @@ export interface Deal {
 
 export interface CreateDealRequest {
   title: string
-  value: number
+  value_cents: number
   currency?: string
   stage?: DealStage
   probability?: number

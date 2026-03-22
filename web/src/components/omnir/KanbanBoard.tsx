@@ -96,7 +96,7 @@ export function KanbanBoard({ deals, onCardClick }: KanbanBoardProps) {
   }
 
   function getTotalValue(stage: DealStage): number {
-    return getDealsByStage(stage).reduce((sum, d) => sum + (d.value ?? 0), 0)
+    return getDealsByStage(stage).reduce((sum, d) => sum + ((d.value_cents ?? 0) / 100), 0)
   }
 
   function handleDragStart(event: DragStartEvent) {

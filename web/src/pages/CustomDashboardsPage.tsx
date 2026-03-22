@@ -353,11 +353,6 @@ function ScheduleModal({ open, onClose, dashboardId, existingSchedule }: Schedul
               <Calendar className="h-4 w-4 text-[#1B3A4B]" />
               <h2 className="text-base font-semibold text-[#1A1D23]">Schedule Delivery</h2>
             </div>
-            <DialogClose asChild>
-              <button className="text-[#6B7280] hover:text-[#1A1D23]">
-                <X className="h-4 w-4" />
-              </button>
-            </DialogClose>
           </div>
 
           <div className="px-5 py-4 space-y-4">
@@ -387,9 +382,6 @@ function ScheduleModal({ open, onClose, dashboardId, existingSchedule }: Schedul
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <p className="mt-1 text-[10px] text-[#6B7280]">
-                Cron: <code className="font-mono">{frequency}</code>
-              </p>
             </div>
 
             {/* Recipients */}
