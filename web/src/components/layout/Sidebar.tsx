@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
-  UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, X, CreditCard,
+  UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
   BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

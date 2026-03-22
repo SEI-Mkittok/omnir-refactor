@@ -44,7 +44,7 @@ export function AppShell() {
         }
       })
       .catch(() => { logout() })
-  }, [setUser, logout])
+  }, [setUser, logout, setOnboardingOpen])
   usePushNotifications()
   useMutationQueue()
 

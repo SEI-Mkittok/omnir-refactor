@@ -34,7 +34,7 @@ import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { EmailTimeline } from '@/components/omnir/EmailTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
-import type { Contact, ContactStage, UpdateContactRequest, CustomFieldValues } from '@/api/types'
+import type { ContactStage, UpdateContactRequest, CustomFieldValues } from '@/api/types'
 
 // ── Editable field ──────────────────────────────────────────────────────────
 
