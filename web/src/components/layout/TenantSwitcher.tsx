@@ -92,7 +92,7 @@ function TenantSwitcherInner({
               <DropdownMenuItem
                 key={org.id}
                 onClick={() => handleSwitch(org.id)}
-                className={isCurrent ? 'bg-indigo-50' : undefined}
+                className={isCurrent ? 'bg-[var(--color-primary-light)]' : undefined}
               >
                 <Building2 className="mr-2 h-4 w-4 shrink-0 text-slate-400" />
                 <div className="flex-1 min-w-0">

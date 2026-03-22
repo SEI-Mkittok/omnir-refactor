@@ -32,7 +32,7 @@ const ACTION_COLORS: Record<AuditAction, string> = {
   created: 'bg-green-100 text-green-700',
   updated: 'bg-blue-100 text-blue-700',
   deleted: 'bg-red-100 text-red-700',
-  converted: 'bg-purple-100 text-purple-700',
+  converted: 'bg-teal-100 text-teal-700',
   login: 'bg-slate-100 text-slate-700',
   export: 'bg-amber-100 text-amber-700',
 }
@@ -185,7 +185,7 @@ export function AuditLogPage() {
             type="date"
             value={from}
             onChange={(e) => setParam('from', e.target.value ? `${e.target.value}T00:00:00Z` : '')}
-            className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
+            className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] text-slate-700"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ export function AuditLogPage() {
             type="date"
             value={to ? to.slice(0, 10) : ''}
             onChange={(e) => setParam('to', e.target.value ? `${e.target.value}T23:59:59Z` : '')}
-            className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700"
+            className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] text-slate-700"
           />
         </div>
       </div>

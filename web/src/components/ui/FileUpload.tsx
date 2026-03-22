@@ -90,7 +90,7 @@ export function FileUpload({
         className={cn(
           'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors',
           isDragging
-            ? 'border-indigo-400 bg-indigo-50'
+            ? 'border-[var(--border-focus)] bg-[var(--color-primary-light)]'
             : 'border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100',
           disabled && 'cursor-not-allowed opacity-50'
         )}
@@ -98,7 +98,7 @@ export function FileUpload({
         <Upload className="h-6 w-6 text-slate-400" />
         <div>
           <p className="text-sm font-medium text-slate-700">
-            Drop files here or <span className="text-indigo-600">browse</span>
+            Drop files here or <span className="text-[var(--color-primary)]">browse</span>
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
             {accept ? accept.replace(/,/g, ', ') : 'Any file type'} · max {maxSizeMb} MB

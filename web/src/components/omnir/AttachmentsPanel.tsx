@@ -23,7 +23,7 @@ function formatBytes(bytes?: number): string {
 }
 
 function AttachmentIcon({ contentType }: { contentType: string }) {
-  if (contentType.startsWith('image/')) return <Image className="h-4 w-4 text-indigo-500" />
+  if (contentType.startsWith('image/')) return <Image className="h-4 w-4 text-[var(--color-primary)]" />
   if (contentType === 'application/pdf') return <FileText className="h-4 w-4 text-red-500" />
   return <FileIcon className="h-4 w-4 text-slate-400" />
 }
@@ -174,14 +174,14 @@ export function AttachmentsPanel({ entityType, entityId }: AttachmentsPanelProps
       {uploadingIds.size > 0 && (
         <ul className="space-y-1">
           {Array.from(uploadingIds).map((id) => (
-            <li key={id} className="rounded-md border border-indigo-100 bg-indigo-50 px-3 py-2">
-              <div className="flex items-center justify-between text-xs text-indigo-700">
+            <li key={id} className="rounded-md border border-[var(--color-primary-light)] bg-[var(--color-primary-light)] px-3 py-2">
+              <div className="flex items-center justify-between text-xs text-[var(--color-primary)]">
                 <span>Uploading…</span>
                 <span>{uploadProgress[id] ?? 0}%</span>
               </div>
-              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-indigo-200">
+              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-primary-light)]">
                 <div
-                  className="h-full bg-indigo-500 transition-all"
+                  className="h-full bg-[var(--color-primary-light)]0 transition-all"
                   style={{ width: `${uploadProgress[id] ?? 0}%` }}
                 />
               </div>

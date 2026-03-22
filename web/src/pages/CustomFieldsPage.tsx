@@ -54,7 +54,7 @@ const fieldTypeBadge: Record<CustomFieldType, 'default' | 'blue' | 'green' | 'ye
 }
 
 const selectClass =
-  'flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500'
+  'flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]'
 
 // ── Options editor (for select / multiselect) ─────────────────────────────────
 
@@ -202,7 +202,7 @@ function CreateFieldDialog({ entityType, open, onClose }: CreateFieldDialogProps
               id="cf-required"
               checked={form.required ?? false}
               onChange={(e) => setForm((f) => ({ ...f, required: e.target.checked }))}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-slate-300 text-[#1B3A4B] focus:ring-[var(--border-focus)]"
             />
             <label htmlFor="cf-required" className="text-sm text-slate-700">Required</label>
           </div>
@@ -301,7 +301,7 @@ function EditFieldDialog({ field, onClose }: EditFieldDialogProps) {
               id="cf-edit-required"
               checked={form.required ?? false}
               onChange={(e) => setForm((f) => ({ ...f, required: e.target.checked }))}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-slate-300 text-[#1B3A4B] focus:ring-[var(--border-focus)]"
             />
             <label htmlFor="cf-edit-required" className="text-sm text-slate-700">Required</label>
           </div>
@@ -359,7 +359,7 @@ export function CustomFieldsPage() {
             onClick={() => setActiveTab(tab.value)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.value
-                ? 'border-indigo-600 text-indigo-600'
+                ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >

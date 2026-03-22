@@ -197,7 +197,7 @@ export function TicketList({
               <tr>
                 <td colSpan={columns.length} className="py-12 text-center">
                   <div className="flex justify-center">
-                    <Spinner className="h-6 w-6 text-indigo-600" />
+                    <Spinner className="h-6 w-6 text-[var(--color-primary)]" />
                   </div>
                 </td>
               </tr>

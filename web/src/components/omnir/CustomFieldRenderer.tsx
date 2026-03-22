@@ -13,7 +13,7 @@ interface CustomFieldInputProps {
 
 function CustomFieldInput({ field, value, onChange }: CustomFieldInputProps) {
   const inputClass =
-    'flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500'
+    'flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]'
 
   switch (field.field_type) {
     case 'text':
@@ -56,7 +56,7 @@ function CustomFieldInput({ field, value, onChange }: CustomFieldInputProps) {
             id={`cf-${field.id}`}
             checked={!!(value as boolean)}
             onChange={(e) => onChange(field.id, e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            className="h-4 w-4 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--border-focus)]"
           />
           <label htmlFor={`cf-${field.id}`} className="text-sm text-slate-700">
             {field.label}
@@ -91,7 +91,7 @@ function CustomFieldInput({ field, value, onChange }: CustomFieldInputProps) {
                 key={opt}
                 className={`flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border transition-colors ${
                   checked
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                    ? 'bg-[var(--color-primary-light)] border-[var(--border-focus)] text-[var(--color-primary)]'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                 }`}
               >
@@ -266,7 +266,7 @@ export function CustomFieldEditableSection({
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Custom Fields</p>
         <button
           onClick={handleEdit}
-          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+          className="text-xs text-[var(--color-primary)] hover:text-[var(--color-primary)] font-medium"
         >
           Edit
         </button>

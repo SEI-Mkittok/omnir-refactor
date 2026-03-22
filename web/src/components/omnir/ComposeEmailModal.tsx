@@ -94,7 +94,7 @@ export function ComposeEmailModal({
               placeholder="Write your message…"
               rows={6}
               required
-              className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+              className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
             />
           </div>
           <DialogFooter>

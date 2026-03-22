@@ -30,7 +30,7 @@ function InitialsAvatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md
   return (
     <div
       className={cn(
-        'flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-semibold shrink-0',
+        'flex items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)] font-semibold shrink-0',
         size === 'sm' ? 'h-6 w-6 text-xs' : 'h-8 w-8 text-sm'
       )}
     >
@@ -178,7 +178,7 @@ function ContactSearch({ onSelect, onCancel }: ContactSearchProps) {
             <div className="border-t border-slate-100 px-3 py-2">
               <Link
                 to={`/contacts?search=${encodeURIComponent(query)}`}
-                className="text-xs text-indigo-600 hover:underline"
+                className="text-xs text-[var(--color-primary)] hover:underline"
                 onMouseDown={(e) => e.preventDefault()}
               >
                 See all in Contacts →

@@ -102,7 +102,7 @@ function WebhookFormDialog({ open, webhook, onClose }: WebhookFormDialogProps) {
                     type="checkbox"
                     checked={events.includes(e)}
                     onChange={() => toggleEvent(e)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--border-focus)]"
                   />
                   {e}
                 </label>

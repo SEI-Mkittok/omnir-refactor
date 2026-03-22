@@ -59,7 +59,7 @@ export function HelpArticlePage() {
         ) : !article ? (
           <div className="text-center py-16">
             <p className="text-slate-500">Article not found.</p>
-            <Link to={`/help/${orgSlug}`} className="text-sm text-indigo-600 hover:underline mt-4 block">
+            <Link to={`/help/${orgSlug}`} className="text-sm text-[var(--color-primary)] hover:underline mt-4 block">
               Back to Help Center
             </Link>
           </div>
@@ -69,7 +69,7 @@ export function HelpArticlePage() {
             {category && (
               <Link
                 to={`/help/${orgSlug}/c/${category.slug}`}
-                className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600 hover:bg-indigo-100 transition-colors mb-4"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary-light)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition-colors mb-4"
               >
                 {category.name}
               </Link>
@@ -89,7 +89,7 @@ export function HelpArticlePage() {
             </div>
 
             {/* Rendered markdown */}
-            <div className="prose prose-slate max-w-none prose-headings:font-bold prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-slate-900 prose-pre:text-slate-100">
+            <div className="prose prose-slate max-w-none prose-headings:font-bold prose-a:text-[var(--color-primary)] prose-a:no-underline hover:prose-a:underline prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-slate-900 prose-pre:text-slate-100">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {article.body}
               </ReactMarkdown>
@@ -114,14 +114,14 @@ export function HelpArticlePage() {
           {category ? (
             <Link
               to={`/help/${orgSlug}/c/${category.slug}`}
-              className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="text-sm text-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
             >
               ← Back to {category.name}
             </Link>
           ) : (
             <Link
               to={`/help/${orgSlug}`}
-              className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="text-sm text-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
             >
               ← Back to Help Center
             </Link>

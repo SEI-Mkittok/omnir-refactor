@@ -36,8 +36,8 @@ export function StepIndicator({ steps, currentStep, className }: StepIndicatorPr
               <div
                 className={cn(
                   'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors',
-                  isComplete && 'border-indigo-600 bg-indigo-600 text-white',
-                  isCurrent && 'border-indigo-600 bg-white text-indigo-600',
+                  isComplete && 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white',
+                  isCurrent && 'border-[var(--color-primary)] bg-white text-[var(--color-primary)]',
                   !isComplete && !isCurrent && 'border-slate-200 bg-white text-slate-400',
                 )}
               >
@@ -52,7 +52,7 @@ export function StepIndicator({ steps, currentStep, className }: StepIndicatorPr
               <span
                 className={cn(
                   'mt-1.5 text-xs font-medium whitespace-nowrap',
-                  isCurrent && 'text-indigo-600',
+                  isCurrent && 'text-[var(--color-primary)]',
                   !isCurrent && 'text-slate-500',
                 )}
               >
@@ -65,7 +65,7 @@ export function StepIndicator({ steps, currentStep, className }: StepIndicatorPr
               <div
                 className={cn(
                   'mx-2 mb-5 h-0.5 flex-1 transition-colors',
-                  isComplete ? 'bg-indigo-600' : 'bg-slate-200',
+                  isComplete ? 'bg-[var(--color-primary)]' : 'bg-slate-200',
                 )}
                 aria-hidden="true"
               />

@@ -106,7 +106,7 @@ function EditableField({
             <button
               onClick={commit}
               disabled={saving}
-              className="flex h-6 w-6 items-center justify-center rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="flex h-6 w-6 items-center justify-center rounded bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)] disabled:opacity-50"
               title="Save"
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
@@ -281,7 +281,7 @@ function NotesSection({ contactId }: { contactId: string }) {
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Add a note…"
           rows={2}
-          className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+          className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(e as unknown as React.FormEvent)
           }}
@@ -380,7 +380,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
 
         {/* Avatar + stage */}
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 text-xl font-bold">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xl font-bold">
             {contact.first_name[0]}{contact.last_name[0]}
           </div>
           <div className="min-w-0">
@@ -457,8 +457,8 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
           </h3>
           {contact.account ? (
             <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100">
-                <Building2 className="h-4 w-4 text-indigo-600" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)]">
+                <Building2 className="h-4 w-4 text-[var(--color-primary)]" />
               </div>
               <div className="min-w-0">
                 <p className="font-medium text-slate-900 truncate">{contact.account.name}</p>
@@ -470,7 +470,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
                     href={`https://${contact.account.domain}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-indigo-600 hover:underline"
+                    className="text-xs text-[var(--color-primary)] hover:underline"
                   >
                     {contact.account.domain}
                   </a>
@@ -505,7 +505,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
                   </div>
                   <div className="ml-3 flex shrink-0 items-center gap-2">
                     {deal.value > 0 && (
-                      <span className="font-semibold text-indigo-600">
+                      <span className="font-semibold text-[var(--color-primary)]">
                         {formatCurrency(deal.value, deal.currency)}
                       </span>
                     )}

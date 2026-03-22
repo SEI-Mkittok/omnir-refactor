@@ -46,7 +46,7 @@ function QuoteDetail({ quote, onClose }: { quote: Quote; onClose: () => void }) 
         <div className="space-y-5">
           <div className="flex items-center gap-3">
             <QuoteStatusBadge status={quote.status} />
-            <span className="text-2xl font-bold text-indigo-600">
+            <span className="text-2xl font-bold text-[var(--color-primary)]">
               {formatCurrency(quote.total_cents / 100, quote.currency)}
             </span>
           </div>
@@ -172,7 +172,7 @@ export function QuotesPage() {
       key: 'total_cents',
       header: 'Total',
       render: (q) => (
-        <span className="font-semibold text-indigo-600">
+        <span className="font-semibold text-[var(--color-primary)]">
           {formatCurrency(q.total_cents / 100, q.currency)}
         </span>
       ),
@@ -209,12 +209,12 @@ export function QuotesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search quotes…"
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-56 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-56 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as QuoteStatus | '')}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         >
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>

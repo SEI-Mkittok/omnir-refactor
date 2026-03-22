@@ -121,7 +121,7 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Role</label>
             <select
-              className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+              className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
             >
@@ -212,7 +212,7 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">Role</label>
               <select
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
                 value={form.role ?? 'user'}
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
               >

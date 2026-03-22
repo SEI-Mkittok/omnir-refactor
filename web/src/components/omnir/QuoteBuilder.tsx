@@ -209,7 +209,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Q-2026-001 — Acme Corp"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
               {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
             </div>
@@ -219,7 +219,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               >
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -235,7 +235,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 type="date"
                 value={validUntil}
                 onChange={(e) => setValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
 
@@ -246,7 +246,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
                 placeholder="Payment terms, delivery details…"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
           </div>
@@ -283,7 +283,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                       onChange={(e) => updateLine(li._key, { product_name: e.target.value, product_id: undefined })}
                       onFocus={() => setShowProductPicker(li._key)}
                       placeholder="Product or description"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                     />
                     {errors[`line_${idx}_name`] && (
                       <p className="text-xs text-red-600">{errors[`line_${idx}_name`]}</p>
@@ -330,7 +330,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                       min={0.001}
                       step="0.001"
                       onChange={(e) => updateLine(li._key, { quantity: parseFloat(e.target.value) || 1 })}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                     />
                   </div>
 
@@ -342,7 +342,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                       min={0}
                       step="0.01"
                       onChange={(e) => updateLine(li._key, { unit_price_cents: amountToCents(e.target.value) })}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                     />
                   </div>
 
@@ -355,7 +355,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                       max={100}
                       step="0.1"
                       onChange={(e) => updateLine(li._key, { discount_pct: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
                     />
                   </div>
 
@@ -464,7 +464,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 value={sendTo}
                 onChange={(e) => setSendTo(e.target.value)}
                 placeholder="contact@example.com"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
               {errors.sendTo && <p className="text-xs text-red-600">{errors.sendTo}</p>}
             </div>
@@ -475,7 +475,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 type="text"
                 value={sendSubject}
                 onChange={(e) => setSendSubject(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
 
@@ -486,7 +486,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 onChange={(e) => setSendMessage(e.target.value)}
                 rows={3}
                 placeholder="Optional message to the recipient…"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
             </div>
 
