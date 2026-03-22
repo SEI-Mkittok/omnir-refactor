@@ -415,3 +415,13 @@ type TeamsConnectionRepository interface {
 	// Delete removes the Teams connection for an org.
 	Delete(ctx context.Context, orgID uuid.UUID) error
 }
+
+// PushSubscriptionRepository manages Web Push subscriptions for users.
+type PushSubscriptionRepository interface {
+	// Upsert stores a push subscription for a user, keyed on (user_id, endpoint).
+	Upsert(ctx context.Context, s *domain.PushSubscription) (*domain.PushSubscription, error)
+	// DeleteByEndpoint removes the subscription with the given endpoint for a user.
+	DeleteByEndpoint(ctx context.Context, userID uuid.UUID, endpoint string) error
+	// ListByUser returns all active push subscriptions for a user within an org.
+	ListByUser(ctx context.Context, userID, orgID uuid.UUID) ([]*domain.PushSubscription, error)
+}

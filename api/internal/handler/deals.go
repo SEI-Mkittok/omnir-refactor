@@ -26,6 +26,7 @@ type DealHandler struct {
 	slaInstances  repository.SLAInstanceRepository
 	slaPolicies   repository.SLAPolicyRepository
 	teamsNotifier *worker.TeamsNotifier
+	pushNotifier  *worker.PushNotifier
 }
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
@@ -60,6 +61,11 @@ func (h *DealHandler) WithSLA(policies repository.SLAPolicyRepository, instances
 
 func (h *DealHandler) WithTeamsNotifier(n *worker.TeamsNotifier) *DealHandler {
 	h.teamsNotifier = n
+	return h
+}
+
+func (h *DealHandler) WithPushNotifier(n *worker.PushNotifier) *DealHandler {
+	h.pushNotifier = n
 	return h
 }
 
@@ -261,6 +267,9 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.emitAutomation(r, domain.TriggerDealStageChanged, d.ID, dealToData(d))
 		if h.teamsNotifier != nil {
 			h.teamsNotifier.NotifyDealStageChanged(d.OrgID, d.ID, d.Title, string(d.Stage))
+		}
+		if h.pushNotifier != nil && h.pushNotifier.Enabled() {
+			h.pushNotifier.NotifyDealStageChanged(d.OrgID, d.OwnerID, d.ID, d.Title, string(d.Stage))
 		}
 	}
 	writeJSON(w, http.StatusOK, d)

@@ -67,6 +67,8 @@ type Config struct {
 	SSOCallbackURL    string
 	SSOAPICallbackURL string
 	ClearbitAPIKey    string
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -122,6 +124,8 @@ func Load() *Config {
 		SSOCallbackURL:    getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
 		SSOAPICallbackURL: getEnv("SSO_API_CALLBACK_URL", "http://localhost:8080/api/auth/sso/callback"),
 		ClearbitAPIKey:    getEnv("CLEARBIT_API_KEY", ""),
+		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
+		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
 	}
 }
 

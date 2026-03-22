@@ -34,6 +34,9 @@ type TicketHandler struct {
 
 	// optional — set via WithTeamsNotifier
 	teamsNotifier *worker.TeamsNotifier
+
+	// optional — set via WithPushNotifier
+	pushNotifier *worker.PushNotifier
 }
 
 func NewTicketHandler(
@@ -58,6 +61,12 @@ func (h *TicketHandler) WithEmailNotifier(n *worker.EmailNotifier, users reposit
 // WithTeamsNotifier wires Teams Incoming Webhook notifications into the ticket handler.
 func (h *TicketHandler) WithTeamsNotifier(n *worker.TeamsNotifier) *TicketHandler {
 	h.teamsNotifier = n
+	return h
+}
+
+// WithPushNotifier wires Web Push notifications into the ticket handler.
+func (h *TicketHandler) WithPushNotifier(n *worker.PushNotifier) *TicketHandler {
+	h.pushNotifier = n
 	return h
 }
 
@@ -224,6 +233,9 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 			h.teamsNotifier.NotifyTicketStatusChanged(t.OrgID, t.ID, t.Subject, string(*patch.Status))
 		}
 	}
+	if h.pushNotifier != nil && h.pushNotifier.Enabled() && patch.AssigneeID != nil && t.AssigneeID != nil {
+		h.pushNotifier.NotifyTicketAssigned(t.OrgID, *t.AssigneeID, t.ID, t.Subject)
+	}
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -308,12 +320,16 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	commenterRole := ""
+	if claims, ok := middleware.ClaimsFromContext(r); ok {
+		commenterRole = claims.Role
+	}
 	if h.emailNotifier != nil && !created.IsInternal {
-		commenterRole := ""
-		if claims, ok := middleware.ClaimsFromContext(r); ok {
-			commenterRole = claims.Role
-		}
 		go h.notifyOnComment(ticketID, created.Body, commenterRole)
+	}
+	if h.pushNotifier != nil && h.pushNotifier.Enabled() && !created.IsInternal &&
+		commenterRole != string(domain.UserRoleClient) {
+		go h.pushOnAgentComment(ticketID, created.Body)
 	}
 	writeJSON(w, http.StatusCreated, created)
 }
@@ -596,4 +612,15 @@ func (h *TicketHandler) notifyOnComment(ticketID uuid.UUID, body, commenterRole 
 			CommentBody:   body,
 		})
 	}
+}
+
+// pushOnAgentComment sends a Web Push to the ticket assignee when an agent/admin comments.
+// Called in a goroutine — must not use the HTTP request context.
+func (h *TicketHandler) pushOnAgentComment(ticketID uuid.UUID, _ string) {
+	ctx := context.Background()
+	detail, err := h.tickets.GetDetailByID(ctx, ticketID)
+	if err != nil || detail.AssigneeID == nil {
+		return
+	}
+	h.pushNotifier.NotifyTicketCommented(detail.OrgID, *detail.AssigneeID, detail.ID, detail.Subject)
 }
