@@ -85,6 +85,8 @@ func main() {
 	quoteRepo := postgres.NewQuoteRepo(db)
 	automationRepo := postgres.NewAutomationRepo(db)
 	calendarConnectionRepo := postgres.NewCalendarConnectionRepo(db)
+	emailConnectionRepo := postgres.NewEmailConnectionRepo(db)
+	emailInboxRepo := postgres.NewEmailInboxRepo(db)
 	ssoConfigRepo := postgres.NewSSOConfigRepo(db)
 	totpRepo := postgres.NewTOTPRepo(db)
 	enrichmentCacheRepo := postgres.NewEnrichmentCacheRepo(db)
@@ -127,6 +129,15 @@ func main() {
 		cfg.Calendar.MicrosoftClientID, cfg.Calendar.MicrosoftClientSecret, cfg.Calendar.MicrosoftTenantID,
 	)
 	calendarSyncWorker.Start(workerCtx)
+
+	emailInboxSyncWorker := worker.NewEmailInboxSyncWorker(
+		emailConnectionRepo, emailInboxRepo, contactRepo,
+		5*time.Minute, logger,
+		cfg.EmailInbox.EncryptionKey,
+		cfg.EmailInbox.GoogleClientID, cfg.EmailInbox.GoogleClientSecret,
+		cfg.EmailInbox.MicrosoftClientID, cfg.EmailInbox.MicrosoftClientSecret, cfg.EmailInbox.MicrosoftTenantID,
+	)
+	emailInboxSyncWorker.Start(workerCtx)
 
 	if cfg.SMTP.Enabled {
 		logger.Info("email notifications enabled", "smtp_host", cfg.SMTP.Host)
@@ -231,6 +242,7 @@ func main() {
 	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
 	automationHandler := handler.NewAutomationHandler(automationRepo)
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
+	emailInboxHandler := handler.NewEmailInboxHandler(emailConnectionRepo, emailInboxRepo, cfg.EmailInbox)
 	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL).
 		WithAPICallbackURL(cfg.SSOAPICallbackURL)
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
@@ -273,6 +285,12 @@ func main() {
 	r.Mount("/api/auth/sso", ssoHandler.ApiRouter())
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
+	// Email inbox OAuth — requires auth (browser session cookie sent on redirect callback).
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
+		r.Use(middleware.OrgScope(cfg.OrgMode))
+		r.Mount("/api/integrations/email", emailInboxHandler.OAuthRouter())
+	})
 	// Public deal portal — token IS the credential, no JWT required.
 	r.Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
 	r.Mount("/api/portal/help", kbHandler.PublicRouter())
@@ -340,6 +358,7 @@ func main() {
 		r.Mount("/kb", kbHandler.Router())
 		r.Mount("/calendar", calendarHandler.Router())
 		r.Mount("/integrations/teams", teamsHandler.Router())
+		r.Mount("/integrations/email/inbox", emailInboxHandler.InboxRouter())
 		r.Mount("/billing", billingHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())
 		r.Mount("/push", pushHandler.Router())
