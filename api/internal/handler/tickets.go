@@ -31,6 +31,9 @@ type TicketHandler struct {
 	users         repository.UserRepository
 	contacts      repository.ContactRepository
 	logger        *slog.Logger
+
+	// optional — set via WithTeamsNotifier
+	teamsNotifier *worker.TeamsNotifier
 }
 
 func NewTicketHandler(
@@ -49,6 +52,12 @@ func (h *TicketHandler) WithEmailNotifier(n *worker.EmailNotifier, users reposit
 	h.users = users
 	h.contacts = contacts
 	h.logger = logger
+	return h
+}
+
+// WithTeamsNotifier wires Teams Incoming Webhook notifications into the ticket handler.
+func (h *TicketHandler) WithTeamsNotifier(n *worker.TeamsNotifier) *TicketHandler {
+	h.teamsNotifier = n
 	return h
 }
 
@@ -206,6 +215,14 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if h.emailNotifier != nil {
 		go h.notifyOnUpdate(t, patch)
+	}
+	if h.teamsNotifier != nil {
+		if patch.AssigneeID != nil {
+			h.teamsNotifier.NotifyTicketAssigned(t.OrgID, t.ID, t.Subject)
+		}
+		if patch.Status != nil && (*patch.Status == domain.TicketStatusResolved || *patch.Status == domain.TicketStatusClosed) {
+			h.teamsNotifier.NotifyTicketStatusChanged(t.OrgID, t.ID, t.Subject, string(*patch.Status))
+		}
 	}
 	writeJSON(w, http.StatusOK, t)
 }
