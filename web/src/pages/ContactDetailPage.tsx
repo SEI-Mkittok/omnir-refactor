@@ -12,8 +12,11 @@ import {
   ClipboardList,
   Trash2,
   Activity as ActivityIcon,
+  Sparkles,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react'
-import { useContact, useDeleteContact, useUpdateContact, useContactNotes, useAddContactNote } from '@/hooks/useContacts'
+import { useContact, useDeleteContact, useUpdateContact, useContactNotes, useAddContactNote, useEnrichContact } from '@/hooks/useContacts'
 import { useContactActivities } from '@/hooks/useActivities'
 import {
   Dialog,
@@ -25,7 +28,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatDate, formatRelativeTime, formatCurrency, getInitials } from '@/lib/utils'
-import type { Activity, ActivityType, Contact, Deal } from '@/api/types'
+import type { Activity, ActivityType, Contact, Deal, EnrichmentResult } from '@/api/types'
 // Note: 'Activity' from lucide-react aliased to ActivityIcon above to avoid collision
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -434,6 +437,155 @@ function PrivateNotesPanel({ contactId, contactName }: { contactId: string; cont
   )
 }
 
+// ── Enrichment Panel ──────────────────────────────────────────────────────────
+
+type EnrichStatus = 'idle' | 'enriched' | 'failed'
+
+function EnrichmentStatusBadge({ status }: { status: EnrichStatus }) {
+  if (status === 'idle') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style={{ background: '#F1F5F9', color: 'var(--text-label)' }}
+      >
+        Not enriched
+      </span>
+    )
+  }
+  if (status === 'enriched') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style={{ background: '#F0FDF4', color: '#16A34A' }}
+      >
+        <Sparkles className="h-3 w-3" />
+        Enriched
+      </span>
+    )
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      style={{ background: '#FEF2F2', color: 'var(--color-danger)' }}
+    >
+      Failed
+    </span>
+  )
+}
+
+function EnrichmentPanel({ contactId }: { contactId: string }) {
+  const enrichContact = useEnrichContact()
+  const [status, setStatus] = useState<EnrichStatus>('idle')
+  const [result, setResult] = useState<EnrichmentResult | null>(null)
+
+  const handleEnrich = async () => {
+    try {
+      const data = await enrichContact.mutateAsync(contactId)
+      setResult(data)
+      setStatus('enriched')
+    } catch {
+      setStatus('failed')
+    }
+  }
+
+  return (
+    <section
+      className="rounded-xl border p-4 mt-4"
+      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+      aria-labelledby="enrichment-heading"
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2">
+          <p
+            id="enrichment-heading"
+            className="text-[11px] font-semibold uppercase tracking-widest"
+            style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
+          >
+            Enrichment
+          </p>
+          <EnrichmentStatusBadge status={status} />
+        </div>
+        <button
+          type="button"
+          onClick={handleEnrich}
+          disabled={enrichContact.isPending}
+          className="flex items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors"
+          style={{
+            height: 28,
+            border: '1px solid var(--border-default)',
+            background: 'var(--surface-card)',
+            color: 'var(--text-primary)',
+            cursor: enrichContact.isPending ? 'default' : 'pointer',
+            opacity: enrichContact.isPending ? 0.7 : 1,
+          }}
+          aria-label={status === 'enriched' ? 'Re-enrich contact' : 'Enrich contact'}
+        >
+          {enrichContact.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : status === 'enriched' ? (
+            <RefreshCw className="h-3 w-3" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          {status === 'enriched' ? 'Re-enrich' : 'Enrich contact'}
+        </button>
+      </div>
+
+      {status === 'failed' && (
+        <p className="text-xs" style={{ color: 'var(--color-danger)' }}>
+          Enrichment failed — no data found for this email domain.
+        </p>
+      )}
+
+      {status === 'enriched' && result?.data && (
+        <dl className="space-y-1.5">
+          {result.data.company_name && (
+            <div className="flex gap-2">
+              <dt className="text-xs w-20 shrink-0" style={{ color: 'var(--text-label)' }}>Company</dt>
+              <dd className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{result.data.company_name}</dd>
+            </div>
+          )}
+          {result.data.industry && (
+            <div className="flex gap-2">
+              <dt className="text-xs w-20 shrink-0" style={{ color: 'var(--text-label)' }}>Industry</dt>
+              <dd className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{result.data.industry}</dd>
+            </div>
+          )}
+          {result.data.size && (
+            <div className="flex gap-2">
+              <dt className="text-xs w-20 shrink-0" style={{ color: 'var(--text-label)' }}>Size</dt>
+              <dd className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{result.data.size}</dd>
+            </div>
+          )}
+          {result.data.linkedin_url && (
+            <div className="flex gap-2">
+              <dt className="text-xs w-20 shrink-0" style={{ color: 'var(--text-label)' }}>LinkedIn</dt>
+              <dd className="text-xs">
+                <a
+                  href={result.data.linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 hover:underline"
+                  style={{ color: 'var(--color-primary)' }}
+                >
+                  View profile
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
+
+      {status === 'idle' && (
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+          Click Enrich to auto-populate company data from this contact's email domain.
+        </p>
+      )}
+    </section>
+  )
+}
+
 // ── Edit Contact Modal ────────────────────────────────────────────────────────
 
 function EditContactModal({
@@ -732,10 +884,11 @@ export function ContactDetailPage() {
 
       {/* Body — 2-col on desktop, stack on mobile */}
       <div className="flex flex-col md:flex-row gap-5">
-        {/* Right column on mobile (opportunities + notes) */}
+        {/* Right column on mobile (opportunities + notes + enrichment) */}
         <div className="md:hidden flex flex-col gap-4">
           <OpportunitiesPanel deals={contact.deals ?? []} />
           <PrivateNotesPanel contactId={id!} contactName={fullName} />
+          <EnrichmentPanel contactId={id!} />
         </div>
 
         {/* Left — Timeline */}
@@ -747,6 +900,7 @@ export function ContactDetailPage() {
         <div className="hidden md:block w-[320px] shrink-0">
           <OpportunitiesPanel deals={contact.deals ?? []} />
           <PrivateNotesPanel contactId={id!} contactName={fullName} />
+          <EnrichmentPanel contactId={id!} />
         </div>
       </div>
 
