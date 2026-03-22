@@ -26,6 +26,7 @@ import { TicketsPage } from '@/pages/TicketsPage'
 import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
+import { OnboardingSettingsPage } from '@/pages/settings/OnboardingSettingsPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -158,6 +159,7 @@ function AppRoutes() {
             </AdminRoute>
           }
         />
+        <Route path="/settings/onboarding" element={<OnboardingSettingsPage />} />
         <Route
           path="/admin/audit"
           element={

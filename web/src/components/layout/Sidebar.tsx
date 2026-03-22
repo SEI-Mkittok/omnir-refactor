@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, X,
-  BookOpen, FileText, Mail, Zap, CalendarDays,
+  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -177,6 +177,7 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
 
         {/* Footer utilities */}
         <div className="shrink-0 border-t border-[#F0F1F3] px-2 py-2 space-y-0.5">
+          <NavItem to="/settings/onboarding" icon={Rocket} label="Getting Started" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
           <button
             onClick={async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {}); useAuthStore.getState().logout(); navigate('/login') }}
