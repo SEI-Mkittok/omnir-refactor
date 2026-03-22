@@ -155,7 +155,8 @@ func TestPortal_ListTickets_OnlyOwnTickets(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	var resp map[string]any
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-	assert.Equal(t, float64(1), resp["total"])
+	meta := resp["meta"].(map[string]any)
+	assert.Equal(t, float64(1), meta["total"])
 	ticketMock.AssertExpectations(t)
 }
 
