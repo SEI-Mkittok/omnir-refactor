@@ -25,6 +25,7 @@ func (h *SearchHandler) Router() chi.Router {
 }
 
 // Search handles GET /api/v1/search?q=...&limit=20
+// Returns results grouped by entity type: { contacts, accounts, deals, tickets }.
 func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	if q == "" {
@@ -39,14 +40,11 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	results, total, err := h.repo.Search(r.Context(), q, limit)
+	results, err := h.repo.Search(r.Context(), q, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"results": results,
-		"total":   total,
-	})
+	writeJSON(w, http.StatusOK, results)
 }
