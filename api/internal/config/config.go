@@ -49,6 +49,19 @@ type CalendarConfig struct {
 	MicrosoftTenantID     string // "common" for multi-tenant
 }
 
+// EmailInboxConfig holds OAuth 2.0 credentials for Gmail and Outlook email sync.
+type EmailInboxConfig struct {
+	GoogleClientID        string
+	GoogleClientSecret    string
+	GoogleRedirectURL     string
+	MicrosoftClientID     string
+	MicrosoftClientSecret string
+	MicrosoftRedirectURL  string
+	MicrosoftTenantID     string
+	// EncryptionKey is used to encrypt OAuth tokens at rest (AES-GCM).
+	EncryptionKey string
+}
+
 // StripeConfig holds Stripe API credentials and price IDs.
 type StripeConfig struct {
 	SecretKey         string
@@ -71,6 +84,7 @@ type Config struct {
 	SequenceTokenSecret string
 	Storage             StorageConfig
 	Calendar            CalendarConfig
+	EmailInbox          EmailInboxConfig
 	SSOEncryptionKey    string
 	SSOCallbackURL      string
 	SSOAPICallbackURL   string
@@ -128,6 +142,16 @@ func Load() *Config {
 			MicrosoftClientSecret: getEnv("MICROSOFT_CALENDAR_CLIENT_SECRET", ""),
 			MicrosoftRedirectURL:  getEnv("MICROSOFT_CALENDAR_REDIRECT_URL", "http://localhost:8080/api/v1/calendar/auth/microsoft/callback"),
 			MicrosoftTenantID:     getEnv("MICROSOFT_TENANT_ID", "common"),
+		},
+		EmailInbox: EmailInboxConfig{
+			GoogleClientID:        getEnv("GMAIL_CLIENT_ID", ""),
+			GoogleClientSecret:    getEnv("GMAIL_CLIENT_SECRET", ""),
+			GoogleRedirectURL:     getEnv("GMAIL_REDIRECT_URL", "http://localhost:8080/api/integrations/email/callback"),
+			MicrosoftClientID:     getEnv("OUTLOOK_CLIENT_ID", ""),
+			MicrosoftClientSecret: getEnv("OUTLOOK_CLIENT_SECRET", ""),
+			MicrosoftRedirectURL:  getEnv("OUTLOOK_REDIRECT_URL", "http://localhost:8080/api/integrations/email/callback"),
+			MicrosoftTenantID:     getEnv("OUTLOOK_TENANT_ID", "common"),
+			EncryptionKey:         getEnv("EMAIL_INBOX_ENCRYPTION_KEY", "dev-email-inbox-key-change-in-prod"),
 		},
 		SSOEncryptionKey:  getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
 		SSOCallbackURL:    getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
