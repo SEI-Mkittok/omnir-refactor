@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE org_onboarding (
+CREATE TABLE IF NOT EXISTS org_onboarding (
     org_id          UUID PRIMARY KEY REFERENCES orgs(id) ON DELETE CASCADE,
     completed_steps JSONB        NOT NULL DEFAULT '[]',
     completed_at    TIMESTAMPTZ,

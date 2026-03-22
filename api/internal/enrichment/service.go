@@ -21,9 +21,9 @@ const cacheTTL = 30 * 24 * time.Hour
 
 // Service handles domain enrichment lookups with caching.
 type Service struct {
-	repo          repository.EnrichmentCacheRepository
-	clearbitKey   string
-	httpClient    *http.Client
+	repo        repository.EnrichmentCacheRepository
+	clearbitKey string
+	httpClient  *http.Client
 }
 
 // New creates a new enrichment Service. clearbitKey may be empty.
@@ -149,11 +149,8 @@ func (s *Service) fetchClearbit(d string) (*domain.EnrichmentData, error) {
 
 // fetchDNS performs a minimal DNS check and derives a company name from the domain.
 func (s *Service) fetchDNS(d string) (*domain.EnrichmentData, error) {
-	// Verify the domain is resolvable.
-	_, err := net.LookupHost(d)
-	if err != nil {
-		// Domain doesn't resolve — still return a best-effort result.
-	}
+	// Verify the domain is resolvable; ignore error — degrade gracefully.
+	_, _ = net.LookupHost(d)
 
 	// Derive company name: strip TLD and capitalise.
 	parts := strings.Split(d, ".")

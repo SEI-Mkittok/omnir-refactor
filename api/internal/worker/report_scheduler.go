@@ -107,7 +107,7 @@ func (w *ReportSchedulerWorker) isDue(s *domain.ScheduledReport, now time.Time) 
 // deliver builds an HTML email report for a scheduled dashboard and sends it.
 func (w *ReportSchedulerWorker) deliver(ctx context.Context, s *domain.ScheduledReport, now time.Time) error {
 	orgCtx := domain.WithOrgID(ctx, s.OrgID)
-	html := buildReportHTML(w.reportsRepo, orgCtx, s, now)
+	html := buildReportHTML(orgCtx, w.reportsRepo, s, now)
 	subject := fmt.Sprintf("[Omnir] Scheduled dashboard report — %s", now.Format("2006-01-02"))
 
 	for _, recipient := range s.Recipients {
@@ -119,7 +119,7 @@ func (w *ReportSchedulerWorker) deliver(ctx context.Context, s *domain.Scheduled
 }
 
 // buildReportHTML constructs an HTML summary of key CRM metrics for email delivery.
-func buildReportHTML(repo repository.ReportsRepository, ctx context.Context, s *domain.ScheduledReport, now time.Time) string {
+func buildReportHTML(ctx context.Context, repo repository.ReportsRepository, s *domain.ScheduledReport, now time.Time) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("<h2>Dashboard Report — %s</h2>\n", now.Format("2006-01-02")))
 	sb.WriteString(fmt.Sprintf("<p>Schedule: <code>%s</code> | Dashboard: %s</p>\n", s.Schedule, s.DashboardID))
