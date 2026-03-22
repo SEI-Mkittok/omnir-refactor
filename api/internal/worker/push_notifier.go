@@ -15,11 +15,11 @@ import (
 
 // PushNotifier sends Web Push notifications to subscribed users.
 type PushNotifier struct {
-	repo           repository.PushSubscriptionRepository
+	repo            repository.PushSubscriptionRepository
 	vapidPublicKey  string
 	vapidPrivateKey string
-	subject        string // VAPID subject — typically "mailto:..." or a URL
-	logger         *slog.Logger
+	subject         string // VAPID subject — typically "mailto:..." or a URL
+	logger          *slog.Logger
 }
 
 // NewPushNotifier constructs a PushNotifier.
@@ -31,11 +31,11 @@ func NewPushNotifier(
 	logger *slog.Logger,
 ) *PushNotifier {
 	return &PushNotifier{
-		repo:           repo,
+		repo:            repo,
 		vapidPublicKey:  vapidPublicKey,
 		vapidPrivateKey: vapidPrivateKey,
-		subject:        subject,
-		logger:         logger,
+		subject:         subject,
+		logger:          logger,
 	}
 }
 
@@ -102,7 +102,7 @@ func (n *PushNotifier) send(userID, orgID uuid.UUID, payload pushPayload) {
 func (n *PushNotifier) NotifyTicketAssigned(orgID, userID, ticketID uuid.UUID, subject string) {
 	n.send(userID, orgID, pushPayload{
 		Title: "Ticket assigned to you",
-		Body:  fmt.Sprintf("%s", subject),
+		Body:  subject,
 		URL:   fmt.Sprintf("/tickets/%s", ticketID),
 	})
 }

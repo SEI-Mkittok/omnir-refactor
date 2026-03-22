@@ -67,13 +67,13 @@ func (h *SSOHandler) Router() chi.Router {
 	return r
 }
 
-// ApiRouter returns the API-style SSO routes (POST initiate + GET callback).
+// APIRouter returns the API-style SSO routes (POST initiate + GET callback).
 // Mounted at /api/auth/sso
-func (h *SSOHandler) ApiRouter() chi.Router {
+func (h *SSOHandler) APIRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/microsoft", h.InitiateMicrosoft)
 	r.Post("/google", h.InitiateGoogle)
-	r.Get("/callback", h.ApiCallback)
+	r.Get("/callback", h.APICallback)
 	return r
 }
 
@@ -207,9 +207,9 @@ func (h *SSOHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	h.handleCallback(w, r, h.callbackURL)
 }
 
-// ApiCallback handles the OIDC redirect for the API-style flow.
+// APICallback handles the OIDC redirect for the API-style flow.
 // GET /api/auth/sso/callback
-func (h *SSOHandler) ApiCallback(w http.ResponseWriter, r *http.Request) {
+func (h *SSOHandler) APICallback(w http.ResponseWriter, r *http.Request) {
 	h.handleCallback(w, r, h.apiCallbackURL)
 }
 

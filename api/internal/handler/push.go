@@ -30,7 +30,7 @@ func (h *PushHandler) Router() chi.Router {
 }
 
 // VAPIDPublicKey returns the server's VAPID public key for client-side subscription setup.
-func (h *PushHandler) VAPIDPublicKey(w http.ResponseWriter, r *http.Request) {
+func (h *PushHandler) VAPIDPublicKey(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"vapid_public_key": h.vapidPublicKey})
 }
 
