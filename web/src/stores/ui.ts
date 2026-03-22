@@ -5,6 +5,8 @@ interface UIState {
   sidebarCollapsed: boolean
   toggleSidebar: () => void
   setSidebarCollapsed: (v: boolean) => void
+  onboardingOpen: boolean
+  setOnboardingOpen: (v: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -13,7 +15,12 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+      onboardingOpen: false,
+      setOnboardingOpen: (v) => set({ onboardingOpen: v }),
     }),
-    { name: 'praestos_sidebar_collapsed' }
+    {
+      name: 'praestos_sidebar_collapsed',
+      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
+    }
   )
 )

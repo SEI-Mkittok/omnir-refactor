@@ -431,3 +431,33 @@ type BillingRepository interface {
 	// ListInvoices returns invoices for an org ordered by created_at desc.
 	ListInvoices(ctx context.Context, orgID uuid.UUID, limit, offset int) ([]*domain.Invoice, int, error)
 }
+
+// DashboardRepository defines persistence for custom dashboards.
+type DashboardRepository interface {
+	// CreateDashboard inserts a new dashboard.
+	CreateDashboard(ctx context.Context, d *domain.CustomDashboard) (*domain.CustomDashboard, error)
+	// GetDashboardByID returns a dashboard by ID, scoped to the org in context.
+	GetDashboardByID(ctx context.Context, id uuid.UUID) (*domain.CustomDashboard, error)
+	// UpdateDashboard applies a partial update to a dashboard.
+	UpdateDashboard(ctx context.Context, id uuid.UUID, patch domain.CustomDashboardPatch) (*domain.CustomDashboard, error)
+	// DeleteDashboard removes a dashboard (and cascades to scheduled_reports).
+	DeleteDashboard(ctx context.Context, id uuid.UUID) error
+	// ListDashboards returns all dashboards for the org in context.
+	ListDashboards(ctx context.Context) ([]*domain.CustomDashboard, error)
+
+	// CreateSchedule inserts a new scheduled report.
+	CreateSchedule(ctx context.Context, s *domain.ScheduledReport) (*domain.ScheduledReport, error)
+	// GetScheduleByID returns a scheduled report by ID, scoped to org.
+	GetScheduleByID(ctx context.Context, id uuid.UUID) (*domain.ScheduledReport, error)
+	// UpdateSchedule applies a partial update to a scheduled report.
+	UpdateSchedule(ctx context.Context, id uuid.UUID, patch domain.ScheduledReportPatch) (*domain.ScheduledReport, error)
+	// DeleteSchedule removes a scheduled report.
+	DeleteSchedule(ctx context.Context, id uuid.UUID) error
+	// ListSchedules returns all scheduled reports for the org in context.
+	ListSchedules(ctx context.Context) ([]*domain.ScheduledReport, error)
+	// ListAllDueSchedules returns all scheduled reports across all orgs that are due to fire at t.
+	// Used by the background scheduler worker.
+	ListAllDueSchedules(ctx context.Context, t time.Time) ([]*domain.ScheduledReport, error)
+	// MarkScheduleSent updates last_sent_at for a schedule after delivery.
+	MarkScheduleSent(ctx context.Context, id uuid.UUID, sentAt time.Time) error
+}
