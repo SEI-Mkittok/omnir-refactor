@@ -28,8 +28,8 @@ export function AppShell() {
     >
       {/* ── Sidebar (desktop fixed, mobile drawer) ── */}
       <Sidebar
-        mobileOpen={mobileDrawerOpen}
-        onMobileClose={() => setMobileDrawerOpen(false)}
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
       />
 
       {/* ── Main column: topbar + content ── */}
