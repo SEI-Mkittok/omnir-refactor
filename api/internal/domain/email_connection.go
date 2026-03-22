@@ -83,6 +83,7 @@ type EmailInboxMessage struct {
 	ContactID    *uuid.UUID     `json:"contact_id,omitempty"`
 	Direction    EmailDirection `json:"direction"`
 	SentAt       time.Time      `json:"sent_at"`
+	ReadAt       *time.Time     `json:"read_at,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
 }
 
