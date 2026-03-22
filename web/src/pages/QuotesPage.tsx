@@ -195,7 +195,7 @@ export function QuotesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Quotes</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{data?.total ?? 0} total</p>
+          <p className="text-sm text-slate-500 mt-0.5">{data?.meta?.total ?? 0} total</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-1.5" /> New quote

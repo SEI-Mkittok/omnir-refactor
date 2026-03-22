@@ -5,15 +5,16 @@ import type {
   UpdateQuoteRequest,
   QuoteListParams,
   SendQuoteRequest,
+  PaginatedResponse,
 } from './types'
 
 export const quotesApi = {
-  list: async (params?: QuoteListParams): Promise<{ data: Quote[]; total: number }> => {
+  list: async (params?: QuoteListParams): Promise<PaginatedResponse<Quote>> => {
     const { data } = await apiClient.get('/quotes', { params })
     return data
   },
 
-  listByDeal: async (dealId: string): Promise<{ data: Quote[]; total: number }> => {
+  listByDeal: async (dealId: string): Promise<PaginatedResponse<Quote>> => {
     const { data } = await apiClient.get(`/deals/${dealId}/quotes`)
     return data
   },
