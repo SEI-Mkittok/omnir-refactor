@@ -10,13 +10,16 @@ import (
 type SSOConfig struct {
 	ID               uuid.UUID         `json:"id"`
 	OrgID            uuid.UUID         `json:"org_id"`
-	Provider         string            `json:"provider"` // google | oidc
+	Provider         string            `json:"provider"` // google | oidc | microsoft
 	ClientID         string            `json:"client_id"`
 	ClientSecret     string            `json:"-"` // never serialised
 	IssuerURL        string            `json:"issuer_url"`
+	TenantID         string            `json:"tenant_id,omitempty"` // Microsoft Entra tenant ID
+	Hd               string            `json:"hd,omitempty"`        // Google Workspace hosted domain
 	AttributeMapping map[string]string `json:"attribute_mapping,omitempty"`
 	Enabled          bool              `json:"enabled"`
 	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
 }
 
 // TOTPBackupCode is a single-use bcrypt-hashed recovery code.

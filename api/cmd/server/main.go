@@ -204,7 +204,8 @@ func main() {
 	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
 	automationHandler := handler.NewAutomationHandler(automationRepo)
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
-	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL)
+	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL).
+		WithAPICallbackURL(cfg.SSOAPICallbackURL)
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
@@ -235,6 +236,8 @@ func main() {
 	r.Mount("/api/auth", authHandler.Router())
 	// Public SSO login/callback — no JWT required.
 	r.Mount("/auth/sso", ssoHandler.Router())
+	// API-style SSO: POST /api/auth/sso/microsoft|google, GET /api/auth/sso/callback
+	r.Mount("/api/auth/sso", ssoHandler.ApiRouter())
 	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Public deal portal — token IS the credential, no JWT required.
@@ -300,6 +303,7 @@ func main() {
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
 		r.Route("/users/me/2fa", func(r chi.Router) { r.Mount("/", twoFAHandler.Router()) })
+		r.Route("/orgs/{orgId}/sso", func(r chi.Router) { r.Mount("/", ssoHandler.OrgSSORouter()) })
 	})
 
 	r.Group(func(r chi.Router) {

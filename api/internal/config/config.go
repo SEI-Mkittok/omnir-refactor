@@ -63,9 +63,10 @@ type Config struct {
 	SequenceTokenSecret string
 	Storage             StorageConfig
 	Calendar            CalendarConfig
-	SSOEncryptionKey    string
-	SSOCallbackURL      string
-	ClearbitAPIKey      string
+	SSOEncryptionKey  string
+	SSOCallbackURL    string
+	SSOAPICallbackURL string
+	ClearbitAPIKey    string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -117,9 +118,10 @@ func Load() *Config {
 			MicrosoftRedirectURL:  getEnv("MICROSOFT_CALENDAR_REDIRECT_URL", "http://localhost:8080/api/v1/calendar/auth/microsoft/callback"),
 			MicrosoftTenantID:     getEnv("MICROSOFT_TENANT_ID", "common"),
 		},
-		SSOEncryptionKey: getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
-		SSOCallbackURL:   getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
-		ClearbitAPIKey:   getEnv("CLEARBIT_API_KEY", ""),
+		SSOEncryptionKey:  getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
+		SSOCallbackURL:    getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
+		SSOAPICallbackURL: getEnv("SSO_API_CALLBACK_URL", "http://localhost:8080/api/auth/sso/callback"),
+		ClearbitAPIKey:    getEnv("CLEARBIT_API_KEY", ""),
 	}
 }
 
