@@ -25,15 +25,29 @@ func newSearchHandler() (*handler.SearchHandler, *mocks.MockSearchRepository) {
 	return handler.NewSearchHandler(repo), repo
 }
 
+func emptySearchResult() *domain.SearchGroupedResult {
+	return &domain.SearchGroupedResult{
+		Contacts: []domain.SearchContact{},
+		Accounts: []domain.SearchAccount{},
+		Deals:    []domain.SearchDeal{},
+		Tickets:  []domain.SearchTicket{},
+	}
+}
+
 func TestSearchHandler_Search_Success(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	results := []domain.SearchResultItem{
-		{Type: "contact", ID: "1", Title: "Acme Contact", Excerpt: "", URL: "/contacts/1"},
-		{Type: "account", ID: "2", Title: "Acme Corp", Excerpt: "", URL: "/accounts/2"},
-		{Type: "deal", ID: "3", Title: "Acme Deal", Excerpt: "", URL: "/deals/3"},
+	result := &domain.SearchGroupedResult{
+		Contacts: []domain.SearchContact{
+			{ID: "1", FirstName: "Acme", LastName: "Contact", Email: "acme@example.com", Stage: "lead"},
+		},
+		Accounts: []domain.SearchAccount{
+			{ID: "2", Name: "Acme Corp"},
+		},
+		Deals:   []domain.SearchDeal{},
+		Tickets: []domain.SearchTicket{},
 	}
-	repo.On("Search", mock.Anything, "acme", 20).Return(results, 3, nil)
+	repo.On("Search", mock.Anything, "acme", 20).Return(result, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=acme", nil)
 	w := httptest.NewRecorder()
@@ -42,10 +56,10 @@ func TestSearchHandler_Search_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	var result map[string]any
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&result))
-	assert.Len(t, result["results"], 3)
-	assert.Equal(t, float64(3), result["total"])
+	var body map[string]any
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	assert.Len(t, body["contacts"], 1)
+	assert.Len(t, body["accounts"], 1)
 
 	repo.AssertExpectations(t)
 }
@@ -85,7 +99,7 @@ func TestSearchHandler_Search_OrgIDScoping(t *testing.T) {
 	repo.On("Search", mock.MatchedBy(func(ctx context.Context) bool {
 		id, ok := domain.OrgIDFromContext(ctx)
 		return ok && id == orgID
-	}), "test", 20).Return([]domain.SearchResultItem{}, 0, nil)
+	}), "test", 20).Return(emptySearchResult(), nil)
 
 	ctx := domain.WithOrgID(context.Background(), orgID)
 	ctx = middleware.WithClaims(ctx, &auth.Claims{OrgID: orgID, Role: "user"})
@@ -101,7 +115,7 @@ func TestSearchHandler_Search_OrgIDScoping(t *testing.T) {
 func TestSearchHandler_Search_EmptyResults(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	repo.On("Search", mock.Anything, "nomatch", 20).Return([]domain.SearchResultItem{}, 0, nil)
+	repo.On("Search", mock.Anything, "nomatch", 20).Return(emptySearchResult(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=nomatch", nil)
 	w := httptest.NewRecorder()
@@ -111,14 +125,16 @@ func TestSearchHandler_Search_EmptyResults(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	body := w.Body.String()
-	assert.Contains(t, body, `"results":[]`)
-	assert.Contains(t, body, `"total":0`)
+	assert.Contains(t, body, `"contacts":[]`)
+	assert.Contains(t, body, `"accounts":[]`)
+	assert.Contains(t, body, `"deals":[]`)
+	assert.Contains(t, body, `"tickets":[]`)
 }
 
 func TestSearchHandler_Search_LimitParam(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	repo.On("Search", mock.Anything, "test", 10).Return([]domain.SearchResultItem{}, 0, nil)
+	repo.On("Search", mock.Anything, "test", 10).Return(emptySearchResult(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=test&limit=10", nil)
 	w := httptest.NewRecorder()
@@ -132,7 +148,7 @@ func TestSearchHandler_Search_LimitParam(t *testing.T) {
 func TestSearchHandler_Search_RepoError(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	repo.On("Search", mock.Anything, "test", 20).Return(nil, 0, errors.New("db error"))
+	repo.On("Search", mock.Anything, "test", 20).Return(nil, errors.New("db error"))
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=test", nil)
 	w := httptest.NewRecorder()
