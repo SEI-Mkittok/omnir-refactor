@@ -18,6 +18,8 @@ import { SearchPage } from '@/pages/SearchPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { SLASettingsPage } from '@/pages/SLASettingsPage'
 import { WebhooksPage } from '@/pages/WebhooksPage'
+import { BillingSettingsPage } from '@/pages/BillingSettingsPage'
+import { BillingPlansPage } from '@/pages/BillingPlansPage'
 import { PortalLoginPage } from '@/pages/portal/PortalLoginPage'
 import { PortalTicketsPage } from '@/pages/portal/PortalTicketsPage'
 import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
@@ -156,6 +158,22 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <WebhooksPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/billing"
+          element={
+            <AdminRoute>
+              <BillingSettingsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/billing/plans"
+          element={
+            <AdminRoute>
+              <BillingPlansPage />
             </AdminRoute>
           }
         />
