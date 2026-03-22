@@ -25,6 +25,7 @@ type SequenceRepository interface {
 	ListSequences(ctx context.Context, filter domain.SequenceFilter) ([]*domain.EmailSequence, int, error)
 	UpdateSequence(ctx context.Context, id uuid.UUID, req domain.UpdateSequenceRequest) (*domain.EmailSequence, error)
 	DeleteSequence(ctx context.Context, id uuid.UUID) error
+	ListSteps(ctx context.Context, sequenceID uuid.UUID) ([]domain.SequenceStep, error)
 
 	// Enrollments
 	Enroll(ctx context.Context, sequenceID uuid.UUID, req domain.EnrollRequest) (int, error)

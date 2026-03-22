@@ -28,6 +28,7 @@ func (h *SequenceHandler) Router() chi.Router {
 	r.Get("/{id}", h.Get)
 	r.Patch("/{id}", h.Update)
 	r.Delete("/{id}", h.Delete)
+	r.Get("/{id}/steps", h.ListSteps)
 	r.Get("/{id}/enrollments", h.ListEnrollments)
 	r.Post("/{id}/enroll", h.Enroll)
 	r.Get("/{id}/analytics", h.Analytics)
@@ -219,6 +220,24 @@ func (h *SequenceHandler) UpdateEnrollment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListSteps handles GET /sequences/{id}/steps
+func (h *SequenceHandler) ListSteps(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	steps, err := h.repo.ListSteps(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list steps")
+		return
+	}
+	if steps == nil {
+		steps = []domain.SequenceStep{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"data": steps})
 }
 
 // Analytics handles GET /sequences/{id}/analytics
