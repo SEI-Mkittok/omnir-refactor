@@ -4,28 +4,33 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
 	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
 const ssoStateCookie = "sso_state"
 
-// SSOHandler handles OIDC SSO login/callback.
+// SSOHandler handles OIDC SSO login/callback and org SSO config management.
 type SSOHandler struct {
-	ssoConfigs  repository.SSOConfigRepository
-	orgs        repository.OrgRepository
-	users       repository.UserRepository
-	jwtSvc      *auth.JWTService
-	encryptKey  string
-	callbackURL string
+	ssoConfigs     repository.SSOConfigRepository
+	orgs           repository.OrgRepository
+	users          repository.UserRepository
+	jwtSvc         *auth.JWTService
+	encryptKey     string
+	callbackURL    string
+	apiCallbackURL string
 }
 
 func NewSSOHandler(
@@ -36,15 +41,24 @@ func NewSSOHandler(
 	encryptKey, callbackURL string,
 ) *SSOHandler {
 	return &SSOHandler{
-		ssoConfigs:  ssoConfigs,
-		orgs:        orgs,
-		users:       users,
-		jwtSvc:      jwtSvc,
-		encryptKey:  encryptKey,
-		callbackURL: callbackURL,
+		ssoConfigs:     ssoConfigs,
+		orgs:           orgs,
+		users:          users,
+		jwtSvc:         jwtSvc,
+		encryptKey:     encryptKey,
+		callbackURL:    callbackURL,
+		apiCallbackURL: callbackURL, // overridden by WithAPICallbackURL
 	}
 }
 
+// WithAPICallbackURL sets the callback URL used by the API-style SSO routes.
+func (h *SSOHandler) WithAPICallbackURL(url string) *SSOHandler {
+	h.apiCallbackURL = url
+	return h
+}
+
+// Router returns the public (browser-redirect) SSO routes.
+// Mounted at /auth/sso
 func (h *SSOHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/config", h.Config)
@@ -53,10 +67,28 @@ func (h *SSOHandler) Router() chi.Router {
 	return r
 }
 
+// ApiRouter returns the API-style SSO routes (POST initiate + GET callback).
+// Mounted at /api/auth/sso
+func (h *SSOHandler) ApiRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/microsoft", h.InitiateMicrosoft)
+	r.Post("/google", h.InitiateGoogle)
+	r.Get("/callback", h.ApiCallback)
+	return r
+}
+
+// OrgSSORouter returns authenticated routes for managing org SSO config.
+// Mounted at /api/v1/orgs/{orgId}/sso
+func (h *SSOHandler) OrgSSORouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", h.GetOrgSSO)
+	r.Patch("/", h.UpdateOrgSSO)
+	return r
+}
+
 // Config returns the org's SSO provider info without requiring authentication.
-// GET /auth/sso/config
+// GET /auth/sso/config?orgSlug=...
 func (h *SSOHandler) Config(w http.ResponseWriter, r *http.Request) {
-	// Resolve the org slug from query param or fall back to any configured org.
 	slug := r.URL.Query().Get("orgSlug")
 	var cfg *domain.SSOConfig
 	var err error
@@ -90,7 +122,7 @@ func (h *SSOHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oauth2Cfg, err := h.buildOAuth2Config(r.Context(), cfg, secret)
+	oauth2Cfg, err := h.buildOAuth2Config(r.Context(), cfg, secret, h.callbackURL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -105,12 +137,83 @@ func (h *SSOHandler) Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
-	http.Redirect(w, r, oauth2Cfg.AuthCodeURL(state), http.StatusFound)
+	http.Redirect(w, r, buildAuthURL(oauth2Cfg, cfg, state), http.StatusFound)
 }
 
-// Callback handles the OIDC redirect, provisions user, and issues JWTs.
+// InitiateMicrosoft starts a Microsoft Entra ID OIDC flow.
+// POST /api/auth/sso/microsoft
+// Body: {"org_slug": "acme"}
+// Returns: {"redirect_url": "https://login.microsoftonline.com/..."}
+func (h *SSOHandler) InitiateMicrosoft(w http.ResponseWriter, r *http.Request) {
+	h.initiateProviderSSO(w, r, "microsoft")
+}
+
+// InitiateGoogle starts a Google Workspace OIDC flow.
+// POST /api/auth/sso/google
+// Body: {"org_slug": "acme"}
+// Returns: {"redirect_url": "https://accounts.google.com/..."}
+func (h *SSOHandler) InitiateGoogle(w http.ResponseWriter, r *http.Request) {
+	h.initiateProviderSSO(w, r, "google")
+}
+
+func (h *SSOHandler) initiateProviderSSO(w http.ResponseWriter, r *http.Request, provider string) {
+	var body struct {
+		OrgSlug string `json:"org_slug"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.OrgSlug == "" {
+		writeError(w, http.StatusBadRequest, "org_slug is required")
+		return
+	}
+
+	cfg, err := h.ssoConfigs.GetByOrgSlug(r.Context(), body.OrgSlug)
+	if err != nil || cfg == nil {
+		writeError(w, http.StatusNotFound, "SSO not configured for this org")
+		return
+	}
+	if cfg.Provider != provider {
+		writeError(w, http.StatusBadRequest, "provider mismatch: org is not configured for "+provider+" SSO")
+		return
+	}
+
+	secret, err := auth.Decrypt(h.encryptKey, cfg.ClientSecret)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	oauth2Cfg, err := h.buildOAuth2Config(r.Context(), cfg, secret, h.apiCallbackURL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "OIDC provider error: "+err.Error())
+		return
+	}
+
+	state := randomState()
+	http.SetCookie(w, &http.Cookie{
+		Name:     ssoStateCookie,
+		Value:    state + "|" + body.OrgSlug,
+		Path:     "/",
+		MaxAge:   300,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	redirectURL := buildAuthURL(oauth2Cfg, cfg, state)
+	writeJSON(w, http.StatusOK, map[string]any{"redirect_url": redirectURL})
+}
+
+// Callback handles the OIDC redirect for the legacy browser-redirect flow.
 // GET /auth/sso/callback
 func (h *SSOHandler) Callback(w http.ResponseWriter, r *http.Request) {
+	h.handleCallback(w, r, h.callbackURL)
+}
+
+// ApiCallback handles the OIDC redirect for the API-style flow.
+// GET /api/auth/sso/callback
+func (h *SSOHandler) ApiCallback(w http.ResponseWriter, r *http.Request) {
+	h.handleCallback(w, r, h.apiCallbackURL)
+}
+
+func (h *SSOHandler) handleCallback(w http.ResponseWriter, r *http.Request, callbackURL string) {
 	cookie, err := r.Cookie(ssoStateCookie)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "missing SSO state")
@@ -148,7 +251,7 @@ func (h *SSOHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oauth2Cfg, err := h.buildOAuth2Config(r.Context(), cfg, secret)
+	oauth2Cfg, err := h.buildOAuth2Config(r.Context(), cfg, secret, callbackURL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -161,7 +264,8 @@ func (h *SSOHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	provider, err := oidc.NewProvider(r.Context(), cfg.IssuerURL)
+	issuerURL := resolveIssuerURL(cfg)
+	provider, err := oidc.NewProvider(r.Context(), issuerURL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "OIDC provider error")
 		return
@@ -241,23 +345,176 @@ func (h *SSOHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	setAccessCookie(w, accessToken, secure)
 	setRefreshCookie(w, refreshToken, secure)
 
-	// Redirect to the SPA SSO landing page which will fetch the current user and
-	// navigate to the dashboard.
+	// Redirect to the SPA SSO landing page.
 	http.Redirect(w, r, "/auth/sso/done", http.StatusFound)
 }
 
-func (h *SSOHandler) buildOAuth2Config(ctx context.Context, cfg *domain.SSOConfig, clientSecret string) (*oauth2.Config, error) {
-	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
+// GetOrgSSO returns the org's SSO configuration (secret redacted).
+// GET /api/v1/orgs/{orgId}/sso
+// Requires admin or super_admin role.
+func (h *SSOHandler) GetOrgSSO(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid org id")
+		return
+	}
+
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !isAdminOrAbove(claims.Role) && claims.OrgID != orgID {
+		writeError(w, http.StatusForbidden, "admin role required")
+		return
+	}
+
+	cfg, err := h.ssoConfigs.GetByOrgID(r.Context(), orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if cfg == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": false})
+		return
+	}
+	writeJSON(w, http.StatusOK, cfg)
+}
+
+// UpdateOrgSSO saves or updates the org's SSO configuration.
+// PATCH /api/v1/orgs/{orgId}/sso
+// Requires admin or super_admin role.
+func (h *SSOHandler) UpdateOrgSSO(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid org id")
+		return
+	}
+
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !isAdminOrAbove(claims.Role) {
+		writeError(w, http.StatusForbidden, "admin role required")
+		return
+	}
+
+	var req struct {
+		Provider         string            `json:"provider"`
+		ClientID         string            `json:"client_id"`
+		ClientSecret     string            `json:"client_secret"`
+		TenantID         string            `json:"tenant_id"`
+		Hd               string            `json:"hd"`
+		AttributeMapping map[string]string `json:"attribute_mapping"`
+		Enabled          bool              `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	switch req.Provider {
+	case "google", "oidc", "microsoft":
+		// valid
+	default:
+		writeError(w, http.StatusUnprocessableEntity, "provider must be one of: google, microsoft, oidc")
+		return
+	}
+	if req.ClientID == "" {
+		writeError(w, http.StatusUnprocessableEntity, "client_id is required")
+		return
+	}
+
+	// Derive issuer URL for known providers if not explicitly set.
+	issuerURL := deriveIssuerURL(req.Provider, req.TenantID)
+
+	// Encrypt the client secret if provided; otherwise preserve existing.
+	encryptedSecret := ""
+	if req.ClientSecret != "" {
+		encryptedSecret, err = auth.Encrypt(h.encryptKey, req.ClientSecret)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	} else {
+		// Preserve existing secret.
+		existing, _ := h.ssoConfigs.GetByOrgID(r.Context(), orgID)
+		if existing != nil {
+			encryptedSecret = existing.ClientSecret
+		}
+	}
+
+	cfg := &domain.SSOConfig{
+		OrgID:            orgID,
+		Provider:         req.Provider,
+		ClientID:         req.ClientID,
+		ClientSecret:     encryptedSecret,
+		IssuerURL:        issuerURL,
+		TenantID:         req.TenantID,
+		Hd:               req.Hd,
+		AttributeMapping: req.AttributeMapping,
+		Enabled:          req.Enabled,
+	}
+
+	saved, err := h.ssoConfigs.Upsert(r.Context(), cfg)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	writeJSON(w, http.StatusOK, saved)
+}
+
+// buildOAuth2Config constructs an oauth2.Config for the given SSO config.
+func (h *SSOHandler) buildOAuth2Config(ctx context.Context, cfg *domain.SSOConfig, clientSecret, callbackURL string) (*oauth2.Config, error) {
+	issuerURL := resolveIssuerURL(cfg)
+	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("OIDC provider: %w", err)
 	}
 	return &oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: clientSecret,
-		RedirectURL:  h.callbackURL,
+		RedirectURL:  callbackURL,
 		Endpoint:     provider.Endpoint(),
 		Scopes:       []string{oidc.ScopeOpenID, "profile", "email"},
 	}, nil
+}
+
+// resolveIssuerURL returns the effective OIDC issuer URL for the config.
+// For microsoft, it derives from tenant_id if IssuerURL is empty.
+// For google, it uses the well-known Google OIDC endpoint.
+func resolveIssuerURL(cfg *domain.SSOConfig) string {
+	if cfg.IssuerURL != "" {
+		return cfg.IssuerURL
+	}
+	return deriveIssuerURL(cfg.Provider, cfg.TenantID)
+}
+
+// deriveIssuerURL returns the standard OIDC issuer URL for known providers.
+func deriveIssuerURL(provider, tenantID string) string {
+	switch provider {
+	case "microsoft":
+		tid := tenantID
+		if tid == "" {
+			tid = "common"
+		}
+		return fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tid)
+	case "google":
+		return "https://accounts.google.com"
+	default:
+		return ""
+	}
+}
+
+// buildAuthURL generates the OAuth2 authorization URL, adding provider-specific params.
+func buildAuthURL(oauth2Cfg *oauth2.Config, cfg *domain.SSOConfig, state string) string {
+	opts := []oauth2.AuthCodeOption{}
+	if cfg.Provider == "google" && cfg.Hd != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("hd", cfg.Hd))
+	}
+	return oauth2Cfg.AuthCodeURL(state, opts...)
 }
 
 func mapRole(mapping map[string]string, groups []string) string {
@@ -276,4 +533,9 @@ func randomState() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+func isAdminOrAbove(role string) bool {
+	return strings.EqualFold(role, string(domain.UserRoleAdmin)) ||
+		strings.EqualFold(role, string(domain.UserRoleSuperAdmin))
 }
