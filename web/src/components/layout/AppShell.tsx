@@ -8,6 +8,9 @@ import { BottomTabBar } from './BottomTabBar'
 import { OfflineBanner } from '@/components/ui/OfflineBanner'
 import { OnboardingWizard } from '@/components/omnir/OnboardingWizard'
 import { getOnboardingState, type OnboardingState } from '@/api/onboarding'
+import { InstallPromptBanner } from '@/components/ui/InstallPromptBanner'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
 
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -38,8 +41,9 @@ export function AppShell() {
         }
       })
       .catch(() => { logout() })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [setUser, logout])
+  usePushNotifications()
+  useMutationQueue()
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const location = useLocation()
@@ -85,6 +89,7 @@ export function AppShell() {
         {/* Override margin on mobile — sidebar is a drawer, not inline */}
         <style>{`@media (max-width: 767px) { #layout-root > div { margin-left: 0 !important; } }`}</style>
 
+        <InstallPromptBanner />
         <OfflineBanner />
 
         {/* ── Top bar ── */}
