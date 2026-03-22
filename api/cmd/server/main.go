@@ -88,6 +88,8 @@ func main() {
 	ssoConfigRepo := postgres.NewSSOConfigRepo(db)
 	totpRepo := postgres.NewTOTPRepo(db)
 	enrichmentCacheRepo := postgres.NewEnrichmentCacheRepo(db)
+	kbArticleRepo := postgres.NewKBArticleRepo(db)
+	kbCategoryRepo := postgres.NewKBCategoryRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -208,6 +210,7 @@ func main() {
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
+	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -239,6 +242,7 @@ func main() {
 	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Public deal portal — token IS the credential, no JWT required.
 	r.Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
+	r.Mount("/api/portal/help", kbHandler.PublicRouter())
 	// Public sequence tracking — HMAC-signed tokens, no JWT required.
 	r.Mount("/track", sequenceTrackingHandler.TrackRouter())
 	r.Mount("/unsubscribe", sequenceTrackingHandler.UnsubscribeRouter())
@@ -296,6 +300,7 @@ func main() {
 		r.Mount("/products", productHandler.Router())
 		r.Mount("/quotes", quoteHandler.Router())
 		r.Mount("/automations", automationHandler.Router())
+		r.Mount("/kb", kbHandler.Router())
 		r.Mount("/calendar", calendarHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
