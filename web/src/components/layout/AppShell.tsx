@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -9,7 +9,17 @@ import { OfflineBanner } from '@/components/ui/OfflineBanner'
 
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const setUser = useAuthStore((s) => s.setUser)
+  const logout = useAuthStore((s) => s.logout)
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
+
+  // Restore session from cookie on mount
+  useEffect(() => {
+    fetch('/api/v1/users/me', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data) => { if (data?.id) setUser(data) })
+      .catch(() => { logout() })
+  }, [setUser, logout])
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const location = useLocation()
 
