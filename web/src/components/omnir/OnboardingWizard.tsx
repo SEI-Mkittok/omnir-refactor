@@ -748,7 +748,7 @@ export function OnboardingWizard({
       if (initialState.orgName) setOrgName(initialState.orgName)
       // Resume at first incomplete step
       const stepMap = ['welcome', 'invite', 'email', 'sla', 'done']
-      const firstIncomplete = stepMap.findIndex((s) => !initialState.completedSteps.includes(s))
+      const firstIncomplete = stepMap.findIndex((s) => !(initialState.completedSteps ?? []).includes(s))
       setStep(firstIncomplete === -1 ? 4 : firstIncomplete)
     }
   }, [initialState])
