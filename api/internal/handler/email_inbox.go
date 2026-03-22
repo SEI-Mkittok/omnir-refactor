@@ -287,7 +287,7 @@ func (h *EmailInboxHandler) exchangeGoogleCode(code string) (*emailOAuthTokenRes
 
 func (h *EmailInboxHandler) exchangeMicrosoftCode(code string) (*emailOAuthTokenResponse, error) {
 	tokenURL := fmt.Sprintf(outlookTokenURLFmt, h.cfg.MicrosoftTenantID)
-	resp, err := http.PostForm(tokenURL, url.Values{
+	resp, err := http.PostForm(tokenURL, url.Values{ //#nosec G107 -- tokenURL is constructed from config, not user input
 		"code":          {code},
 		"client_id":     {h.cfg.MicrosoftClientID},
 		"client_secret": {h.cfg.MicrosoftClientSecret},

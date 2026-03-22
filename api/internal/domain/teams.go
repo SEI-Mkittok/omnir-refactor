@@ -20,7 +20,7 @@ type TeamsConnection struct {
 
 // TeamsConnectInput is the payload for POST /api/integrations/teams/connect.
 type TeamsConnectInput struct {
-	WebhookURL  string `json:"webhook_url"`   // Teams Incoming Webhook URL
-	ChannelName string `json:"channel_name"`  // human-readable channel name (optional)
-	TenantID    string `json:"tenant_id"`     // optional
+	WebhookURL  string `json:"webhook_url"`  // Teams Incoming Webhook URL
+	ChannelName string `json:"channel_name"` // human-readable channel name (optional)
+	TenantID    string `json:"tenant_id"`    // optional
 }

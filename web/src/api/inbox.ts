@@ -2,7 +2,8 @@
 // scaffolded against the expected API contract. Remove the mock data and
 // uncomment the real API calls once OMN-528 lands on develop.
 
-import apiClient from './client'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import apiClient from './client' // kept for TODO(OMN-528) — remove mock data when backend lands
 import type {
   EmailAccount,
   InboxThread,

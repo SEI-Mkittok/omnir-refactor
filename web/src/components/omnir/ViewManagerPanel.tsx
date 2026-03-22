@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Pencil, Trash2, Pin, PinOff, Users, Loader2, Check, X } from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
-import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useViews, useUpdateView, useDeleteView } from '@/hooks/useViews'
 import type { SavedView, ViewEntityType } from '@/api/types'
