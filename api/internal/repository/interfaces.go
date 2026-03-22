@@ -222,8 +222,6 @@ type OrgRepository interface {
 	HasAny(ctx context.Context) (bool, error)
 	// List returns all organizations ordered by name. Used by super_admin tenant switcher.
 	List(ctx context.Context) ([]*domain.Organization, error)
-	// UpdateName sets the display name for the given org.
-	UpdateName(ctx context.Context, orgID uuid.UUID, name string) error
 }
 
 // EmailRepository defines the persistence contract for contact emails.

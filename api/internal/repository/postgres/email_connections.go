@@ -187,7 +187,7 @@ func scanInboxMessage(row pgx.Row) (*domain.EmailInboxMessage, error) {
 		&m.ID, &m.OrgID, &m.ConnectionID, &m.MessageID, &m.ThreadID,
 		&m.FromAddr, &toAddrsJSON, &m.Subject,
 		&m.BodyText, &m.BodyHTML, &m.ContactID,
-		&m.Direction, &m.SentAt, &m.CreatedAt,
+		&m.Direction, &m.SentAt, &m.ReadAt, &m.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -208,7 +208,7 @@ const inboxMsgCols = `
 	id, org_id, connection_id, message_id, thread_id,
 	from_addr, to_addrs, subject,
 	body_text, body_html, contact_id,
-	direction, sent_at, created_at
+	direction, sent_at, read_at, created_at
 `
 
 func (r *EmailInboxRepo) Upsert(ctx context.Context, msg *domain.EmailInboxMessage) (*domain.EmailInboxMessage, error) {
@@ -345,6 +345,17 @@ func (r *EmailInboxRepo) LinkContact(ctx context.Context, orgID uuid.UUID, addr 
 		SET contact_id=$3
 		WHERE org_id=$1 AND from_addr=$2 AND contact_id IS NULL`,
 		orgID, addr, contactID,
+	)
+	return err
+}
+
+// MarkThreadRead sets read_at = NOW() on all unread messages in the thread.
+func (r *EmailInboxRepo) MarkThreadRead(ctx context.Context, orgID uuid.UUID, threadID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE email_inbox_messages
+		SET read_at = NOW()
+		WHERE org_id = $1 AND thread_id = $2 AND read_at IS NULL`,
+		orgID, threadID,
 	)
 	return err
 }
