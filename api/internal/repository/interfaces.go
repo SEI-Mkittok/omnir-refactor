@@ -415,3 +415,19 @@ type TeamsConnectionRepository interface {
 	// Delete removes the Teams connection for an org.
 	Delete(ctx context.Context, orgID uuid.UUID) error
 }
+
+// BillingRepository manages org billing plans and invoice records.
+type BillingRepository interface {
+	// GetOrCreatePlan returns the org's billing plan, inserting a free-tier record if absent.
+	GetOrCreatePlan(ctx context.Context, orgID uuid.UUID) (*domain.OrgPlanRecord, error)
+	// UpsertPlan applies a patch to the org's billing plan (webhook-driven updates).
+	UpsertPlan(ctx context.Context, orgID uuid.UUID, patch domain.OrgPlanPatch) (*domain.OrgPlanRecord, error)
+	// GetPlanByStripeSubscriptionID looks up a plan by Stripe subscription ID.
+	GetPlanByStripeSubscriptionID(ctx context.Context, subID string) (*domain.OrgPlanRecord, error)
+	// GetPlanByStripeCustomerID looks up a plan by Stripe customer ID.
+	GetPlanByStripeCustomerID(ctx context.Context, customerID string) (*domain.OrgPlanRecord, error)
+	// UpsertInvoice inserts or updates an invoice by stripe_invoice_id.
+	UpsertInvoice(ctx context.Context, inv *domain.Invoice) (*domain.Invoice, error)
+	// ListInvoices returns invoices for an org ordered by created_at desc.
+	ListInvoices(ctx context.Context, orgID uuid.UUID, limit, offset int) ([]*domain.Invoice, int, error)
+}

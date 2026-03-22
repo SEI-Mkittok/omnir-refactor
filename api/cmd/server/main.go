@@ -91,6 +91,7 @@ func main() {
 	kbArticleRepo := postgres.NewKBArticleRepo(db)
 	kbCategoryRepo := postgres.NewKBCategoryRepo(db)
 	teamsConnectionRepo := postgres.NewTeamsConnectionRepo(db)
+	billingRepo := postgres.NewBillingRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -217,6 +218,7 @@ func main() {
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
 	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo)
+	billingHandler := handler.NewBillingHandler(billingRepo, cfg.Stripe, appURL)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -256,6 +258,8 @@ func main() {
 	r.Mount("/unsubscribe", sequenceTrackingHandler.UnsubscribeRouter())
 	// Bounce webhook — outside /api/v1 auth group, accepts webhook provider calls.
 	r.Mount("/api/emails/bounce", sequenceTrackingHandler.BounceRouter())
+	// Stripe webhook — outside /api/v1 auth group, verified by Stripe signature.
+	r.Mount("/api/billing/webhook", billingHandler.WebhookRouter())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(chimiddleware.Timeout(30 * time.Second))
@@ -311,6 +315,7 @@ func main() {
 		r.Mount("/kb", kbHandler.Router())
 		r.Mount("/calendar", calendarHandler.Router())
 		r.Mount("/integrations/teams", teamsHandler.Router())
+		r.Mount("/billing", billingHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
 		r.Route("/users/me/2fa", func(r chi.Router) { r.Mount("/", twoFAHandler.Router()) })
