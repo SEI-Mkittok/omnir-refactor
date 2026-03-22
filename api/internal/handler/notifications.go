@@ -64,7 +64,15 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	if notifications == nil {
 		notifications = []*domain.Notification{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": notifications})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": notifications,
+		"meta": map[string]any{
+			"total":       len(notifications),
+			"page":        1,
+			"per_page":    filter.Limit,
+			"total_pages": 1,
+		},
+	})
 }
 
 func (h *NotificationHandler) UnreadCount(w http.ResponseWriter, r *http.Request) {

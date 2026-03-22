@@ -94,13 +94,18 @@ func parseValidationDetails(err error) []ErrorDetail {
 	return []ErrorDetail{{Field: "_", Message: rest}}
 }
 
-// PaginatedResponse wraps a list result with pagination metadata.
-type PaginatedResponse[T any] struct {
-	Data       []T `json:"data"`
+// PaginatedMeta holds pagination metadata matching the frontend PaginatedMeta type.
+type PaginatedMeta struct {
 	Total      int `json:"total"`
 	Page       int `json:"page"`
-	Limit      int `json:"limit"`
+	PerPage    int `json:"per_page"`
 	TotalPages int `json:"total_pages"`
+}
+
+// PaginatedResponse wraps a list result with pagination metadata.
+type PaginatedResponse[T any] struct {
+	Data []T           `json:"data"`
+	Meta PaginatedMeta `json:"meta"`
 }
 
 func paginated[T any](data []T, total, page, limit int) PaginatedResponse[T] {
@@ -112,10 +117,12 @@ func paginated[T any](data []T, total, page, limit int) PaginatedResponse[T] {
 		totalPages = (total + limit - 1) / limit
 	}
 	return PaginatedResponse[T]{
-		Data:       data,
-		Total:      total,
-		Page:       page,
-		Limit:      limit,
-		TotalPages: totalPages,
+		Data: data,
+		Meta: PaginatedMeta{
+			Total:      total,
+			Page:       page,
+			PerPage:    limit,
+			TotalPages: totalPages,
+		},
 	}
 }

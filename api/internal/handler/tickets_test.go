@@ -114,8 +114,9 @@ func TestTicketHandler_List(t *testing.T) {
 				var resp map[string]any
 				require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 				assert.Contains(t, resp, "data")
-				assert.Contains(t, resp, "total")
-				assert.Equal(t, float64(tt.wantTotal), resp["total"])
+				assert.Contains(t, resp, "meta")
+				meta := resp["meta"].(map[string]any)
+				assert.Equal(t, float64(tt.wantTotal), meta["total"])
 			}
 
 			mockTickets.AssertExpectations(t)

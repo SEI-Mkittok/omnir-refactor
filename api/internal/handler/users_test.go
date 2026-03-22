@@ -99,7 +99,8 @@ func TestUserHandler_List(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 			var resp map[string]any
 			require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-			assert.Equal(t, float64(tt.wantTotal), resp["total"])
+			meta := resp["meta"].(map[string]any)
+			assert.Equal(t, float64(tt.wantTotal), meta["total"])
 			mockRepo.AssertExpectations(t)
 		})
 	}
