@@ -45,15 +45,10 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 		UnreadOnly: q.Get("unread_only") == "true",
 		Limit:      50,
 	}
-	// Accept ?per_page (frontend) or ?limit (canonical).
-	if limitVal := q.Get("per_page"); limitVal == "" {
-		if v := q.Get("limit"); v != "" {
-			if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
-				filter.Limit = n
-			}
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			filter.Limit = n
 		}
-	} else if n, err := strconv.Atoi(limitVal); err == nil && n > 0 && n <= 200 {
-		filter.Limit = n
 	}
 	if v := q.Get("before"); v != "" {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
@@ -69,7 +64,15 @@ func (h *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	if notifications == nil {
 		notifications = []*domain.Notification{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": notifications})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data": notifications,
+		"meta": map[string]any{
+			"total":       len(notifications),
+			"page":        1,
+			"per_page":    filter.Limit,
+			"total_pages": 1,
+		},
+	})
 }
 
 func (h *NotificationHandler) UnreadCount(w http.ResponseWriter, r *http.Request) {

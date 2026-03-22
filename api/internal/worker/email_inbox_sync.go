@@ -231,7 +231,7 @@ func (w *EmailInboxSyncWorker) refreshToken(ctx context.Context, conn *domain.Em
 		return fmt.Errorf("unknown provider: %s", conn.Provider)
 	}
 
-	resp, err := http.PostForm(tokenURL, vals)
+	resp, err := http.PostForm(tokenURL, vals) //#nosec G107 -- tokenURL is constructed from config, not user input
 	if err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (w *EmailInboxSyncWorker) fetchGmailMessage(accessToken, id string) (*inbox
 
 	var raw struct {
 		ID       string `json:"id"`
-		ThreadId string `json:"threadId"`
+		ThreadID string `json:"threadId"`
 		Payload  struct {
 			Headers []struct {
 				Name  string `json:"name"`
@@ -368,7 +368,7 @@ func (w *EmailInboxSyncWorker) fetchGmailMessage(accessToken, id string) (*inbox
 
 	msg := &inboxMessage{
 		MessageID: raw.ID,
-		ThreadID:  raw.ThreadId,
+		ThreadID:  raw.ThreadID,
 		Date:      time.Now().UTC(),
 	}
 	for _, h := range raw.Payload.Headers {
@@ -428,7 +428,7 @@ func (w *EmailInboxSyncWorker) fetchOutlookMessages(accessToken string, cursor *
 	var list struct {
 		Value []struct {
 			ID               string `json:"id"`
-			ConversationId   string `json:"conversationId"`
+			ConversationID   string `json:"conversationId"`
 			Subject          string `json:"subject"`
 			ReceivedDateTime string `json:"receivedDateTime"`
 			From             struct {
@@ -456,7 +456,7 @@ func (w *EmailInboxSyncWorker) fetchOutlookMessages(accessToken string, cursor *
 	for _, m := range list.Value {
 		msg := inboxMessage{
 			MessageID: m.ID,
-			ThreadID:  m.ConversationId,
+			ThreadID:  m.ConversationID,
 			From:      m.From.EmailAddress.Address,
 			Subject:   m.Subject,
 			Date:      time.Now().UTC(),

@@ -93,6 +93,7 @@ func (h *EmailInboxHandler) InboxRouter() chi.Router {
 	r.Get("/", h.ListInbox)
 	r.Post("/send", h.SendViaConnection)
 	r.Get("/{threadId}", h.GetThread)
+	r.Patch("/{threadId}/read", h.MarkThreadRead)
 	return r
 }
 
@@ -287,7 +288,7 @@ func (h *EmailInboxHandler) exchangeGoogleCode(code string) (*emailOAuthTokenRes
 
 func (h *EmailInboxHandler) exchangeMicrosoftCode(code string) (*emailOAuthTokenResponse, error) {
 	tokenURL := fmt.Sprintf(outlookTokenURLFmt, h.cfg.MicrosoftTenantID)
-	resp, err := http.PostForm(tokenURL, url.Values{
+	resp, err := http.PostForm(tokenURL, url.Values{ //#nosec G107 -- tokenURL is constructed from config, not user input
 		"code":          {code},
 		"client_id":     {h.cfg.MicrosoftClientID},
 		"client_secret": {h.cfg.MicrosoftClientSecret},
@@ -465,6 +466,28 @@ func (h *EmailInboxHandler) GetThread(w http.ResponseWriter, r *http.Request) {
 		msgs = []*domain.EmailInboxMessage{}
 	}
 	writeJSON(w, http.StatusOK, msgs)
+}
+
+// MarkThreadRead marks all messages in a thread as read.
+// PATCH /api/v1/emails/{threadId}/read
+func (h *EmailInboxHandler) MarkThreadRead(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
+		return
+	}
+
+	threadID := chi.URLParam(r, "threadId")
+	if threadID == "" {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "threadId is required")
+		return
+	}
+
+	if err := h.inbox.MarkThreadRead(r.Context(), orgID, threadID); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *EmailInboxHandler) SendViaConnection(w http.ResponseWriter, r *http.Request) {

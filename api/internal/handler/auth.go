@@ -99,7 +99,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{
-				"requires_2fa":    true,
+				"requires_2fa":   true,
 				"pre_auth_token": preAuthToken,
 			})
 			return

@@ -203,9 +203,9 @@ type NotificationPrefRepository interface {
 
 // SearchRepository provides full-text search across CRM entities.
 type SearchRepository interface {
-	// Search returns up to limit results across tickets, contacts, accounts, and deals,
-	// scoped to the org in context. Returns the flat result list and total count.
-	Search(ctx context.Context, q string, limit int) ([]domain.SearchResultItem, int, error)
+	// Search returns results grouped by entity type (contacts, accounts, deals,
+	// tickets), scoped to the org in context, up to limit per entity type.
+	Search(ctx context.Context, q string, limit int) (*domain.SearchGroupedResult, error)
 }
 
 // OrgRepository defines the persistence contract for organizations (tenants).
@@ -222,6 +222,8 @@ type OrgRepository interface {
 	HasAny(ctx context.Context) (bool, error)
 	// List returns all organizations ordered by name. Used by super_admin tenant switcher.
 	List(ctx context.Context) ([]*domain.Organization, error)
+	// UpdateName sets the display name for the given org.
+	UpdateName(ctx context.Context, orgID uuid.UUID, name string) error
 }
 
 // EmailRepository defines the persistence contract for contact emails.

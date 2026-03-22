@@ -17,7 +17,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, Settings2, AlertCircle, RefreshCw } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs'
-import { Button } from '@/components/ui/Button'
 import { SaveViewModal } from './SaveViewModal'
 import { ViewManagerPanel } from './ViewManagerPanel'
 import { useViews, usePinView } from '@/hooks/useViews'

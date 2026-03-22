@@ -45,4 +45,7 @@ type EmailInboxRepository interface {
 
 	// LinkContact sets contact_id on all messages matching from_addr within the org.
 	LinkContact(ctx context.Context, orgID uuid.UUID, addr string, contactID uuid.UUID) error
+
+	// MarkThreadRead sets read_at = NOW() on all unread messages in the given thread.
+	MarkThreadRead(ctx context.Context, orgID uuid.UUID, threadID string) error
 }

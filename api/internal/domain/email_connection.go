@@ -70,20 +70,21 @@ func (c *EmailConnection) Validate() error {
 
 // EmailInboxMessage is a single email fetched from Gmail or Outlook.
 type EmailInboxMessage struct {
-	ID           uuid.UUID     `json:"id"`
-	OrgID        uuid.UUID     `json:"org_id"`
-	ConnectionID uuid.UUID     `json:"connection_id"`
-	MessageID    string        `json:"message_id"`
-	ThreadID     string        `json:"thread_id"`
-	FromAddr     string        `json:"from_addr"`
-	ToAddrs      []string      `json:"to_addrs"`
-	Subject      string        `json:"subject"`
-	BodyText     *string       `json:"body_text,omitempty"`
-	BodyHTML     *string       `json:"body_html,omitempty"`
-	ContactID    *uuid.UUID    `json:"contact_id,omitempty"`
+	ID           uuid.UUID      `json:"id"`
+	OrgID        uuid.UUID      `json:"org_id"`
+	ConnectionID uuid.UUID      `json:"connection_id"`
+	MessageID    string         `json:"message_id"`
+	ThreadID     string         `json:"thread_id"`
+	FromAddr     string         `json:"from_addr"`
+	ToAddrs      []string       `json:"to_addrs"`
+	Subject      string         `json:"subject"`
+	BodyText     *string        `json:"body_text,omitempty"`
+	BodyHTML     *string        `json:"body_html,omitempty"`
+	ContactID    *uuid.UUID     `json:"contact_id,omitempty"`
 	Direction    EmailDirection `json:"direction"`
-	SentAt       time.Time     `json:"sent_at"`
-	CreatedAt    time.Time     `json:"created_at"`
+	SentAt       time.Time      `json:"sent_at"`
+	ReadAt       *time.Time     `json:"read_at,omitempty"`
+	CreatedAt    time.Time      `json:"created_at"`
 }
 
 // EmailInboxFilter holds query parameters for listing inbox messages.

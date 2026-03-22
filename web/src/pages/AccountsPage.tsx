@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Building2, Globe, Users, Download, Upload, ExternalLink } from 'lucide-react'
+import { Plus, Building2, Users, Download, Upload, ExternalLink } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useUpdateView } from '@/hooks/useViews'

@@ -44,7 +44,7 @@ export function AppShell() {
         }
       })
       .catch(() => { logout() })
-  }, [setUser, logout])
+  }, [setUser, logout, setOnboardingOpen])
   usePushNotifications()
   useMutationQueue()
 
@@ -176,6 +176,8 @@ function getBreadcrumb(pathname: string): string {
     '/search':             'Search',
     '/users':              'Users',
     '/api-keys':           'API Keys',
+    '/settings/security':  'Security Settings',
+    '/settings/security/2fa/enroll': '2FA Enroll',
     '/settings/custom-fields': 'Custom Fields',
     '/settings/sla':       'SLA Policies',
     '/settings/webhooks':  'Webhooks',

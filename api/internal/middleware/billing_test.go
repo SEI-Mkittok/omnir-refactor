@@ -36,7 +36,7 @@ func TestRequirePlan_AllowsExactPlan(t *testing.T) {
 	repo.On("GetOrCreatePlan", mock.Anything, orgID).Return(planRecord(domain.BillingPlanPro), nil)
 
 	called := false
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
@@ -54,7 +54,7 @@ func TestRequirePlan_AllowsHigherPlan(t *testing.T) {
 	repo := &mocks.MockBillingRepository{}
 	repo.On("GetOrCreatePlan", mock.Anything, orgID).Return(planRecord(domain.BillingPlanEnterprise), nil)
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	h := middleware.RequirePlan(repo, domain.BillingPlanPro)(inner)
 	rec := httptest.NewRecorder()
@@ -68,7 +68,7 @@ func TestRequirePlan_BlocksLowerPlan(t *testing.T) {
 	repo := &mocks.MockBillingRepository{}
 	repo.On("GetOrCreatePlan", mock.Anything, orgID).Return(planRecord(domain.BillingPlanFree), nil)
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	h := middleware.RequirePlan(repo, domain.BillingPlanPro)(inner)
 	rec := httptest.NewRecorder()
@@ -83,7 +83,7 @@ func TestRequirePlan_EnterpriseBlocksPro(t *testing.T) {
 	repo := &mocks.MockBillingRepository{}
 	repo.On("GetOrCreatePlan", mock.Anything, orgID).Return(planRecord(domain.BillingPlanPro), nil)
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	h := middleware.RequirePlan(repo, domain.BillingPlanEnterprise)(inner)
 	rec := httptest.NewRecorder()
@@ -96,7 +96,7 @@ func TestRequirePlan_EnterpriseBlocksPro(t *testing.T) {
 func TestRequirePlan_NoOrgIDAllowsFree(t *testing.T) {
 	repo := &mocks.MockBillingRepository{}
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	h := middleware.RequirePlan(repo, domain.BillingPlanFree)(inner)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -112,7 +112,7 @@ func TestRequirePlan_RepoErrorReturns500(t *testing.T) {
 	repo := &mocks.MockBillingRepository{}
 	repo.On("GetOrCreatePlan", mock.Anything, orgID).Return(nil, errors.New("db error"))
 
-	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 
 	h := middleware.RequirePlan(repo, domain.BillingPlanPro)(inner)
 	rec := httptest.NewRecorder()

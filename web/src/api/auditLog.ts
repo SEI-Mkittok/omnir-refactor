@@ -1,29 +1,11 @@
 import apiClient from './client'
 import type { AuditLog, AuditLogListParams, PaginatedResponse } from './types'
 
-function buildAuditLogResponse(data: {
-  data: AuditLog[]
-  total: number
-  page: number
-  limit: number
-  total_pages: number
-}): PaginatedResponse<AuditLog> {
-  return {
-    data: data.data,
-    meta: {
-      page: data.page,
-      per_page: data.limit,
-      total: data.total,
-      total_pages: data.total_pages,
-    },
-  }
-}
-
 export async function listAuditLog(
   params: AuditLogListParams = {}
 ): Promise<PaginatedResponse<AuditLog>> {
   const { data } = await apiClient.get('/admin/audit-log', { params })
-  return buildAuditLogResponse(data)
+  return data
 }
 
 export async function getAuditLogEntry(id: string): Promise<AuditLog> {
