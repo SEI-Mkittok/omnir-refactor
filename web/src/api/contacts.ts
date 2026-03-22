@@ -7,6 +7,7 @@ import type {
   PaginatedResponse,
   Note,
   CreateNoteRequest,
+  EnrichmentResult,
 } from './types'
 
 export const contactsApi = {
@@ -47,5 +48,19 @@ export const contactsApi = {
   addNote: async (id: string, payload: Omit<CreateNoteRequest, 'contact_id'>): Promise<Note> => {
     const { data } = await apiClient.post(`/contacts/${id}/notes`, payload)
     return data
+  },
+
+  enrich: async (id: string): Promise<EnrichmentResult> => {
+    const { data } = await apiClient.post(`/contacts/${id}/enrich`)
+    return data
+  },
+
+  lookupDomain: async (domain: string): Promise<EnrichmentResult | null> => {
+    try {
+      const { data } = await apiClient.get('/enrich/domain', { params: { domain } })
+      return data
+    } catch {
+      return null
+    }
   },
 }
