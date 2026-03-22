@@ -1,0 +1,19 @@
+{
+  "name": "praestos-crm",
+  "version": "1.0.0",
+  "description": "PraestOS CRM integration for Zapier",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --forceExit"
+  },
+  "dependencies": {
+    "zapier-platform-core": "15.5.1"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}
