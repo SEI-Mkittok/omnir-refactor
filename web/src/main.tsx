@@ -42,6 +42,9 @@ import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
 import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
 import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
 import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
+import { ContactDetailPage } from '@/pages/ContactDetailPage'
+import { AccountDetailPage } from '@/pages/AccountDetailPage'
+import { TicketDetailPage } from '@/pages/TicketDetailPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -113,10 +116,13 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/contacts/:id" element={<ContactDetailPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
+        <Route path="/accounts/:id" element={<AccountDetailPage />} />
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/tickets/:id" element={<TicketDetailPage />} />
         <Route path="/kb" element={<KnowledgeBasePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/reports" element={<ReportsPage />} />
