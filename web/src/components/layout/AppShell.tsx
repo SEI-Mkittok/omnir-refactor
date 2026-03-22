@@ -174,6 +174,8 @@ function getBreadcrumb(pathname: string): string {
     '/settings/custom-fields': 'Custom Fields',
     '/settings/sla':       'SLA Policies',
     '/settings/webhooks':  'Webhooks',
+    '/settings/billing':       'Billing',
+    '/settings/billing/plans': 'Billing — Plans',
     '/settings/onboarding': 'Getting Started',
     '/admin/audit':        'Audit Log',
   }
