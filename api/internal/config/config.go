@@ -49,6 +49,14 @@ type CalendarConfig struct {
 	MicrosoftTenantID     string // "common" for multi-tenant
 }
 
+// StripeConfig holds Stripe API credentials and price IDs.
+type StripeConfig struct {
+	SecretKey         string
+	WebhookSecret     string
+	ProPriceID        string
+	EnterprisePriceID string
+}
+
 // Config holds all runtime configuration loaded from environment variables.
 type Config struct {
 	Env                 string
@@ -63,10 +71,11 @@ type Config struct {
 	SequenceTokenSecret string
 	Storage             StorageConfig
 	Calendar            CalendarConfig
-	SSOEncryptionKey  string
-	SSOCallbackURL    string
-	SSOAPICallbackURL string
-	ClearbitAPIKey    string
+	SSOEncryptionKey    string
+	SSOCallbackURL      string
+	SSOAPICallbackURL   string
+	ClearbitAPIKey      string
+	Stripe              StripeConfig
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -122,6 +131,12 @@ func Load() *Config {
 		SSOCallbackURL:    getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
 		SSOAPICallbackURL: getEnv("SSO_API_CALLBACK_URL", "http://localhost:8080/api/auth/sso/callback"),
 		ClearbitAPIKey:    getEnv("CLEARBIT_API_KEY", ""),
+		Stripe: StripeConfig{
+			SecretKey:         getEnv("STRIPE_SECRET_KEY", ""),
+			WebhookSecret:     getEnv("STRIPE_WEBHOOK_SECRET", ""),
+			ProPriceID:        getEnv("STRIPE_PRO_PRICE_ID", ""),
+			EnterprisePriceID: getEnv("STRIPE_ENTERPRISE_PRICE_ID", ""),
+		},
 	}
 }
 
