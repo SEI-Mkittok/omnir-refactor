@@ -23,6 +23,7 @@ const inviteTokenTTL = 72 * time.Hour
 type OnboardingHandler struct {
 	repo   repository.OnboardingRepository
 	users  repository.UserRepository
+	orgs   repository.OrgRepository
 	mailer *email.Mailer
 	appURL string
 }
@@ -30,10 +31,11 @@ type OnboardingHandler struct {
 func NewOnboardingHandler(
 	repo repository.OnboardingRepository,
 	users repository.UserRepository,
+	orgs repository.OrgRepository,
 	mailer *email.Mailer,
 	appURL string,
 ) *OnboardingHandler {
-	return &OnboardingHandler{repo: repo, users: users, mailer: mailer, appURL: appURL}
+	return &OnboardingHandler{repo: repo, users: users, orgs: orgs, mailer: mailer, appURL: appURL}
 }
 
 func (h *OnboardingHandler) Router() chi.Router {
@@ -44,6 +46,28 @@ func (h *OnboardingHandler) Router() chi.Router {
 	r.Post("/accept", h.AcceptInvite)
 	r.Get("/status", h.Status)
 	return r
+}
+
+// onboardingResponse is the shape returned to the frontend:
+// matches the TypeScript OnboardingState interface.
+type onboardingResponse struct {
+	ID             string   `json:"id"`
+	CompletedSteps []string `json:"completedSteps"`
+	Completed      bool     `json:"completed"`
+	OrgName        string   `json:"orgName,omitempty"`
+}
+
+func toOnboardingResponse(state *domain.OrgOnboarding, orgName string) onboardingResponse {
+	steps := state.CompletedSteps
+	if steps == nil {
+		steps = []string{}
+	}
+	return onboardingResponse{
+		ID:             state.OrgID.String(),
+		CompletedSteps: steps,
+		Completed:      state.CompletedAt != nil,
+		OrgName:        orgName,
+	}
 }
 
 // Get returns the current onboarding state for the caller's org.
@@ -60,15 +84,25 @@ func (h *OnboardingHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	writeJSON(w, http.StatusOK, state)
+
+	orgName := ""
+	if h.orgs != nil {
+		if org, err := h.orgs.GetByID(r.Context(), orgID); err == nil {
+			orgName = org.Name
+		}
+	}
+
+	writeJSON(w, http.StatusOK, toOnboardingResponse(state, orgName))
 }
 
+// onboardingPatchRequest uses camelCase JSON tags to match the frontend payload.
 type onboardingPatchRequest struct {
-	CompletedSteps []string `json:"completed_steps"`
+	CompletedSteps []string `json:"completedSteps"`
 	Completed      bool     `json:"completed"`
+	OrgName        string   `json:"orgName"`
 }
 
-// Update persists onboarding step progress.
+// Update persists onboarding step progress and optionally updates the org name.
 // PATCH /api/v1/onboarding
 func (h *OnboardingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := domain.OrgIDFromContext(r.Context())
@@ -83,6 +117,15 @@ func (h *OnboardingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Persist org name if provided.
+	orgName := ""
+	if orgName = strings.TrimSpace(req.OrgName); orgName != "" && h.orgs != nil {
+		if err := h.orgs.UpdateName(r.Context(), orgID, orgName); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+	}
+
 	var completedAt *time.Time
 	if req.Completed {
 		now := time.Now().UTC()
@@ -94,7 +137,8 @@ func (h *OnboardingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
-	writeJSON(w, http.StatusOK, state)
+
+	writeJSON(w, http.StatusOK, toOnboardingResponse(state, orgName))
 }
 
 type inviteRequest struct {
