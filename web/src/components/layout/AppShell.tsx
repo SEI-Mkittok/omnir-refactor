@@ -163,6 +163,7 @@ function getBreadcrumb(pathname: string): string {
     '/deals':              'Pipeline',
     '/tickets':            'Tickets',
     '/reports':            'Reports',
+    '/dashboards':         'Dashboards',
     '/sequences':          'Sequences',
     '/quotes':             'Quotes',
     '/automations':        'Automations',
