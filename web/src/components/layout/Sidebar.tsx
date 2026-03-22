@@ -45,6 +45,7 @@ const NAV_GROUPS = [
     label: 'INSIGHTS',
     items: [
       { to: '/reports', icon: BarChart3, label: 'Reports' },
+      { to: '/dashboards', icon: LayoutDashboard, label: 'Dashboards' },
     ],
   },
   {
