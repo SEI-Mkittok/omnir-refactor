@@ -704,7 +704,12 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
             <div
               key={seq.id}
               className="flex cursor-pointer items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 hover:border-[var(--color-primary)] hover:shadow-sm"
-              onClick={() => onOpen(seq)}
+              onClick={() => {
+                qc.fetchQuery({
+                  queryKey: ['sequence', seq.id],
+                  queryFn: () => sequencesApi.get(seq.id),
+                }).then(onOpen)
+              }}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
