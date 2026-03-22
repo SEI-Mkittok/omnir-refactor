@@ -36,6 +36,8 @@ import { AutomationsPage } from '@/pages/AutomationsPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { SSOCallbackPage } from '@/pages/SSOCallbackPage'
 import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
+import { TotpVerifyPage } from '@/pages/TotpVerifyPage'
+import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -87,6 +89,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/2fa" element={<TotpVerifyPage />} />
       <Route path="/auth/sso/done" element={<SSOCallbackPage />} />
       <Route path="/setup" element={<Navigate to="/login" replace />} />
 
@@ -117,6 +120,7 @@ function AppRoutes() {
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/settings/security" element={<SecuritySettingsPage />} />
+        <Route path="/settings/security/2fa/enroll" element={<TotpEnrollPage />} />
         <Route
           path="/users"
           element={
