@@ -308,7 +308,10 @@ func main() {
 		r.Use(middleware.OrgScope(cfg.OrgMode))
 		r.Mount("/contacts", contactHandler.Router())
 		r.Mount("/leads", leadHandler.Router())
-		r.Mount("/enrich", enrichmentHandler.Router())
+		r.Route("/enrich", func(r chi.Router) {
+			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
+			r.Mount("/", enrichmentHandler.Router())
+		})
 		r.Route("/leads/{id}/notes", func(r chi.Router) {
 			r.Mount("/", leadNoteHandler.Router())
 		})
@@ -319,6 +322,7 @@ func main() {
 			r.Mount("/", emailHandler.ContactEmailRouter())
 		})
 		r.Route("/contacts/{id}", func(r chi.Router) {
+			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
 			r.Mount("/", enrichmentHandler.ContactEnrichRouter())
 		})
 		r.Mount("/accounts", accountHandler.Router())
@@ -355,9 +359,15 @@ func main() {
 		r.Mount("/products", productHandler.Router())
 		r.Mount("/quotes", quoteHandler.Router())
 		r.Mount("/automations", automationHandler.Router())
-		r.Mount("/kb", kbHandler.Router())
+		r.Route("/kb", func(r chi.Router) {
+			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
+			r.Mount("/", kbHandler.Router())
+		})
 		r.Mount("/calendar", calendarHandler.Router())
-		r.Mount("/integrations/teams", teamsHandler.Router())
+		r.Route("/integrations/teams", func(r chi.Router) {
+			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
+			r.Mount("/", teamsHandler.Router())
+		})
 		r.Mount("/integrations/email/inbox", emailInboxHandler.InboxRouter())
 		r.Mount("/billing", billingHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())
@@ -365,7 +375,10 @@ func main() {
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
 		r.Route("/users/me/2fa", func(r chi.Router) { r.Mount("/", twoFAHandler.Router()) })
-		r.Route("/orgs/{orgId}/sso", func(r chi.Router) { r.Mount("/", ssoHandler.OrgSSORouter()) })
+		r.Route("/orgs/{orgId}/sso", func(r chi.Router) {
+			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanEnterprise))
+			r.Mount("/", ssoHandler.OrgSSORouter())
+		})
 	})
 
 	r.Group(func(r chi.Router) {
