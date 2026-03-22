@@ -55,9 +55,15 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError)
-        // Clear server cookies and local state
-        await axios.post(`${AUTH_BASE}/auth/logout`, null, { withCredentials: true }).catch(() => {})
-        useAuthStore.getState().logout()
+        // If on a portal route, fire a custom event so PortalShell can show a
+        // re-login overlay without losing the user's form state.
+        if (window.location.pathname.startsWith('/portal')) {
+          window.dispatchEvent(new Event('portal:session-expired'))
+        } else {
+          // Clear server cookies and local state for regular app routes.
+          await axios.post(`${AUTH_BASE}/auth/logout`, null, { withCredentials: true }).catch(() => {})
+          useAuthStore.getState().logout()
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
