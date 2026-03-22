@@ -415,3 +415,19 @@ type TeamsConnectionRepository interface {
 	// Delete removes the Teams connection for an org.
 	Delete(ctx context.Context, orgID uuid.UUID) error
 }
+
+// OnboardingRepository manages wizard state and team invites per org.
+type OnboardingRepository interface {
+	// GetOrCreate returns the onboarding record for the org, creating it if absent.
+	GetOrCreate(ctx context.Context, orgID uuid.UUID) (*domain.OrgOnboarding, error)
+	// UpdateSteps persists the updated completed_steps list and completed_at timestamp.
+	UpdateSteps(ctx context.Context, orgID uuid.UUID, steps []string, completedAt *time.Time) (*domain.OrgOnboarding, error)
+	// CreateInvite inserts a new org invite.
+	CreateInvite(ctx context.Context, invite *domain.OrgInvite) (*domain.OrgInvite, error)
+	// GetInviteByToken returns an invite by its token, or nil if not found.
+	GetInviteByToken(ctx context.Context, token string) (*domain.OrgInvite, error)
+	// AcceptInvite marks an invite as accepted.
+	AcceptInvite(ctx context.Context, inviteID uuid.UUID) error
+	// ListInvites returns all invites for an org.
+	ListInvites(ctx context.Context, orgID uuid.UUID) ([]*domain.OrgInvite, error)
+}

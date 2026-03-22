@@ -91,6 +91,7 @@ func main() {
 	kbArticleRepo := postgres.NewKBArticleRepo(db)
 	kbCategoryRepo := postgres.NewKBCategoryRepo(db)
 	teamsConnectionRepo := postgres.NewTeamsConnectionRepo(db)
+	onboardingRepo := postgres.NewOnboardingRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -133,6 +134,7 @@ func main() {
 
 	teamsNotifier := worker.NewTeamsNotifier(teamsConnectionRepo, appURL, logger)
 	teamsHandler := handler.NewTeamsHandler(teamsConnectionRepo)
+	onboardingHandler := handler.NewOnboardingHandler(onboardingRepo, userRepo, mailer, appURL)
 
 	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc, cfg.OrgMode)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
@@ -311,6 +313,7 @@ func main() {
 		r.Mount("/kb", kbHandler.Router())
 		r.Mount("/calendar", calendarHandler.Router())
 		r.Mount("/integrations/teams", teamsHandler.Router())
+		r.Mount("/onboarding", onboardingHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })
 		r.Mount("/auth/2fa", twoFAHandler.LoginRouter())
 		r.Route("/users/me/2fa", func(r chi.Router) { r.Mount("/", twoFAHandler.Router()) })
