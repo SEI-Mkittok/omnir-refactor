@@ -47,9 +47,31 @@ func NewSSOHandler(
 
 func (h *SSOHandler) Router() chi.Router {
 	r := chi.NewRouter()
+	r.Get("/config", h.Config)
 	r.Get("/{orgSlug}/login", h.Login)
 	r.Get("/callback", h.Callback)
 	return r
+}
+
+// Config returns the org's SSO provider info without requiring authentication.
+// GET /auth/sso/config
+func (h *SSOHandler) Config(w http.ResponseWriter, r *http.Request) {
+	// Resolve the org slug from query param or fall back to any configured org.
+	slug := r.URL.Query().Get("orgSlug")
+	var cfg *domain.SSOConfig
+	var err error
+	if slug != "" {
+		cfg, err = h.ssoConfigs.GetByOrgSlug(r.Context(), slug)
+	}
+	if err != nil || cfg == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": false})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"enabled":  cfg.Enabled,
+		"provider": cfg.Provider,
+		"orgSlug":  slug,
+	})
 }
 
 // Login redirects the browser to the OIDC provider for the given org.
@@ -219,7 +241,9 @@ func (h *SSOHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	setAccessCookie(w, accessToken, secure)
 	setRefreshCookie(w, refreshToken, secure)
 
-	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+	// Redirect to the SPA SSO landing page which will fetch the current user and
+	// navigate to the dashboard.
+	http.Redirect(w, r, "/auth/sso/done", http.StatusFound)
 }
 
 func (h *SSOHandler) buildOAuth2Config(ctx context.Context, cfg *domain.SSOConfig, clientSecret string) (*oauth2.Config, error) {
