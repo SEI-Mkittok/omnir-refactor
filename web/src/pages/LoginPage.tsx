@@ -88,7 +88,7 @@ export function LoginPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1B3A4B] shadow-lg">
             <TrendingUp className="h-7 w-7 text-white" />
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-slate-900">Welcome to Omnir</h1>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">Welcome to PraestOS</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to your account</p>
         </div>
 
