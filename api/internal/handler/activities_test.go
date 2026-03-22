@@ -45,6 +45,25 @@ func TestActivityHandler_Create(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
+			name: "creates task type successfully",
+			body: map[string]any{
+				"type":     "task",
+				"subject":  "Follow up with client",
+				"owner_id": ownerID.String(),
+			},
+			setupMock: func(m *mocks.MockActivityRepository) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Activity) bool {
+					return a.Type == domain.ActivityTypeTask && a.Subject == "Follow up with client"
+				})).Return(&domain.Activity{
+					ID:      uuid.New(),
+					Type:    domain.ActivityTypeTask,
+					Subject: "Follow up with client",
+					OwnerID: ownerID,
+				}, nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
 			name: "returns 422 for missing subject",
 			body: map[string]any{
 				"type":     "call",
