@@ -405,3 +405,13 @@ type KBArticleRepository interface {
 	IncrementViewCount(ctx context.Context, id uuid.UUID) error
 	Suggest(ctx context.Context, orgID uuid.UUID, subject string, limit int) ([]*domain.KBSuggestResult, error)
 }
+
+// TeamsConnectionRepository manages Microsoft Teams Incoming Webhook connections per org.
+type TeamsConnectionRepository interface {
+	// Upsert creates or replaces the Teams connection for an org (one connection per org).
+	Upsert(ctx context.Context, c *domain.TeamsConnection) (*domain.TeamsConnection, error)
+	// GetByOrgID returns the Teams connection for the given org, or nil if not configured.
+	GetByOrgID(ctx context.Context, orgID uuid.UUID) (*domain.TeamsConnection, error)
+	// Delete removes the Teams connection for an org.
+	Delete(ctx context.Context, orgID uuid.UUID) error
+}
