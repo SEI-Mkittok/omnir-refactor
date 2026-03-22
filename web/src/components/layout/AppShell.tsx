@@ -167,6 +167,7 @@ function getBreadcrumb(pathname: string): string {
     '/quotes':             'Quotes',
     '/automations':        'Automations',
     '/calendar':           'Calendar',
+    '/inbox':              'Email',
     '/notifications':      'Notifications',
     '/search':             'Search',
     '/users':              'Users',

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, X, CreditCard,
-  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket,
+  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -32,6 +32,7 @@ const NAV_GROUPS = [
       { to: '/leads', icon: UserPlus, label: 'Leads' },
       { to: '/quotes', icon: FileText, label: 'Quotes' },
       { to: '/sequences', icon: Mail, label: 'Sequences' },
+      { to: '/inbox', icon: Inbox, label: 'Email' },
     ],
   },
   {

@@ -34,6 +34,7 @@ import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { KnowledgeBasePage } from '@/pages/KnowledgeBasePage'
+import { InboxPage } from '@/pages/InboxPage'
 import { HelpCenterPage } from '@/pages/help/HelpCenterPage'
 import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
 import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
@@ -120,6 +121,7 @@ function AppRoutes() {
         <Route path="/quotes" element={<QuotesPage />} />
         <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/inbox" element={<InboxPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route
           path="/users"

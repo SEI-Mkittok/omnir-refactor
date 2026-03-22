@@ -1299,3 +1299,97 @@ export interface KbPublicCategoryWithCount extends KbCategory {
 export interface KbPublicArticle extends KbArticle {
   category?: KbCategory
 }
+
+// ---- Email Inbox (OMN-529) ----
+
+export type EmailAccountProvider = 'gmail' | 'outlook'
+export type EmailAccountStatus = 'connected' | 'syncing' | 'error' | 'disconnected'
+
+export interface EmailAccount {
+  id: string
+  org_id: string
+  user_id: string
+  provider: EmailAccountProvider
+  email_address: string
+  display_name?: string
+  status: EmailAccountStatus
+  last_synced_at?: string
+  created_at: string
+}
+
+export interface InboxMessage {
+  id: string
+  org_id: string
+  account_id: string
+  thread_id: string
+  message_id: string
+  direction: EmailDirection
+  from_addr: string
+  from_name?: string
+  to_addrs: string[]
+  cc_addrs?: string[]
+  bcc_addrs?: string[]
+  subject: string
+  body_html?: string
+  body_text: string
+  snippet: string
+  has_attachments: boolean
+  attachments?: InboxAttachment[]
+  contact_id?: string
+  sent_at: string
+  created_at: string
+}
+
+export interface InboxAttachment {
+  id: string
+  filename: string
+  content_type: string
+  size_bytes: number
+}
+
+export interface InboxThread {
+  id: string
+  org_id: string
+  account_id: string
+  subject: string
+  participants: string[]
+  snippet: string
+  unread: boolean
+  message_count: number
+  last_message_at: string
+  contact_id?: string
+  messages?: InboxMessage[]
+}
+
+export interface InboxListParams {
+  account_id?: string
+  unread_only?: boolean
+  page?: number
+  limit?: number
+}
+
+export interface SendInboxEmailRequest {
+  account_id: string
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  subject: string
+  body_html: string
+  thread_id?: string
+  template_id?: string
+}
+
+export interface EmailTemplate {
+  id: string
+  org_id: string
+  name: string
+  subject?: string
+  body_html: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ConnectEmailAccountRequest {
+  provider: EmailAccountProvider
+  redirect_uri: string
+}
