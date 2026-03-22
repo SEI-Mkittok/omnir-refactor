@@ -147,7 +147,7 @@ func main() {
 
 	teamsNotifier := worker.NewTeamsNotifier(teamsConnectionRepo, appURL, logger)
 	teamsHandler := handler.NewTeamsHandler(teamsConnectionRepo)
-	onboardingHandler := handler.NewOnboardingHandler(onboardingRepo, userRepo, mailer, appURL)
+	onboardingHandler := handler.NewOnboardingHandler(onboardingRepo, userRepo, orgRepo, mailer, appURL)
 
 	pushSubscriptionRepo := postgres.NewPushSubscriptionRepo(db)
 	pushNotifier := worker.NewPushNotifier(

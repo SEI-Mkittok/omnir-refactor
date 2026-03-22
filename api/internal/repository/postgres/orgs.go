@@ -81,6 +81,12 @@ func (r *OrgRepo) SlugExists(ctx context.Context, slug string) (bool, error) {
 	return exists, err
 }
 
+// UpdateName sets the display name for the given org.
+func (r *OrgRepo) UpdateName(ctx context.Context, orgID uuid.UUID, name string) error {
+	_, err := r.db.Exec(ctx, `UPDATE orgs SET name = $2 WHERE id = $1`, orgID, name)
+	return err
+}
+
 // HasAny reports whether at least one organization row exists.
 func (r *OrgRepo) HasAny(ctx context.Context) (bool, error) {
 	var exists bool
