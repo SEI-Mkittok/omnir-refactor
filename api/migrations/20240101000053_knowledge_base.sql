@@ -33,6 +33,7 @@ CREATE INDEX idx_articles_search_vec  ON articles USING GIN (search_vec);
 CREATE INDEX idx_article_categories_org ON article_categories (org_id);
 
 -- Function + trigger to keep search_vec up to date.
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION articles_search_vec_update() RETURNS trigger AS $$
 BEGIN
     NEW.search_vec :=
@@ -42,6 +43,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER articles_search_vec_trigger
 BEFORE INSERT OR UPDATE ON articles
