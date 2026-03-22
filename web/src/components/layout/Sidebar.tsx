@@ -179,7 +179,7 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
         <div className="shrink-0 border-t border-[#F0F1F3] px-2 py-2 space-y-0.5">
           <NavItem to="/settings" icon={Settings} label="Settings" />
           <button
-            onClick={() => { useAuthStore.getState().logout?.(); navigate('/login') }}
+            onClick={async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {}); useAuthStore.getState().logout(); navigate('/login') }}
             className={cn(
               'flex w-full items-center gap-2.5 rounded px-3 py-1.5 text-sm font-medium text-[#6B7280] hover:bg-red-50 hover:text-red-600 transition-colors duration-100',
               collapsed && 'justify-center px-2'
