@@ -1212,3 +1212,90 @@ export interface SendQuoteRequest {
   subject?: string
   message?: string
 }
+
+// ---- Knowledge Base ----
+
+export type KbArticleStatus = 'draft' | 'published'
+
+export interface KbCategory {
+  id: string
+  name: string
+  slug: string
+  position: number
+  created_at: string
+}
+
+export interface KbArticle {
+  id: string
+  category_id: string | null
+  title: string
+  slug: string
+  body: string
+  status: KbArticleStatus
+  view_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface KbArticleSummary {
+  id: string
+  category_id: string | null
+  title: string
+  slug: string
+  status: KbArticleStatus
+  view_count: number
+  excerpt?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface KbArticleSuggest {
+  id: string
+  title: string
+  slug: string
+  excerpt?: string
+}
+
+export interface CreateKbCategoryRequest {
+  name: string
+  slug?: string
+  position?: number
+}
+
+export interface UpdateKbCategoryRequest {
+  name?: string
+  slug?: string
+  position?: number
+}
+
+export interface CreateKbArticleRequest {
+  title: string
+  slug?: string
+  body: string
+  status?: KbArticleStatus
+  category_id?: string | null
+}
+
+export interface UpdateKbArticleRequest {
+  title?: string
+  slug?: string
+  body?: string
+  status?: KbArticleStatus
+  category_id?: string | null
+}
+
+export interface KbArticleListParams {
+  status?: KbArticleStatus
+  category_id?: string
+  q?: string
+  page?: number
+  per_page?: number
+}
+
+export interface KbPublicCategoryWithCount extends KbCategory {
+  article_count: number
+}
+
+export interface KbPublicArticle extends KbArticle {
+  category?: KbCategory
+}
