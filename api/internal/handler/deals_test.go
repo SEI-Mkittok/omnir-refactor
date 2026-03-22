@@ -152,3 +152,21 @@ func TestDealHandler_AddContact_InvalidDealID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	mockRepo.AssertExpectations(t)
 }
+
+func TestDealHandler_Update_InvalidStageReturns422(t *testing.T) {
+	mockRepo := new(mocks.MockDealRepository)
+	h := handler.NewDealHandler(mockRepo)
+
+	dealID := uuid.New()
+	body := bytes.NewReader([]byte(`{"stage":"won"}`))
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/deals/"+dealID.String(), body)
+	req.Header.Set("Content-Type", "application/json")
+	req = withURLParam(req, "id", dealID.String())
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), "closed_won")
+	mockRepo.AssertNotCalled(t, "Update")
+}

@@ -232,6 +232,11 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if patch.Stage != nil && !patch.Stage.IsValid() {
+		writeError(w, http.StatusUnprocessableEntity,
+			`invalid stage: must be one of [lead, qualified, proposal, negotiation, closed_won, closed_lost]`)
+		return
+	}
 	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
 		et := domain.CustomFieldEntityDeal
 		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
