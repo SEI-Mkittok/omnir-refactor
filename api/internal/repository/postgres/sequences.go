@@ -39,6 +39,10 @@ func scanStep(row pgx.Row) (*domain.SequenceStep, error) {
 	return &s, nil
 }
 
+func (r *SequenceRepo) ListSteps(ctx context.Context, sequenceID uuid.UUID) ([]domain.SequenceStep, error) {
+	return r.listSteps(ctx, sequenceID)
+}
+
 func (r *SequenceRepo) listSteps(ctx context.Context, sequenceID uuid.UUID) ([]domain.SequenceStep, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, sequence_id, org_id, position, kind,
