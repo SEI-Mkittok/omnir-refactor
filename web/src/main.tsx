@@ -16,6 +16,7 @@ import { CustomFieldsPage } from '@/pages/CustomFieldsPage'
 import { APIKeysPage } from '@/pages/APIKeysPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { CustomDashboardsPage } from '@/pages/CustomDashboardsPage'
 import { SLASettingsPage } from '@/pages/SLASettingsPage'
 import { WebhooksPage } from '@/pages/WebhooksPage'
 import { BillingSettingsPage } from '@/pages/BillingSettingsPage'
@@ -116,6 +117,7 @@ function AppRoutes() {
         <Route path="/kb" element={<KnowledgeBasePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/dashboards" element={<CustomDashboardsPage />} />
         <Route path="/sequences" element={<SequencesPage />} />
         <Route path="/quotes" element={<QuotesPage />} />
         <Route path="/automations" element={<AutomationsPage />} />
