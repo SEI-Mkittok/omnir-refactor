@@ -315,7 +315,7 @@ function OpportunitiesPanel({ deals: allDeals }: { deals: Deal[] }) {
                 {deal.title}
               </p>
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {formatCurrency(deal.value, deal.currency)} · {deal.stage.replace(/_/g, ' ')}
+                {formatCurrency(deal.value_cents / 100, deal.currency)} · {deal.stage.replace(/_/g, ' ')}
               </p>
               <PipelineProgress deal={deal} />
             </div>

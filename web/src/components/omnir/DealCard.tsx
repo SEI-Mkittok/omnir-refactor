@@ -64,7 +64,7 @@ export function DealCard({ deal, onClick, isDragging, isKeyboardActive }: DealCa
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-[#E5E7EB]">
         <span className="text-sm font-bold text-[#1B3A4B]">
-          {formatCurrency(deal.value, deal.currency)}
+          {formatCurrency(deal.value_cents / 100, deal.currency)}
         </span>
         {deal.close_date ? (
           <div className="flex items-center gap-1 text-[10px] text-[#6B7280]">
