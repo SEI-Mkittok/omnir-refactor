@@ -40,6 +40,8 @@ import { HelpCenterPage } from '@/pages/help/HelpCenterPage'
 import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
 import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
 import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
+import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
+import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -133,6 +135,9 @@ function AppRoutes() {
             </AdminRoute>
           }
         />
+        <Route path="/settings" element={<Navigate to="/settings/security" replace />} />
+        <Route path="/settings/security" element={<SecuritySettingsPage />} />
+        <Route path="/settings/security/2fa/enroll" element={<TotpEnrollPage />} />
         <Route
           path="/settings/custom-fields"
           element={
