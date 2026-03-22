@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Loader2, Sparkles, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useCreateContact } from '@/hooks/useContacts'
+import { useDomainLookup } from '@/hooks/useContacts'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
 import type { CreateContactRequest, CustomFieldValues } from '@/api/types'
@@ -29,15 +30,48 @@ const INITIAL: CreateContactRequest = {
   stage: 'prospect',
 }
 
+function domainFromEmail(email: string): string | null {
+  const parts = email.split('@')
+  if (parts.length !== 2 || !parts[1].includes('.')) return null
+  return parts[1].toLowerCase().trim()
+}
+
 export function ContactForm({ open, onClose }: ContactFormProps) {
   const [form, setForm] = useState<CreateContactRequest>(INITIAL)
   const [errors, setErrors] = useState<Partial<Record<keyof CreateContactRequest, string>>>({})
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [lookupDomain, setLookupDomain] = useState<string | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const createContact = useCreateContact()
   const { data: customFields = [] } = useCustomFieldDefinitions('contact')
+  const { data: enrichment, isFetching: enrichFetching } = useDomainLookup(lookupDomain)
 
-  const set = (field: keyof CreateContactRequest) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((f) => ({ ...f, [field]: e.target.value }))
+  const set = (field: keyof CreateContactRequest) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const value = e.target.value
+    setForm((f) => ({ ...f, [field]: value }))
+
+    if (field === 'email') {
+      setBannerDismissed(false)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        const domain = domainFromEmail(value)
+        setLookupDomain(domain)
+      }, 600)
+    }
+  }
+
+  // Reset when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setForm(INITIAL)
+      setErrors({})
+      setCustomFieldValues({})
+      setBannerDismissed(false)
+      setLookupDomain(null)
+    }
+  }, [open])
 
   const validate = (): boolean => {
     const errs: typeof errors = {}
@@ -62,6 +96,8 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
     setForm(INITIAL)
     setErrors({})
     setCustomFieldValues({})
+    setBannerDismissed(false)
+    setLookupDomain(null)
     onClose()
   }
 
@@ -70,9 +106,26 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
       setForm(INITIAL)
       setErrors({})
       setCustomFieldValues({})
+      setBannerDismissed(false)
+      setLookupDomain(null)
       onClose()
     }
   }
+
+  const applyEnrichment = () => {
+    if (!enrichment?.data) return
+    setForm((f) => ({
+      ...f,
+      department: f.department || enrichment.data.industry || f.department,
+    }))
+    setBannerDismissed(true)
+  }
+
+  const showBanner =
+    !bannerDismissed &&
+    !enrichFetching &&
+    !!enrichment?.data?.company_name &&
+    !!lookupDomain
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -82,6 +135,74 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Enrichment banner */}
+          {enrichFetching && lookupDomain && (
+            <div
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-xs"
+              style={{
+                background: 'var(--color-primary-light)',
+                color: 'var(--color-primary)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+              Looking up {lookupDomain}…
+            </div>
+          )}
+
+          {showBanner && (
+            <div
+              className="flex items-start gap-2 rounded-md px-3 py-2.5"
+              style={{
+                background: 'var(--color-primary-light)',
+                border: '1px solid var(--color-primary)',
+                color: 'var(--text-primary)',
+              }}
+              role="status"
+              aria-label="Company enrichment suggestion"
+            >
+              <Sparkles
+                className="h-4 w-4 mt-0.5 shrink-0"
+                style={{ color: 'var(--color-primary)' }}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>
+                  Company data found for {lookupDomain}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  <strong>{enrichment!.data.company_name}</strong>
+                  {enrichment!.data.industry && ` · ${enrichment!.data.industry}`}
+                  {enrichment!.data.size && ` · ${enrichment!.data.size}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {enrichment?.data.industry && !form.department && (
+                  <button
+                    type="button"
+                    onClick={applyEnrichment}
+                    className="text-xs font-semibold px-2 py-1 rounded"
+                    style={{
+                      background: 'var(--color-primary)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Apply
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setBannerDismissed(true)}
+                  aria-label="Dismiss"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">

@@ -2,6 +2,25 @@
 // Core types derived from the Omnir CRM OpenAPI spec
 // ============================================================
 
+// ---- Enrichment ----
+
+export interface EnrichmentData {
+  company_name?: string
+  industry?: string
+  size?: string
+  logo_url?: string
+  linkedin_url?: string
+}
+
+export interface EnrichmentResult {
+  id: string
+  org_id: string
+  domain: string
+  data: EnrichmentData
+  fetched_at: string
+  created_at: string
+}
+
 export interface PaginatedMeta {
   page: number
   per_page: number

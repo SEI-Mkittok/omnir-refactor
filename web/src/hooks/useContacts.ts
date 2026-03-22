@@ -89,3 +89,23 @@ export function useAddContactNote() {
     },
   })
 }
+
+export function useEnrichContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => contactsApi.enrich(id),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: contactKeys.detail(id) })
+    },
+  })
+}
+
+export function useDomainLookup(domain: string | null) {
+  return useQuery({
+    queryKey: ['enrich', 'domain', domain],
+    queryFn: () => contactsApi.lookupDomain(domain!),
+    enabled: !!domain && domain.length > 3,
+    staleTime: 5 * 60_000,
+    retry: false,
+  })
+}
