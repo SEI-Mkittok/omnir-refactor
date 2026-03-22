@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Download, ShieldCheck, LogIn, FileOutput } from 'lucide-react'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { downloadAuditLogCsv } from '@/api/auditLog'

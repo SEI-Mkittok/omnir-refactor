@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient } from '@tanstack/react-query'
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
-import { idbPersister } from '@/lib/queryPersistence'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppShell } from '@/components/layout/AppShell'
 import { PortalShell } from '@/components/layout/PortalShell'
 import { LoginPage } from '@/pages/LoginPage'
@@ -25,8 +23,6 @@ import { PortalTicketsPage } from '@/pages/portal/PortalTicketsPage'
 import { PortalSubmitPage } from '@/pages/portal/PortalSubmitPage'
 import { PortalTicketDetailPage } from '@/pages/portal/PortalTicketDetailPage'
 import { TicketsPage } from '@/pages/TicketsPage'
-import { TicketDetailPage } from '@/pages/TicketDetailPage'
-import { ContactDetailPage } from '@/pages/ContactDetailPage'
 import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
@@ -34,10 +30,11 @@ import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
 import { CalendarPage } from '@/pages/CalendarPage'
-import { SSOCallbackPage } from '@/pages/SSOCallbackPage'
-import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
-import { TotpVerifyPage } from '@/pages/TotpVerifyPage'
-import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
+import { KnowledgeBasePage } from '@/pages/KnowledgeBasePage'
+import { HelpCenterPage } from '@/pages/help/HelpCenterPage'
+import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
+import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
+import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/globals.css'
@@ -47,7 +44,6 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      gcTime: 1000 * 60 * 60 * 24,
     },
   },
 })
@@ -89,9 +85,13 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/login/2fa" element={<TotpVerifyPage />} />
-      <Route path="/auth/sso/done" element={<SSOCallbackPage />} />
       <Route path="/setup" element={<Navigate to="/login" replace />} />
+
+      {/* Public help center routes (no auth) */}
+      <Route path="/help/:orgSlug" element={<HelpCenterPage />} />
+      <Route path="/help/:orgSlug/c/:categorySlug" element={<HelpCategoryPage />} />
+      <Route path="/help/:orgSlug/a/:articleSlug" element={<HelpArticlePage />} />
+      <Route path="/help/:orgSlug/search" element={<HelpSearchPage />} />
 
       {/* Client portal routes */}
       <Route path="/portal/login" element={<PortalLoginPage />} />
@@ -106,12 +106,11 @@ function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
-        <Route path="/contacts/:id" element={<ContactDetailPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
-        <Route path="/tickets/:id" element={<TicketDetailPage />} />
+        <Route path="/kb" element={<KnowledgeBasePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/sequences" element={<SequencesPage />} />
@@ -119,8 +118,6 @@ function AppRoutes() {
         <Route path="/automations" element={<AutomationsPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/settings/security" element={<SecuritySettingsPage />} />
-        <Route path="/settings/security/2fa/enroll" element={<TotpEnrollPage />} />
         <Route
           path="/users"
           element={
@@ -185,13 +182,10 @@ function AppRoutes() {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: idbPersister, maxAge: 1000 * 60 * 60 * 24 }}
-    >
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 )
