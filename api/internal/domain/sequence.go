@@ -71,11 +71,12 @@ type SequenceStep struct {
 	OrgID             uuid.UUID `json:"org_id"`
 	Position          int       `json:"position"`
 	Kind              StepKind  `json:"kind"`
-	Subject           string    `json:"subject,omitempty"`
-	Body              string    `json:"body,omitempty"`
-	WaitDurationHours *int      `json:"wait_duration_hours,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	Subject           string     `json:"subject,omitempty"`
+	Body              string     `json:"body,omitempty"`
+	TemplateID        *uuid.UUID `json:"template_id,omitempty"`
+	WaitDurationHours *int       `json:"wait_duration_hours,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 // SequenceEnrollment represents a contact enrolled in a sequence.
@@ -156,9 +157,10 @@ type UpdateSequenceRequest struct {
 type CreateStepRequest struct {
 	Kind              StepKind `json:"kind"`
 	Position          int      `json:"position"`
-	Subject           string   `json:"subject,omitempty"`
-	Body              string   `json:"body,omitempty"`
-	WaitDurationHours *int     `json:"wait_duration_hours,omitempty"`
+	Subject           string     `json:"subject,omitempty"`
+	Body              string     `json:"body,omitempty"`
+	TemplateID        *uuid.UUID `json:"template_id,omitempty"`
+	WaitDurationHours *int       `json:"wait_duration_hours,omitempty"`
 }
 
 // EnrollRequest is the payload to enroll contacts into a sequence.

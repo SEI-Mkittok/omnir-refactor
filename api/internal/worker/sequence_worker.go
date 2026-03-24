@@ -14,6 +14,7 @@ import (
 // SequenceWorker processes pending email sequence enrollments on a ticker.
 type SequenceWorker struct {
 	repo        repository.SequenceRepository
+	tmplRepo    repository.EmailTemplateRepository
 	mailer      *email.Mailer
 	tokenSecret string
 	interval    time.Duration
@@ -22,9 +23,10 @@ type SequenceWorker struct {
 }
 
 // NewSequenceWorker creates a SequenceWorker that runs every interval.
-func NewSequenceWorker(repo repository.SequenceRepository, mailer *email.Mailer, tokenSecret string, interval time.Duration, log *slog.Logger) *SequenceWorker {
+func NewSequenceWorker(repo repository.SequenceRepository, tmplRepo repository.EmailTemplateRepository, mailer *email.Mailer, tokenSecret string, interval time.Duration, log *slog.Logger) *SequenceWorker {
 	return &SequenceWorker{
 		repo:        repo,
+		tmplRepo:    tmplRepo,
 		mailer:      mailer,
 		tokenSecret: tokenSecret,
 		interval:    interval,
@@ -112,11 +114,26 @@ func (w *SequenceWorker) processEnrollment(ctx context.Context, enrollment *doma
 				ClickToken:       clickToken,
 				UnsubscribeToken: unsubToken,
 			}
+
+			subject := step.Subject
 			htmlBody := step.Body
-			if htmlBody == "" {
-				htmlBody = "<p>" + step.Body + "</p>"
+
+			if step.TemplateID != nil && w.tmplRepo != nil {
+				if tmpl, err := w.tmplRepo.GetByID(ctx, *step.TemplateID); err == nil {
+					if subject == "" {
+						subject = tmpl.Subject
+					}
+					htmlBody = tmpl.Body
+				} else {
+					w.log.Warn("sequence worker: failed to fetch template", "template_id", *step.TemplateID, "err", err)
+				}
 			}
-			if err := w.mailer.SendSequenceEmail(enrollment.ContactEmail, step.Subject, htmlBody, tokens); err != nil {
+
+			if htmlBody == "" {
+				htmlBody = "<p></p>"
+			}
+
+			if err := w.mailer.SendSequenceEmail(enrollment.ContactEmail, subject, htmlBody, tokens); err != nil {
 				w.log.Warn("sequence worker: failed to send email",
 					"enrollment_id", enrollment.ID,
 					"contact_email", enrollment.ContactEmail,
