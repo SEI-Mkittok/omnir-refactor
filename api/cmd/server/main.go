@@ -96,6 +96,7 @@ func main() {
 	billingRepo := postgres.NewBillingRepo(db)
 	dashboardRepo := postgres.NewDashboardRepo(db)
 	onboardingRepo := postgres.NewOnboardingRepo(db)
+	emailTemplateRepo := postgres.NewEmailTemplateRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -250,7 +251,8 @@ func main() {
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
 	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo)
 	billingHandler := handler.NewBillingHandler(billingRepo, cfg.Stripe, appURL)
-	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
+	emailTemplateHandler := handler.NewEmailTemplateHandler(emailTemplateRepo)
+	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, emailTemplateRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo, reportsRepo)
@@ -360,6 +362,7 @@ func main() {
 			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
 			r.Mount("/", kbHandler.Router())
 		})
+		r.Mount("/email-templates", emailTemplateHandler.Router())
 		r.Mount("/calendar", calendarHandler.Router())
 		r.Route("/integrations/teams", func(r chi.Router) {
 			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
