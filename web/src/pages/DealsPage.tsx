@@ -120,10 +120,10 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
               <dd className="text-[#1A1D23]">{deal.probability}%</dd>
             </>
           )}
-          {deal.close_date && (
+          {deal.expected_close_date && (
             <>
               <dt className="font-medium text-[#6B7280]">Close Date</dt>
-              <dd className="text-[#1A1D23]">{formatDate(deal.close_date)}</dd>
+              <dd className="text-[#1A1D23]">{formatDate(deal.expected_close_date)}</dd>
             </>
           )}
           {deal.account?.name && (
@@ -400,11 +400,11 @@ export function DealsPage() {
         ),
     },
     {
-      key: 'close_date',
+      key: 'expected_close_date',
       header: 'Close Date',
       sortable: true,
       hideOnMobile: true,
-      render: (d) => <span className="text-[#6B7280] text-xs">{formatDate(d.close_date)}</span>,
+      render: (d) => <span className="text-[#6B7280] text-xs">{d.expected_close_date ? formatDate(d.expected_close_date) : '—'}</span>,
     },
   ]
 
