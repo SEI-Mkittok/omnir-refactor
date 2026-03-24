@@ -37,6 +37,8 @@ type Deal struct {
 	ExpectedCloseDate *time.Time      `json:"expected_close_date,omitempty"`
 	ContactID         *uuid.UUID      `json:"contact_id,omitempty"` // legacy; kept for backwards compat
 	AccountID         *uuid.UUID      `json:"account_id,omitempty"`
+	Account           *Account        `json:"account,omitempty"`
+	Contact           *Contact        `json:"contact,omitempty"`
 	OwnerID           uuid.UUID       `json:"owner_id"`
 	PipelineID        uuid.UUID       `json:"pipeline_id"`
 	CustomFields      json.RawMessage `json:"custom_fields,omitempty"`

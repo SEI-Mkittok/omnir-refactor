@@ -336,4 +336,3 @@ func (h *KBHandler) parseArticleFilter(r *http.Request, defaultStatus *domain.KB
 	}
 	return f
 }
-

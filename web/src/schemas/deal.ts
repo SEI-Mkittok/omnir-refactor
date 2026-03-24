@@ -15,7 +15,7 @@ export const createDealSchema = z.object({
   currency: z.string().default('USD'),
   stage: dealStageSchema.default('lead'),
   probability: z.number().min(0).max(100).optional(),
-  close_date: z.string().optional(),
+  expected_close_date: z.string().optional(),
   account_id: z.string().optional(),
   contact_id: z.string().optional(),
   pipeline_id: z.string().optional(),

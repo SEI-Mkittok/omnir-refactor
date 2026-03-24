@@ -1,0 +1,94 @@
+=== OMN-576: feat: Sequences Expansion ===
+Email editing should be full WYSIWYG with HTML backend.&#x20;
+
+Expand to include email templates then build the sequences off those templates.
+
+Templates should be available in the Email module as well when sending mail ad-hoc
+
+=== OMN-575: bug: New quote screen has no way to associate with pipeline or account ===
+No account or contact lookup
+
+Error 400 when saving draft
+
+=== OMN-574: bug: Contacts Missing Account Association ===
+The account column is blank
+
+=== OMN-573: bug: pipeline list view not fully populated ===
+![](/api/assets/44e73d7f-dd69-413f-8a23-5bd30f8df46e/content)
+
+Account, Contact and Close date missing
+
+=== OMN-572: bug: Contact detail showing not found ===
+Error in the console: index-Czfp\_JLT.js:695  GET [http://100.73.134.90/api/v1/contacts/a5e219e2-4977-4687-86cd-890b4ed9952c](http://100.73.134.90/api/v1/contacts/a5e219e2-4977-4687-86cd-890b4ed9952c) 402 (Payment Required)
+
+(anonymous) @ index-Czfp\_JLT.js:695
+
+xhr @ index-Czfp\_JLT.js:695
+
+U8 @ index-Czfp\_JLT.js:697
+
+\_request @ index-Czfp\_JLT.js:698
+
+request @ index-Czfp\_JLT.js:697
+
+Pc.\<computed> @ index-Czfp\_JLT.js:698
+
+(anonymous) @ index-Czfp\_JLT.js:693
+
+get @ index-Czfp\_JLT.js:752
+
+queryFn @ index-Czfp\_JLT.js:752
+
+i @ index-Czfp\_JLT.js:67
+
+g @ index-Czfp\_JLT.js:67
+
+start @ index-Czfp\_JLT.js:67
+
+fetch @ index-Czfp\_JLT.js:67
+
+bh @ index-Czfp\_JLT.js:67
+
+onSubscribe @ index-Czfp\_JLT.js:67
+
+subscribe @ index-Czfp\_JLT.js:67
+
+(anonymous) @ index-Czfp\_JLT.js:67
+
+nY @ index-Czfp\_JLT.js:38
+
+CS @ index-Czfp\_JLT.js:40
+
+Op @ index-Czfp\_JLT.js:40
+
+Ipe @ index-Czfp\_JLT.js:40
+
+ic @ index-Czfp\_JLT.js:40
+
+x$ @ index-Czfp\_JLT.js:40
+
+Lu @ index-Czfp\_JLT.js:38
+
+(anonymous) @ index-Czfp\_JLT.js:40
+
+index-Czfp\_JLT.js:695  GET [http://100.73.134.90/api/v1/contacts/a5e219e2-4977-4687-86cd-890b4ed9952c](http://100.73.134.90/api/v1/contacts/a5e219e2-4977-4687-86cd-890b4ed9952c) 402 (Payment Required)
+
+=== OMN-571: feat: Pipeline edit value of deal ===
+Should be able to edit the value of the deal from the deal details screen.
+
+=== OMN-570: feat: Module interlinking ===
+Wherever a module record is mentioned, it should be interlinked. Example: Pipeline should have a link to the account and contact associated. A Ticket should have links to the account and contact record.&#x20;
+
+=== OMN-569: QA: email thread mark-as-read (OMN-552) ===
+Verify the backend fix for OMN-552 on staging:
+
+1. Open the inbox and note an unread thread (bold/indicator visible)
+2. Click the thread to open it
+3. After open, confirm the unread indicator disappears
+4. Confirm the unread count badge in the header decrements
+5. Check network tab: `PATCH /api/v1/emails/{threadId}/read` returns 204
+6. Reload the page — thread should still show as read (read_at persisted)
+7. Check edge case: opening an already-read thread should be a no-op (204, no error)
+
+Note: Frontend implementation (Freya) must land first. Once merged, re-test E2E.
+

@@ -23,10 +23,10 @@ func NewDealRepo(db *pgxpool.Pool) *DealRepo {
 }
 
 const dealCols = `
-	id, org_id, title, value_cents, currency, stage, probability,
-	expected_close_date, contact_id, account_id,
-	owner_id, pipeline_id, custom_fields,
-	created_at, updated_at, deleted_at
+	deals.id, deals.org_id, deals.title, deals.value_cents, deals.currency, deals.stage, deals.probability,
+	deals.expected_close_date, deals.contact_id, deals.account_id,
+	deals.owner_id, deals.pipeline_id, deals.custom_fields,
+	deals.created_at, deals.updated_at, deals.deleted_at
 `
 
 func scanDeal(row pgx.Row) (*domain.Deal, error) {
@@ -67,7 +67,10 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 			 expected_close_date, contact_id, account_id,
 			 owner_id, pipeline_id, custom_fields, created_at, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-		RETURNING `+dealCols,
+		RETURNING id, org_id, title, value_cents, currency, stage, probability,
+	expected_close_date, contact_id, account_id,
+	owner_id, pipeline_id, custom_fields,
+	created_at, updated_at, deleted_at`,
 		d.ID, d.OrgID, d.Title, d.ValueCents, d.Currency, d.Stage, d.Probability,
 		d.ExpectedCloseDate, d.ContactID, d.AccountID,
 		d.OwnerID, d.PipelineID, d.CustomFields, d.CreatedAt, d.UpdatedAt,
@@ -76,7 +79,10 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 }
 
 func (r *DealRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, error) {
-	q := `SELECT ` + dealCols + ` FROM deals WHERE id=$1 AND deleted_at IS NULL`
+	q := `SELECT id, org_id, title, value_cents, currency, stage, probability,
+	expected_close_date, contact_id, account_id,
+	owner_id, pipeline_id, custom_fields,
+	created_at, updated_at, deleted_at FROM deals WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
@@ -195,8 +201,8 @@ func (r *DealRepo) Update(ctx context.Context, id uuid.UUID, patch domain.DealPa
 	}
 
 	query := fmt.Sprintf(
-		`UPDATE deals SET %s WHERE %s RETURNING %s`,
-		strings.Join(sets, ", "), whereClause, dealCols,
+		`UPDATE deals SET %s WHERE %s RETURNING id, org_id, title, value_cents, currency, stage, probability, expected_close_date, contact_id, account_id, owner_id, pipeline_id, custom_fields, created_at, updated_at, deleted_at`,
+		strings.Join(sets, ", "), whereClause,
 	)
 	row := r.db.QueryRow(ctx, query, args...)
 	return scanDeal(row)
@@ -235,7 +241,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	i := 1
 
 	addWhere := func(expr string, val any) {
-		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
+		where = append(where, fmt.Sprintf("deals.%s = $%d", expr, i))
 		args = append(args, val)
 		i++
 	}
@@ -266,7 +272,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
-			`to_tsvector('english', title) @@ plainto_tsquery('english', $%d)`, i,
+			`to_tsvector('english', deals.title) @@ plainto_tsquery('english', $%d)`, i,
 		))
 		args = append(args, f.Q)
 		i++
@@ -294,9 +300,15 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 		order = "ASC"
 	}
 
+	sortCol = "deals." + sortCol
+
 	rows, err := r.db.Query(ctx,
 		fmt.Sprintf(
-			`SELECT %s FROM deals WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
+			`SELECT %s, a.id, a.name, c.id, c.first_name, c.last_name
+			 FROM deals 
+			 LEFT JOIN accounts a ON deals.account_id = a.id
+			 LEFT JOIN contacts c ON deals.contact_id = c.id
+			 WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
 			dealCols, whereClause, sortCol, order, i, i+1,
 		),
 		append(args, f.Limit, offset)...,
@@ -309,13 +321,26 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	var deals []*domain.Deal
 	for rows.Next() {
 		var d domain.Deal
+		var aID *uuid.UUID
+		var aName *string
+		var cID *uuid.UUID
+		var cFirst, cLast *string
+
 		if err := rows.Scan(
 			&d.ID, &d.OrgID, &d.Title, &d.ValueCents, &d.Currency, &d.Stage, &d.Probability,
 			&d.ExpectedCloseDate, &d.ContactID, &d.AccountID,
 			&d.OwnerID, &d.PipelineID, &d.CustomFields,
 			&d.CreatedAt, &d.UpdatedAt, &d.DeletedAt,
+			&aID, &aName, &cID, &cFirst, &cLast,
 		); err != nil {
 			return nil, 0, err
+		}
+
+		if aID != nil && aName != nil {
+			d.Account = &domain.Account{ID: *aID, Name: *aName}
+		}
+		if cID != nil && cFirst != nil && cLast != nil {
+			d.Contact = &domain.Contact{ID: *cID, FirstName: *cFirst, LastName: *cLast}
 		}
 		deals = append(deals, &d)
 	}

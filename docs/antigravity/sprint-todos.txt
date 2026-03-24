@@ -1,0 +1,8 @@
+OMN-576: feat: Sequences Expansion (Status: todo, Assignee: )
+OMN-575: bug: New quote screen has no way to associate with pipeline or account (Status: todo, Assignee: )
+OMN-574: bug: Contacts Missing Account Association (Status: todo, Assignee: )
+OMN-573: bug: pipeline list view not fully populated (Status: todo, Assignee: )
+OMN-572: bug: Contact detail showing not found (Status: todo, Assignee: )
+OMN-571: feat: Pipeline edit value of deal (Status: todo, Assignee: )
+OMN-570: feat: Module interlinking (Status: todo, Assignee: )
+OMN-569: QA: email thread mark-as-read (OMN-552) (Status: todo, Assignee: )

@@ -62,9 +62,9 @@ func TestParseFromName(t *testing.T) {
 
 func TestParseEmailAddress(t *testing.T) {
 	tests := []struct {
-		name  string
-		from  string
-		want  string
+		name string
+		from string
+		want string
 	}{
 		{
 			name: "RFC 5322 format returns bare address",
