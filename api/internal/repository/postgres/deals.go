@@ -301,7 +301,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	}
 
 	sortCol = "deals." + sortCol
-	
+
 	rows, err := r.db.Query(ctx,
 		fmt.Sprintf(
 			`SELECT %s, a.id, a.name, c.id, c.first_name, c.last_name
@@ -335,7 +335,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 		); err != nil {
 			return nil, 0, err
 		}
-		
+
 		if aID != nil && aName != nil {
 			d.Account = &domain.Account{ID: *aID, Name: *aName}
 		}
