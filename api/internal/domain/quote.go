@@ -73,8 +73,8 @@ type Quote struct {
 }
 
 func (q *Quote) Validate() error {
-	if q.Title == "" {
-		return fmt.Errorf("%w: title is required", ErrValidation)
+	if q.Title == "" && q.Status != QuoteStatusDraft && q.Status != "" {
+		return fmt.Errorf("%w: title is required for non-draft quotes", ErrValidation)
 	}
 	if q.Status != "" && !q.Status.IsValid() {
 		return fmt.Errorf("%w: invalid status %q", ErrValidation, q.Status)
