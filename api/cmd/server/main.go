@@ -321,10 +321,7 @@ func main() {
 		r.Route("/contacts/{id}/emails", func(r chi.Router) {
 			r.Mount("/", emailHandler.ContactEmailRouter())
 		})
-		r.Route("/contacts/{id}", func(r chi.Router) {
-			r.Use(middleware.RequirePlan(billingRepo, domain.BillingPlanPro))
-			r.Mount("/", enrichmentHandler.ContactEnrichRouter())
-		})
+		r.With(middleware.RequirePlan(billingRepo, domain.BillingPlanPro)).Post("/contacts/{id}/enrich", enrichmentHandler.EnrichContact)
 		r.Mount("/accounts", accountHandler.Router())
 		r.Route("/accounts/{id}/notes", func(r chi.Router) { r.Mount("/", accountNoteHandler.Router()) })
 		r.Mount("/deals", dealHandler.Router())
