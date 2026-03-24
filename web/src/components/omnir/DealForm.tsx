@@ -38,7 +38,7 @@ export function DealForm({ onClose }: DealFormProps) {
       title: title.trim(),
       value_cents: Math.round(numValue * 100),
       stage,
-      ...(closeDate ? { close_date: closeDate } : {}),
+      ...(closeDate ? { expected_close_date: closeDate } : {}),
     }
     await createDeal(payload)
     onClose()

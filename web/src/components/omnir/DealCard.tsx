@@ -66,10 +66,10 @@ export function DealCard({ deal, onClick, isDragging, isKeyboardActive }: DealCa
         <span className="text-sm font-bold text-[#1B3A4B]">
           {formatCurrency(deal.value_cents / 100, deal.currency)}
         </span>
-        {deal.close_date ? (
+        {deal.expected_close_date ? (
           <div className="flex items-center gap-1 text-[10px] text-[#6B7280]">
             <Calendar className="h-3 w-3" />
-            <span>{formatDate(deal.close_date)}</span>
+            <span>{formatDate(deal.expected_close_date)}</span>
           </div>
         ) : (
           <span className="text-[10px] text-[#6B7280]">{age}d old</span>

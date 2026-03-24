@@ -201,7 +201,7 @@ export interface Deal {
   currency?: string
   stage: DealStage
   probability?: number
-  close_date?: string
+  expected_close_date?: string
   account_id?: string
   account?: Account
   contact_id?: string
@@ -223,7 +223,7 @@ export interface CreateDealRequest {
   currency?: string
   stage?: DealStage
   probability?: number
-  close_date?: string
+  expected_close_date?: string
   account_id?: string
   contact_id?: string
   pipeline_id?: string
