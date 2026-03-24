@@ -27,7 +27,7 @@ func scanStep(row pgx.Row) (*domain.SequenceStep, error) {
 	var s domain.SequenceStep
 	err := row.Scan(
 		&s.ID, &s.SequenceID, &s.OrgID, &s.Position, &s.Kind,
-		&s.Subject, &s.Body, &s.WaitDurationHours,
+		&s.Subject, &s.Body, &s.TemplateID, &s.WaitDurationHours,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
@@ -46,7 +46,7 @@ func (r *SequenceRepo) ListSteps(ctx context.Context, sequenceID uuid.UUID) ([]d
 func (r *SequenceRepo) listSteps(ctx context.Context, sequenceID uuid.UUID) ([]domain.SequenceStep, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, sequence_id, org_id, position, kind,
-		       COALESCE(subject,''), COALESCE(body,''), wait_duration_hours,
+		       COALESCE(subject,''), COALESCE(body,''), template_id, wait_duration_hours,
 		       created_at, updated_at
 		FROM sequence_steps
 		WHERE sequence_id = $1
@@ -77,9 +77,9 @@ func (r *SequenceRepo) replaceSteps(ctx context.Context, tx pgx.Tx, sequenceID, 
 		id := uuid.New()
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO sequence_steps
-				(id, sequence_id, org_id, position, kind, subject, body, wait_duration_hours, created_at, updated_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-		`, id, sequenceID, orgID, sr.Position, sr.Kind, sr.Subject, sr.Body, sr.WaitDurationHours, now, now); err != nil {
+				(id, sequence_id, org_id, position, kind, subject, body, template_id, wait_duration_hours, created_at, updated_at)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		`, id, sequenceID, orgID, sr.Position, sr.Kind, sr.Subject, sr.Body, sr.TemplateID, sr.WaitDurationHours, now, now); err != nil {
 			return err
 		}
 	}
