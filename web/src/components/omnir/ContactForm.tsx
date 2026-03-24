@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useCreateContact } from '@/hooks/useContacts'
 import { useDomainLookup } from '@/hooks/useContacts'
+import { useAccounts } from '@/hooks/useAccounts'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
 import type { CreateContactRequest, CustomFieldValues } from '@/api/types'
@@ -28,6 +29,7 @@ const INITIAL: CreateContactRequest = {
   title: '',
   department: '',
   stage: 'prospect',
+  account_id: '',
 }
 
 function domainFromEmail(email: string): string | null {
@@ -47,6 +49,8 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
   const createContact = useCreateContact()
   const { data: customFields = [] } = useCustomFieldDefinitions('contact')
   const { data: enrichment, isFetching: enrichFetching } = useDomainLookup(lookupDomain)
+  const { data: accountsData, isLoading: accountsLoading } = useAccounts({ per_page: 50 })
+  const accounts = accountsData?.data || []
 
   const set = (field: keyof CreateContactRequest) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const value = e.target.value
@@ -91,6 +95,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
       phone: form.phone || undefined,
       title: form.title || undefined,
       department: form.department || undefined,
+      account_id: form.account_id || undefined,
       custom_fields: Object.keys(customFieldValues).length ? customFieldValues : undefined,
     } as CreateContactRequest & { custom_fields?: CustomFieldValues })
     setForm(INITIAL)
@@ -246,6 +251,23 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
               aria-invalid={!!errors.email}
             />
             {errors.email && <p className="mt-0.5 text-xs text-red-500">{errors.email}</p>}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">Account</label>
+            <select
+              value={form.account_id ?? ''}
+              onChange={set('account_id')}
+              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+              disabled={accountsLoading}
+            >
+              <option value="">-- None --</option>
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
