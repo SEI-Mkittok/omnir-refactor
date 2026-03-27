@@ -1,9 +1,7 @@
-// TODO(OMN-529): Backend (OMN-528) not yet merged. All endpoints below are
-// scaffolded against the expected API contract. Remove the mock data and
-// uncomment the real API calls once OMN-528 lands on develop.
+// TODO(OMN-529): Some endpoints below are still scaffolded against the expected
+// API contract. Remove remaining mock data when the backend stubs land.
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import apiClient from './client' // kept for TODO(OMN-528) — remove mock data when backend lands
+import apiClient from './client'
 import type {
   EmailAccount,
   InboxThread,
@@ -158,12 +156,7 @@ export const inboxApi = {
 
   // List threads (unified inbox)
   listThreads: async (params?: InboxListParams): Promise<PaginatedResponse<InboxThread>> => {
-    // TODO(OMN-528): return (await apiClient.get<PaginatedResponse<InboxThread>>('/inbox/threads', { params })).data
-    void params
-    return Promise.resolve({
-      data: MOCK_THREADS,
-      meta: { page: 1, per_page: 50, total: MOCK_THREADS.length, total_pages: 1 },
-    })
+    return (await apiClient.get<PaginatedResponse<InboxThread>>('/emails/threads', { params })).data
   },
 
   // Get a single thread with messages
@@ -175,8 +168,7 @@ export const inboxApi = {
 
   // Mark thread as read
   markRead: async (threadId: string): Promise<void> => {
-    // TODO(OMN-528): await apiClient.patch(`/inbox/threads/${threadId}/read`)
-    void threadId
+    await apiClient.patch(`/emails/${threadId}/read`)
   },
 
   // Send / reply
