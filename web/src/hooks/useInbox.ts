@@ -42,7 +42,27 @@ export function useMarkThreadRead() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (threadId: string) => inboxApi.markRead(threadId),
-    onSuccess: (_data, threadId) => {
+    onMutate: async (threadId: string) => {
+      await qc.cancelQueries({ queryKey: inboxKeys.threads() })
+      const previous = qc.getQueriesData({ queryKey: inboxKeys.threads() })
+      qc.setQueriesData({ queryKey: inboxKeys.threads() }, (old: unknown) => {
+        if (!old || typeof old !== 'object') return old
+        const page = old as { data: { id: string; unread: boolean }[]; meta: unknown }
+        return {
+          ...page,
+          data: page.data.map((t) => (t.id === threadId ? { ...t, unread: false } : t)),
+        }
+      })
+      return { previous }
+    },
+    onError: (_err, _threadId, context) => {
+      if (context?.previous) {
+        for (const [queryKey, data] of context.previous) {
+          qc.setQueryData(queryKey, data)
+        }
+      }
+    },
+    onSettled: (_data, _err, threadId) => {
       qc.invalidateQueries({ queryKey: inboxKeys.threads() })
       qc.invalidateQueries({ queryKey: inboxKeys.thread(threadId) })
     },
