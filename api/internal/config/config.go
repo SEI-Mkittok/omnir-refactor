@@ -85,8 +85,9 @@ type Config struct {
 	Storage             StorageConfig
 	Calendar            CalendarConfig
 	EmailInbox          EmailInboxConfig
-	SSOEncryptionKey    string
-	SSOCallbackURL      string
+	SSOEncryptionKey              string
+	SSOCallbackURL                string
+	IntegrationCredentialsEncKey  string
 	SSOAPICallbackURL   string
 	ClearbitAPIKey      string
 	Stripe              StripeConfig
@@ -153,7 +154,8 @@ func Load() *Config {
 			MicrosoftTenantID:     getEnv("OUTLOOK_TENANT_ID", "common"),
 			EncryptionKey:         getEnv("EMAIL_INBOX_ENCRYPTION_KEY", "dev-email-inbox-key-change-in-prod"),
 		},
-		SSOEncryptionKey:  getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
+		SSOEncryptionKey:             getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
+		IntegrationCredentialsEncKey: getEnv("INTEGRATION_CREDENTIALS_ENCRYPTION_KEY", "dev-integration-creds-key-change-in-prod"),
 		SSOCallbackURL:    getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
 		SSOAPICallbackURL: getEnv("SSO_API_CALLBACK_URL", "http://localhost:8080/api/auth/sso/callback"),
 		ClearbitAPIKey:    getEnv("CLEARBIT_API_KEY", ""),
