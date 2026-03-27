@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   User,
   Mail,
@@ -461,7 +462,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
                 <Building2 className="h-4 w-4 text-[var(--color-primary)]" />
               </div>
               <div className="min-w-0">
-                <p className="font-medium text-slate-900 truncate">{contact.account.name}</p>
+                <Link to={`/accounts/${contact.account.id}`} className="font-medium text-slate-900 truncate hover:underline hover:text-[#1B3A4B]">{contact.account.name}</Link>
                 {contact.account.industry && (
                   <p className="text-xs text-slate-500 truncate">{contact.account.industry}</p>
                 )}
@@ -500,7 +501,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900 truncate">{deal.title}</p>
                     {deal.account?.name && (
-                      <p className="text-xs text-slate-400 truncate">{deal.account.name}</p>
+                      <Link to={`/accounts/${deal.account.id}`} className="text-xs text-slate-400 truncate hover:underline hover:text-[#1B3A4B]">{deal.account.name}</Link>
                     )}
                   </div>
                   <div className="ml-3 flex shrink-0 items-center gap-2">

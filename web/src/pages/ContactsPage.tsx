@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { Plus, Users, Upload, Download } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useContacts } from '@/hooks/useContacts'
@@ -123,7 +123,11 @@ export function ContactsPage() {
       key: 'account',
       header: 'Account',
       hideOnMobile: true,
-      render: (c) => <span className="text-slate-600">{c.account?.name ?? '—'}</span>,
+      render: (c) => c.account ? (
+        <Link to={`/accounts/${c.account.id}`} className="text-slate-600 hover:underline hover:text-[#1B3A4B]" onClick={(e) => e.stopPropagation()}>
+          {c.account.name}
+        </Link>
+      ) : <span className="text-slate-600">—</span>,
     },
     {
       key: 'stage',

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Plus, Search, X, Inbox, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { TicketForm } from '@/components/omnir/TicketForm'
 import * as RadixSelect from '@radix-ui/react-select'
@@ -394,14 +394,18 @@ function TicketsTable({
                   {/* Contact */}
                   <td className="px-4">
                     {ticket.contact ? (
-                      <div className="flex items-center gap-2">
+                      <Link
+                        to={`/contacts/${ticket.contact.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 hover:underline"
+                      >
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[11px] font-semibold text-[var(--color-primary)]">
                           {contactInitials(ticket.contact.first_name, ticket.contact.last_name)}
                         </div>
                         <span className="text-[14px] text-[var(--text-primary)] truncate max-w-[120px]">
                           {fullName(ticket.contact.first_name, ticket.contact.last_name)}
                         </span>
-                      </div>
+                      </Link>
                     ) : (
                       <span className="text-[13px] text-[var(--text-label)]">—</span>
                     )}
