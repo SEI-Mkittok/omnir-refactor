@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Calendar } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Deal } from '@/api/types'
 import { cn } from '@/lib/utils'
@@ -36,9 +37,13 @@ export function DealCard({ deal, onClick, isDragging, isKeyboardActive }: DealCa
       {/* Category tag row */}
       <div className="flex items-start justify-between mb-2">
         {deal.account?.name ? (
-          <span className="text-[10px] font-bold text-[#7C8DB0] uppercase tracking-tight px-1.5 py-0.5 bg-[#E8EDF2] rounded">
+          <Link
+            to={`/accounts/${deal.account.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[10px] font-bold text-[#7C8DB0] uppercase tracking-tight px-1.5 py-0.5 bg-[#E8EDF2] rounded hover:bg-[#D1D9E6] transition-colors"
+          >
             {deal.account.name.slice(0, 14)}
-          </span>
+          </Link>
         ) : (
           <span className="text-[10px] font-bold text-[#7C8DB0] uppercase tracking-tight px-1.5 py-0.5 bg-[#E8EDF2] rounded">
             Deal
@@ -57,7 +62,13 @@ export function DealCard({ deal, onClick, isDragging, isKeyboardActive }: DealCa
       {/* Contact */}
       {deal.contact && (
         <p className="text-xs text-[#6B7280] mb-3">
-          {deal.contact.first_name} {deal.contact.last_name}
+          <Link
+            to={`/contacts/${deal.contact.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:underline"
+          >
+            {deal.contact.first_name} {deal.contact.last_name}
+          </Link>
         </p>
       )}
 
