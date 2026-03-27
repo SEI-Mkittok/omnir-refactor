@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, LayoutGrid, List, X, TrendingUp } from 'lucide-react'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { Plus, LayoutGrid, List, X, TrendingUp, Pencil, Check, Loader2 } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
@@ -10,6 +10,7 @@ import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { Table, type Column } from '@/components/ui/Table'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
@@ -64,6 +65,76 @@ interface FilterChip {
 
 // ---- Deal detail panel ----
 
+function DealValueEditor({ deal, onSave }: { deal: { id: string; value_cents: number; currency?: string }; onSave: (valueCents: number) => Promise<void> }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const startEdit = useCallback(() => {
+    setDraft(String((deal.value_cents / 100).toFixed(2)))
+    setEditing(true)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }, [deal.value_cents])
+
+  const cancel = useCallback(() => {
+    setEditing(false)
+    setDraft('')
+  }, [])
+
+  const commit = useCallback(async () => {
+    const parsed = parseFloat(draft)
+    if (isNaN(parsed) || parsed < 0) { cancel(); return }
+    const cents = Math.round(parsed * 100)
+    if (cents === deal.value_cents) { cancel(); return }
+    setSaving(true)
+    try {
+      await onSave(cents)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }, [draft, deal.value_cents, onSave, cancel])
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') commit()
+    if (e.key === 'Escape') cancel()
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Input
+          ref={inputRef}
+          type="number"
+          min="0"
+          step="0.01"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={commit}
+          disabled={saving}
+          className="w-36 text-xl font-bold"
+        />
+        {saving && <Loader2 className="h-4 w-4 animate-spin text-[#6B7280]" />}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={startEdit}
+      className="group flex items-center gap-1.5 cursor-pointer"
+      aria-label="Edit deal value"
+    >
+      <span className="text-2xl font-bold text-[#1B3A4B]">
+        {formatCurrency(deal.value_cents / 100, deal.currency)}
+      </span>
+      <Pencil className="h-3.5 w-3.5 text-[#6B7280] opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  )
+}
+
 function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }) {
   const { data: deal, isLoading } = useDeal(dealId)
   const deleteDeal = useDeleteDeal()
@@ -108,9 +179,10 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
           <Badge variant={stageBadge[deal.stage]} className="text-sm px-3 py-1">
             {stageLabel[deal.stage]}
           </Badge>
-          <span className="text-2xl font-bold text-[#1B3A4B]">
-            {formatCurrency(deal.value_cents / 100, deal.currency)}
-          </span>
+          <DealValueEditor
+            deal={deal}
+            onSave={async (cents) => { await updateDeal.mutateAsync({ id: dealId, payload: { value_cents: cents } }) }}
+          />
         </div>
 
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -129,14 +201,20 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
           {deal.account?.name && (
             <>
               <dt className="font-medium text-[#6B7280]">Account</dt>
-              <dd className="text-[#1A1D23]">{deal.account.name}</dd>
+              <dd>
+                <Link to={`/accounts/${deal.account.id}`} className="text-[#1A1D23] hover:underline hover:text-[#1B3A4B]">
+                  {deal.account.name}
+                </Link>
+              </dd>
             </>
           )}
           {deal.contact && (
             <>
               <dt className="font-medium text-[#6B7280]">Contact</dt>
-              <dd className="text-[#1A1D23]">
-                {deal.contact.first_name} {deal.contact.last_name}
+              <dd>
+                <Link to={`/contacts/${deal.contact.id}`} className="text-[#1A1D23] hover:underline hover:text-[#1B3A4B]">
+                  {deal.contact.first_name} {deal.contact.last_name}
+                </Link>
               </dd>
             </>
           )}
@@ -384,7 +462,11 @@ export function DealsPage() {
       key: 'account',
       header: 'Account',
       hideOnMobile: true,
-      render: (d) => <span className="text-[#6B7280]">{d.account?.name ?? '—'}</span>,
+      render: (d) => d.account ? (
+        <Link to={`/accounts/${d.account.id}`} className="text-[#6B7280] hover:underline hover:text-[#1B3A4B]" onClick={(e) => e.stopPropagation()}>
+          {d.account.name}
+        </Link>
+      ) : <span className="text-[#6B7280]">—</span>,
     },
     {
       key: 'contact',
@@ -392,9 +474,9 @@ export function DealsPage() {
       hideOnMobile: true,
       render: (d) =>
         d.contact ? (
-          <span className="text-[#6B7280]">
+          <Link to={`/contacts/${d.contact.id}`} className="text-[#6B7280] hover:underline hover:text-[#1B3A4B]" onClick={(e) => e.stopPropagation()}>
             {d.contact.first_name} {d.contact.last_name}
-          </span>
+          </Link>
         ) : (
           <span className="text-[#6B7280]">—</span>
         ),
