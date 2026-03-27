@@ -5,16 +5,25 @@
 --   - Thread 2: 1 unread message (billing question)
 --   - Thread 3: 1 read message (already-read baseline)
 -- Idempotent: uses ON CONFLICT DO NOTHING throughout.
+-- Safe in CI: skips entirely if the seed user does not exist.
 
 -- +goose StatementBegin
 DO $$
+DECLARE
+    v_user_id UUID := 'a45fc555-75fa-4358-b265-577a9f976c84';
+    v_org_id  UUID := '00000000-0000-0000-0000-000000000002';
 BEGIN
+    -- Skip in CI / fresh environments where the seed user doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_user_id) THEN
+        RETURN;
+    END IF;
+
     -- Email connection (mock Gmail)
     INSERT INTO email_connections (id, org_id, user_id, provider, email_address, access_token, refresh_token, token_expiry, created_at, updated_at)
     VALUES (
         '00000000-0000-0000-0000-000000000100',
-        '00000000-0000-0000-0000-000000000002',
-        'a45fc555-75fa-4358-b265-577a9f976c84', -- admin@omnir.test
+        v_org_id,
+        v_user_id,
         'gmail', 'admin@omnir.test',
         'mock-access-token-qa', 'mock-refresh-token-qa',
         NOW() + INTERVAL '1 year',
@@ -27,7 +36,7 @@ BEGIN
     VALUES
     (
         '00000000-0000-0000-0001-000000000001',
-        '00000000-0000-0000-0000-000000000002',
+        v_org_id,
         '00000000-0000-0000-0000-000000000100',
         'msg-qa-001', 'thread-qa-001',
         'alice.customer@example.com',
@@ -40,7 +49,7 @@ BEGIN
     ),
     (
         '00000000-0000-0000-0001-000000000002',
-        '00000000-0000-0000-0000-000000000002',
+        v_org_id,
         '00000000-0000-0000-0000-000000000100',
         'msg-qa-002', 'thread-qa-001',
         'alice.customer@example.com',
@@ -54,7 +63,7 @@ BEGIN
     -- Thread 2: 1 unread message (pricing inquiry)
     (
         '00000000-0000-0000-0002-000000000001',
-        '00000000-0000-0000-0000-000000000002',
+        v_org_id,
         '00000000-0000-0000-0000-000000000100',
         'msg-qa-003', 'thread-qa-002',
         'bob.prospect@example.com',
@@ -68,7 +77,7 @@ BEGIN
     -- Thread 3: already-read baseline
     (
         '00000000-0000-0000-0003-000000000001',
-        '00000000-0000-0000-0000-000000000002',
+        v_org_id,
         '00000000-0000-0000-0000-000000000100',
         'msg-qa-004', 'thread-qa-003',
         'carol.existing@example.com',
