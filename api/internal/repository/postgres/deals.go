@@ -236,7 +236,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	}
 	offset := (f.Page - 1) * f.Limit
 
-	where := []string{"deleted_at IS NULL"}
+	where := []string{"deals.deleted_at IS NULL"}
 	args := []any{}
 	i := 1
 
