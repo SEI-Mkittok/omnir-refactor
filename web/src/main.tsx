@@ -41,6 +41,7 @@ import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
 import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
 import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
 import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
+import { IntegrationsSettingsPage } from '@/pages/IntegrationsSettingsPage'
 import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
 import { ContactDetailPage } from '@/pages/ContactDetailPage'
 import { AccountDetailPage } from '@/pages/AccountDetailPage'
@@ -189,6 +190,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <BillingPlansPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/integrations"
+          element={
+            <AdminRoute>
+              <IntegrationsSettingsPage />
             </AdminRoute>
           }
         />

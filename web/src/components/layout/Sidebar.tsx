@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
-  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox,
+  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -67,6 +67,7 @@ const ADMIN_GROUP = {
     { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
     { to: '/admin/audit', icon: ShieldCheck, label: 'Audit Log' },
     { to: '/settings/billing', icon: CreditCard, label: 'Billing' },
+    { to: '/settings/integrations', icon: Plug, label: 'Integrations' },
   ],
 }
 
