@@ -28,7 +28,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.23",
     "@uiw/react-md-editor": "^4.0.11",
-    "axios": "^1.6.8",
+    "axios": "1.13.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "html2canvas": "^1.4.1",
