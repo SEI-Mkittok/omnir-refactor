@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Plus,
   Zap,
@@ -12,6 +12,8 @@ import {
   Loader2,
   X,
   Info,
+  Braces,
+  Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -221,6 +223,236 @@ function ConditionEditor({
   )
 }
 
+// ---- Variable Picker ----
+
+const AUTOMATION_VARIABLES: { module: string; key: string; fields: { key: string; label: string }[] }[] = [
+  {
+    module: 'Contact',
+    key: 'contact',
+    fields: [
+      { key: 'email', label: 'Email' },
+      { key: 'first_name', label: 'First Name' },
+      { key: 'last_name', label: 'Last Name' },
+      { key: 'name', label: 'Full Name' },
+      { key: 'phone', label: 'Phone' },
+      { key: 'company', label: 'Company' },
+    ],
+  },
+  {
+    module: 'Deal',
+    key: 'deal',
+    fields: [
+      { key: 'name', label: 'Name' },
+      { key: 'value', label: 'Value' },
+      { key: 'stage', label: 'Stage' },
+      { key: 'owner', label: 'Owner' },
+      { key: 'close_date', label: 'Close Date' },
+    ],
+  },
+  {
+    module: 'Ticket',
+    key: 'ticket',
+    fields: [
+      { key: 'number', label: 'Number' },
+      { key: 'title', label: 'Title' },
+      { key: 'status', label: 'Status' },
+      { key: 'priority', label: 'Priority' },
+    ],
+  },
+  {
+    module: 'Account',
+    key: 'account',
+    fields: [
+      { key: 'name', label: 'Name' },
+      { key: 'industry', label: 'Industry' },
+      { key: 'website', label: 'Website' },
+      { key: 'phone', label: 'Phone' },
+    ],
+  },
+  {
+    module: 'Activity',
+    key: 'activity',
+    fields: [
+      { key: 'type', label: 'Type' },
+      { key: 'description', label: 'Description' },
+      { key: 'date', label: 'Date' },
+    ],
+  },
+]
+
+interface VariablePickerProps {
+  onInsert: (variable: string) => void
+}
+
+function VariablePicker({ onInsert }: VariablePickerProps) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    searchRef.current?.focus()
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  const q = search.toLowerCase()
+  const filtered = AUTOMATION_VARIABLES
+    .map((group) => ({
+      ...group,
+      fields: group.fields.filter(
+        (f) =>
+          !q ||
+          f.label.toLowerCase().includes(q) ||
+          f.key.includes(q) ||
+          group.module.toLowerCase().includes(q)
+      ),
+    }))
+    .filter((g) => g.fields.length > 0)
+
+  function handleSelect(moduleKey: string, fieldKey: string) {
+    onInsert(`{{${moduleKey}.${fieldKey}}}`)
+    setOpen(false)
+    setSearch('')
+  }
+
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        type="button"
+        title="Insert variable"
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-7 w-7 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 hover:bg-slate-50 hover:text-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+      >
+        <Braces className="h-3.5 w-3.5" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-slate-200 bg-white shadow-lg">
+          {/* Search */}
+          <div className="flex items-center gap-1.5 border-b border-slate-100 px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Search variables…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent text-xs text-slate-700 placeholder-slate-400 focus:outline-none"
+            />
+          </div>
+
+          {/* Variable groups */}
+          <div className="max-h-60 overflow-y-auto py-1">
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-slate-400">No variables match.</p>
+            )}
+            {filtered.map((group) => (
+              <div key={group.key}>
+                <p className="px-3 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  {group.module}
+                </p>
+                {group.fields.map((field) => (
+                  <button
+                    key={field.key}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault() // keep focus in target input
+                      handleSelect(group.key, field.key)
+                    }}
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50"
+                  >
+                    <span>{field.label}</span>
+                    <span className="ml-2 rounded bg-slate-100 px-1 font-mono text-[10px] text-slate-500">
+                      {`{{${group.key}.${field.key}}}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// VariableInput / VariableTextarea — text fields with an inline variable picker
+
+interface VariableInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  value: string
+  onValueChange: (v: string) => void
+}
+
+function VariableInput({ value, onValueChange, className, ...rest }: VariableInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function handleInsert(variable: string) {
+    const el = inputRef.current
+    const start = el?.selectionStart ?? value.length
+    const end = el?.selectionEnd ?? value.length
+    const next = value.slice(0, start) + variable + value.slice(end)
+    onValueChange(next)
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(start + variable.length, start + variable.length)
+    })
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onValueChange(e.target.value)}
+        className={className}
+        {...rest}
+      />
+      <VariablePicker onInsert={handleInsert} />
+    </div>
+  )
+}
+
+interface VariableTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  value: string
+  onValueChange: (v: string) => void
+}
+
+function VariableTextarea({ value, onValueChange, className, ...rest }: VariableTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  function handleInsert(variable: string) {
+    const el = textareaRef.current
+    const start = el?.selectionStart ?? value.length
+    const end = el?.selectionEnd ?? value.length
+    const next = value.slice(0, start) + variable + value.slice(end)
+    onValueChange(next)
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(start + variable.length, start + variable.length)
+    })
+  }
+
+  return (
+    <div className="flex items-start gap-1">
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onValueChange(e.target.value)}
+        className={className}
+        {...rest}
+      />
+      <VariablePicker onInsert={handleInsert} />
+    </div>
+  )
+}
+
 // ---- Action Configurator ----
 
 function ActionConfigFields({
@@ -237,28 +469,29 @@ function ActionConfigFields({
   const cfg = action.config as Record<string, string>
 
   if (action.type === 'send_email') {
+    const inputCls = 'flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]'
     return (
       <div className="space-y-2 pl-4">
-        <input
+        <VariableInput
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+          className={inputCls}
           placeholder="To (e.g. {{contact.email}})"
           value={cfg.to ?? ''}
-          onChange={(e) => setConfig('to', e.target.value)}
+          onValueChange={(v) => setConfig('to', v)}
         />
-        <input
+        <VariableInput
           type="text"
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+          className={inputCls}
           placeholder="Subject"
           value={cfg.subject ?? ''}
-          onChange={(e) => setConfig('subject', e.target.value)}
+          onValueChange={(v) => setConfig('subject', v)}
         />
-        <textarea
-          className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+        <VariableTextarea
+          className={inputCls}
           placeholder="Body"
           rows={3}
           value={cfg.body ?? ''}
-          onChange={(e) => setConfig('body', e.target.value)}
+          onValueChange={(v) => setConfig('body', v)}
         />
       </div>
     )
