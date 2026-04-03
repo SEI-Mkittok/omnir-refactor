@@ -457,30 +457,31 @@ export interface CreateTicketCommentRequest {
 
 // ---- SLA ----
 
+// SLAPriorityFilter is used by the UI dropdown; 'all' maps to an empty array on the API.
 export type SLAPriorityFilter = 'all' | 'low' | 'medium' | 'high' | 'critical'
 
 export interface SLAPolicy {
   id: string
   name: string
-  response_time_minutes: number
-  resolution_time_minutes: number
-  priority_filter: SLAPriorityFilter
+  response_time_hours: number
+  resolution_time_hours: number
+  priority_filter: TicketPriority[]
   created_at: string
   updated_at: string
 }
 
 export interface CreateSLAPolicyRequest {
   name: string
-  response_time_minutes: number
-  resolution_time_minutes: number
-  priority_filter?: SLAPriorityFilter
+  response_time_hours: number
+  resolution_time_hours: number
+  priority_filter: TicketPriority[]
 }
 
 export interface UpdateSLAPolicyRequest {
   name?: string
-  response_time_minutes?: number
-  resolution_time_minutes?: number
-  priority_filter?: SLAPriorityFilter
+  response_time_hours?: number
+  resolution_time_hours?: number
+  priority_filter?: TicketPriority[]
 }
 
 export interface SLAPolicyListParams {
