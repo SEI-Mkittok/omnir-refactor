@@ -500,9 +500,10 @@ function RightPanel({ ticketId }: RightPanelProps) {
   if (!ticket) return null
 
   const contact = ticket.contact
+  const UNASSIGNED = '__unassigned__'
   const assigneeOptions = [
+    { value: UNASSIGNED, label: 'Unassigned' },
     ...(usersData?.data.map((u) => ({ value: u.id, label: u.name })) ?? []),
-    { value: '', label: 'Unassigned' },
   ]
 
   const propertyRows: { label: string; content: React.ReactNode }[] = [
@@ -510,9 +511,9 @@ function RightPanel({ ticketId }: RightPanelProps) {
       label: 'Assigned To',
       content: (
         <InlineSelect
-          value={ticket.assignee?.id ?? ''}
+          value={ticket.assignee?.id ?? UNASSIGNED}
           options={assigneeOptions}
-          onValueChange={(v) => updateTicket.mutate({ id: ticketId, payload: { assignee_id: v || undefined } })}
+          onValueChange={(v) => updateTicket.mutate({ id: ticketId, payload: { assignee_id: v === UNASSIGNED ? undefined : v } })}
           label="Change assignee"
         />
       ),
