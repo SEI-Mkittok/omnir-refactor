@@ -23,14 +23,14 @@ func NewKBArticleRepo(db *pgxpool.Pool) *KBArticleRepo {
 	return &KBArticleRepo{db: db}
 }
 
-const kbArtCols = `id, org_id, title, body, category_id, tags, status, author_id, view_count, created_at, updated_at, deleted_at`
+const kbArtCols = `id, org_id, title, body, category_id, tags, status, author_id, view_count, number, number_prefix, created_at, updated_at, deleted_at`
 
 func scanKBArticle(row pgx.Row) (*domain.KBArticle, error) {
 	var a domain.KBArticle
 	err := row.Scan(
 		&a.ID, &a.OrgID, &a.Title, &a.Body, &a.CategoryID,
 		&a.Tags, &a.Status, &a.AuthorID, &a.ViewCount,
-		&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
+		&a.Number, &a.NumberPrefix, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -62,11 +62,17 @@ func (r *KBArticleRepo) Create(ctx context.Context, a *domain.KBArticle) (*domai
 	a.CreatedAt = now
 	a.UpdatedAt = now
 
+	num, err := getNextDocNumber(ctx, r.db, a.OrgID, domain.DocTypeKBArticle)
+	if err != nil {
+		return nil, err
+	}
+	const prefix = "KB"
+
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO articles (id, org_id, title, body, category_id, tags, status, author_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO articles (id, org_id, title, body, category_id, tags, status, author_id, number, number_prefix, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING `+kbArtCols,
-		a.ID, a.OrgID, a.Title, a.Body, a.CategoryID, a.Tags, string(a.Status), a.AuthorID, a.CreatedAt, a.UpdatedAt,
+		a.ID, a.OrgID, a.Title, a.Body, a.CategoryID, a.Tags, string(a.Status), a.AuthorID, num, prefix, a.CreatedAt, a.UpdatedAt,
 	)
 	return scanKBArticle(row)
 }

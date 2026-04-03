@@ -87,6 +87,7 @@ func main() {
 	calendarConnectionRepo := postgres.NewCalendarConnectionRepo(db)
 	emailConnectionRepo := postgres.NewEmailConnectionRepo(db)
 	integrationCredRepo := postgres.NewIntegrationCredentialRepo(db)
+	orgSettingsRepo := postgres.NewOrgSettingsRepo(db)
 	emailInboxRepo := postgres.NewEmailInboxRepo(db)
 	ssoConfigRepo := postgres.NewSSOConfigRepo(db)
 	totpRepo := postgres.NewTOTPRepo(db)
@@ -246,6 +247,7 @@ func main() {
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	emailInboxHandler := handler.NewEmailInboxHandler(emailConnectionRepo, emailInboxRepo, cfg.EmailInbox)
 	integrationsHandler := handler.NewIntegrationsHandler(integrationCredRepo, emailConnectionRepo, cfg.IntegrationCredentialsEncKey)
+	orgSettingsHandler := handler.NewOrgSettingsHandler(orgSettingsRepo)
 	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL).
 		WithAPICallbackURL(cfg.SSOAPICallbackURL)
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
@@ -372,6 +374,7 @@ func main() {
 		})
 		r.Mount("/integrations/email/inbox", emailInboxHandler.InboxRouter())
 		r.Mount("/integrations", integrationsHandler.Router())
+		r.Mount("/settings/numbering", orgSettingsHandler.Router())
 		r.Mount("/billing", billingHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())
 		r.Mount("/push", pushHandler.Router())

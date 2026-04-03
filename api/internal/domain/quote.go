@@ -63,9 +63,11 @@ type Quote struct {
 	RejectedAt *time.Time      `json:"rejected_at,omitempty"`
 	CreatedBy  *uuid.UUID      `json:"created_by,omitempty"`
 	LineItems  []QuoteLineItem `json:"line_items,omitempty"`
-	TotalCents int64           `json:"total_cents"`
-	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt  time.Time       `json:"updated_at"`
+	TotalCents   int64           `json:"total_cents"`
+	Number       *int64          `json:"number,omitempty"`
+	NumberPrefix string          `json:"number_prefix,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 
 	// Joined
 	Contact *Contact `json:"contact,omitempty"`

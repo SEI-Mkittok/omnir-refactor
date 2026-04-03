@@ -26,7 +26,8 @@ func NewTicketRepo(db *pgxpool.Pool) *TicketRepo {
 const ticketCols = `
 	id, org_id, subject, description, status, priority,
 	assignee_id, contact_id, account_id, source, email_message_id, tags,
-	custom_fields, sla_policy_id, first_responded_at, submitted_by_user_id, created_at, updated_at, deleted_at
+	custom_fields, sla_policy_id, first_responded_at, submitted_by_user_id,
+	number, number_prefix, created_at, updated_at, deleted_at
 `
 
 func scanTicket(row pgx.Row) (*domain.Ticket, error) {
@@ -34,7 +35,8 @@ func scanTicket(row pgx.Row) (*domain.Ticket, error) {
 	err := row.Scan(
 		&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
 		&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.EmailMessageID, &t.Tags,
-		&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.SubmittedByUserID, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+		&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.SubmittedByUserID,
+		&t.Number, &t.NumberPrefix, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -82,16 +84,22 @@ func (r *TicketRepo) Create(ctx context.Context, t *domain.Ticket) (*domain.Tick
 		}
 	}
 
+	num, err := getNextDocNumber(ctx, r.db, t.OrgID, domain.DocTypeTicket)
+	if err != nil {
+		return nil, err
+	}
+	const prefix = "TKT"
+
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO tickets
 			(id, org_id, subject, description, status, priority,
 			 assignee_id, contact_id, account_id, source, email_message_id, tags,
-			 custom_fields, sla_policy_id, submitted_by_user_id, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+			 custom_fields, sla_policy_id, submitted_by_user_id, number, number_prefix, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
 		RETURNING `+ticketCols,
 		t.ID, t.OrgID, t.Subject, t.Description, t.Status, t.Priority,
 		t.AssigneeID, t.ContactID, t.AccountID, t.Source, t.EmailMessageID, t.Tags,
-		t.CustomFields, slaID, t.SubmittedByUserID, t.CreatedAt, t.UpdatedAt,
+		t.CustomFields, slaID, t.SubmittedByUserID, num, prefix, t.CreatedAt, t.UpdatedAt,
 	)
 	return scanTicket(row)
 }

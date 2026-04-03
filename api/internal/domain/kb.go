@@ -64,10 +64,12 @@ type KBArticle struct {
 	Tags       []string        `json:"tags"`
 	Status     KBArticleStatus `json:"status"`
 	AuthorID   uuid.UUID       `json:"author_id"`
-	ViewCount  int             `json:"view_count"`
-	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt  time.Time       `json:"updated_at"`
-	DeletedAt  *time.Time      `json:"deleted_at,omitempty"`
+	ViewCount    int             `json:"view_count"`
+	Number       *int64          `json:"number,omitempty"`
+	NumberPrefix string          `json:"number_prefix,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *time.Time      `json:"deleted_at,omitempty"`
 }
 
 func (a *KBArticle) Validate() error {
