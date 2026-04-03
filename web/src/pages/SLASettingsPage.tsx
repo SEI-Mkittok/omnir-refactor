@@ -16,7 +16,7 @@ import {
   DialogClose,
 } from '@/components/ui/Dialog'
 import { formatDate } from '@/lib/utils'
-import type { SLAPolicy, SLAPriorityFilter, CreateSLAPolicyRequest, UpdateSLAPolicyRequest } from '@/api/types'
+import type { SLAPolicy, TicketPriority, SLAPriorityFilter, CreateSLAPolicyRequest, UpdateSLAPolicyRequest } from '@/api/types'
 
 const PRIORITY_FILTER_OPTIONS = [
   { label: 'All Priorities', value: 'all' },
@@ -42,11 +42,24 @@ const priorityFilterVariant: Record<SLAPriorityFilter, 'default' | 'blue' | 'ora
   critical: 'red',
 }
 
-function formatMinutes(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
+function formatHours(hours: number): string {
+  const totalMinutes = Math.round(hours * 60)
+  if (totalMinutes < 60) return `${totalMinutes}m`
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
   return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
+// Convert UI priority-filter string to the API array format.
+function priorityFilterToApi(filter: SLAPriorityFilter): TicketPriority[] {
+  if (filter === 'all') return []
+  return [filter as TicketPriority]
+}
+
+// Convert API priority array back to UI string.
+function priorityFilterFromApi(filters: TicketPriority[]): SLAPriorityFilter {
+  if (!filters || filters.length === 0) return 'all'
+  return filters[0] as SLAPriorityFilter
 }
 
 // ---- Create / Edit Dialog ----
@@ -57,16 +70,23 @@ interface SLAPolicyFormDialogProps {
   onClose: () => void
 }
 
+interface SLAFormState {
+  name: string
+  response_time_hours: number
+  resolution_time_hours: number
+  priority_filter: SLAPriorityFilter
+}
+
 function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps) {
   const isEdit = !!policy
   const { mutate: create, isPending: isCreating } = useCreateSLAPolicy()
   const { mutate: update, isPending: isUpdating } = useUpdateSLAPolicy()
   const isPending = isCreating || isUpdating
 
-  const [form, setForm] = useState<CreateSLAPolicyRequest>({
+  const [form, setForm] = useState<SLAFormState>({
     name: '',
-    response_time_minutes: 60,
-    resolution_time_minutes: 480,
+    response_time_hours: 1,
+    resolution_time_hours: 8,
     priority_filter: 'all',
   })
   const [error, setError] = useState('')
@@ -75,12 +95,12 @@ function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps
     if (policy) {
       setForm({
         name: policy.name,
-        response_time_minutes: policy.response_time_minutes,
-        resolution_time_minutes: policy.resolution_time_minutes,
-        priority_filter: policy.priority_filter,
+        response_time_hours: policy.response_time_hours,
+        resolution_time_hours: policy.resolution_time_hours,
+        priority_filter: priorityFilterFromApi(policy.priority_filter),
       })
     } else {
-      setForm({ name: '', response_time_minutes: 60, resolution_time_minutes: 480, priority_filter: 'all' })
+      setForm({ name: '', response_time_hours: 1, resolution_time_hours: 8, priority_filter: 'all' })
     }
     setError('')
   }
@@ -92,27 +112,35 @@ function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps
       setError('Policy name is required.')
       return
     }
-    if (form.response_time_minutes <= 0 || form.resolution_time_minutes <= 0) {
+    if (form.response_time_hours <= 0 || form.resolution_time_hours <= 0) {
       setError('Response and resolution times must be positive.')
       return
     }
 
+    const priorityFilter = priorityFilterToApi(form.priority_filter)
+
     if (isEdit && policy) {
       const payload: UpdateSLAPolicyRequest = {
         name: form.name,
-        response_time_minutes: form.response_time_minutes,
-        resolution_time_minutes: form.resolution_time_minutes,
-        priority_filter: form.priority_filter,
+        response_time_hours: form.response_time_hours,
+        resolution_time_hours: form.resolution_time_hours,
+        priority_filter: priorityFilter,
       }
       update({ id: policy.id, payload }, { onSuccess: onClose, onError: () => setError('Failed to update policy.') })
     } else {
-      create(form, { onSuccess: onClose, onError: () => setError('Failed to create policy.') })
+      const payload: CreateSLAPolicyRequest = {
+        name: form.name,
+        response_time_hours: form.response_time_hours,
+        resolution_time_hours: form.resolution_time_hours,
+        priority_filter: priorityFilter,
+      }
+      create(payload, { onSuccess: onClose, onError: () => setError('Failed to create policy.') })
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent onOpenAutoFocus={handleOpen}>
+      <DialogContent onOpenAutoFocus={handleOpen} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit SLA Policy' : 'Add SLA Policy'}</DialogTitle>
         </DialogHeader>
@@ -129,21 +157,23 @@ function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Response time (minutes)</label>
+              <label className="text-sm font-medium text-slate-700">Response time (hours)</label>
               <Input
                 type="number"
-                min={1}
-                value={form.response_time_minutes}
-                onChange={(e) => setForm((f) => ({ ...f, response_time_minutes: Number(e.target.value) }))}
+                min={0.1}
+                step={0.5}
+                value={form.response_time_hours}
+                onChange={(e) => setForm((f) => ({ ...f, response_time_hours: Number(e.target.value) }))}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Resolution time (minutes)</label>
+              <label className="text-sm font-medium text-slate-700">Resolution time (hours)</label>
               <Input
                 type="number"
-                min={1}
-                value={form.resolution_time_minutes}
-                onChange={(e) => setForm((f) => ({ ...f, resolution_time_minutes: Number(e.target.value) }))}
+                min={0.1}
+                step={0.5}
+                value={form.resolution_time_hours}
+                onChange={(e) => setForm((f) => ({ ...f, resolution_time_hours: Number(e.target.value) }))}
               />
             </div>
           </div>
@@ -211,28 +241,31 @@ export function SLASettingsPage() {
       render: (p) => <span className="font-medium text-slate-900">{p.name}</span>,
     },
     {
-      key: 'response_time_minutes',
+      key: 'response_time_hours',
       header: 'Response Time',
       render: (p) => (
-        <span className="text-slate-600">{formatMinutes(p.response_time_minutes)}</span>
+        <span className="text-slate-600">{formatHours(p.response_time_hours)}</span>
       ),
     },
     {
-      key: 'resolution_time_minutes',
+      key: 'resolution_time_hours',
       header: 'Resolution Time',
       hideOnMobile: true,
       render: (p) => (
-        <span className="text-slate-600">{formatMinutes(p.resolution_time_minutes)}</span>
+        <span className="text-slate-600">{formatHours(p.resolution_time_hours)}</span>
       ),
     },
     {
       key: 'priority_filter',
       header: 'Priority Filter',
-      render: (p) => (
-        <Badge variant={priorityFilterVariant[p.priority_filter]}>
-          {priorityFilterLabel[p.priority_filter]}
-        </Badge>
-      ),
+      render: (p) => {
+        const uiFilter = priorityFilterFromApi(p.priority_filter)
+        return (
+          <Badge variant={priorityFilterVariant[uiFilter]}>
+            {priorityFilterLabel[uiFilter]}
+          </Badge>
+        )
+      },
     },
     {
       key: 'created_at',
