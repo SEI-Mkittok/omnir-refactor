@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   BookOpen,
   Plus,
@@ -10,6 +10,7 @@ import {
   X,
   Search,
   ExternalLink,
+  ChevronDown,
 } from 'lucide-react'
 import {
   DndContext,
@@ -156,9 +157,51 @@ function ArticleEditor({
   const [status, setStatus] = useState<KbArticleStatus>(article?.status ?? 'draft')
   const [error, setError] = useState('')
 
+  // ── Creatable category combobox state ──
+  const [catQuery, setCatQuery] = useState('')
+  const [catOpen, setCatOpen] = useState(false)
+  const catRef = useRef<HTMLDivElement>(null)
+  const { mutateAsync: createCategory, isPending: creatingCat } = useCreateKbCategory()
+
+  const selectedCategory = categories.find((c) => c.id === categoryId)
+  const catDisplayValue = catOpen ? catQuery : (selectedCategory?.name ?? '')
+
+  const filteredCats = categories.filter((c) =>
+    c.name.toLowerCase().includes(catQuery.toLowerCase())
+  )
+  const showCreate = catQuery.trim().length > 0 &&
+    !filteredCats.some((c) => c.name.toLowerCase() === catQuery.trim().toLowerCase())
+
+  const handleCatSelect = (id: string, name: string) => {
+    setCategoryId(id)
+    setCatQuery(name)
+    setCatOpen(false)
+  }
+
+  const handleCatCreate = async () => {
+    const name = catQuery.trim()
+    if (!name) return
+    const newCat = await createCategory({ name })
+    setCategoryId(newCat.id)
+    setCatQuery(newCat.name)
+    setCatOpen(false)
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (catRef.current && !catRef.current.contains(e.target as Node)) {
+        setCatOpen(false)
+        if (!selectedCategory && catQuery) setCatQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [selectedCategory, catQuery])
+
   const { mutateAsync: createArticle, isPending: creating } = useCreateKbArticle()
   const { mutateAsync: updateArticle, isPending: updating } = useUpdateKbArticle()
-  const isPending = creating || updating
+  const isPending = creating || updating || creatingCat
 
   const handleSave = async () => {
     if (!title.trim()) { setError('Title is required.'); return }
@@ -201,18 +244,54 @@ function ArticleEditor({
 
         {/* Meta row */}
         <div className="flex flex-wrap gap-4">
-          <div className="space-y-1 flex-1 min-w-[160px]">
+          <div className="space-y-1 flex-1 min-w-[160px]" ref={catRef}>
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Category</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
-            >
-              <option value="">Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                type="text"
+                value={catDisplayValue}
+                placeholder="Uncategorized"
+                onChange={(e) => { setCatQuery(e.target.value); setCatOpen(true) }}
+                onFocus={() => { setCatQuery(''); setCatOpen(true) }}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+              />
+              <ChevronDown
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+              />
+              {catOpen && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+                  <div className="max-h-48 overflow-y-auto">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm text-slate-500 italic hover:bg-slate-50"
+                      onMouseDown={(e) => { e.preventDefault(); handleCatSelect('', 'Uncategorized') }}
+                    >
+                      Uncategorized
+                    </button>
+                    {filteredCats.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="w-full px-3 py-2 text-left text-sm text-slate-900 hover:bg-[var(--color-primary-light)]"
+                        onMouseDown={(e) => { e.preventDefault(); handleCatSelect(c.id, c.name) }}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                    {showCreate && (
+                      <button
+                        type="button"
+                        disabled={creatingCat}
+                        className="w-full px-3 py-2 text-left text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] border-t border-slate-100"
+                        onMouseDown={(e) => { e.preventDefault(); handleCatCreate() }}
+                      >
+                        {creatingCat ? 'Creating…' : `Create "${catQuery.trim()}"`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-1 min-w-[140px]">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Status</label>
