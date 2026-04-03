@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { Plus, LayoutGrid, List, X, TrendingUp, Pencil, Check, Loader2 } from 'lucide-react'
+import { Plus, LayoutGrid, List, X, TrendingUp, Pencil, Check, Loader2, ChevronDown } from 'lucide-react'
+import * as RadixSelect from '@radix-ui/react-select'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
@@ -8,7 +9,7 @@ import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { SidePanel } from '@/components/ui/SidePanel'
-import { Badge } from '@/components/ui/Badge'
+import { Badge, badgeVariants } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
@@ -17,7 +18,7 @@ import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { DealForm } from '@/components/omnir/DealForm'
 import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
 import { useDealQuotes } from '@/hooks/useQuotes'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate, formatCurrency, cn } from '@/lib/utils'
 import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
 import { FileText } from 'lucide-react'
 
@@ -61,6 +62,53 @@ const stageLabel: Record<DealStage, string> = {
 interface FilterChip {
   label: string
   key: string
+}
+
+// ---- Stage badge select ----
+
+function StageBadgeSelect({ stage, onChange }: { stage: DealStage; onChange: (s: DealStage) => void }) {
+  return (
+    <RadixSelect.Root value={stage} onValueChange={(v) => onChange(v as DealStage)}>
+      <RadixSelect.Trigger
+        aria-label="Change deal stage"
+        className={cn(
+          badgeVariants({ variant: stageBadge[stage] }),
+          'cursor-pointer inline-flex items-center gap-1 text-sm px-3 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] transition-colors'
+        )}
+      >
+        <RadixSelect.Value>{stageLabel[stage]}</RadixSelect.Value>
+        <RadixSelect.Icon>
+          <ChevronDown className="h-3 w-3 opacity-60" />
+        </RadixSelect.Icon>
+      </RadixSelect.Trigger>
+      <RadixSelect.Portal>
+        <RadixSelect.Content
+          className="z-50 rounded-md border border-[#E5E7EB] bg-white shadow-md overflow-hidden"
+          position="popper"
+          sideOffset={4}
+        >
+          <RadixSelect.Viewport className="p-1">
+            {STAGE_OPTIONS.map((opt) => (
+              <RadixSelect.Item
+                key={opt.value}
+                value={opt.value}
+                className="relative flex cursor-pointer select-none items-center gap-2 rounded px-3 py-1.5 text-[13px] text-[#1A1D23] outline-none hover:bg-[var(--color-primary-light)] data-[state=checked]:font-medium focus:bg-[var(--color-primary-light)]"
+              >
+                <RadixSelect.ItemText>
+                  <span className={cn(badgeVariants({ variant: stageBadge[opt.value as DealStage] }))}>
+                    {opt.label}
+                  </span>
+                </RadixSelect.ItemText>
+                <RadixSelect.ItemIndicator className="absolute right-2">
+                  <Check className="h-3 w-3" />
+                </RadixSelect.ItemIndicator>
+              </RadixSelect.Item>
+            ))}
+          </RadixSelect.Viewport>
+        </RadixSelect.Content>
+      </RadixSelect.Portal>
+    </RadixSelect.Root>
+  )
 }
 
 // ---- Deal detail panel ----
@@ -176,9 +224,10 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
     >
       <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <Badge variant={stageBadge[deal.stage]} className="text-sm px-3 py-1">
-            {stageLabel[deal.stage]}
-          </Badge>
+          <StageBadgeSelect
+            stage={deal.stage}
+            onChange={(newStage) => updateDeal.mutate({ id: dealId, payload: { stage: newStage } })}
+          />
           <DealValueEditor
             deal={deal}
             onSave={async (cents) => { await updateDeal.mutateAsync({ id: dealId, payload: { value_cents: cents } }) }}
