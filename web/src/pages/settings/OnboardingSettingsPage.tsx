@@ -80,7 +80,7 @@ export function OnboardingSettingsPage() {
           {/* Checklist */}
           <ul className="divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-default)] bg-white overflow-hidden">
             {STEP_KEYS.map((key) => {
-              const done = status.completedSteps.includes(key)
+              const done = (status.completedSteps ?? []).includes(key)
               return (
                 <li key={key} className="flex items-center gap-3 px-4 py-3">
                   {done ? (
