@@ -225,7 +225,7 @@ func (r *KBArticleRepo) List(ctx context.Context, f domain.KBArticleFilter) ([]*
 		dest := []any{
 			&a.ID, &a.OrgID, &a.Title, &a.Body, &a.CategoryID,
 			&a.Tags, &a.Status, &a.AuthorID, &a.ViewCount,
-			&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
+			&a.Number, &a.NumberPrefix, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 		}
 		if f.Query != "" {
 			var rank float64

@@ -366,7 +366,8 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		if err := rows.Scan(
 			&t.ID, &t.OrgID, &t.Subject, &t.Description, &t.Status, &t.Priority,
 			&t.AssigneeID, &t.ContactID, &t.AccountID, &t.Source, &t.EmailMessageID, &t.Tags,
-			&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.SubmittedByUserID, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
+			&t.CustomFields, &t.SLAPolicyID, &t.FirstRespondedAt, &t.SubmittedByUserID,
+			&t.Number, &t.NumberPrefix, &t.CreatedAt, &t.UpdatedAt, &t.DeletedAt,
 		); err != nil {
 			return nil, 0, err
 		}
