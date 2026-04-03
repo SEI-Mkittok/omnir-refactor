@@ -62,6 +62,8 @@ type Ticket struct {
 	SLAPolicyID       *uuid.UUID     `json:"sla_policy_id,omitempty"`
 	FirstRespondedAt  *time.Time     `json:"first_responded_at,omitempty"`
 	SubmittedByUserID *uuid.UUID     `json:"submitted_by_user_id,omitempty"`
+	Number            *int64         `json:"number,omitempty"`
+	NumberPrefix      string         `json:"number_prefix,omitempty"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         *time.Time     `json:"deleted_at,omitempty"`

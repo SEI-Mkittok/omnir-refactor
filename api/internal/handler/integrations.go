@@ -311,4 +311,3 @@ func isKnownProvider(p domain.IntegrationProvider) bool {
 	}
 	return false
 }
-

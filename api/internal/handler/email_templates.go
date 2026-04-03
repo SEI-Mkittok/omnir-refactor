@@ -25,7 +25,7 @@ func (h *EmailTemplateHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
 	r.Get("/{id}", h.GetByID)
-	
+
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
 		r.Post("/", h.Create)

@@ -66,11 +66,11 @@ type EmailSequence struct {
 
 // SequenceStep is one step within an email sequence.
 type SequenceStep struct {
-	ID                uuid.UUID `json:"id"`
-	SequenceID        uuid.UUID `json:"sequence_id"`
-	OrgID             uuid.UUID `json:"org_id"`
-	Position          int       `json:"position"`
-	Kind              StepKind  `json:"kind"`
+	ID                uuid.UUID  `json:"id"`
+	SequenceID        uuid.UUID  `json:"sequence_id"`
+	OrgID             uuid.UUID  `json:"org_id"`
+	Position          int        `json:"position"`
+	Kind              StepKind   `json:"kind"`
 	Subject           string     `json:"subject,omitempty"`
 	Body              string     `json:"body,omitempty"`
 	TemplateID        *uuid.UUID `json:"template_id,omitempty"`
@@ -155,8 +155,8 @@ type UpdateSequenceRequest struct {
 
 // CreateStepRequest describes one step in a sequence.
 type CreateStepRequest struct {
-	Kind              StepKind `json:"kind"`
-	Position          int      `json:"position"`
+	Kind              StepKind   `json:"kind"`
+	Position          int        `json:"position"`
 	Subject           string     `json:"subject,omitempty"`
 	Body              string     `json:"body,omitempty"`
 	TemplateID        *uuid.UUID `json:"template_id,omitempty"`
