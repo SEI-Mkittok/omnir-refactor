@@ -432,6 +432,8 @@ type BillingRepository interface {
 	UpsertInvoice(ctx context.Context, inv *domain.Invoice) (*domain.Invoice, error)
 	// ListInvoices returns invoices for an org ordered by created_at desc.
 	ListInvoices(ctx context.Context, orgID uuid.UUID, limit, offset int) ([]*domain.Invoice, int, error)
+	// GetUsageStats returns current user and contact counts for an org.
+	GetUsageStats(ctx context.Context, orgID uuid.UUID) (userCount, contactCount int, err error)
 }
 
 // DashboardRepository defines persistence for custom dashboards.
