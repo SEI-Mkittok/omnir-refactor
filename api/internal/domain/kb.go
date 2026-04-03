@@ -56,18 +56,20 @@ type KBCategoryFilter struct {
 
 // KBArticle is a knowledge base article.
 type KBArticle struct {
-	ID         uuid.UUID       `json:"id"`
-	OrgID      uuid.UUID       `json:"org_id"`
-	Title      string          `json:"title"`
-	Body       string          `json:"body"`
-	CategoryID *uuid.UUID      `json:"category_id,omitempty"`
-	Tags       []string        `json:"tags"`
-	Status     KBArticleStatus `json:"status"`
-	AuthorID   uuid.UUID       `json:"author_id"`
-	ViewCount  int             `json:"view_count"`
-	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt  time.Time       `json:"updated_at"`
-	DeletedAt  *time.Time      `json:"deleted_at,omitempty"`
+	ID           uuid.UUID       `json:"id"`
+	OrgID        uuid.UUID       `json:"org_id"`
+	Title        string          `json:"title"`
+	Body         string          `json:"body"`
+	CategoryID   *uuid.UUID      `json:"category_id,omitempty"`
+	Tags         []string        `json:"tags"`
+	Status       KBArticleStatus `json:"status"`
+	AuthorID     uuid.UUID       `json:"author_id"`
+	ViewCount    int             `json:"view_count"`
+	Number       *int64          `json:"number,omitempty"`
+	NumberPrefix string          `json:"number_prefix,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	DeletedAt    *time.Time      `json:"deleted_at,omitempty"`
 }
 
 func (a *KBArticle) Validate() error {

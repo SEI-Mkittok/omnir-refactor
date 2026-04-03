@@ -72,27 +72,27 @@ type StripeConfig struct {
 
 // Config holds all runtime configuration loaded from environment variables.
 type Config struct {
-	Env                 string
-	Port                string
-	DatabaseURL         string
-	JWTSecret           string
-	CORSOrigins         []string
-	LogLevel            string
-	OrgMode             OrgMode
-	SMTP                SMTPConfig
-	WebhookSecret       string
-	SequenceTokenSecret string
-	Storage             StorageConfig
-	Calendar            CalendarConfig
-	EmailInbox          EmailInboxConfig
-	SSOEncryptionKey              string
-	SSOCallbackURL                string
-	IntegrationCredentialsEncKey  string
-	SSOAPICallbackURL   string
-	ClearbitAPIKey      string
-	Stripe              StripeConfig
-	VAPIDPublicKey      string
-	VAPIDPrivateKey     string
+	Env                          string
+	Port                         string
+	DatabaseURL                  string
+	JWTSecret                    string
+	CORSOrigins                  []string
+	LogLevel                     string
+	OrgMode                      OrgMode
+	SMTP                         SMTPConfig
+	WebhookSecret                string
+	SequenceTokenSecret          string
+	Storage                      StorageConfig
+	Calendar                     CalendarConfig
+	EmailInbox                   EmailInboxConfig
+	SSOEncryptionKey             string
+	SSOCallbackURL               string
+	IntegrationCredentialsEncKey string
+	SSOAPICallbackURL            string
+	ClearbitAPIKey               string
+	Stripe                       StripeConfig
+	VAPIDPublicKey               string
+	VAPIDPrivateKey              string
 }
 
 // SMTPConfig holds SMTP connection and sender settings.
@@ -156,9 +156,9 @@ func Load() *Config {
 		},
 		SSOEncryptionKey:             getEnv("SSO_ENCRYPTION_KEY", "dev-sso-encryption-key-change-in-prod"),
 		IntegrationCredentialsEncKey: getEnv("INTEGRATION_CREDENTIALS_ENCRYPTION_KEY", "dev-integration-creds-key-change-in-prod"),
-		SSOCallbackURL:    getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
-		SSOAPICallbackURL: getEnv("SSO_API_CALLBACK_URL", "http://localhost:8080/api/auth/sso/callback"),
-		ClearbitAPIKey:    getEnv("CLEARBIT_API_KEY", ""),
+		SSOCallbackURL:               getEnv("SSO_CALLBACK_URL", "http://localhost:8080/auth/sso/callback"),
+		SSOAPICallbackURL:            getEnv("SSO_API_CALLBACK_URL", "http://localhost:8080/api/auth/sso/callback"),
+		ClearbitAPIKey:               getEnv("CLEARBIT_API_KEY", ""),
 		Stripe: StripeConfig{
 			SecretKey:         getEnv("STRIPE_SECRET_KEY", ""),
 			WebhookSecret:     getEnv("STRIPE_WEBHOOK_SECRET", ""),

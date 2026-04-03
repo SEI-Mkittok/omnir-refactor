@@ -23,7 +23,7 @@ func NewQuoteRepo(db *pgxpool.Pool) *QuoteRepo {
 const quoteCols = `
 	id, org_id, deal_id, contact_id, title, status, currency,
 	valid_until, notes, sent_at, approved_at, rejected_at,
-	total_cents, created_by, created_at, updated_at
+	total_cents, created_by, number, number_prefix, created_at, updated_at
 `
 
 func scanQuote(row pgx.Row) (*domain.Quote, error) {
@@ -33,7 +33,7 @@ func scanQuote(row pgx.Row) (*domain.Quote, error) {
 		&q.ID, &q.OrgID, &q.DealID, &q.ContactID,
 		&q.Title, &q.Status, &q.Currency,
 		&q.ValidUntil, &notes, &q.SentAt, &q.ApprovedAt, &q.RejectedAt,
-		&q.TotalCents, &q.CreatedBy, &q.CreatedAt, &q.UpdatedAt,
+		&q.TotalCents, &q.CreatedBy, &q.Number, &q.NumberPrefix, &q.CreatedAt, &q.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -57,14 +57,19 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 	if q.Currency == "" {
 		q.Currency = "USD"
 	}
+	num, err := getNextDocNumber(ctx, r.db, q.OrgID, domain.DocTypeQuote)
+	if err != nil {
+		return nil, err
+	}
+	const prefix = "QUO"
 	row := r.db.QueryRow(ctx,
 		`INSERT INTO quotes
-		 (id, org_id, deal_id, contact_id, title, status, currency, valid_until, notes, created_by)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		 (id, org_id, deal_id, contact_id, title, status, currency, valid_until, notes, created_by, number, number_prefix)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		 RETURNING `+quoteCols,
 		q.ID, q.OrgID, q.DealID, q.ContactID,
 		q.Title, q.Status, q.Currency,
-		q.ValidUntil, nilIfEmpty(q.Notes), q.CreatedBy,
+		q.ValidUntil, nilIfEmpty(q.Notes), q.CreatedBy, num, prefix,
 	)
 	created, err := scanQuote(row)
 	if err != nil {
