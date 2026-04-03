@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,6 +25,28 @@ import { cn } from '@/lib/utils'
 import { useActivities, useCreateActivity } from '@/hooks/useActivities'
 import type { CreateActivityRequest } from '@/api/activities'
 import type { ActivityType, Activity } from '@/api/types'
+import { apiClient } from '@/api/client'
+
+// ---- Calendar connection types ----
+
+interface CalendarConnection {
+  id: string
+  provider: 'google' | 'microsoft'
+  token_expiry?: string | null
+}
+
+const calendarApi = {
+  listConnections: async (): Promise<CalendarConnection[]> => {
+    const { data } = await apiClient.get<{ data: CalendarConnection[] }>('/calendar/connections')
+    return data.data
+  },
+  disconnect: async (id: string): Promise<void> => {
+    await apiClient.delete(`/calendar/connections/${id}`)
+  },
+  triggerSync: async (): Promise<void> => {
+    await apiClient.post('/calendar/sync')
+  },
+}
 
 // ---- Helpers ----
 
@@ -332,30 +355,43 @@ function WeekGrid({ weekStart, activityMap, onDayClick }: WeekGridProps) {
 
 // ---- Calendar Settings Tab ----
 
-type ConnectedProvider = 'google' | 'outlook' | null
-
 function CalendarSettingsTab() {
-  const [connected, setConnected] = useState<ConnectedProvider>(null)
+  const queryClient = useQueryClient()
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
 
-  function handleConnect(provider: 'google' | 'outlook') {
-    // In a real implementation this would open an OAuth popup/redirect.
-    // For now we simulate a successful connection.
-    setConnected(provider)
-    setLastSync(new Date().toLocaleString())
-  }
+  const { data: connections = [], isLoading } = useQuery({
+    queryKey: ['calendar-connections'],
+    queryFn: calendarApi.listConnections,
+  })
 
-  function handleDisconnect() {
-    setConnected(null)
-    setLastSync(null)
+  const disconnectMutation = useMutation({
+    mutationFn: (id: string) => calendarApi.disconnect(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendar-connections'] }),
+  })
+
+  const googleConnection = connections.find((c) => c.provider === 'google')
+  const microsoftConnection = connections.find((c) => c.provider === 'microsoft')
+
+  function handleConnect(provider: 'google' | 'microsoft') {
+    const path = provider === 'google'
+      ? '/api/v1/calendar/auth/google'
+      : '/api/v1/calendar/auth/microsoft'
+    window.location.href = path
   }
 
   async function handleSync() {
     setSyncing(true)
-    await new Promise((r) => setTimeout(r, 1200))
-    setLastSync(new Date().toLocaleString())
-    setSyncing(false)
+    try {
+      await calendarApi.triggerSync()
+      setLastSync(new Date().toLocaleString())
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  if (isLoading) {
+    return <div className="h-24 animate-pulse rounded-xl border border-slate-200 bg-white" />
   }
 
   return (
@@ -374,7 +410,6 @@ function CalendarSettingsTab() {
         <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 border border-red-100">
-              {/* Google "G" */}
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -384,7 +419,7 @@ function CalendarSettingsTab() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-900">Google Calendar</p>
-              {connected === 'google' ? (
+              {googleConnection ? (
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
                   <span className="text-xs text-green-600">Connected</span>
@@ -398,19 +433,19 @@ function CalendarSettingsTab() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {connected === 'google' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
-              >
+            {googleConnection && (
+              <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
                 <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', syncing && 'animate-spin')} />
                 {syncing ? 'Syncing…' : 'Sync'}
               </Button>
             )}
-            {connected === 'google' ? (
-              <Button variant="destructive" size="sm" onClick={handleDisconnect}>
+            {googleConnection ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => disconnectMutation.mutate(googleConnection.id)}
+                disabled={disconnectMutation.isPending}
+              >
                 <XCircle className="h-3.5 w-3.5 mr-1.5" />
                 Disconnect
               </Button>
@@ -418,7 +453,7 @@ function CalendarSettingsTab() {
               <Button
                 size="sm"
                 onClick={() => handleConnect('google')}
-                disabled={connected === 'outlook'}
+                disabled={!!microsoftConnection}
               >
                 <Link2 className="h-3.5 w-3.5 mr-1.5" />
                 Connect
@@ -427,7 +462,7 @@ function CalendarSettingsTab() {
           </div>
         </div>
 
-        {/* Outlook */}
+        {/* Microsoft */}
         <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 border border-blue-100">
@@ -439,7 +474,7 @@ function CalendarSettingsTab() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-900">Microsoft Outlook</p>
-              {connected === 'outlook' ? (
+              {microsoftConnection ? (
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <CheckCircle2 className="h-3 w-3 text-green-500" />
                   <span className="text-xs text-green-600">Connected</span>
@@ -453,27 +488,27 @@ function CalendarSettingsTab() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {connected === 'outlook' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
-              >
+            {microsoftConnection && (
+              <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
                 <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', syncing && 'animate-spin')} />
                 {syncing ? 'Syncing…' : 'Sync'}
               </Button>
             )}
-            {connected === 'outlook' ? (
-              <Button variant="destructive" size="sm" onClick={handleDisconnect}>
+            {microsoftConnection ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => disconnectMutation.mutate(microsoftConnection.id)}
+                disabled={disconnectMutation.isPending}
+              >
                 <XCircle className="h-3.5 w-3.5 mr-1.5" />
                 Disconnect
               </Button>
             ) : (
               <Button
                 size="sm"
-                onClick={() => handleConnect('outlook')}
-                disabled={connected === 'google'}
+                onClick={() => handleConnect('microsoft')}
+                disabled={!!googleConnection}
               >
                 <Link2 className="h-3.5 w-3.5 mr-1.5" />
                 Connect
