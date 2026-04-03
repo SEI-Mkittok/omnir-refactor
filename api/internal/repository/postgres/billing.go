@@ -145,7 +145,7 @@ func (r *BillingRepo) GetUsageStats(ctx context.Context, orgID uuid.UUID) (userC
 	const q = `
 		SELECT
 			(SELECT COUNT(*) FROM users    WHERE org_id = $1 AND deleted_at IS NULL),
-			(SELECT COUNT(*) FROM contacts WHERE org_id = $1)`
+			(SELECT COUNT(*) FROM contacts WHERE org_id = $1 AND deleted_at IS NULL)`
 	err = r.db.QueryRow(ctx, q, orgID).Scan(&userCount, &contactCount)
 	return
 }
