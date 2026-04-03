@@ -140,6 +140,16 @@ func (r *BillingRepo) UpsertInvoice(ctx context.Context, inv *domain.Invoice) (*
 	))
 }
 
+// GetUsageStats returns current user and contact counts for the org.
+func (r *BillingRepo) GetUsageStats(ctx context.Context, orgID uuid.UUID) (userCount, contactCount int, err error) {
+	const q = `
+		SELECT
+			(SELECT COUNT(*) FROM users    WHERE org_id = $1 AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM contacts WHERE org_id = $1)`
+	err = r.db.QueryRow(ctx, q, orgID).Scan(&userCount, &contactCount)
+	return
+}
+
 // ListInvoices returns paginated invoices for an org, most recent first.
 func (r *BillingRepo) ListInvoices(ctx context.Context, orgID uuid.UUID, limit, offset int) ([]*domain.Invoice, int, error) {
 	const countQ = `SELECT COUNT(*) FROM invoices WHERE org_id = $1`

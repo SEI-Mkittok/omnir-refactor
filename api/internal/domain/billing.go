@@ -62,6 +62,26 @@ type Invoice struct {
 	CreatedAt       time.Time     `json:"created_at"`
 }
 
+// UsageStat is a single resource usage counter with an optional plan limit.
+type UsageStat struct {
+	Used  int  `json:"used"`
+	Limit *int `json:"limit"` // nil means unlimited
+}
+
+// BillingUsageStats is the response shape for GET /api/v1/billing/usage.
+type BillingUsageStats struct {
+	Plan  BillingPlan `json:"plan"`
+	Usage struct {
+		Users      UsageStat `json:"users"`
+		Contacts   UsageStat `json:"contacts"`
+		StorageMB  UsageStat `json:"storage_mb"`
+	} `json:"usage"`
+	BillingCycle struct {
+		CurrentPeriodStart string `json:"current_period_start"`
+		CurrentPeriodEnd   string `json:"current_period_end"`
+	} `json:"billing_cycle"`
+}
+
 // OrgPlanPatch is used to update billing state (internal use — webhook-driven).
 type OrgPlanPatch struct {
 	Plan                 *BillingPlan        `json:"plan,omitempty"`
