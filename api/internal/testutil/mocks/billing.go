@@ -61,3 +61,8 @@ func (m *MockBillingRepository) ListInvoices(ctx context.Context, orgID uuid.UUI
 	}
 	return args.Get(0).([]*domain.Invoice), args.Int(1), args.Error(2)
 }
+
+func (m *MockBillingRepository) GetUsageStats(ctx context.Context, orgID uuid.UUID) (int, int, error) {
+	args := m.Called(ctx, orgID)
+	return args.Int(0), args.Int(1), args.Error(2)
+}

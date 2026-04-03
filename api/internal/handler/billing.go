@@ -38,6 +38,7 @@ func NewBillingHandler(billing repository.BillingRepository, stripeCfg config.St
 // Router returns the authenticated billing sub-router (mounted under /api/v1/billing).
 func (h *BillingHandler) Router() chi.Router {
 	r := chi.NewRouter()
+	r.Get("/usage", h.GetUsage)
 	r.Get("/subscription", h.GetSubscription)
 	r.Get("/invoices", h.ListInvoices)
 	r.Post("/checkout", h.CreateCheckout)
@@ -50,6 +51,78 @@ func (h *BillingHandler) WebhookRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", h.HandleWebhook)
 	return r
+}
+
+// GetUsage returns current usage stats for the authenticated org.
+// GET /api/v1/billing/usage
+func (h *BillingHandler) GetUsage(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "org context required")
+		return
+	}
+
+	plan, err := h.billing.GetOrCreatePlan(r.Context(), orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch billing info")
+		return
+	}
+
+	userCount, contactCount, err := h.billing.GetUsageStats(r.Context(), orgID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to fetch usage stats")
+		return
+	}
+
+	resp := buildUsageResponse(plan, userCount, contactCount)
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// buildUsageResponse assembles the BillingUsageStats response from a plan and live counts.
+func buildUsageResponse(plan *domain.OrgPlanRecord, userCount, contactCount int) domain.BillingUsageStats {
+	var resp domain.BillingUsageStats
+	resp.Plan = plan.Plan
+
+	// Hardcoded limits by plan tier.
+	switch plan.Plan {
+	case domain.BillingPlanPro:
+		limit10 := 10
+		limit1000 := 1000
+		resp.Usage.Users.Limit = &limit10
+		resp.Usage.StorageMB.Limit = &limit1000
+		// contacts unlimited (nil)
+	case domain.BillingPlanEnterprise:
+		// all unlimited
+	default: // free
+		limit5 := 5
+		limit500 := 500
+		limit100 := 100
+		resp.Usage.Users.Limit = &limit5
+		resp.Usage.Contacts.Limit = &limit500
+		resp.Usage.StorageMB.Limit = &limit100
+	}
+
+	resp.Usage.Users.Used = userCount
+	resp.Usage.Contacts.Used = contactCount
+	resp.Usage.StorageMB.Used = 0 // storage tracking not yet implemented
+
+	// Derive billing cycle dates.
+	now := time.Now()
+	if plan.CurrentPeriodEnd != nil {
+		end := *plan.CurrentPeriodEnd
+		// start = first day of the same month as end
+		start := time.Date(end.Year(), end.Month(), 1, 0, 0, 0, 0, time.UTC)
+		resp.BillingCycle.CurrentPeriodStart = start.Format("2006-01-02")
+		resp.BillingCycle.CurrentPeriodEnd = end.Format("2006-01-02")
+	} else {
+		// Fall back to the current calendar month.
+		start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		end := start.AddDate(0, 1, -1)
+		resp.BillingCycle.CurrentPeriodStart = start.Format("2006-01-02")
+		resp.BillingCycle.CurrentPeriodEnd = end.Format("2006-01-02")
+	}
+
+	return resp
 }
 
 // GetSubscription returns the current plan for the authenticated org.
