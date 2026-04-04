@@ -45,16 +45,18 @@ func (h *OnboardingHandler) Router() chi.Router {
 	r.Post("/invite", h.SendInvite)
 	r.Post("/accept", h.AcceptInvite)
 	r.Get("/status", h.Status)
+	r.Patch("/steps/{stepId}", h.UpdateStepStatus)
 	return r
 }
 
 // onboardingResponse is the shape returned to the frontend:
 // matches the TypeScript OnboardingState interface.
 type onboardingResponse struct {
-	ID             string   `json:"id"`
-	CompletedSteps []string `json:"completedSteps"`
-	Completed      bool     `json:"completed"`
-	OrgName        string   `json:"orgName,omitempty"`
+	ID             string                                    `json:"id"`
+	CompletedSteps []string                                  `json:"completedSteps"`
+	StepStatus     map[string]domain.OnboardingStepStatus   `json:"stepStatus"`
+	Completed      bool                                      `json:"completed"`
+	OrgName        string                                    `json:"orgName,omitempty"`
 }
 
 func toOnboardingResponse(state *domain.OrgOnboarding, orgName string) onboardingResponse {
@@ -62,9 +64,14 @@ func toOnboardingResponse(state *domain.OrgOnboarding, orgName string) onboardin
 	if steps == nil {
 		steps = []string{}
 	}
+	stepStatus := state.StepStatus
+	if stepStatus == nil {
+		stepStatus = map[string]domain.OnboardingStepStatus{}
+	}
 	return onboardingResponse{
 		ID:             state.OrgID.String(),
 		CompletedSteps: steps,
+		StepStatus:     stepStatus,
 		Completed:      state.CompletedAt != nil,
 		OrgName:        orgName,
 	}
@@ -312,6 +319,55 @@ func (h *OnboardingHandler) Status(w http.ResponseWriter, r *http.Request) {
 		"completed_at":    state.CompletedAt,
 		"invites":         invites,
 	})
+}
+
+type updateStepStatusRequest struct {
+	Status domain.OnboardingStepStatus `json:"status"`
+}
+
+// UpdateStepStatus sets the status for a single onboarding step.
+// PATCH /api/v1/onboarding/steps/:stepId
+func (h *OnboardingHandler) UpdateStepStatus(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "missing org context")
+		return
+	}
+
+	stepID := chi.URLParam(r, "stepId")
+	if stepID == "" {
+		writeError(w, http.StatusBadRequest, "stepId is required")
+		return
+	}
+
+	var req updateStepStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	switch req.Status {
+	case domain.StepStatusNotStarted, domain.StepStatusInProgress, domain.StepStatusCompleted:
+		// valid
+	default:
+		writeError(w, http.StatusUnprocessableEntity, "validation error: status must be not_started, in_progress, or completed")
+		return
+	}
+
+	state, err := h.repo.UpdateStepStatus(r.Context(), orgID, stepID, req.Status)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	orgName := ""
+	if h.orgs != nil {
+		if org, err := h.orgs.GetByID(r.Context(), orgID); err == nil {
+			orgName = org.Name
+		}
+	}
+
+	writeJSON(w, http.StatusOK, toOnboardingResponse(state, orgName))
 }
 
 func generateInviteToken() (string, error) {
