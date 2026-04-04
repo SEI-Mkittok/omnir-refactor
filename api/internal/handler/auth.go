@@ -3,13 +3,16 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/omnir/crm-api/internal/auth"
+	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
@@ -23,6 +26,7 @@ const (
 // AuthHandler handles authentication endpoints.
 type AuthHandler struct {
 	users    repository.UserRepository
+	orgs     repository.OrgRepository
 	jwtSvc   *auth.JWTService
 	auditor  Auditor
 	totpRepo repository.TOTPRepository
@@ -30,6 +34,12 @@ type AuthHandler struct {
 
 func NewAuthHandler(users repository.UserRepository, jwtSvc *auth.JWTService) *AuthHandler {
 	return &AuthHandler{users: users, jwtSvc: jwtSvc}
+}
+
+// WithOrgs wires an org repository into the handler for registration support.
+func (h *AuthHandler) WithOrgs(orgs repository.OrgRepository) *AuthHandler {
+	h.orgs = orgs
+	return h
 }
 
 // WithAuditLog wires an audit log repository into the handler.
@@ -50,6 +60,132 @@ func (h *AuthHandler) Router() chi.Router {
 	r.Post("/refresh", h.Refresh)
 	r.Post("/logout", h.Logout)
 	return r
+}
+
+// RegisterRouter returns the public registration route.
+// Mount this OUTSIDE any auth middleware group.
+//
+//	POST /register — self-service org + admin user creation (multi-tenant)
+func (h *AuthHandler) RegisterRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/register", h.Register)
+	return r
+}
+
+type registerRequest struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	OrgName  string `json:"orgName"`
+}
+
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
+
+func orgSlug(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	s = nonAlphanumeric.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		s = uuid.New().String()[:8]
+	}
+	return s
+}
+
+// Register creates a new org and an admin user, then issues auth cookies.
+// POST /api/v1/auth/register — must be mounted outside the auth middleware group.
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	if h.orgs == nil {
+		writeError(w, http.StatusNotImplemented, "registration is not available in this deployment")
+		return
+	}
+
+	var req registerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(req.Email)
+	req.OrgName = strings.TrimSpace(req.OrgName)
+
+	if req.Name == "" {
+		writeError(w, http.StatusUnprocessableEntity, "validation error: name is required")
+		return
+	}
+	if req.Email == "" {
+		writeError(w, http.StatusUnprocessableEntity, "validation error: email is required")
+		return
+	}
+	if len(req.Password) < 8 {
+		writeError(w, http.StatusUnprocessableEntity, "validation error: password must be at least 8 characters")
+		return
+	}
+	if req.OrgName == "" {
+		writeError(w, http.StatusUnprocessableEntity, "validation error: orgName is required")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	// Create org with a unique slug derived from the org name.
+	slug := orgSlug(req.OrgName)
+	exists, err := h.orgs.SlugExists(r.Context(), slug)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	if exists {
+		slug = slug + "-" + uuid.New().String()[:8]
+	}
+
+	org, err := h.orgs.Create(r.Context(), &domain.Organization{
+		Name: req.OrgName,
+		Slug: slug,
+		Plan: domain.OrgPlanStarter,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	userCtx := domain.WithOrgID(r.Context(), org.ID)
+	user := &domain.User{
+		OrgID: org.ID,
+		Email: req.Email,
+		Name:  req.Name,
+		Role:  domain.UserRoleAdmin,
+	}
+	created, err := h.users.Create(userCtx, user, string(hash))
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+
+	claims := auth.Claims{
+		UserID: created.ID,
+		OrgID:  org.ID,
+		Role:   string(created.Role),
+	}
+	accessToken, err := h.jwtSvc.Issue(claims, accessTokenTTL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	refreshToken, err := h.jwtSvc.Issue(claims, refreshTokenTTL)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	secure := r.TLS != nil
+	setAccessCookie(w, accessToken, secure)
+	setRefreshCookie(w, refreshToken, secure)
+
+	writeJSON(w, http.StatusCreated, map[string]any{"user": created})
 }
 
 type loginRequest struct {
