@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Shield, ShieldCheck, ShieldOff, AlertCircle, Check } from 'lucide-react'
+import { Shield, ShieldCheck, ShieldOff, AlertCircle, Check, Rocket } from 'lucide-react'
 import { totpApi } from '@/api/sso'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -49,7 +49,35 @@ export function SecuritySettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Security Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage your account and workspace settings.
+        </p>
+      </div>
+
+      {/* Getting Started / Onboarding */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+            <Rocket className="h-5 w-5 text-slate-600" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Getting Started</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              View your onboarding checklist or continue where you left off.
+            </p>
+          </div>
+          <Link
+            to="/settings/onboarding"
+            className="shrink-0 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            View checklist →
+          </Link>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Security Settings</h2>
         <p className="mt-1 text-sm text-slate-500">
           Manage two-factor authentication and account security.
         </p>

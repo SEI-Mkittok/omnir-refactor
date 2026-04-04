@@ -4,11 +4,12 @@ import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
-  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug,
+  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
+import { updateOnboarding } from '@/api/onboarding'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -81,8 +82,15 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarProps) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const { sidebarCollapsed, toggleSidebar } = useUIStore()
+  const { sidebarCollapsed, toggleSidebar, onboardingDismissed, setOnboardingDismissed } = useUIStore()
   const collapsed = sidebarCollapsed
+
+  async function handleDismissOnboarding(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setOnboardingDismissed(true)
+    await updateOnboarding({ dismissed: true }).catch(() => {})
+  }
 
   // Support both prop naming conventions
   const isOpen = mobileOpen ?? open
@@ -181,7 +189,36 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
 
         {/* Footer utilities */}
         <div className="shrink-0 border-t border-[#F0F1F3] px-2 py-2 space-y-0.5">
-          <NavItem to="/settings/onboarding" icon={Rocket} label="Getting Started" />
+          {!onboardingDismissed && (
+            <div className="relative flex items-center group">
+              <NavLink
+                to="/settings/onboarding"
+                onClick={handleClose}
+                className={({ isActive }) =>
+                  cn(
+                    'flex flex-1 items-center gap-2.5 rounded px-3 py-1.5 text-sm font-medium transition-colors duration-100',
+                    isActive
+                      ? 'bg-[#E8EDF2] text-[#1B3A4B] font-semibold shadow-[inset_3px_0_0_#1B3A4B]'
+                      : 'text-[#6B7280] hover:bg-[#E8EDF2] hover:text-[#1A1D23]',
+                    collapsed && 'justify-center px-2'
+                  )
+                }
+              >
+                <Rocket className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                {!collapsed && <span>Getting Started</span>}
+              </NavLink>
+              {!collapsed && (
+                <button
+                  type="button"
+                  onClick={handleDismissOnboarding}
+                  aria-label="Dismiss Getting Started"
+                  className="absolute right-1 hidden group-hover:flex items-center justify-center h-5 w-5 rounded text-[#6B7280] hover:text-[#1A1D23] hover:bg-[#D1D5DB]"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
           <NavItem to="/settings" icon={Settings} label="Settings" />
           <button
             onClick={async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {}); useAuthStore.getState().logout(); navigate('/login') }}
