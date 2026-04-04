@@ -16,13 +16,14 @@ import (
 
 // EmailHandler handles HTTP requests for the emails resource.
 type EmailHandler struct {
-	repo   repository.EmailRepository
-	mailer *email.Mailer
-	from   string
+	repo       repository.EmailRepository
+	activities repository.ActivityRepository
+	mailer     *email.Mailer
+	from       string
 }
 
-func NewEmailHandler(repo repository.EmailRepository, mailer *email.Mailer, from string) *EmailHandler {
-	return &EmailHandler{repo: repo, mailer: mailer, from: from}
+func NewEmailHandler(repo repository.EmailRepository, activities repository.ActivityRepository, mailer *email.Mailer, from string) *EmailHandler {
+	return &EmailHandler{repo: repo, activities: activities, mailer: mailer, from: from}
 }
 
 // Router returns the top-level /emails routes.
@@ -73,6 +74,22 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+
+	// Auto-log activity on linked contact (best-effort).
+	if created.ContactID != nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			snippet := bodySnippet(req.Body)
+			act := &domain.Activity{
+				Type:        domain.ActivityTypeEmail,
+				Subject:     req.Subject,
+				Description: &snippet,
+				ContactID:   created.ContactID,
+				OwnerID:     claims.UserID,
+			}
+			_, _ = h.activities.Create(r.Context(), act)
+		}
+	}
+
 	writeJSON(w, http.StatusCreated, created)
 }
 
