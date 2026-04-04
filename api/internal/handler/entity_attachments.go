@@ -22,6 +22,46 @@ const (
 	defaultUploadsDir = "uploads"
 )
 
+// allowedExtensions is the set of file extensions accepted for upload.
+// Any extension not in this set is rejected server-side regardless of content.
+var allowedExtensions = map[string]bool{
+	".pdf":  true,
+	".png":  true,
+	".jpg":  true,
+	".jpeg": true,
+	".gif":  true,
+	".webp": true,
+	".svg":  true,
+	".txt":  true,
+	".csv":  true,
+	".doc":  true,
+	".docx": true,
+	".xls":  true,
+	".xlsx": true,
+	".ppt":  true,
+	".pptx": true,
+	".zip":  true,
+	".mp4":  true,
+	".mp3":  true,
+}
+
+// allowedMIMEPrefixes is the set of MIME type prefixes accepted for upload.
+// The sniffed MIME type (from the first 512 bytes) must match one of these.
+var allowedMIMEPrefixes = []string{
+	"application/pdf",
+	"image/",
+	"text/",
+	"application/msword",
+	"application/vnd.openxmlformats",
+	"application/vnd.ms-",
+	"application/zip",
+	"application/x-zip",
+	"video/mp4",
+	"audio/mpeg",
+	"audio/mp4",
+	"application/octet-stream", // kept for binary attachments but gated by extension allowlist
+}
+
 // EntityAttachmentHandler serves attachment sub-resources for contacts, accounts, and deals.
 type EntityAttachmentHandler struct {
 	repo        repository.EntityAttachmentRepository
@@ -110,11 +150,27 @@ func (h *EntityAttachmentHandler) Upload(w http.ResponseWriter, r *http.Request)
 		filename = "upload"
 	}
 
+	ext := strings.ToLower(filepath.Ext(filename))
+	if !allowedExtensions[ext] {
+		writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("file extension %q is not allowed", ext))
+		return
+	}
+
 	buf := make([]byte, 512)
 	n, _ := file.Read(buf)
+	// Use the sniffed MIME type from actual file bytes — never trust the client-supplied header.
 	contentType := http.DetectContentType(buf[:n])
-	if ct := header.Header.Get("Content-Type"); ct != "" && ct != "application/octet-stream" {
-		contentType = ct
+
+	mimeOK := false
+	for _, prefix := range allowedMIMEPrefixes {
+		if strings.HasPrefix(contentType, prefix) {
+			mimeOK = true
+			break
+		}
+	}
+	if !mimeOK {
+		writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("file content type %q is not allowed", contentType))
+		return
 	}
 
 	attachmentID := uuid.New()
