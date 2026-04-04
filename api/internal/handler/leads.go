@@ -169,6 +169,16 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	// Auto-derive score from status when status changes and score is not explicitly set.
+	if patch.Status != nil && patch.Score == nil {
+		derived := domain.ScoreForStatus(*patch.Status)
+		patch.Score = &derived
+	}
+	// Snap manually-provided scores to the nearest 10% step.
+	if patch.Score != nil && patch.Status == nil {
+		snapped := domain.SnapScoreToStep(*patch.Score)
+		patch.Score = &snapped
+	}
 	l, err := h.leads.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
