@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strings"
 )
@@ -108,7 +109,7 @@ type SMTPConfig struct {
 // Load reads configuration from environment variables.
 // Defaults are set for local development.
 func Load() *Config {
-	return &Config{
+	cfg := &Config{
 		Env:         getEnv("ENV", "development"),
 		Port:        getEnv("SERVER_PORT", "8080"),
 		DatabaseURL: getEnv("DATABASE_URL", "postgres://omnir:omnir_dev@localhost:5432/omnir_crm?sslmode=disable"),
@@ -167,6 +168,34 @@ func Load() *Config {
 		},
 		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
 		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
+	}
+
+	if cfg.Env == "production" {
+		validateProductionSecrets(cfg)
+	}
+
+	return cfg
+}
+
+// validateProductionSecrets terminates the process if any cryptographic secret
+// is still set to its development fallback. Call this only when ENV=production.
+func validateProductionSecrets(cfg *Config) {
+	type check struct {
+		envVar     string
+		value      string
+		devDefault string
+	}
+	checks := []check{
+		{"JWT_SECRET", cfg.JWTSecret, "dev-secret-change-in-production"},
+		{"SEQUENCE_TOKEN_SECRET", cfg.SequenceTokenSecret, "sequence-dev-secret"},
+		{"EMAIL_INBOX_ENCRYPTION_KEY", cfg.EmailInbox.EncryptionKey, "dev-email-inbox-key-change-in-prod"},
+		{"SSO_ENCRYPTION_KEY", cfg.SSOEncryptionKey, "dev-sso-encryption-key-change-in-prod"},
+		{"INTEGRATION_CREDENTIALS_ENCRYPTION_KEY", cfg.IntegrationCredentialsEncKey, "dev-integration-creds-key-change-in-prod"},
+	}
+	for _, c := range checks {
+		if c.value == c.devDefault {
+			log.Fatalf("production startup check failed: %s is using its dev default — set a secure value before deploying", c.envVar)
+		}
 	}
 }
 
