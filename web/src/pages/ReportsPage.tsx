@@ -405,7 +405,9 @@ export function ReportsPage() {
         value: found?.count ?? 0,
         fill: FUNNEL_COLORS[idx] ?? PRIMARY,
       }
-    }).filter((d) => d.value > 0)
+    })
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value)
   }, [dealData])
 
   // ---- Revenue Over Time (uses contact monthly + deal won to approximate) ----
@@ -644,8 +646,10 @@ export function ReportsPage() {
                     <LabelList
                       position="right"
                       content={(props) => {
-                        const { x, y, width, height, value, name } = props as { x?: number; y?: number; width?: number; height?: number; value?: number; name?: string }
+                        const { x, y, width, height, index } = props as { x?: number; y?: number; width?: number; height?: number; index?: number }
                         if (x == null || y == null || width == null || height == null) return null
+                        const entry = funnelData[index ?? 0]
+                        if (!entry) return null
                         return (
                           <text
                             x={(x ?? 0) + (width ?? 0) + 8}
@@ -655,7 +659,7 @@ export function ReportsPage() {
                             fontSize={11}
                             fontWeight={600}
                           >
-                            {name}: {value}
+                            {entry.value}: {entry.name}
                           </text>
                         )
                       }}
