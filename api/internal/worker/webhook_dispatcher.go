@@ -52,8 +52,14 @@ type WebhookEvent struct {
 // NewWebhookDispatcher creates a dispatcher that polls every interval.
 func NewWebhookDispatcher(repo repository.OutboundWebhookRepository, interval time.Duration, logger *slog.Logger) *WebhookDispatcher {
 	return &WebhookDispatcher{
-		repo:     repo,
-		client:   &http.Client{Timeout: deliveryTimeout},
+		repo: repo,
+		client: &http.Client{
+			Timeout: deliveryTimeout,
+			// Do not follow redirects — a redirect could point to a private/internal address (SSRF).
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 		interval: interval,
 		logger:   logger,
 		Dispatch: make(chan WebhookEvent, 256),

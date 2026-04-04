@@ -201,10 +201,10 @@ func (r *UserRepo) List(ctx context.Context, f domain.UserFilter) ([]*domain.Use
 	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
-			`(name ILIKE $%d OR email ILIKE $%d)`, i, i,
+			`(name ILIKE $%d OR email ILIKE $%d)`, i, i+1,
 		))
-		args = append(args, "%"+f.Q+"%")
-		i++
+		args = append(args, "%"+f.Q+"%", "%"+f.Q+"%")
+		i += 2
 	}
 
 	whereClause := strings.Join(where, " AND ")

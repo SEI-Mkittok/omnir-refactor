@@ -31,6 +31,10 @@ func Authenticate(jwtSvc *auth.JWTService, apiKeyRepo repository.APIKeyRepositor
 			// 1. Try JWT cookie.
 			if cookie, err := r.Cookie("access_token"); err == nil {
 				if claims, err := jwtSvc.Verify(cookie.Value); err == nil {
+					if claims.PreAuth && !strings.HasSuffix(r.URL.Path, "/auth/2fa/verify") {
+						http.Error(w, `{"error":"pre_auth_token_not_accepted"}`, http.StatusUnauthorized)
+						return
+					}
 					next.ServeHTTP(w, withClaims(r, claims))
 					return
 				}
@@ -50,6 +54,10 @@ func Authenticate(jwtSvc *auth.JWTService, apiKeyRepo repository.APIKeyRepositor
 				} else {
 					// JWT in Authorization header (e.g. test clients, non-browser callers).
 					if claims, err := jwtSvc.Verify(token); err == nil {
+						if claims.PreAuth && !strings.HasSuffix(r.URL.Path, "/auth/2fa/verify") {
+							http.Error(w, `{"error":"pre_auth_token_not_accepted"}`, http.StatusUnauthorized)
+							return
+						}
 						next.ServeHTTP(w, withClaims(r, claims))
 						return
 					}

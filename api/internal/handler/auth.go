@@ -92,7 +92,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		enabled, err := h.totpRepo.IsEnabled(r.Context(), user.ID)
 		if err == nil && enabled {
 			// Issue a short-lived pre-auth token so the frontend can call /auth/2fa/verify.
-			preClaims := auth.Claims{UserID: user.ID, OrgID: user.OrgID, Role: string(user.Role)}
+			preClaims := auth.Claims{UserID: user.ID, OrgID: user.OrgID, Role: string(user.Role), PreAuth: true}
 			preAuthToken, tokenErr := h.jwtSvc.Issue(preClaims, 5*time.Minute)
 			if tokenErr != nil {
 				writeError(w, http.StatusInternalServerError, "internal server error")
