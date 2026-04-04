@@ -12,9 +12,29 @@ export interface QueuedMutation {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any
   queuedAt: string
+  /**
+   * When true, this mutation contains sensitive data (PII, credentials, etc.)
+   * that must never be written to IndexedDB. enqueueMutation will throw
+   * SensitiveMutationOfflineError instead of persisting the entry.
+   */
+  sensitive?: boolean
+}
+
+/**
+ * Thrown when a sensitive mutation is attempted while offline.
+ * Callers should catch this and show an appropriate "reconnect to save" message.
+ */
+export class SensitiveMutationOfflineError extends Error {
+  constructor() {
+    super('Cannot queue sensitive data for offline replay. Please reconnect and try again.')
+    this.name = 'SensitiveMutationOfflineError'
+  }
 }
 
 export async function enqueueMutation(mutation: Omit<QueuedMutation, 'id' | 'queuedAt'>): Promise<void> {
+  if (mutation.sensitive) {
+    throw new SensitiveMutationOfflineError()
+  }
   const queue = await getMutationQueue()
   const entry: QueuedMutation = {
     ...mutation,
