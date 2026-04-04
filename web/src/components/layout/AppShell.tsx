@@ -15,7 +15,9 @@ import { usersApi } from '@/api/users'
 
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isInitializing = useAuthStore((s) => s.isInitializing)
   const setUser = useAuthStore((s) => s.setUser)
+  const setInitializing = useAuthStore((s) => s.setInitializing)
   const logout = useAuthStore((s) => s.logout)
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
   const onboardingOpen = useUIStore((s) => s.onboardingOpen)
@@ -48,12 +50,17 @@ export function AppShell() {
         }
       })
       .catch(() => { logout() })
-  }, [setUser, logout, setOnboardingOpen, setOnboardingDismissed])
+      .finally(() => { setInitializing(false) })
+  }, [setUser, logout, setOnboardingOpen, setOnboardingDismissed, setInitializing])
   usePushNotifications()
   useMutationQueue()
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const location = useLocation()
+
+  if (isInitializing) {
+    return null
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
