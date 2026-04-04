@@ -151,7 +151,7 @@ function ActivityTimeline({ contactId }: ActivityTimelineProps) {
       <div
         role="tablist"
         aria-label="Filter activity by type"
-        className="flex gap-1 mb-4 pb-3 border-b"
+        className="flex gap-1 mb-4 pb-3 border-b overflow-x-auto"
         style={{ borderColor: 'var(--border-subtle)' }}
       >
         {TABS.map((tab) => (
@@ -160,7 +160,7 @@ function ActivityTimeline({ contactId }: ActivityTimelineProps) {
             role="tab"
             aria-selected={activeTab === tab.id}
             onClick={() => { setActiveTab(tab.id); setVisibleCount(20) }}
-            className="flex items-center gap-1.5 px-3 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 rounded transition-colors shrink-0"
             style={{
               height: 32,
               fontSize: 13,
@@ -509,7 +509,7 @@ function EnrichmentPanel({ contactId }: { contactId: string }) {
           type="button"
           onClick={handleEnrich}
           disabled={enrichContact.isPending}
-          className="flex items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors"
+          className="flex items-center gap-1.5 px-3 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
           style={{
             height: 28,
             border: '1px solid var(--border-default)',
@@ -918,6 +918,7 @@ export function ContactDetailPage() {
         </p>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 rounded-md text-xs border transition-colors"
             style={{
               height: 32,
@@ -931,6 +932,7 @@ export function ContactDetailPage() {
             Export PDF
           </button>
           <button
+            onClick={() => navigate(`/admin/audit?entityType=contact`)}
             className="flex items-center gap-1.5 px-3 rounded-md text-xs border transition-colors"
             style={{
               height: 32,
