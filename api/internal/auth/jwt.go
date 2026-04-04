@@ -24,6 +24,9 @@ type Claims struct {
 	// key (not a JWT). It contains the scopes granted to that key ("read",
 	// "write"). Nil means JWT auth — no scope restriction applies.
 	APIKeyScopes []string `json:"api_key_scopes,omitempty"`
+	// PreAuth marks a short-lived token issued before 2FA completion. Middleware
+	// must reject pre-auth tokens on all endpoints except /auth/2fa/verify.
+	PreAuth bool `json:"pre_auth,omitempty"`
 }
 
 type jwtClaims struct {
@@ -32,6 +35,7 @@ type jwtClaims struct {
 	OrgID     string `json:"org_id"`
 	Role      string `json:"role"`
 	CompanyID string `json:"company_id,omitempty"`
+	PreAuth   bool   `json:"pre_auth,omitempty"`
 }
 
 // JWTService issues and verifies JWT tokens.
@@ -55,6 +59,7 @@ func (s *JWTService) Issue(c Claims, ttl time.Duration) (string, error) {
 		OrgID:     c.OrgID.String(),
 		Role:      c.Role,
 		CompanyID: c.CompanyID.String(),
+		PreAuth:   c.PreAuth,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, tc)
 	return token.SignedString(s.secret)
@@ -92,5 +97,6 @@ func (s *JWTService) Verify(tokenStr string) (*Claims, error) {
 		OrgID:     orgID,
 		Role:      tc.Role,
 		CompanyID: companyID,
+		PreAuth:   tc.PreAuth,
 	}, nil
 }
