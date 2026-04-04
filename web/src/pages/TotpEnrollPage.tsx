@@ -104,7 +104,10 @@ export function TotpEnrollPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'omnir-backup-codes.txt'
+    // Randomised suffix makes the filename unpredictable to malware that
+    // scans Downloads for known filenames.
+    const suffix = crypto.randomUUID().slice(0, 8)
+    a.download = `praestos-backup-codes-${suffix}.txt`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -293,6 +296,17 @@ export function TotpEnrollPage() {
             Store these codes somewhere safe. Each code can only be used once to access your
             account if you lose your authenticator device.
           </p>
+          <div
+            role="note"
+            className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Store these codes in a <strong>password manager</strong> (e.g. 1Password, Bitwarden)
+              rather than a plain file. Avoid pasting them into chat or email — clipboard content
+              can be read by other apps on your device.
+            </span>
+          </div>
 
           {/* 2-column backup codes grid */}
           <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-slate-200 bg-slate-50 p-4">
