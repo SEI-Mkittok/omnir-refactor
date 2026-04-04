@@ -99,9 +99,11 @@ func (h *EmailInboxHandler) InboxRouter() chi.Router {
 
 // ─── OAuth state helpers ──────────────────────────────────────────────────────
 
-func (h *EmailInboxHandler) generateState(userID, orgID uuid.UUID, provider domain.EmailProvider) string {
+func (h *EmailInboxHandler) generateState(userID, orgID uuid.UUID, provider domain.EmailProvider) (string, error) {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
 	state := base64.URLEncoding.EncodeToString(b)
 
 	h.mu.Lock()
@@ -112,7 +114,7 @@ func (h *EmailInboxHandler) generateState(userID, orgID uuid.UUID, provider doma
 		expiresAt: time.Now().Add(10 * time.Minute),
 	}
 	h.mu.Unlock()
-	return state
+	return state, nil
 }
 
 func (h *EmailInboxHandler) consumeState(state string) (emailInboxOAuthState, bool) {
@@ -143,7 +145,11 @@ func (h *EmailInboxHandler) InitiateGoogle(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	state := h.generateState(claims.UserID, orgID, domain.EmailProviderGmail)
+	state, err := h.generateState(claims.UserID, orgID, domain.EmailProviderGmail)
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Server Error", "failed to generate state token")
+		return
+	}
 
 	params := url.Values{
 		"client_id":     {h.cfg.GoogleClientID},
@@ -171,7 +177,11 @@ func (h *EmailInboxHandler) InitiateMicrosoft(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	state := h.generateState(claims.UserID, orgID, domain.EmailProviderOutlook)
+	state, err := h.generateState(claims.UserID, orgID, domain.EmailProviderOutlook)
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Server Error", "failed to generate state token")
+		return
+	}
 
 	authURL := fmt.Sprintf(outlookAuthURLFmt, h.cfg.MicrosoftTenantID)
 	params := url.Values{
