@@ -170,7 +170,7 @@ func main() {
 
 	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc, cfg.OrgMode)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
-	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo)
+	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo).WithOrgs(orgRepo)
 	userHandler := handler.NewUserHandler(userRepo)
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
@@ -287,6 +287,8 @@ func main() {
 	r.Mount("/api/setup", setupHandler.Router())
 	r.Mount("/api/orgs", orgHandler.Router())
 	r.Mount("/api/auth", authHandler.Router())
+	// Public self-service registration — must be outside /api/v1 auth group.
+	r.Mount("/api/v1/auth", authHandler.RegisterRouter())
 	// Public SSO login/callback — no JWT required.
 	r.Mount("/auth/sso", ssoHandler.Router())
 	// API-style SSO: POST /api/auth/sso/microsoft|google, GET /api/auth/sso/callback
