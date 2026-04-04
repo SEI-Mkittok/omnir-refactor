@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { TrendingUp, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { OtpInput } from '@/components/ui/OtpInput'
@@ -12,6 +12,7 @@ const RATE_LIMIT_COOLDOWN_SECONDS = 30
 
 export function TotpVerifyPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { setUser } = useAuthStore()
 
   const [code, setCode] = useState('')
@@ -26,13 +27,12 @@ export function TotpVerifyPage() {
 
   const isRateLimited = failureCount >= RATE_LIMIT_THRESHOLD && cooldownSeconds > 0
 
-  // Guard: if no pending auth, redirect to login
+  // Guard: if no pending 2FA challenge, redirect to login
   useEffect(() => {
-    const token = sessionStorage.getItem('pre_auth_token')
-    if (!token) {
+    if (!location.state?.pending2fa) {
       navigate('/login', { replace: true })
     }
-  }, [navigate])
+  }, [navigate, location.state])
 
   // Auto-focus OTP input
   useEffect(() => {
@@ -63,7 +63,6 @@ export function TotpVerifyPage() {
     try {
       const result = await verifyTotp(value)
       if (result.ok && result.user) {
-        sessionStorage.removeItem('pre_auth_token')
         setUser(result.user)
         navigate('/dashboard', { replace: true })
       } else {
@@ -84,7 +83,6 @@ export function TotpVerifyPage() {
     try {
       const result = await verifyTotpBackup(backupCode.trim())
       if (result.ok && result.user) {
-        sessionStorage.removeItem('pre_auth_token')
         setUser(result.user)
         navigate('/dashboard', { replace: true })
       } else {

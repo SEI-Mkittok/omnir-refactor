@@ -53,11 +53,7 @@ export function LoginPage() {
       const body = res.data
 
       if (body.requires_2fa) {
-        // Store pre-auth token in sessionStorage so /login/2fa can use it
-        if (body.pre_auth_token) {
-          sessionStorage.setItem('pre_auth_token', body.pre_auth_token)
-        }
-        navigate('/login/2fa')
+        navigate('/login/2fa', { state: { pending2fa: true } })
         return
       }
 
