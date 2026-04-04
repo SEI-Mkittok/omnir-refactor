@@ -27,10 +27,10 @@ export const reportKeys = {
 
 // ---- Hooks ----
 
-export function useReportsSummary() {
+export function useReportsSummary(params: ReportsParams = {}) {
   return useQuery<ReportsSummary>({
-    queryKey: reportKeys.summary,
-    queryFn: getReportsSummary,
+    queryKey: [...reportKeys.summary, params] as const,
+    queryFn: () => getReportsSummary(params),
     staleTime: 5 * 60 * 1000,
   })
 }

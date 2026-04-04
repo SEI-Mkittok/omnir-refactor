@@ -12,8 +12,8 @@ export interface ReportsParams {
   to?: string   // ISO 8601 date string
 }
 
-export async function getReportsSummary(): Promise<ReportsSummary> {
-  const res = await apiClient.get<ReportsSummary>('/reports')
+export async function getReportsSummary(params?: ReportsParams): Promise<ReportsSummary> {
+  const res = await apiClient.get<ReportsSummary>('/reports', { params })
   return res.data
 }
 
