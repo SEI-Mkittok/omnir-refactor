@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,7 @@ const (
 type EntityAttachmentHandler struct {
 	repo        repository.EntityAttachmentRepository
 	uploadsDir  string
+	baseURL     string
 	entityType  domain.EntityType
 	parentParam string
 }
@@ -32,6 +34,7 @@ type EntityAttachmentHandler struct {
 func NewEntityAttachmentHandler(
 	repo repository.EntityAttachmentRepository,
 	uploadsDir string,
+	baseURL string,
 	entityType domain.EntityType,
 	parentParam string,
 ) *EntityAttachmentHandler {
@@ -41,6 +44,7 @@ func NewEntityAttachmentHandler(
 	return &EntityAttachmentHandler{
 		repo:        repo,
 		uploadsDir:  uploadsDir,
+		baseURL:     baseURL,
 		entityType:  entityType,
 		parentParam: parentParam,
 	}
@@ -71,7 +75,7 @@ func (h *EntityAttachmentHandler) List(w http.ResponseWriter, r *http.Request) {
 		attachments = []*domain.EntityAttachment{}
 	}
 	for _, a := range attachments {
-		a.URL = attachmentDownloadURL(r, a.ID)
+		a.URL = h.attachmentDownloadURL(a.ID)
 	}
 
 	writeJSON(w, http.StatusOK, attachments)
@@ -163,7 +167,7 @@ func (h *EntityAttachmentHandler) Upload(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	created.URL = attachmentDownloadURL(r, created.ID)
+	created.URL = h.attachmentDownloadURL(created.ID)
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -197,12 +201,11 @@ func (h *EntityAttachmentHandler) Delete(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func attachmentDownloadURL(r *http.Request, id uuid.UUID) string {
-	scheme := "http"
-	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
-		scheme = "https"
-	}
-	return fmt.Sprintf("%s://%s/api/v1/attachments/%s", scheme, r.Host, id)
+// attachmentDownloadURL builds a download URL from a configured base URL, never from
+// the request Host header (which can be spoofed by an attacker).
+func (h *EntityAttachmentHandler) attachmentDownloadURL(id uuid.UUID) string {
+	base := strings.TrimRight(h.baseURL, "/")
+	return fmt.Sprintf("%s/api/v1/attachments/%s", base, id)
 }
 
 // AttachmentDownloadHandler serves raw attachment files.
@@ -241,6 +244,9 @@ func (h *AttachmentDownloadHandler) Download(w http.ResponseWriter, r *http.Requ
 	defer f.Close()
 
 	w.Header().Set("Content-Type", a.ContentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, a.Filename))
+	// Use "attachment" (forces download) with RFC 5987 percent-encoded filename to prevent
+	// header injection and stored XSS via MIME-type confusion (OMN-613).
+	encodedName := url.PathEscape(a.Filename)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s`, encodedName))
 	http.ServeContent(w, r, a.Filename, a.CreatedAt, f)
 }
