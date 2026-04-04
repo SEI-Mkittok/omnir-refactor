@@ -31,6 +31,11 @@ export function RegisterPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const [apiError, setApiError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   // Block signup on single-tenant instances
   if (ORG_MODE === 'single') {
@@ -41,12 +46,6 @@ export function RegisterPage() {
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />
   }
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   async function onSubmit(data: FormData) {
     setApiError(null)
