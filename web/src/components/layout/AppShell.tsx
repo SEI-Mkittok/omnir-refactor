@@ -201,7 +201,9 @@ function getBreadcrumb(pathname: string): string {
     '/search':             'Search',
     '/users':              'Users',
     '/api-keys':           'API Keys',
-    '/settings/security':  'Security Settings',
+    '/settings':           'Settings',
+    '/settings/account':   'My Account',
+    '/settings/security':  'Security',
     '/settings/security/2fa/enroll': '2FA Enroll',
     '/settings/custom-fields': 'Custom Fields',
     '/settings/sla':       'SLA Policies',
@@ -211,5 +213,5 @@ function getBreadcrumb(pathname: string): string {
     '/settings/onboarding': 'Getting Started',
     '/admin/audit':        'Audit Log',
   }
-  return map[pathname] ?? 'PraestOS'
+  return map[pathname] ?? 'Omnir'
 }
