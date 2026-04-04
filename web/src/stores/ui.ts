@@ -23,8 +23,8 @@ export const useUIStore = create<UIState>()(
       setOnboardingDismissed: (v) => set({ onboardingDismissed: v }),
     }),
     {
-      name: 'praestos_sidebar_collapsed',
-      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
+      name: 'praestos_ui',
+      partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed, onboardingDismissed: state.onboardingDismissed }),
     }
   )
 )
