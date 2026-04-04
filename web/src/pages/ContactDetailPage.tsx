@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatDate, formatRelativeTime, formatCurrency, getInitials } from '@/lib/utils'
 import type { Activity, ActivityType, Contact, Deal, EnrichmentResult } from '@/api/types'
+import { ComposeEmailModal } from '@/components/omnir/ComposeEmailModal'
 // Note: 'Activity' from lucide-react aliased to ActivityIcon above to avoid collision
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -725,6 +726,7 @@ export function ContactDetailPage() {
   const navigate = useNavigate()
   const [showEdit, setShowEdit] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [composeOpen, setComposeOpen] = useState(false)
 
   const { data: contact, isLoading, isError } = useContact(id!)
   const deleteContact = useDeleteContact()
@@ -862,9 +864,7 @@ export function ContactDetailPage() {
             Edit
           </button>
           <button
-            onClick={() => {
-              window.location.href = `mailto:${contact.email}`
-            }}
+            onClick={() => setComposeOpen(true)}
             className="flex items-center gap-1.5 px-4 rounded-md text-sm font-semibold text-white transition-colors"
             style={{
               height: 36,
@@ -981,6 +981,13 @@ export function ContactDetailPage() {
           onCancel={() => setShowDelete(false)}
         />
       )}
+
+      <ComposeEmailModal
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        contactId={id!}
+        toEmail={contact.email ?? ''}
+      />
     </div>
   )
 }
