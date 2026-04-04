@@ -17,6 +17,8 @@ export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const isInitializing = useAuthStore((s) => s.isInitializing)
   const setUser = useAuthStore((s) => s.setUser)
+  const setActiveOrg = useAuthStore((s) => s.setActiveOrg)
+  const activeOrg = useAuthStore((s) => s.activeOrg)
   const setInitializing = useAuthStore((s) => s.setInitializing)
   const logout = useAuthStore((s) => s.logout)
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
@@ -32,26 +34,38 @@ export function AppShell() {
   // automatically when the access_token cookie has expired, avoiding the
   // "flash dashboard → redirect to login" bug caused by bare fetch().
   useEffect(() => {
+    let orgId = ''
     usersApi.me()
       .then((data) => {
         if (data?.id) {
+          orgId = data.org_id
           setUser(data)
           return getOnboardingState()
         }
         return null
       })
       .then((state) => {
-        if (state && !state.completed) {
-          setOnboardingState(state)
-          setOnboardingDismissed(state.dismissed ?? false)
-          if (!state.dismissed) {
-            setOnboardingOpen(true)
+        if (state) {
+          if (state.orgName) {
+            setActiveOrg({ id: orgId, name: state.orgName, slug: '', created_at: '' })
+          }
+          if (!state.completed) {
+            setOnboardingState(state)
+            setOnboardingDismissed(state.dismissed ?? false)
+            if (!state.dismissed) {
+              setOnboardingOpen(true)
+            }
           }
         }
       })
       .catch(() => { logout() })
       .finally(() => { setInitializing(false) })
-  }, [setUser, logout, setOnboardingOpen, setOnboardingDismissed, setInitializing])
+  }, [setUser, setActiveOrg, logout, setOnboardingOpen, setOnboardingDismissed, setInitializing])
+
+  // Keep browser tab title in sync with the org name.
+  useEffect(() => {
+    document.title = activeOrg?.name ? `${activeOrg.name} — Omnir` : 'Omnir'
+  }, [activeOrg?.name])
   usePushNotifications()
   useMutationQueue()
 
@@ -120,7 +134,7 @@ export function AppShell() {
             style={{ marginTop: 'var(--topbar-height)', background: 'var(--color-primary-light)' }}
           >
             <span className="font-medium" style={{ color: 'var(--color-primary)' }}>
-              Finish setting up PraestOS — resume onboarding →
+              Finish setting up {activeOrg?.name ?? 'your workspace'} — resume onboarding →
             </span>
             <div className="flex items-center gap-2 shrink-0">
               <button
