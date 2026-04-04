@@ -52,11 +52,12 @@ func (h *OnboardingHandler) Router() chi.Router {
 // onboardingResponse is the shape returned to the frontend:
 // matches the TypeScript OnboardingState interface.
 type onboardingResponse struct {
-	ID             string                                    `json:"id"`
-	CompletedSteps []string                                  `json:"completedSteps"`
-	StepStatus     map[string]domain.OnboardingStepStatus   `json:"stepStatus"`
-	Completed      bool                                      `json:"completed"`
-	OrgName        string                                    `json:"orgName,omitempty"`
+	ID             string                                  `json:"id"`
+	CompletedSteps []string                                `json:"completedSteps"`
+	StepStatus     map[string]domain.OnboardingStepStatus `json:"stepStatus"`
+	Completed      bool                                    `json:"completed"`
+	Dismissed      bool                                    `json:"dismissed"`
+	OrgName        string                                  `json:"orgName,omitempty"`
 }
 
 func toOnboardingResponse(state *domain.OrgOnboarding, orgName string) onboardingResponse {
@@ -73,6 +74,7 @@ func toOnboardingResponse(state *domain.OrgOnboarding, orgName string) onboardin
 		CompletedSteps: steps,
 		StepStatus:     stepStatus,
 		Completed:      state.CompletedAt != nil,
+		Dismissed:      state.Dismissed,
 		OrgName:        orgName,
 	}
 }
@@ -106,6 +108,7 @@ func (h *OnboardingHandler) Get(w http.ResponseWriter, r *http.Request) {
 type onboardingPatchRequest struct {
 	CompletedSteps []string `json:"completedSteps"`
 	Completed      bool     `json:"completed"`
+	Dismissed      *bool    `json:"dismissed"`
 	OrgName        string   `json:"orgName"`
 }
 
@@ -139,7 +142,7 @@ func (h *OnboardingHandler) Update(w http.ResponseWriter, r *http.Request) {
 		completedAt = &now
 	}
 
-	state, err := h.repo.UpdateSteps(r.Context(), orgID, req.CompletedSteps, completedAt)
+	state, err := h.repo.UpdateSteps(r.Context(), orgID, req.CompletedSteps, completedAt, req.Dismissed)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return

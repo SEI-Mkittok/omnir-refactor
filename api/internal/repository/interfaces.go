@@ -470,8 +470,9 @@ type DashboardRepository interface {
 type OnboardingRepository interface {
 	// GetOrCreate returns the onboarding record for the org, creating it if absent.
 	GetOrCreate(ctx context.Context, orgID uuid.UUID) (*domain.OrgOnboarding, error)
-	// UpdateSteps persists the updated completed_steps list and completed_at timestamp.
-	UpdateSteps(ctx context.Context, orgID uuid.UUID, steps []string, completedAt *time.Time) (*domain.OrgOnboarding, error)
+	// UpdateSteps persists the updated completed_steps list, completed_at timestamp, and optional dismissed flag.
+	// If dismissed is nil the column is left unchanged.
+	UpdateSteps(ctx context.Context, orgID uuid.UUID, steps []string, completedAt *time.Time, dismissed *bool) (*domain.OrgOnboarding, error)
 	// UpdateStepStatus sets the status for a single onboarding step.
 	UpdateStepStatus(ctx context.Context, orgID uuid.UUID, stepID string, status domain.OnboardingStepStatus) (*domain.OrgOnboarding, error)
 	// CreateInvite inserts a new org invite.

@@ -20,6 +20,7 @@ type OrgOnboarding struct {
 	OrgID          uuid.UUID                       `json:"org_id"`
 	CompletedSteps []string                        `json:"completed_steps"`
 	StepStatus     map[string]OnboardingStepStatus `json:"step_status"`
+	Dismissed      bool                            `json:"dismissed"`
 	CompletedAt    *time.Time                      `json:"completed_at,omitempty"`
 	CreatedAt      time.Time                       `json:"created_at"`
 	UpdatedAt      time.Time                       `json:"updated_at"`
