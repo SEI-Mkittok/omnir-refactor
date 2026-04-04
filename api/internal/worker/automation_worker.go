@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -335,12 +337,97 @@ func (w *AutomationWorker) execCreateActivity(ctx context.Context, cfg map[strin
 	return err
 }
 
+// privateRanges contains CIDR blocks that must not be reachable from automation webhooks.
+var privateRanges = func() []*net.IPNet {
+	cidrs := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+		"127.0.0.0/8",
+		"169.254.0.0/16", // link-local / AWS metadata
+		"100.64.0.0/10",  // shared address space (RFC 6598)
+		"::1/128",
+		"fc00::/7",
+		"fe80::/10",
+	}
+	var nets []*net.IPNet
+	for _, c := range cidrs {
+		_, ipnet, _ := net.ParseCIDR(c)
+		nets = append(nets, ipnet)
+	}
+	return nets
+}()
+
+func isPrivateIP(ip net.IP) bool {
+	for _, r := range privateRanges {
+		if r.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// safeDialContext resolves the target hostname and rejects connections to
+// private or link-local addresses to prevent SSRF.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("webhook: invalid address %q: %w", addr, err)
+	}
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("webhook: DNS lookup %q: %w", host, err)
+	}
+	for _, ip := range ips {
+		if isPrivateIP(ip.IP) {
+			return nil, fmt.Errorf("webhook: target %q resolves to a private IP — blocked", host)
+		}
+	}
+	return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
+}
+
 // execWebhook POSTs a JSON payload to a configured URL.
-// Config keys: url (string, required), timeout_seconds (int, default 10).
+// Config keys: url (string, required), timeout_seconds (int, 1–30, default 10).
+//
+// Security controls:
+//   - Only https:// scheme is accepted.
+//   - The target hostname is resolved before connecting; private/link-local IPs are blocked.
+//   - HTTP redirects are not followed to prevent SSRF via redirect chains.
+//   - Timeout is clamped to [1, 30] seconds.
 func (w *AutomationWorker) execWebhook(_ context.Context, cfg map[string]interface{}, evt AutomationEvent) error {
 	webhookURL, _ := cfg["url"].(string)
 	if webhookURL == "" {
 		return fmt.Errorf("webhook: url required in config")
+	}
+
+	parsed, err := url.Parse(webhookURL)
+	if err != nil {
+		return fmt.Errorf("webhook: invalid url %q: %w", webhookURL, err)
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("webhook: only https:// URLs are allowed, got %q", parsed.Scheme)
+	}
+
+	timeoutSec := 10
+	if t, ok := cfg["timeout_seconds"].(float64); ok {
+		timeoutSec = int(t)
+	}
+	if timeoutSec < 1 {
+		timeoutSec = 1
+	} else if timeoutSec > 30 {
+		timeoutSec = 30
+	}
+
+	transport := &http.Transport{
+		DialContext: safeDialContext,
+	}
+	client := &http.Client{
+		Timeout:   time.Duration(timeoutSec) * time.Second,
+		Transport: transport,
+		// Do not follow redirects — a redirect could point to a private address.
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	payload := map[string]interface{}{
@@ -354,12 +441,6 @@ func (w *AutomationWorker) execWebhook(_ context.Context, cfg map[string]interfa
 	if err != nil {
 		return fmt.Errorf("webhook: marshal payload: %w", err)
 	}
-
-	timeoutSec := 10
-	if t, ok := cfg["timeout_seconds"].(float64); ok && t > 0 {
-		timeoutSec = int(t)
-	}
-	client := &http.Client{Timeout: time.Duration(timeoutSec) * time.Second}
 
 	resp, err := client.Post(webhookURL, "application/json", bytes.NewReader(body))
 	if err != nil {
