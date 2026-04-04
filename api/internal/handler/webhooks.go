@@ -9,9 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -170,6 +173,13 @@ func (h *WebhookHandler) HandleMailgun(w http.ResponseWriter, r *http.Request) {
 		timestamp := r.FormValue("timestamp")
 		token := r.FormValue("token")
 		signature := r.FormValue("signature")
+
+		// Reject stale requests before the HMAC check to prevent replay attacks.
+		if ts, err := strconv.ParseInt(timestamp, 10, 64); err != nil || math.Abs(float64(time.Now().Unix()-ts)) > 300 {
+			writeError(w, http.StatusUnauthorized, "webhook timestamp too old or invalid")
+			return
+		}
+
 		if !verifyMailgunSignature(h.secret, timestamp, token, signature) {
 			writeError(w, http.StatusUnauthorized, "invalid webhook signature")
 			return
