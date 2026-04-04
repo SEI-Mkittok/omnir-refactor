@@ -23,20 +23,18 @@ After every merge, delete the branch.
 Periodically delete branches fully merged into develop.
 
 ## 5. Agent Sanity Check
-- Verify Tyr/Freya are only working on their assigned issue
-- Cancel any issues with issueNumber > 457 that aren't standing tasks (Phase 2 only: 454-457)
-- If new rogue issues exist: cancel them and re-pause the offending agent
+- Verify Tyr/Freya are only working on their assigned issues
+- If rogue self-created issues appear (agent created without CTO authorization): cancel them and comment why
+- Standing tasks (always active): OMN-58 (Völundr), OMN-84 (Heimdall), OMN-530 (Völundr validation)
 
 ## 6. CI Health
 - Check latest CI run on develop — must be green
 - If red, fix before anything else
 
 ## 7. Phase Progress Gate
-- Phase 2 tasks: OMN-455 (Tyr RLS), OMN-456 (Tyr org signup), OMN-457 (Freya tenant switcher)
-- Sequence: 455 → merge → assign 456 → merge → activate Freya → assign 457
-- When Phase 2 done: run `bash scripts/plan-next.sh` for Phase 3
+- Phase 2 complete. Project is in active development — follow run `bash scripts/plan-next.sh` for next planning cycle.
+- Current active agents: Tyr (backend), Freya (frontend), Heimdall (DevOps)
+- Skadi: activate per-task after each merge for QA
 
 ## Paused agents (do NOT unpause without explicit reason)
 - Odin: paused — use scripts/plan-next.sh for planning
-- Skadi: paused — activate per-task after each merge
-- Freya: paused — activate only after OMN-455+456 merged
