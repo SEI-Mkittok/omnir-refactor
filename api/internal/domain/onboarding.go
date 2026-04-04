@@ -6,13 +6,23 @@ import (
 	"github.com/google/uuid"
 )
 
+// OnboardingStepStatus represents the progress state of a single onboarding step.
+type OnboardingStepStatus string
+
+const (
+	StepStatusNotStarted OnboardingStepStatus = "not_started"
+	StepStatusInProgress OnboardingStepStatus = "in_progress"
+	StepStatusCompleted  OnboardingStepStatus = "completed"
+)
+
 // OrgOnboarding tracks which onboarding wizard steps an org has completed.
 type OrgOnboarding struct {
-	OrgID          uuid.UUID  `json:"org_id"`
-	CompletedSteps []string   `json:"completed_steps"`
-	CompletedAt    *time.Time `json:"completed_at,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	OrgID          uuid.UUID                       `json:"org_id"`
+	CompletedSteps []string                        `json:"completed_steps"`
+	StepStatus     map[string]OnboardingStepStatus `json:"step_status"`
+	CompletedAt    *time.Time                      `json:"completed_at,omitempty"`
+	CreatedAt      time.Time                       `json:"created_at"`
+	UpdatedAt      time.Time                       `json:"updated_at"`
 }
 
 // OrgInvite represents a pending team invite sent via the onboarding wizard.

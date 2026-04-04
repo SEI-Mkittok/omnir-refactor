@@ -472,6 +472,8 @@ type OnboardingRepository interface {
 	GetOrCreate(ctx context.Context, orgID uuid.UUID) (*domain.OrgOnboarding, error)
 	// UpdateSteps persists the updated completed_steps list and completed_at timestamp.
 	UpdateSteps(ctx context.Context, orgID uuid.UUID, steps []string, completedAt *time.Time) (*domain.OrgOnboarding, error)
+	// UpdateStepStatus sets the status for a single onboarding step.
+	UpdateStepStatus(ctx context.Context, orgID uuid.UUID, stepID string, status domain.OnboardingStepStatus) (*domain.OrgOnboarding, error)
 	// CreateInvite inserts a new org invite.
 	CreateInvite(ctx context.Context, invite *domain.OrgInvite) (*domain.OrgInvite, error)
 	// GetInviteByToken returns an invite by its token, or nil if not found.
