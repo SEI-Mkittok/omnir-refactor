@@ -220,16 +220,16 @@ func (h *SSOHandler) handleCallback(w http.ResponseWriter, r *http.Request, call
 		return
 	}
 
-	// Extract state and slug from cookie value: "state|slug"
-	cookieVal := cookie.Value
-	pipe := len(cookieVal) - 1
-	for i, c := range cookieVal {
-		if c == '|' {
-			pipe = i
-		}
+	// Extract state and slug from cookie value: "state|slug".
+	// Use SplitN with n=2 to always split on the first pipe only, so an org slug
+	// containing a pipe character cannot shift the split point and bypass CSRF validation.
+	parts := strings.SplitN(cookie.Value, "|", 2)
+	if len(parts) != 2 {
+		writeError(w, http.StatusBadRequest, "malformed SSO state")
+		return
 	}
-	cookieState := cookieVal[:pipe]
-	orgSlug := cookieVal[pipe+1:]
+	cookieState := parts[0]
+	orgSlug := parts[1]
 
 	if r.URL.Query().Get("state") != cookieState {
 		writeError(w, http.StatusBadRequest, "invalid state")
