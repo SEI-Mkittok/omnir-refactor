@@ -2,20 +2,25 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, SkipForward, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/stores/ui'
-import { getOnboardingStatus, type OnboardingStatus } from '@/api/onboarding'
+import { getOnboardingStatus, updateOnboarding, type OnboardingStatus } from '@/api/onboarding'
 
 export function OnboardingSettingsPage() {
   const setOnboardingOpen = useUIStore((s) => s.setOnboardingOpen)
+  const setOnboardingDismissed = useUIStore((s) => s.setOnboardingDismissed)
   const [status, setStatus] = useState<OnboardingStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Reset dismissed state so the nav item reappears
+    updateOnboarding({ dismissed: false }).catch(() => {})
+    setOnboardingDismissed(false)
+
     getOnboardingStatus()
       .then(setStatus)
       .catch(() => setError('Failed to load onboarding status.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [setOnboardingDismissed])
 
   const STEP_KEYS = ['welcome', 'invite', 'email', 'sla']
   const STEP_LABELS: Record<string, string> = {
