@@ -50,6 +50,32 @@ type LeadPatch struct {
 	OwnerID    *uuid.UUID  `json:"owner_id,omitempty"`
 }
 
+// ScoreForLeadStatus returns the automatic lead score for a given status.
+// Scores increase in 10% increments as a lead progresses through the pipeline.
+func ScoreForLeadStatus(s LeadStatus) int {
+	switch s {
+	case LeadStatusContacted:
+		return 20
+	case LeadStatusQualified:
+		return 40
+	case LeadStatusConverted:
+		return 100
+	default: // LeadStatusNew, LeadStatusUnqualified, unknown
+		return 0
+	}
+}
+
+// SnapToDecile snaps a score to the nearest 10% increment within [0, 100].
+func SnapToDecile(score int) int {
+	if score < 0 {
+		score = 0
+	}
+	if score > 100 {
+		score = 100
+	}
+	return ((score + 5) / 10) * 10
+}
+
 // LeadFilter holds query parameters for listing leads.
 type LeadFilter struct {
 	OrgID    uuid.UUID

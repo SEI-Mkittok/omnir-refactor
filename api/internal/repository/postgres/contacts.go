@@ -134,6 +134,9 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 	if patch.LeadSource != nil {
 		addArg("lead_source", *patch.LeadSource)
 	}
+	if patch.LeadScore != nil {
+		addArg("lead_score", *patch.LeadScore)
+	}
 	if patch.Stage != nil {
 		addArg("stage", *patch.Stage)
 	}

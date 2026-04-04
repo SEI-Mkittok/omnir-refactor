@@ -52,9 +52,25 @@ type ContactPatch struct {
 	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
 	OwnerID      *uuid.UUID      `json:"owner_id,omitempty"`
 	LeadSource   *string         `json:"lead_source,omitempty"`
+	LeadScore    *int            `json:"lead_score,omitempty"`
 	Stage        *ContactStage   `json:"stage,omitempty"`
 	Tags         []string        `json:"tags,omitempty"`
 	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
+}
+
+// ScoreForContactStage returns the automatic lead score for a given contact stage.
+// Scores increase in 10% increments as a contact progresses through the pipeline.
+func ScoreForContactStage(s ContactStage) int {
+	switch s {
+	case ContactStageLead:
+		return 20
+	case ContactStageProspect:
+		return 40
+	case ContactStageCustomer:
+		return 80
+	default: // ContactStageChurned, unknown
+		return 0
+	}
 }
 
 // IsValid returns true if the stage is a known value.

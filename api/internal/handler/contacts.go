@@ -217,6 +217,11 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// Derive score from stage transition when stage is being updated.
+	if patch.Stage != nil {
+		score := domain.ScoreForContactStage(*patch.Stage)
+		patch.LeadScore = &score
+	}
 	c, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -266,6 +271,11 @@ func (h *ContactHandler) UpdateLeadScore(w http.ResponseWriter, r *http.Request)
 	if patch.Score == nil && patch.Delta == nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "score or delta is required")
 		return
+	}
+	// Manual absolute score: snap to nearest 10% increment.
+	if patch.Score != nil {
+		snapped := domain.SnapToDecile(*patch.Score)
+		patch.Score = &snapped
 	}
 	contact, err := h.repo.UpdateLeadScore(r.Context(), id, patch)
 	if err != nil {

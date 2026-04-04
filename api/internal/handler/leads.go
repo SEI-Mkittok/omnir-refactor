@@ -169,6 +169,15 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	// Derive score from stage transition (takes priority over any manually supplied score).
+	if patch.Status != nil {
+		score := domain.ScoreForLeadStatus(*patch.Status)
+		patch.Score = &score
+	} else if patch.Score != nil {
+		// Manual override: snap to nearest 10% increment.
+		snapped := domain.SnapToDecile(*patch.Score)
+		patch.Score = &snapped
+	}
 	l, err := h.leads.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)

@@ -96,11 +96,11 @@ func TestContactHandler_UpdateLeadScore(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:      "sets absolute score",
+			name:      "sets absolute score snapped to nearest 10",
 			contactID: contactID.String(),
 			body:      map[string]any{"score": 75},
 			setupMock: func(m *mocks.MockContactRepository) {
-				score := 75
+				score := 80 // 75 snaps up to 80
 				m.On("UpdateLeadScore", mock.Anything, contactID, domain.LeadScorePatch{Score: &score}).
 					Return(makeLeadContact(contactID, ownerID), nil)
 			},

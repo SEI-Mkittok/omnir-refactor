@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -175,6 +176,39 @@ func Load() *Config {
 	}
 
 	return cfg
+}
+
+// Validate returns an error if any required secret is missing or set to its
+// development fallback. Development mode skips all checks. All violations are
+// collected and returned in a single error.
+func (c *Config) Validate() error {
+	if c.Env == "development" {
+		return nil
+	}
+	type check struct {
+		envVar     string
+		value      string
+		devDefault string
+	}
+	checks := []check{
+		{"JWT_SECRET", c.JWTSecret, "dev-secret-change-in-production"},
+		{"SEQUENCE_TOKEN_SECRET", c.SequenceTokenSecret, "sequence-dev-secret"},
+		{"EMAIL_INBOX_ENCRYPTION_KEY", c.EmailInbox.EncryptionKey, "dev-email-inbox-key-change-in-prod"},
+		{"SSO_ENCRYPTION_KEY", c.SSOEncryptionKey, "dev-sso-encryption-key-change-in-prod"},
+		{"INTEGRATION_CREDENTIALS_ENCRYPTION_KEY", c.IntegrationCredentialsEncKey, "dev-integration-creds-key-change-in-prod"},
+	}
+	var errs []string
+	for _, ch := range checks {
+		if ch.value == "" {
+			errs = append(errs, ch.envVar+" is not set")
+		} else if ch.value == ch.devDefault {
+			errs = append(errs, ch.envVar+" is using its dev default — set a secure value before deploying")
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("config validation failed: %s", strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // validateProductionSecrets terminates the process if any cryptographic secret

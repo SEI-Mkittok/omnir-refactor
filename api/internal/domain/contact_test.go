@@ -75,3 +75,36 @@ func TestContactStage_IsValid(t *testing.T) {
 		t.Error("expected stage 'bogus' to be invalid")
 	}
 }
+
+func TestScoreForContactStage(t *testing.T) {
+	cases := []struct {
+		stage domain.ContactStage
+		want  int
+	}{
+		{domain.ContactStageLead, 20},
+		{domain.ContactStageProspect, 40},
+		{domain.ContactStageCustomer, 80},
+		{domain.ContactStageChurned, 0},
+		{domain.ContactStage("unknown"), 0},
+	}
+	for _, c := range cases {
+		got := domain.ScoreForContactStage(c.stage)
+		if got != c.want {
+			t.Errorf("ScoreForContactStage(%q) = %d, want %d", c.stage, got, c.want)
+		}
+	}
+}
+
+func TestSnapToDecile(t *testing.T) {
+	cases := []struct{ in, want int }{
+		{0, 0}, {5, 10}, {4, 0}, {10, 10},
+		{75, 80}, {74, 70}, {100, 100},
+		{-5, 0}, {105, 100},
+	}
+	for _, c := range cases {
+		got := domain.SnapToDecile(c.in)
+		if got != c.want {
+			t.Errorf("SnapToDecile(%d) = %d, want %d", c.in, got, c.want)
+		}
+	}
+}
