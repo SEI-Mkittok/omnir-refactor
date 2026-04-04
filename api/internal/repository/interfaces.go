@@ -24,8 +24,8 @@ type ContactRepository interface {
 	ListLeadSources(ctx context.Context) ([]string, error)
 
 	// Email opt-out and bounce tracking (OMN-398)
-	SetEmailOptOut(ctx context.Context, contactID uuid.UUID) error
-	IncrementBounceCount(ctx context.Context, contactID uuid.UUID) error
+	SetEmailOptOut(ctx context.Context, contactID, orgID uuid.UUID) error
+	IncrementBounceCount(ctx context.Context, contactID, orgID uuid.UUID) error
 }
 
 // AccountRepository defines the persistence contract for accounts.

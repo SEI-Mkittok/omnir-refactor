@@ -119,7 +119,7 @@ func (h *SequenceTrackingHandler) Unsubscribe(w http.ResponseWriter, r *http.Req
 
 	if enrollment.Status != domain.EnrollmentStatusUnsubscribed {
 		_ = h.sequences.UpdateEnrollmentStatus(r.Context(), enrollment.ID, domain.EnrollmentStatusUnsubscribed)
-		_ = h.contacts.SetEmailOptOut(r.Context(), enrollment.ContactID)
+		_ = h.contacts.SetEmailOptOut(r.Context(), enrollment.ContactID, enrollment.OrgID)
 		h.recordEvent(r, claims, domain.SequenceEventUnsubscribed)
 	}
 
@@ -158,7 +158,7 @@ func (h *SequenceTrackingHandler) HandleBounce(w http.ResponseWriter, r *http.Re
 		if err != nil || contact == nil {
 			continue
 		}
-		_ = h.contacts.IncrementBounceCount(r.Context(), contact.ID)
+		_ = h.contacts.IncrementBounceCount(r.Context(), contact.ID, contact.OrgID)
 
 		// Mark all active enrollments for this contact as bounced.
 		enrollments, err := h.sequences.GetActiveEnrollmentsByContact(r.Context(), contact.ID)

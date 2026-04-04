@@ -598,10 +598,13 @@ func (r *TicketAttachmentRepo) List(ctx context.Context, ticketID uuid.UUID) ([]
 }
 
 func (r *TicketAttachmentRepo) Delete(ctx context.Context, id, ticketID uuid.UUID) error {
-	result, err := r.db.Exec(ctx,
-		`DELETE FROM ticket_attachments WHERE id=$1 AND ticket_id=$2`,
-		id, ticketID,
-	)
+	q := `DELETE FROM ticket_attachments WHERE id=$1 AND ticket_id=$2`
+	args := []any{id, ticketID}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$3`
+		args = append(args, orgID)
+	}
+	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
 		return err
 	}
