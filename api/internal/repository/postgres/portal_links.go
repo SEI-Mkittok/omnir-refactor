@@ -64,13 +64,16 @@ func (r *PortalLinkRepo) GetByToken(ctx context.Context, token string) (*domain.
 }
 
 func (r *PortalLinkRepo) ListByDeal(ctx context.Context, dealID uuid.UUID) ([]*domain.PortalLink, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT `+portalLinkCols+`
+	q := `SELECT ` + portalLinkCols + `
 		 FROM portal_links
-		 WHERE deal_id = $1 AND revoked_at IS NULL
-		 ORDER BY created_at DESC`,
-		dealID,
-	)
+		 WHERE deal_id = $1 AND revoked_at IS NULL`
+	args := []any{dealID}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id = $2`
+		args = append(args, orgID)
+	}
+	q += ` ORDER BY created_at DESC`
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

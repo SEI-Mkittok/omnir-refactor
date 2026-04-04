@@ -83,12 +83,12 @@ func (m *MockContactRepository) ListLeadSources(ctx context.Context) ([]string, 
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (m *MockContactRepository) SetEmailOptOut(ctx context.Context, contactID uuid.UUID) error {
-	args := m.Called(ctx, contactID)
+func (m *MockContactRepository) SetEmailOptOut(ctx context.Context, contactID, orgID uuid.UUID) error {
+	args := m.Called(ctx, contactID, orgID)
 	return args.Error(0)
 }
 
-func (m *MockContactRepository) IncrementBounceCount(ctx context.Context, contactID uuid.UUID) error {
-	args := m.Called(ctx, contactID)
+func (m *MockContactRepository) IncrementBounceCount(ctx context.Context, contactID, orgID uuid.UUID) error {
+	args := m.Called(ctx, contactID, orgID)
 	return args.Error(0)
 }
