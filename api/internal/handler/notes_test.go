@@ -14,8 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
@@ -26,40 +28,41 @@ func TestNoteHandler_Create(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       map[string]any
+		withClaims bool
 		setupMock  func(*mocks.MockNoteRepository)
 		wantStatus int
 	}{
 		{
-			name: "creates note successfully",
-			body: map[string]any{
-				"content":   "Met at SaaStr. Very interested.",
-				"author_id": authorID.String(),
-			},
+			name:       "creates note successfully",
+			body:       map[string]any{"content": "Met at SaaStr. Very interested."},
+			withClaims: true,
 			setupMock: func(m *mocks.MockNoteRepository) {
-				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.Note")).
-					Return(&domain.Note{
-						ID:         uuid.New(),
-						Content:    "Met at SaaStr. Very interested.",
-						EntityType: domain.NoteEntityContact,
-						EntityID:   contactID,
-						AuthorID:   authorID,
-					}, nil)
+				m.On("Create", mock.Anything, mock.MatchedBy(func(n *domain.Note) bool {
+					return n.Content == "Met at SaaStr. Very interested." &&
+						n.EntityType == domain.NoteEntityContact &&
+						n.EntityID == contactID &&
+						n.AuthorID == authorID
+				})).Return(&domain.Note{
+					ID:         uuid.New(),
+					Content:    "Met at SaaStr. Very interested.",
+					EntityType: domain.NoteEntityContact,
+					EntityID:   contactID,
+					AuthorID:   authorID,
+				}, nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
 		{
-			name: "returns 422 for missing content",
-			body: map[string]any{
-				"author_id": authorID.String(),
-			},
+			name:       "returns 422 for missing content",
+			body:       map[string]any{},
+			withClaims: true,
 			setupMock:  func(_ *mocks.MockNoteRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
-			name: "returns 422 for missing author_id",
-			body: map[string]any{
-				"content": "A note with no author",
-			},
+			name:       "returns 422 when not authenticated",
+			body:       map[string]any{"content": "A note with no author"},
+			withClaims: false,
 			setupMock:  func(_ *mocks.MockNoteRepository) {},
 			wantStatus: http.StatusUnprocessableEntity,
 		},
@@ -80,7 +83,12 @@ func TestNoteHandler_Create(t *testing.T) {
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", contactID.String())
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			ctx := context.WithValue(req.Context(), chi.RouteCtxKey, rctx)
+
+			if tt.withClaims {
+				ctx = middleware.WithClaims(ctx, &auth.Claims{UserID: authorID, Role: "agent"})
+			}
+			req = req.WithContext(ctx)
 
 			rr := httptest.NewRecorder()
 			h.Create(rr, req)
