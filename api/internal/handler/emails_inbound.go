@@ -24,19 +24,23 @@ import (
 // Mounted unauthenticated under /api/emails/inbound — protected by a shared
 // webhook secret verified per provider.
 type InboundEmailHandler struct {
-	emails   repository.EmailRepository
-	contacts repository.ContactRepository
-	secret   string
-	orgMode  config.OrgMode
+	emails     repository.EmailRepository
+	contacts   repository.ContactRepository
+	activities repository.ActivityRepository
+	users      repository.UserRepository
+	secret     string
+	orgMode    config.OrgMode
 }
 
 func NewInboundEmailHandler(
 	emails repository.EmailRepository,
 	contacts repository.ContactRepository,
+	activities repository.ActivityRepository,
+	users repository.UserRepository,
 	secret string,
 	orgMode config.OrgMode,
 ) *InboundEmailHandler {
-	return &InboundEmailHandler{emails: emails, contacts: contacts, secret: secret, orgMode: orgMode}
+	return &InboundEmailHandler{emails: emails, contacts: contacts, activities: activities, users: users, secret: secret, orgMode: orgMode}
 }
 
 // Router returns routes for provider-specific inbound webhook paths.
@@ -168,6 +172,23 @@ func (h *InboundEmailHandler) store(ctx context.Context, e *parsedInbound) error
 	if _, err := h.emails.Create(ctx, record); err != nil {
 		return fmt.Errorf("store email: %w", err)
 	}
+
+	// Auto-log activity on matched contact (best-effort).
+	if contactID != nil {
+		users, _, err := h.users.List(ctx, domain.UserFilter{Limit: 1})
+		if err == nil && len(users) > 0 {
+			snippet := bodySnippet(e.Body)
+			act := &domain.Activity{
+				Type:        domain.ActivityTypeEmail,
+				Subject:     subject,
+				Description: &snippet,
+				ContactID:   contactID,
+				OwnerID:     users[0].ID,
+			}
+			_, _ = h.activities.Create(ctx, act)
+		}
+	}
+
 	return nil
 }
 
@@ -197,6 +218,15 @@ type parsedInbound struct {
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
+
+// bodySnippet truncates body text to a preview snippet of up to 500 characters.
+func bodySnippet(body string) string {
+	const maxLen = 500
+	if len(body) <= maxLen {
+		return body
+	}
+	return body[:maxLen]
+}
 
 // extractInReplyTo pulls the In-Reply-To value out of a raw multi-line headers string.
 func extractInReplyTo(rawHeaders string) string {
