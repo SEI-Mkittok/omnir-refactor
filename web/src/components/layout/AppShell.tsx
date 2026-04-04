@@ -12,6 +12,7 @@ import { InstallPromptBanner } from '@/components/ui/InstallPromptBanner'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usersApi } from '@/api/users'
+import { Toaster } from '@/components/ui/Toast'
 
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -95,6 +96,7 @@ export function AppShell() {
   }
 
   return (
+    <Toaster>
     <div
       id="layout-root"
       className="min-h-screen"
@@ -179,6 +181,7 @@ export function AppShell() {
         onDismiss={handleWizardDismiss}
       />
     </div>
+    </Toaster>
   )
 }
 
