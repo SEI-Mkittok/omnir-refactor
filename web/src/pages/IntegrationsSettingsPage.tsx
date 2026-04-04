@@ -26,7 +26,6 @@ interface ProviderMeta {
   description: string
   comingSoon?: boolean
   oauthPath?: string
-  logo: string
 }
 
 const PROVIDERS: ProviderMeta[] = [
@@ -35,42 +34,36 @@ const PROVIDERS: ProviderMeta[] = [
     name: 'Gmail',
     description: 'Sync emails and send messages directly from PraestOS.',
     oauthPath: '/api/v1/integrations/gmail/oauth/start',
-    logo: 'G',
   },
   {
     provider: 'outlook',
     name: 'Outlook',
     description: 'Connect Microsoft Outlook to manage email and calendar.',
     oauthPath: '/api/v1/integrations/outlook/oauth/start',
-    logo: 'O',
   },
   {
     provider: 'slack',
     name: 'Slack',
     description: 'Get deal and ticket notifications in Slack channels.',
     comingSoon: true,
-    logo: 'S',
   },
   {
     provider: 'teams',
     name: 'Microsoft Teams',
     description: 'Collaborate and receive alerts in Teams.',
     comingSoon: true,
-    logo: 'T',
   },
   {
     provider: 'confluence',
     name: 'Confluence',
     description: 'Sync knowledge base articles with Confluence spaces.',
     comingSoon: true,
-    logo: 'C',
   },
   {
     provider: 'stripe',
     name: 'Stripe',
     description: 'Link deals to Stripe invoices and subscriptions.',
     comingSoon: true,
-    logo: '$',
   },
 ]
 
@@ -119,14 +112,34 @@ const LOGO_COLORS: Record<IntegrationProvider, string> = {
   stripe: '#635BFF',
 }
 
-function ProviderLogo({ provider, label }: { provider: IntegrationProvider; label: string }) {
+// SVG paths (24×24 viewBox, white fill) for each integration provider.
+// Gmail, Confluence, Stripe: from simple-icons (npm). Slack, Outlook, Teams: inlined.
+const PROVIDER_SVG_PATHS: Record<IntegrationProvider, string> = {
+  gmail:
+    'M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z',
+  outlook:
+    'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v.511l8 4.8 8-4.8V6H4zm16 2.689-8 4.8-8-4.8V18h16V8.689z',
+  slack:
+    'M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 3.952a2.528 2.528 0 0 1-2.521-2.521A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.521v2.521H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.521A2.528 2.528 0 0 1 0 7.744a2.528 2.528 0 0 1 2.521-2.521h6.313zm11.213 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 7.744a2.528 2.528 0 0 1-2.521 2.521h-2.522V7.744zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V1.431A2.528 2.528 0 0 1 16.256 0a2.528 2.528 0 0 1 2.523 2.521v5.313zm-2.523 11.213a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 16.256 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.521 2.527 2.527 0 0 1 2.52-2.521h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.521 2.521h-6.313z',
+  teams:
+    'M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm8 0c-.33 0-.68.02-1.05.05C16.19 14.21 17 15.27 17 17v2h7v-2c0-2.66-5.33-4-8-4z',
+  confluence:
+    'M.87 18.257c-.248.382-.53.875-.763 1.245a.764.764 0 0 0 .255 1.04l4.965 3.054a.764.764 0 0 0 1.058-.26c.199-.332.454-.763.733-1.221 1.967-3.247 3.945-2.853 7.508-1.146l4.957 2.337a.764.764 0 0 0 1.028-.382l2.364-5.346a.764.764 0 0 0-.382-1 599.851 599.851 0 0 1-4.965-2.361C10.911 10.97 5.224 11.185.87 18.257zM23.131 5.743c.249-.405.531-.875.764-1.25a.764.764 0 0 0-.256-1.034L18.675.404a.764.764 0 0 0-1.058.26c-.195.335-.451.763-.734 1.225-1.966 3.246-3.945 2.85-7.508 1.146L4.437.694a.764.764 0 0 0-1.027.382L1.046 6.422a.764.764 0 0 0 .382 1c1.039.49 3.105 1.467 4.965 2.361 6.698 3.246 12.392 3.029 16.738-4.04z',
+  stripe:
+    'M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305h.003z',
+}
+
+function ProviderLogo({ provider }: { provider: IntegrationProvider }) {
+  const path = PROVIDER_SVG_PATHS[provider]
   return (
     <div
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white text-base font-black"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
       style={{ background: LOGO_COLORS[provider] }}
       aria-hidden="true"
     >
-      {label}
+      <svg viewBox="0 0 24 24" className="h-6 w-6 fill-white" xmlns="http://www.w3.org/2000/svg">
+        <path d={path} />
+      </svg>
     </div>
   )
 }
@@ -338,7 +351,7 @@ function IntegrationCard({
   return (
     <>
       <div className="flex items-start gap-4 rounded-xl border border-[#E5E7EB] bg-white p-5">
-        <ProviderLogo provider={meta.provider} label={meta.logo} />
+        <ProviderLogo provider={meta.provider} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
