@@ -30,6 +30,8 @@ import { OrgOnboardingPage } from '@/pages/OrgOnboardingPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { AuditLogPage } from '@/pages/AuditLogPage'
 import { OnboardingSettingsPage } from '@/pages/settings/OnboardingSettingsPage'
+import { SettingsHubPage } from '@/pages/settings/SettingsHubPage'
+import { AccountSettingsPage } from '@/pages/settings/AccountSettingsPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -142,7 +144,8 @@ function AppRoutes() {
             </AdminRoute>
           }
         />
-        <Route path="/settings" element={<Navigate to="/settings/security" replace />} />
+        <Route path="/settings" element={<SettingsHubPage />} />
+        <Route path="/settings/account" element={<AccountSettingsPage />} />
         <Route path="/settings/security" element={<SecuritySettingsPage />} />
         <Route path="/settings/security/2fa/enroll" element={<TotpEnrollPage />} />
         <Route
