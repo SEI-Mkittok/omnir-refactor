@@ -43,6 +43,7 @@ import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
 import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
 import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
 import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
+import { RegisterPage } from '@/pages/RegisterPage'
 import { IntegrationsSettingsPage } from '@/pages/IntegrationsSettingsPage'
 import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
 import { ContactDetailPage } from '@/pages/ContactDetailPage'
@@ -98,6 +99,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/setup" element={<Navigate to="/login" replace />} />
 
       {/* Public help center routes (no auth) */}
