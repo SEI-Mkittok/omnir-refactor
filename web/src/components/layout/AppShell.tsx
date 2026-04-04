@@ -34,8 +34,14 @@ export function AppShell() {
   // Uses apiClient (via usersApi.me) so the 401 → refresh interceptor fires
   // automatically when the access_token cookie has expired, avoiding the
   // "flash dashboard → redirect to login" bug caused by bare fetch().
+  //
+  // Important: if the user just logged in (isAuthenticated already true), we still
+  // run me() to load onboarding state, but a failure does NOT call logout() — the
+  // cookie is valid and was just set. Only call logout() if we were NOT already
+  // authenticated (i.e., this is a cold page load / session restore attempt).
   useEffect(() => {
     let orgId = ''
+    const wasAlreadyAuthenticated = isAuthenticated
     usersApi.me()
       .then((data) => {
         if (data?.id) {
@@ -59,9 +65,17 @@ export function AppShell() {
           }
         }
       })
-      .catch(() => { logout() })
+      .catch(() => {
+        // Only force-logout on cold session restore failures.
+        // If the user just authenticated via LoginPage, their cookie is valid —
+        // a transient me() error (race condition, cold-start latency) should not
+        // undo a successful login.
+        if (!wasAlreadyAuthenticated) {
+          logout()
+        }
+      })
       .finally(() => { setInitializing(false) })
-  }, [setUser, setActiveOrg, logout, setOnboardingOpen, setOnboardingDismissed, setInitializing])
+  }, [setUser, setActiveOrg, logout, setOnboardingOpen, setOnboardingDismissed, setInitializing]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep browser tab title in sync with the org name.
   useEffect(() => {
