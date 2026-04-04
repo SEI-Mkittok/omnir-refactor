@@ -94,6 +94,11 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 	n.EntityType = h.entityType
 	n.EntityID = parentID
 
+	// Set author from authenticated user — not accepted from the request body.
+	if claims, ok := middleware.ClaimsFromContext(r); ok {
+		n.AuthorID = claims.UserID
+	}
+
 	if err := n.Validate(); err != nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 		return
