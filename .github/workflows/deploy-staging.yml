@@ -95,8 +95,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync prod compose to deploy dir
-        run: cp $GITHUB_WORKSPACE/infra/docker-compose.prod.yml ~/omnir-crm/docker-compose.prod.yml
+      - name: Sync prod compose and scripts to deploy dir
+        run: |
+          cp $GITHUB_WORKSPACE/infra/docker-compose.prod.yml ~/omnir-crm/docker-compose.prod.yml
+          mkdir -p ~/omnir-crm/scripts
+          cp $GITHUB_WORKSPACE/scripts/seed-staging.sh ~/omnir-crm/scripts/seed-staging.sh
+          chmod +x ~/omnir-crm/scripts/seed-staging.sh
 
       - name: Log in to GHCR (isolated — does not touch ~/.docker/config.json)
         env:
@@ -126,6 +130,11 @@ jobs:
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
 
+      - name: Seed staging test users (idempotent)
+        run: |
+          cd ~/omnir-crm
+          docker compose -f docker-compose.prod.yml --profile seed run --rm seed-staging
+
       - name: Create S3 bucket (idempotent)
         run: |
           cd ~/omnir-crm
@@ -136,6 +145,7 @@ jobs:
         run: |
           cd ~/omnir-crm
           docker compose -f docker-compose.prod.yml --profile migration rm -f migrate 2>/dev/null || true
+          docker compose -f docker-compose.prod.yml --profile seed rm -f seed-staging 2>/dev/null || true
           docker compose -f docker-compose.prod.yml --profile minio-init rm -f minio-init 2>/dev/null || true
 
       - name: Clean up CI docker auth (leave persistent PAT intact)
