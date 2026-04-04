@@ -26,22 +26,22 @@ func (r *OnboardingRepo) GetOrCreate(ctx context.Context, orgID uuid.UUID) (*dom
 		INSERT INTO org_onboarding (org_id, completed_steps, created_at, updated_at)
 		VALUES ($1, '[]', NOW(), NOW())
 		ON CONFLICT (org_id) DO UPDATE SET org_id = EXCLUDED.org_id
-		RETURNING org_id, completed_steps, completed_at, created_at, updated_at`,
+		RETURNING org_id, completed_steps, dismissed, completed_at, created_at, updated_at`,
 		orgID,
 	)
 	return scanOnboarding(row)
 }
 
-func (r *OnboardingRepo) UpdateSteps(ctx context.Context, orgID uuid.UUID, steps []string, completedAt *time.Time) (*domain.OrgOnboarding, error) {
+func (r *OnboardingRepo) UpdateSteps(ctx context.Context, orgID uuid.UUID, steps []string, completedAt *time.Time, dismissed *bool) (*domain.OrgOnboarding, error) {
 	if steps == nil {
 		steps = []string{}
 	}
 	row := r.db.QueryRow(ctx, `
 		UPDATE org_onboarding
-		SET completed_steps = $2, completed_at = $3, updated_at = NOW()
+		SET completed_steps = $2, completed_at = $3, dismissed = COALESCE($4, dismissed), updated_at = NOW()
 		WHERE org_id = $1
-		RETURNING org_id, completed_steps, completed_at, created_at, updated_at`,
-		orgID, steps, completedAt,
+		RETURNING org_id, completed_steps, dismissed, completed_at, created_at, updated_at`,
+		orgID, steps, completedAt, dismissed,
 	)
 	return scanOnboarding(row)
 }
@@ -114,7 +114,7 @@ func (r *OnboardingRepo) ListInvites(ctx context.Context, orgID uuid.UUID) ([]*d
 func scanOnboarding(row pgx.Row) (*domain.OrgOnboarding, error) {
 	var o domain.OrgOnboarding
 	err := row.Scan(
-		&o.OrgID, &o.CompletedSteps, &o.CompletedAt,
+		&o.OrgID, &o.CompletedSteps, &o.Dismissed, &o.CompletedAt,
 		&o.CreatedAt, &o.UpdatedAt,
 	)
 	if err != nil {
