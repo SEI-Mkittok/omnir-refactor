@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, Navigate, Link, useNavigate } from 'react-router-dom'
 import { LifeBuoy, LogOut } from 'lucide-react'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { getOnboardingState } from '@/api/onboarding'
 
 const AUTH_BASE = import.meta.env.VITE_AUTH_URL || '/api'
 
@@ -12,6 +13,7 @@ export const PORTAL_SESSION_EXPIRED = 'portal:session-expired'
 export function PortalShell() {
   const { isAuthenticated, user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const [orgName, setOrgName] = useState<string | null>(null)
 
   useEffect(() => {
     function onExpired() {
@@ -21,6 +23,12 @@ export function PortalShell() {
     window.addEventListener(PORTAL_SESSION_EXPIRED, onExpired)
     return () => window.removeEventListener(PORTAL_SESSION_EXPIRED, onExpired)
   }, [logout, navigate])
+
+  useEffect(() => {
+    getOnboardingState()
+      .then((state) => { if (state.orgName) setOrgName(state.orgName) })
+      .catch(() => {})
+  }, [])
 
   if (!isAuthenticated || user?.role !== 'client') {
     return <Navigate to="/portal/login" replace />
@@ -39,7 +47,7 @@ export function PortalShell() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to="/portal/tickets" className="flex items-center gap-2">
             <LifeBuoy className="h-5 w-5 text-[#1B3A4B]" />
-            <span className="font-semibold text-slate-900">Support Portal</span>
+            <span className="font-semibold text-slate-900">{orgName ? `${orgName} Support` : 'Support Portal'}</span>
           </Link>
 
           <div className="flex items-center gap-3">
