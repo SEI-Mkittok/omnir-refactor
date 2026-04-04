@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, Send } from 'lucide-react'
+import { AlertCircle, Loader2, Send } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useSendEmail } from '@/hooks/useEmails'
+import { useToast } from '@/components/ui/Toast'
 
 interface ComposeEmailModalProps {
   open: boolean
@@ -34,7 +35,9 @@ export function ComposeEmailModal({
   const [to, setTo] = useState(toEmail)
   const [subject, setSubject] = useState(replySubject)
   const [body, setBody] = useState('')
+  const [sendError, setSendError] = useState<string | null>(null)
   const sendEmail = useSendEmail()
+  const { toast } = useToast()
 
   // Reset form when modal opens with new props
   const handleOpenChange = (value: boolean) => {
@@ -42,6 +45,7 @@ export function ComposeEmailModal({
       setTo(toEmail)
       setSubject(replySubject)
       setBody('')
+      setSendError(null)
     }
     onOpenChange(value)
   }
@@ -49,15 +53,23 @@ export function ComposeEmailModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!to.trim() || !subject.trim() || !body.trim()) return
-    await sendEmail.mutateAsync({
-      contact_id: contactId,
-      to: to.trim(),
-      subject: subject.trim(),
-      body: body.trim(),
-      thread_id: threadId || undefined,
-    })
-    setBody('')
-    onOpenChange(false)
+    setSendError(null)
+    try {
+      await sendEmail.mutateAsync({
+        contact_id: contactId,
+        to: to.trim(),
+        subject: subject.trim(),
+        body: body.trim(),
+        thread_id: threadId || undefined,
+      })
+      setBody('')
+      onOpenChange(false)
+      toast({ title: 'Email sent successfully' })
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'Failed to send email. Please try again.'
+      setSendError(msg)
+    }
   }
 
   return (
@@ -67,6 +79,12 @@ export function ComposeEmailModal({
           <DialogTitle>Compose Email</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
+          {sendError && (
+            <div className="flex items-start gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{sendError}</span>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">To</label>
             <Input
