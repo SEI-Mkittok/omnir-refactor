@@ -22,11 +22,14 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    // Full stack: API + DB + frontend via docker compose
-    command: 'docker compose up --wait',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 90_000,
-  },
+  // Only start web server if not testing against remote staging
+  ...(process.env.E2E_BASE_URL ? {} : {
+    webServer: {
+      // Full stack: API + DB + frontend via docker compose
+      command: 'docker compose up --wait',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 90_000,
+    },
+  }),
 })
