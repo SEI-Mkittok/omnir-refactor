@@ -6,6 +6,7 @@ export interface OnboardingState {
   id: string
   completedSteps: string[]
   completed: boolean
+  dismissed?: boolean
   orgName?: string
 }
 
@@ -28,6 +29,7 @@ export interface SlaConfig {
 export interface OnboardingStatus {
   completed: boolean
   completedSteps: string[]
+  dismissed?: boolean
   invites: Array<{ email: string; role: string; accepted: boolean }>
   orgName?: string
 }
@@ -40,6 +42,7 @@ export async function getOnboardingState(): Promise<OnboardingState> {
 export async function updateOnboarding(payload: {
   completedSteps?: string[]
   completed?: boolean
+  dismissed?: boolean
   orgName?: string
   sla?: SlaConfig
 }): Promise<OnboardingState> {
