@@ -50,6 +50,33 @@ type LeadPatch struct {
 	OwnerID    *uuid.UUID  `json:"owner_id,omitempty"`
 }
 
+// ScoreForStatus returns the canonical lead score for a given status.
+// Scores advance in 10% increments: new=0, contacted=20, qualified=40,
+// converted=100. Unqualified resets to 0.
+func ScoreForStatus(s LeadStatus) int {
+	switch s {
+	case LeadStatusContacted:
+		return 20
+	case LeadStatusQualified:
+		return 40
+	case LeadStatusConverted:
+		return 100
+	default: // new, unqualified, unknown
+		return 0
+	}
+}
+
+// SnapScoreToStep rounds score to the nearest 10% increment (0–100).
+func SnapScoreToStep(score int) int {
+	if score <= 0 {
+		return 0
+	}
+	if score >= 100 {
+		return 100
+	}
+	return ((score + 5) / 10) * 10
+}
+
 // LeadFilter holds query parameters for listing leads.
 type LeadFilter struct {
 	OrgID    uuid.UUID
