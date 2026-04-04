@@ -234,9 +234,10 @@ func main() {
 	dealPortalLinksHandler := handler.NewDealPortalLinksHandler(portalLinkRepo, dealRepo, noteRepo, orgRepo)
 
 	uploadsDir := getEnv("UPLOADS_DIR", "uploads")
-	contactAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeContact, "id")
-	accountAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeAccount, "id")
-	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, domain.EntityTypeDeal, "id")
+	appBaseURL := getEnv("BASE_URL", "http://localhost:8080")
+	contactAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, appBaseURL, domain.EntityTypeContact, "id")
+	accountAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, appBaseURL, domain.EntityTypeAccount, "id")
+	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, appBaseURL, domain.EntityTypeDeal, "id")
 	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo)
 	sequenceHandler := handler.NewSequenceHandler(sequenceRepo)
 	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
