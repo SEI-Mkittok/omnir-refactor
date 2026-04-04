@@ -82,6 +82,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarProps) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const activeOrg = useAuthStore((s) => s.activeOrg)
   const { sidebarCollapsed, toggleSidebar, onboardingDismissed, setOnboardingDismissed } = useUIStore()
   const collapsed = sidebarCollapsed
 
@@ -155,11 +156,11 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
           )}
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1B3A4B] text-white font-bold text-sm select-none">
-            P
+            {(activeOrg?.name ?? 'O').charAt(0).toUpperCase()}
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight min-w-0">
-              <span className="text-[16px] font-bold text-[#1A1D23] tracking-tight truncate">PraestOS</span>
+              <span className="text-[16px] font-bold text-[#1A1D23] tracking-tight truncate">{activeOrg?.name ?? 'Omnir'}</span>
               <span className="text-[9px] font-semibold text-[#7C8DB0] uppercase tracking-[0.08em]">CRM ENTERPRISE</span>
             </div>
           )}
