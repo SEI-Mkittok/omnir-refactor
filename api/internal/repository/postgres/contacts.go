@@ -339,19 +339,19 @@ func (r *ContactRepo) ConvertLead(ctx context.Context, id, byUserID uuid.UUID, d
 	return scanContact(r.db.QueryRow(ctx, q, args...))
 }
 
-// SetEmailOptOut sets email_opt_out=true for a contact (no org scoping — used by tracking handler).
-func (r *ContactRepo) SetEmailOptOut(ctx context.Context, contactID uuid.UUID) error {
+// SetEmailOptOut sets email_opt_out=true for a contact, scoped to orgID.
+func (r *ContactRepo) SetEmailOptOut(ctx context.Context, contactID, orgID uuid.UUID) error {
 	_, err := r.db.Exec(ctx,
-		`UPDATE contacts SET email_opt_out = TRUE, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
-		contactID)
+		`UPDATE contacts SET email_opt_out = TRUE, updated_at = NOW() WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+		contactID, orgID)
 	return err
 }
 
-// IncrementBounceCount atomically increments bounce_count for a contact (no org scoping — used by bounce webhook).
-func (r *ContactRepo) IncrementBounceCount(ctx context.Context, contactID uuid.UUID) error {
+// IncrementBounceCount atomically increments bounce_count for a contact, scoped to orgID.
+func (r *ContactRepo) IncrementBounceCount(ctx context.Context, contactID, orgID uuid.UUID) error {
 	_, err := r.db.Exec(ctx,
-		`UPDATE contacts SET bounce_count = bounce_count + 1, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
-		contactID)
+		`UPDATE contacts SET bounce_count = bounce_count + 1, updated_at = NOW() WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+		contactID, orgID)
 	return err
 }
 
