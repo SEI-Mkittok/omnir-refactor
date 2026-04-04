@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TrendingUp, AlertCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { Button } from '@/components/ui/Button'
@@ -37,6 +38,7 @@ export function LoginPage() {
 
   const ssoError = searchParams.get('error')
   const ssoErrorMessage = ssoError ? (SSO_ERROR_MESSAGES[ssoError] ?? SSO_ERROR_MESSAGES.generic_oidc_failure) : null
+  const justRegistered = searchParams.get('registered') === '1'
 
   const {
     register,
@@ -90,6 +92,14 @@ export function LoginPage() {
 
         {/* Card */}
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+          {/* Registration success banner */}
+          {justRegistered && (
+            <div className="mb-5 flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+              <AlertCircle className="h-4 w-4 shrink-0 text-green-600" />
+              Account created! Sign in to get started.
+            </div>
+          )}
+
           {/* SSO Error banner */}
           {ssoErrorMessage && (
             <div
@@ -234,6 +244,16 @@ export function LoginPage() {
             </Button>
           </form>
         </div>
+
+        {/* Signup link — hidden in single-tenant mode */}
+        {(import.meta.env.VITE_ORG_MODE ?? 'saas') !== 'single' && (
+          <p className="mt-6 text-center text-sm text-slate-500">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="font-medium text-[#1B3A4B] hover:underline">
+              Sign up
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )
