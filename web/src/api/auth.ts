@@ -25,6 +25,24 @@ export interface TotpVerifyResponse {
   user?: User
 }
 
+// ---- Registration ----
+
+export interface RegisterRequest {
+  orgName: string
+  name: string
+  email: string
+  password: string
+}
+
+export interface RegisterResponse {
+  user: User
+}
+
+export async function register(payload: RegisterRequest): Promise<RegisterResponse> {
+  const { data } = await apiClient.post<RegisterResponse>('/auth/register', payload)
+  return data
+}
+
 // ---- TOTP enrollment ----
 
 export async function getTotpSetup(): Promise<TotpSetupResponse> {
