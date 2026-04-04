@@ -20,6 +20,7 @@ export function AppShell() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
   const onboardingOpen = useUIStore((s) => s.onboardingOpen)
   const setOnboardingOpen = useUIStore((s) => s.setOnboardingOpen)
+  const setOnboardingDismissed = useUIStore((s) => s.setOnboardingDismissed)
 
   const [onboardingState, setOnboardingState] = useState<OnboardingState | null>(null)
   const [showResumeBanner, setShowResumeBanner] = useState(false)
@@ -40,11 +41,14 @@ export function AppShell() {
       .then((state) => {
         if (state && !state.completed) {
           setOnboardingState(state)
-          setOnboardingOpen(true)
+          setOnboardingDismissed(state.dismissed ?? false)
+          if (!state.dismissed) {
+            setOnboardingOpen(true)
+          }
         }
       })
       .catch(() => { logout() })
-  }, [setUser, logout, setOnboardingOpen])
+  }, [setUser, logout, setOnboardingOpen, setOnboardingDismissed])
   usePushNotifications()
   useMutationQueue()
 
