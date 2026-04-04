@@ -18,6 +18,19 @@ export function formatCurrency(
   }).format(value)
 }
 
+export function formatCompactCurrency(
+  value: number,
+  currency = 'USD',
+  locale = 'en-US'
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value)
+}
+
 export function formatDate(
   dateString: string | undefined | null,
   options: Intl.DateTimeFormatOptions = {

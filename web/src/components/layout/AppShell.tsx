@@ -135,7 +135,7 @@ export function AppShell() {
 
         {/* ── Content area ── */}
         <main
-          className="flex-1 overflow-auto p-4 pb-safe lg:p-6"
+          className="flex-1 overflow-auto p-4 pb-[4.5rem] lg:p-6"
           style={{ marginTop: showResumeBanner && !onboardingOpen ? '0' : 'var(--topbar-height)' }}
         >
           <Outlet />

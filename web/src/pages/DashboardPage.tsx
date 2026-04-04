@@ -25,7 +25,7 @@ import * as RadixSelect from '@radix-ui/react-select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { useDealReport, useTicketReport, useReportsSummary } from '@/hooks/useReports'
 import { useActivities, useUpdateActivity } from '@/hooks/useActivities'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatCompactCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -152,14 +152,22 @@ const PERIOD_OPTIONS = [
 function ActivityBarChart() {
   const [period, setPeriod] = useState('6')
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
-  const { data, isLoading, isError, refetch, isFetching } = useReportsSummary()
+
+  const from = (() => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - parseInt(period))
+    d.setDate(1)
+    return d.toISOString().slice(0, 10)
+  })()
+
+  const { data, isLoading, isError, refetch, isFetching } = useReportsSummary({ from })
 
   const chartData = (() => {
     if (!data?.contacts_monthly) return []
     const sorted = [...data.contacts_monthly].sort((a, b) =>
       a.month.localeCompare(b.month)
     )
-    return sorted.slice(-parseInt(period)).map((m) => ({
+    return sorted.map((m) => ({
       month: formatMonth(m.month),
       value: Math.max(m.count, 0),
     }))
@@ -562,14 +570,14 @@ export function DashboardPage() {
   const kpis: KPICardProps[] = [
     {
       label: 'Total Revenue',
-      value: revenue !== null ? formatCurrency(revenue / 100) : '—',
+      value: revenue !== null ? formatCompactCurrency(revenue / 100) : '—',
       isLoading: dealReport.isLoading,
       isError: dealReport.isError,
       onRetry: () => dealReport.refetch(),
     },
     {
       label: 'Pipeline Value',
-      value: pipelineValue !== null ? formatCurrency(pipelineValue / 100) : '—',
+      value: pipelineValue !== null ? formatCompactCurrency(pipelineValue / 100) : '—',
       isLoading: dealReport.isLoading,
       isError: dealReport.isError,
       onRetry: () => dealReport.refetch(),
