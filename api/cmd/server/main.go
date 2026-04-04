@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 	"github.com/joho/godotenv"
 
 	"github.com/omnir/crm-api/internal/auth"
@@ -290,8 +291,10 @@ func main() {
 	r.Mount("/auth/sso", ssoHandler.Router())
 	// API-style SSO: POST /api/auth/sso/microsoft|google, GET /api/auth/sso/callback
 	r.Mount("/api/auth/sso", ssoHandler.APIRouter())
-	r.Mount("/webhooks/email", inboundWebhookHandler.Router())
-	r.Mount("/api/emails/inbound", inboundEmailHandler.Router())
+	// Rate-limit public/unauthenticated endpoints to mitigate brute-force and DoS (OMN-615).
+	publicRateLimit := httprate.LimitByIP(120, time.Minute)
+	r.With(publicRateLimit).Mount("/webhooks/email", inboundWebhookHandler.Router())
+	r.With(publicRateLimit).Mount("/api/emails/inbound", inboundEmailHandler.Router())
 	// Email inbox OAuth — requires auth (browser session cookie sent on redirect callback).
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
@@ -299,7 +302,7 @@ func main() {
 		r.Mount("/api/integrations/email", emailInboxHandler.OAuthRouter())
 	})
 	// Public deal portal — token IS the credential, no JWT required.
-	r.Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
+	r.With(publicRateLimit).Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
 	r.Mount("/api/portal/help", kbHandler.PublicRouter())
 	// Public sequence tracking — HMAC-signed tokens, no JWT required.
 	r.Mount("/track", sequenceTrackingHandler.TrackRouter())

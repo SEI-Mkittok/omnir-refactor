@@ -137,7 +137,12 @@ func (h *TwoFAHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	plainCodes := make([]string, backupCodeCount)
 	hashedCodes := make([]string, backupCodeCount)
 	for i := range plainCodes {
-		plainCodes[i] = randomBackupCode()
+		code, err := randomBackupCode()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "backup code generation failed")
+			return
+		}
+		plainCodes[i] = code
 		hashed, err := bcrypt.GenerateFromPassword([]byte(plainCodes[i]), bcrypt.DefaultCost)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "backup code generation failed")
@@ -273,8 +278,10 @@ func (h *TwoFAHandler) VerifyLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})
 }
 
-func randomBackupCode() string {
+func randomBackupCode() (string, error) {
 	b := make([]byte, 6)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("%x", b)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", b), nil
 }
