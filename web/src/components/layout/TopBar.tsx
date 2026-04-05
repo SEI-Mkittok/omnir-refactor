@@ -136,7 +136,7 @@ export function TopBar({ onMenuClick, breadcrumb }: TopBarProps) {
 
   return (
     <header
-      className="fixed right-0 top-0 flex items-center justify-between border-b px-4 lg:px-5"
+      className="fixed right-0 top-0 flex items-center justify-between border-b px-3 sm:px-4 lg:px-5"
       style={{
         left: 'var(--sidebar-current-width)',
         height: 'var(--topbar-height)',
@@ -144,6 +144,7 @@ export function TopBar({ onMenuClick, breadcrumb }: TopBarProps) {
         borderColor: 'var(--border-default)',
         zIndex: 'var(--z-topbar)' as unknown as number,
         transition: 'left 200ms ease',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
     >
       {/* Left: hamburger (mobile) + breadcrumb */}
