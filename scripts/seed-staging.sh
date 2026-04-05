@@ -16,7 +16,7 @@ echo "Seeding staging test users…"
 
 psql "${DATABASE_URL}" <<'SQL'
 -- Ensure default test org exists
-INSERT INTO organizations (id, name, plan, created_at, updated_at)
+INSERT INTO orgs (id, name, plan, created_at, updated_at)
 VALUES (
   '00000000-0000-0000-0000-000000000002',
   'Test Organization',
