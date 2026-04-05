@@ -15,6 +15,11 @@ export const dealsApi = {
     return data
   },
 
+  search: async (q: string): Promise<Deal[]> => {
+    const { data } = await apiClient.get('/deals', { params: { q, limit: 10 } })
+    return data.data ?? []
+  },
+
   get: async (id: string): Promise<Deal> => {
     const { data } = await apiClient.get(`/deals/${id}`)
     return data
