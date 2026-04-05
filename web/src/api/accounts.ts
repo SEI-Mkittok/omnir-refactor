@@ -9,6 +9,7 @@ import type {
   CreateNoteRequest,
   Contact,
   Deal,
+  Ticket,
 } from './types'
 
 export const accountsApi = {
@@ -44,6 +45,11 @@ export const accountsApi = {
   getDeals: async (id: string): Promise<Deal[]> => {
     const { data } = await apiClient.get(`/accounts/${id}/deals`)
     return data
+  },
+
+  getTickets: async (id: string): Promise<Ticket[]> => {
+    const { data } = await apiClient.get(`/accounts/${id}/tickets`)
+    return data.data ?? data
   },
 
   getNotes: async (id: string): Promise<Note[]> => {

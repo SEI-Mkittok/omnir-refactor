@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ChevronRight,
@@ -11,19 +11,30 @@ import {
   Trash2,
   ExternalLink,
   Plus,
+  X,
+  Search,
+  Loader2,
+  Ticket,
 } from 'lucide-react'
 import {
   useAccount,
   useAccountContacts,
   useAccountDeals,
   useAccountNotes,
+  useAccountTickets,
   useDeleteAccount,
   useAddAccountNote,
+  useLinkContactToAccount,
+  useLinkDealToAccount,
+  useLinkTicketToAccount,
 } from '@/hooks/useAccounts'
+import { contactsApi } from '@/api/contacts'
+import { dealsApi } from '@/api/deals'
+import { ticketsApi } from '@/api/tickets'
 
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
-import type { Contact, Deal, Note } from '@/api/types'
+import type { Contact, Deal, Note, Ticket as TicketType } from '@/api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,10 +47,168 @@ function accountInitials(name: string) {
     .toUpperCase()
 }
 
+// ── Generic Link Modal ────────────────────────────────────────────────────────
+
+interface LinkModalProps<T> {
+  open: boolean
+  onClose: () => void
+  title: string
+  placeholder: string
+  onSearch: (q: string) => Promise<T[]>
+  onSelect: (item: T) => Promise<unknown>
+  renderItem: (item: T) => React.ReactNode
+  getKey: (item: T) => string
+}
+
+function LinkModal<T>({
+  open,
+  onClose,
+  title,
+  placeholder,
+  onSearch,
+  onSelect,
+  renderItem,
+  getKey,
+}: LinkModalProps<T>) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<T[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [isPending, setIsPending] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      setResults([])
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!query.trim()) {
+      setResults([])
+      return
+    }
+    setIsSearching(true)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await onSearch(query)
+        setResults(data)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [query, onSearch])
+
+  if (!open) return null
+
+  const handleSelect = async (item: T) => {
+    setIsPending(true)
+    try {
+      await onSelect(item)
+      onClose()
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+        className="rounded-xl border shadow-xl w-full max-w-sm"
+        style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: 'var(--border-default)' }}
+        >
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {title}
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded p-0.5 hover:bg-[var(--surface-app)] transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
+          </button>
+        </div>
+
+        {/* Search input */}
+        <div className="px-4 py-3">
+          <div className="relative">
+            <Search
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
+              style={{ color: 'var(--text-label)' }}
+            />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={placeholder}
+              className="w-full rounded-lg border text-sm pl-8 pr-3 py-2 focus:outline-none"
+              style={{
+                borderColor: 'var(--border-default)',
+                color: 'var(--text-primary)',
+                background: 'var(--surface-app)',
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--border-focus)' }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)' }}
+            />
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className="px-4 pb-4 max-h-64 overflow-y-auto">
+          {isSearching ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--text-label)' }} />
+            </div>
+          ) : results.length > 0 ? (
+            <ul className="space-y-1">
+              {results.map((item) => (
+                <li key={getKey(item)}>
+                  <button
+                    disabled={isPending}
+                    onClick={() => handleSelect(item)}
+                    className="w-full text-left rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors disabled:opacity-50"
+                  >
+                    {renderItem(item)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : query.trim() ? (
+            <p className="text-sm text-center py-4" style={{ color: 'var(--text-label)' }}>
+              No results found.
+            </p>
+          ) : (
+            <p className="text-sm text-center py-4" style={{ color: 'var(--text-label)' }}>
+              Start typing to search…
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Contacts List ─────────────────────────────────────────────────────────────
 
 function ContactsList({ accountId }: { accountId: string }) {
   const { data: contacts, isLoading } = useAccountContacts(accountId)
+  const linkContact = useLinkContactToAccount()
+  const [showModal, setShowModal] = useState(false)
+
+  const handleUnlink = (contactId: string) => {
+    linkContact.mutate({ contactId, accountId: null })
+  }
 
   return (
     <div
@@ -56,12 +225,21 @@ function ContactsList({ accountId }: { accountId: string }) {
         </p>
         {contacts && (
           <span
-            className="ml-auto text-xs font-medium rounded-full px-2 py-0.5"
+            className="text-xs font-medium rounded-full px-2 py-0.5"
             style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
           >
             {contacts.length}
           </span>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-6 px-2 text-xs"
+          onClick={() => setShowModal(true)}
+        >
+          <Plus className="h-3 w-3" />
+          Link
+        </Button>
       </div>
 
       {isLoading ? (
@@ -77,10 +255,10 @@ function ContactsList({ accountId }: { accountId: string }) {
       ) : (
         <ul className="space-y-1">
           {contacts.map((c: Contact) => (
-            <li key={c.id}>
+            <li key={c.id} className="flex items-center gap-1">
               <Link
                 to={`/contacts/${c.id}`}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors"
+                className="flex flex-1 items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors min-w-0"
               >
                 <div
                   className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
@@ -102,10 +280,47 @@ function ContactsList({ accountId }: { accountId: string }) {
                   )}
                 </div>
               </Link>
+              <button
+                onClick={() => handleUnlink(c.id)}
+                className="shrink-0 rounded p-0.5 hover:bg-[var(--surface-app)] transition-colors"
+                aria-label="Unlink contact"
+              >
+                <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+              </button>
             </li>
           ))}
         </ul>
       )}
+
+      <LinkModal<Contact>
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title="Link Contact"
+        placeholder="Search by name or email…"
+        onSearch={contactsApi.search}
+        onSelect={(c) => linkContact.mutateAsync({ contactId: c.id, accountId })}
+        renderItem={(c) => (
+          <div className="flex items-center gap-2.5">
+            <div
+              className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+            >
+              {((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {c.first_name} {c.last_name}
+              </p>
+              {c.email && (
+                <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
+                  {c.email}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        getKey={(c) => c.id}
+      />
     </div>
   )
 }
@@ -123,6 +338,12 @@ const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
 
 function DealsList({ accountId }: { accountId: string }) {
   const { data: deals, isLoading } = useAccountDeals(accountId)
+  const linkDeal = useLinkDealToAccount()
+  const [showModal, setShowModal] = useState(false)
+
+  const handleUnlink = (dealId: string) => {
+    linkDeal.mutate({ dealId, accountId: null })
+  }
 
   return (
     <div
@@ -139,12 +360,21 @@ function DealsList({ accountId }: { accountId: string }) {
         </p>
         {deals && (
           <span
-            className="ml-auto text-xs font-medium rounded-full px-2 py-0.5"
+            className="text-xs font-medium rounded-full px-2 py-0.5"
             style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
           >
             {deals.length}
           </span>
         )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-6 px-2 text-xs"
+          onClick={() => setShowModal(true)}
+        >
+          <Plus className="h-3 w-3" />
+          Link
+        </Button>
       </div>
 
       {isLoading ? (
@@ -167,7 +397,7 @@ function DealsList({ accountId }: { accountId: string }) {
                 className="flex items-center justify-between gap-2 rounded-lg px-2 py-2"
                 style={{ background: 'var(--surface-app)' }}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                     {d.title}
                   </p>
@@ -185,11 +415,177 @@ function DealsList({ accountId }: { accountId: string }) {
                 >
                   {d.stage.replace('_', ' ')}
                 </span>
+                <button
+                  onClick={() => handleUnlink(d.id)}
+                  className="shrink-0 rounded p-0.5 hover:bg-slate-200 transition-colors"
+                  aria-label="Unlink deal"
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
               </li>
             )
           })}
         </ul>
       )}
+
+      <LinkModal<Deal>
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title="Link Deal"
+        placeholder="Search deals by title…"
+        onSearch={dealsApi.search}
+        onSelect={(d) => linkDeal.mutateAsync({ dealId: d.id, accountId })}
+        renderItem={(d) => {
+          const stageStyle = STAGE_STYLES[d.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+          return (
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                  {d.title}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  {formatCurrency((d.value_cents ?? 0) / 100)}
+                </p>
+              </div>
+              <span
+                className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
+                style={{ background: stageStyle.bg, color: stageStyle.text, letterSpacing: '0.04em' }}
+              >
+                {d.stage.replace('_', ' ')}
+              </span>
+            </div>
+          )
+        }}
+        getKey={(d) => d.id}
+      />
+    </div>
+  )
+}
+
+// ── Tickets List ───────────────────────────────────────────────────────────────
+
+const TICKET_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  open:     { bg: '#EFF6FF', text: '#2563EB' },
+  pending:  { bg: '#FFF7ED', text: '#C2410C' },
+  resolved: { bg: '#F0FDF4', text: '#15803D' },
+  closed:   { bg: '#F1F5F9', text: '#64748B' },
+}
+
+function TicketsList({ accountId }: { accountId: string }) {
+  const { data: tickets, isLoading } = useAccountTickets(accountId)
+  const linkTicket = useLinkTicketToAccount()
+  const [showModal, setShowModal] = useState(false)
+
+  const handleUnlink = (ticketId: string) => {
+    linkTicket.mutate({ ticketId, accountId: null })
+  }
+
+  const searchTickets = async (q: string): Promise<TicketType[]> => {
+    const result = await ticketsApi.list({ search: q, per_page: 10 })
+    return result.data ?? []
+  }
+
+  return (
+    <div
+      className="rounded-xl border p-5"
+      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Ticket className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
+        <p
+          className="text-[11px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
+        >
+          Tickets
+        </p>
+        {tickets && (
+          <span
+            className="text-xs font-medium rounded-full px-2 py-0.5"
+            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+          >
+            {tickets.length}
+          </span>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-6 px-2 text-xs"
+          onClick={() => setShowModal(true)}
+        >
+          <Plus className="h-3 w-3" />
+          Link
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />
+          ))}
+        </div>
+      ) : !tickets?.length ? (
+        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
+          No tickets linked.
+        </p>
+      ) : (
+        <ul className="space-y-1">
+          {tickets.map((t: TicketType) => {
+            const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+            return (
+              <li
+                key={t.id}
+                className="flex items-center gap-2 rounded-lg px-2 py-2"
+                style={{ background: 'var(--surface-app)' }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {t.subject}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
+                  style={{ background: statusStyle.bg, color: statusStyle.text, letterSpacing: '0.04em' }}
+                >
+                  {t.status}
+                </span>
+                <button
+                  onClick={() => handleUnlink(t.id)}
+                  className="shrink-0 rounded p-0.5 hover:bg-slate-200 transition-colors"
+                  aria-label="Unlink ticket"
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      <LinkModal<TicketType>
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title="Link Ticket"
+        placeholder="Search tickets by subject…"
+        onSearch={searchTickets}
+        onSelect={(t) => linkTicket.mutateAsync({ ticketId: t.id, accountId })}
+        renderItem={(t) => {
+          const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+          return (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {t.subject}
+              </p>
+              <span
+                className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
+                style={{ background: statusStyle.bg, color: statusStyle.text, letterSpacing: '0.04em' }}
+              >
+                {t.status}
+              </span>
+            </div>
+          )
+        }}
+        getKey={(t) => t.id}
+      />
     </div>
   )
 }
@@ -488,10 +884,11 @@ export function AccountDetailPage() {
           <NotesPanel accountId={account.id} />
         </div>
 
-        {/* Right column — contacts + deals */}
+        {/* Right column — contacts + deals + tickets */}
         <div className="w-full lg:w-[300px] shrink-0 space-y-5">
           <ContactsList accountId={account.id} />
           <DealsList accountId={account.id} />
+          <TicketsList accountId={account.id} />
         </div>
       </div>
 
