@@ -391,16 +391,30 @@ export interface SearchResult {
 export type TicketStatus = 'open' | 'pending' | 'resolved' | 'closed'
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical'
 
+export interface TicketContactSummary {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+}
+
+export interface TicketAccountSummary {
+  id: string
+  name: string
+}
+
 export interface Ticket {
   id: string
   subject: string
+  description?: string
   status: TicketStatus
   priority: TicketPriority
   assignee?: User
-  contact?: Contact
-  account?: Account
+  contact?: TicketContactSummary
+  account?: TicketAccountSummary
   source?: string
-  custom_fields?: Record<string, unknown>
+  tags?: string[]
+  custom_fields?: string
   sla?: TicketSLA
   created_at: string
   updated_at: string
