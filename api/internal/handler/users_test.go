@@ -31,18 +31,21 @@ func makeUser(id uuid.UUID) *domain.User {
 }
 
 func TestUserHandler_List(t *testing.T) {
+	adminID := uuid.New()
 	userID := uuid.New()
 
 	tests := []struct {
 		name       string
 		query      string
+		claims     *auth.Claims
 		setupMock  func(*mocks.MockUserRepository)
 		wantStatus int
 		wantTotal  int
 	}{
 		{
-			name:  "lists users with defaults",
-			query: "",
+			name:   "admin lists users with defaults",
+			query:  "",
+			claims: adminClaims(adminID),
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("List", mock.Anything, mock.AnythingOfType("domain.UserFilter")).
 					Return([]*domain.User{makeUser(userID)}, 1, nil)
@@ -51,8 +54,9 @@ func TestUserHandler_List(t *testing.T) {
 			wantTotal:  1,
 		},
 		{
-			name:  "filters by role",
-			query: "?role=admin",
+			name:   "admin filters by role",
+			query:  "?role=admin",
+			claims: adminClaims(adminID),
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.UserFilter) bool {
 					return f.Role != nil && *f.Role == domain.UserRoleAdmin
@@ -62,8 +66,9 @@ func TestUserHandler_List(t *testing.T) {
 			wantTotal:  0,
 		},
 		{
-			name:  "search query",
-			query: "?q=alice",
+			name:   "admin search query",
+			query:  "?q=alice",
+			claims: adminClaims(adminID),
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.UserFilter) bool {
 					return f.Q == "alice"
@@ -73,8 +78,9 @@ func TestUserHandler_List(t *testing.T) {
 			wantTotal:  0,
 		},
 		{
-			name:  "pagination params",
-			query: "?page=2&limit=10",
+			name:   "admin pagination params",
+			query:  "?page=2&limit=10",
+			claims: adminClaims(adminID),
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.UserFilter) bool {
 					return f.Page == 2 && f.Limit == 10
@@ -82,6 +88,20 @@ func TestUserHandler_List(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantTotal:  0,
+		},
+		{
+			name:       "non-admin gets 403",
+			query:      "",
+			claims:     userClaims(uuid.New()),
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "no claims gets 403",
+			query:      "",
+			claims:     nil,
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusForbidden,
 		},
 	}
 
@@ -92,15 +112,20 @@ func TestUserHandler_List(t *testing.T) {
 
 			h := handler.NewUserHandler(mockRepo)
 			req := httptest.NewRequest(http.MethodGet, "/"+tt.query, nil)
+			if tt.claims != nil {
+				req = withClaims(req, tt.claims)
+			}
 			w := httptest.NewRecorder()
 
-			h.List(w, req)
+			h.Router().ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			var resp map[string]any
-			require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-			meta := resp["meta"].(map[string]any)
-			assert.Equal(t, float64(tt.wantTotal), meta["total"])
+			if tt.wantStatus == http.StatusOK {
+				var resp map[string]any
+				require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+				meta := resp["meta"].(map[string]any)
+				assert.Equal(t, float64(tt.wantTotal), meta["total"])
+			}
 			mockRepo.AssertExpectations(t)
 		})
 	}

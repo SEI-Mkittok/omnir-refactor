@@ -24,7 +24,7 @@ func NewUserHandler(repo repository.UserRepository) *UserHandler {
 
 func (h *UserHandler) Router() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/", h.List)
+	r.Get("/", h.requireAdmin(h.List))
 	r.Post("/", h.requireAdmin(h.Create))
 	r.Get("/me", h.GetMe)
 	r.Get("/{id}", h.GetByID)
