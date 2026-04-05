@@ -104,6 +104,13 @@
   }
 }
 
+/* Mobile: sidebar is a drawer (off-canvas), topbar spans full width */
+@media (max-width: 767px) {
+  :root {
+    --sidebar-current-width: 0px;
+  }
+}
+
 /* Collapsed sidebar state — toggled on #layout-root */
 #layout-root[data-sidebar-collapsed="true"] {
   --sidebar-current-width: var(--sidebar-width-collapsed);
