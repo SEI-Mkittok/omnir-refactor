@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Mail,
   Phone,
-  MapPin,
   Lock,
   CheckCircle,
   AlertCircle,
@@ -70,14 +69,6 @@ function relativeTime(iso: string): string {
 function nameInitials(name?: string): string {
   if (!name) return '?'
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
-}
-
-function contactFullName(first?: string, last?: string): string {
-  return [first, last].filter(Boolean).join(' ') || 'Unknown Contact'
-}
-
-function contactInitials(first?: string, last?: string): string {
-  return ((first?.[0] ?? '') + (last?.[0] ?? '')).toUpperCase() || '?'
 }
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
@@ -492,8 +483,8 @@ function RightPanel({ ticketId }: RightPanelProps) {
   const [localTags, setLocalTags] = useState<string[]>([])
 
   useEffect(() => {
-    if (ticket?.custom_fields?.tags) {
-      setLocalTags(ticket.custom_fields.tags as string[])
+    if (ticket?.tags) {
+      setLocalTags(ticket.tags)
     }
   }, [ticket?.id])
 
@@ -554,15 +545,12 @@ function RightPanel({ ticketId }: RightPanelProps) {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[14px] font-semibold text-[var(--color-primary)]">
-                {contactInitials(contact.first_name, contact.last_name)}
+                {nameInitials(contact.name)}
               </div>
               <div>
                 <p className="text-[16px] font-bold text-[var(--text-primary)]">
-                  {contactFullName(contact.first_name, contact.last_name)}
+                  {contact.name || 'Unknown Contact'}
                 </p>
-                {contact.title && (
-                  <p className="text-[13px] text-[var(--text-secondary)]">{contact.title}</p>
-                )}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -576,12 +564,6 @@ function RightPanel({ ticketId }: RightPanelProps) {
                 <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
                   <Phone className="h-3.5 w-3.5 text-[var(--text-label)] shrink-0" />
                   {contact.phone}
-                </div>
-              )}
-              {contact.account?.name && (
-                <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
-                  <MapPin className="h-3.5 w-3.5 text-[var(--text-label)] shrink-0" />
-                  {contact.account.name}
                 </div>
               )}
             </div>
