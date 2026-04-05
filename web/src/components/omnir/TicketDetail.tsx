@@ -287,7 +287,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
           <hr className="border-slate-200" />
           <ContactSection
             ticketId={ticketId}
-            contact={ticket.contact}
+            contact={ticket.contact as import('@/api/types').Contact | undefined}
             ticketStatus={ticket.status}
           />
           <hr className="border-slate-200" />
@@ -297,7 +297,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
             <div className="rounded-lg border border-slate-200 px-4 py-3 space-y-2">
               <CustomFieldDisplaySection
                 fields={customFields}
-                values={ticket.custom_fields as CustomFieldValues}
+                values={ticket.custom_fields as unknown as CustomFieldValues}
               />
             </div>
           )}
