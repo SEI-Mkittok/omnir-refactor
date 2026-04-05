@@ -1,5 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { accountsApi } from '@/api/accounts'
+import { contactsApi } from '@/api/contacts'
+import { dealsApi } from '@/api/deals'
+import { ticketsApi } from '@/api/tickets'
 import type {
   AccountListParams,
   CreateAccountRequest,
@@ -15,6 +18,7 @@ export const accountKeys = {
   detail: (id: string) => [...accountKeys.details(), id] as const,
   contacts: (id: string) => [...accountKeys.detail(id), 'contacts'] as const,
   deals: (id: string) => [...accountKeys.detail(id), 'deals'] as const,
+  tickets: (id: string) => [...accountKeys.detail(id), 'tickets'] as const,
   notes: (id: string) => [...accountKeys.detail(id), 'notes'] as const,
 }
 
@@ -106,6 +110,48 @@ export function useAddAccountNote() {
     }) => accountsApi.addNote(accountId, payload),
     onSuccess: (_, { accountId }) => {
       qc.invalidateQueries({ queryKey: accountKeys.notes(accountId) })
+    },
+  })
+}
+
+export function useAccountTickets(id: string) {
+  return useQuery({
+    queryKey: accountKeys.tickets(id),
+    queryFn: () => accountsApi.getTickets(id),
+    staleTime: 30_000,
+    enabled: !!id,
+  })
+}
+
+export function useLinkContactToAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ contactId, accountId }: { contactId: string; accountId: string | null }) =>
+      contactsApi.update(contactId, { account_id: accountId ?? undefined }),
+    onSuccess: (_, { accountId }) => {
+      if (accountId) qc.invalidateQueries({ queryKey: accountKeys.contacts(accountId) })
+    },
+  })
+}
+
+export function useLinkDealToAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ dealId, accountId }: { dealId: string; accountId: string | null }) =>
+      dealsApi.update(dealId, { account_id: accountId ?? undefined }),
+    onSuccess: (_, { accountId }) => {
+      if (accountId) qc.invalidateQueries({ queryKey: accountKeys.deals(accountId) })
+    },
+  })
+}
+
+export function useLinkTicketToAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ticketId, accountId }: { ticketId: string; accountId: string | null }) =>
+      ticketsApi.update(ticketId, { account_id: accountId }),
+    onSuccess: (_, { accountId }) => {
+      if (accountId) qc.invalidateQueries({ queryKey: accountKeys.tickets(accountId) })
     },
   })
 }

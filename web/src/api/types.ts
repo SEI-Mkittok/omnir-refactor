@@ -437,6 +437,7 @@ export interface UpdateTicketRequest {
   status?: TicketStatus
   priority?: TicketPriority
   assignee_id?: string
+  account_id?: string | null
 }
 
 export interface TicketListParams {
@@ -446,6 +447,7 @@ export interface TicketListParams {
   status?: TicketStatus
   priority?: TicketPriority
   contact_id?: string
+  account_id?: string
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
 }
