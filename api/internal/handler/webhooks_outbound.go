@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
@@ -29,13 +30,14 @@ func NewWebhookMgmtHandler(repo repository.OutboundWebhookRepository) *OutboundW
 
 func (h *OutboundWebhookHandler) Router() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/", h.List)
-	r.Post("/", h.Create)
-	r.Get("/{id}", h.Get)
-	r.Patch("/{id}", h.Update)
-	r.Delete("/{id}", h.Delete)
-	r.Post("/{id}/test", h.Test)
-	r.Get("/{id}/deliveries", h.ListDeliveries)
+	adminOnly := middleware.RequireRole(domain.UserRoleAdmin)
+	r.With(adminOnly).Get("/", h.List)
+	r.With(adminOnly).Post("/", h.Create)
+	r.With(adminOnly).Get("/{id}", h.Get)
+	r.With(adminOnly).Patch("/{id}", h.Update)
+	r.With(adminOnly).Delete("/{id}", h.Delete)
+	r.With(adminOnly).Post("/{id}/test", h.Test)
+	r.With(adminOnly).Get("/{id}/deliveries", h.ListDeliveries)
 	return r
 }
 
