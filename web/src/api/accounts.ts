@@ -48,7 +48,7 @@ export const accountsApi = {
 
   getNotes: async (id: string): Promise<Note[]> => {
     const { data } = await apiClient.get(`/accounts/${id}/notes`)
-    return data
+    return data.data
   },
 
   addNote: async (id: string, payload: Omit<CreateNoteRequest, 'account_id'>): Promise<Note> => {
