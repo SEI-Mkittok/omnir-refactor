@@ -5,6 +5,8 @@ import {
   getLeadReport,
   getContactReport,
   getDealReport,
+  getPipelineFunnelReport,
+  getActivitySummaryReport,
   type ReportsParams,
 } from '@/api/reports'
 import type {
@@ -13,6 +15,8 @@ import type {
   LeadReport,
   ContactReport,
   DealReport,
+  PipelineFunnelReport,
+  ActivitySummaryReport,
 } from '@/api/types'
 
 export type { ReportsParams }
@@ -23,6 +27,8 @@ export const reportKeys = {
   leads: (params: ReportsParams) => ['reports', 'leads', params] as const,
   contacts: (params: ReportsParams) => ['reports', 'contacts', params] as const,
   deals: (params: ReportsParams) => ['reports', 'deals', params] as const,
+  pipelineFunnel: (params: ReportsParams) => ['reports', 'pipeline-funnel', params] as const,
+  activitySummary: (params: ReportsParams) => ['reports', 'activity-summary', params] as const,
 }
 
 // ---- Hooks ----
@@ -63,6 +69,22 @@ export function useDealReport(params: ReportsParams = {}) {
   return useQuery<DealReport>({
     queryKey: reportKeys.deals(params),
     queryFn: () => getDealReport(params),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function usePipelineFunnelReport(params: ReportsParams = {}) {
+  return useQuery<PipelineFunnelReport>({
+    queryKey: reportKeys.pipelineFunnel(params),
+    queryFn: () => getPipelineFunnelReport(params),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useActivitySummaryReport(params: ReportsParams = {}) {
+  return useQuery<ActivitySummaryReport>({
+    queryKey: reportKeys.activitySummary(params),
+    queryFn: () => getActivitySummaryReport(params),
     staleTime: 5 * 60 * 1000,
   })
 }

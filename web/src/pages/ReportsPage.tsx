@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useId } from 'react'
 import {
-  ComposedChart,
+  BarChart,
   Bar,
   Line,
   XAxis,
@@ -21,30 +21,17 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import {
   useTicketReport,
-  useLeadReport,
-  useContactReport,
   useDealReport,
+  usePipelineFunnelReport,
+  useActivitySummaryReport,
 } from '@/hooks/useReports'
 import { formatCurrency } from '@/lib/utils'
-import type { DealStage } from '@/api/types'
 
 // ---- Design tokens ----
 const PRIMARY = '#1B3A4B'
 const PRIMARY_LIGHT = '#7C8DB0'
 const SECONDARY = '#6B7280'
 const BORDER = '#E5E7EB'
-const BG = '#F7F8FA'
-
-// ---- Stage config ----
-const STAGE_ORDER: DealStage[] = ['lead', 'qualified', 'proposal', 'negotiation', 'closed_won']
-const STAGE_LABELS: Record<string, string> = {
-  lead: 'Lead',
-  qualified: 'Qualified',
-  proposal: 'Proposal',
-  negotiation: 'Negotiation',
-  closed_won: 'Closed Won',
-  closed_lost: 'Closed Lost',
-}
 
 // Funnel gradient: interpolate PRIMARY → PRIMARY_LIGHT over 5 stops
 const FUNNEL_COLORS = ['#1B3A4B', '#2E5068', '#446585', '#5D7FA0', '#7C8DB0']
@@ -367,13 +354,14 @@ export function ReportsPage() {
   const params = useMemo(() => ({ from: range.from, to: range.to }), [range.from, range.to])
 
   const tickets = useTicketReport(params)
-  const leads = useLeadReport(params)
-  const contacts = useContactReport(params)
   const deals = useDealReport(params)
+  const pipeline = usePipelineFunnelReport(params)
+  const activitySummary = useActivitySummaryReport(params)
 
   const ticketData = tickets.data
-  const contactData = contacts.data
   const dealData = deals.data
+  const pipelineData = pipeline.data
+  const activityData = activitySummary.data
 
   // ---- KPI derivations ----
   const totalRevenueCents = useMemo(() => {
@@ -397,45 +385,52 @@ export function ReportsPage() {
 
   // ---- Funnel data (deal stages) ----
   const funnelData = useMemo(() => {
-    if (!dealData) return []
-    return STAGE_ORDER.map((stage, idx) => {
-      const found = dealData.by_stage.find((s) => s.stage === stage)
+    if (!pipelineData?.stages?.length) return []
+    return pipelineData.stages.map((stage, idx) => {
       return {
-        name: STAGE_LABELS[stage] ?? stage,
-        value: found?.count ?? 0,
+        name: stage.name,
+        value: stage.count,
         fill: FUNNEL_COLORS[idx] ?? PRIMARY,
       }
     })
       .filter((d) => d.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [dealData])
+  }, [pipelineData])
 
-  // ---- Revenue Over Time (uses contact monthly + deal won to approximate) ----
-  const revenueOverTimeData = useMemo(() => {
-    if (!contactData?.over_time?.length) return []
-    return contactData.over_time.map((pt) => ({
-      label: pt.month ?? '',
-      activities: pt.count,
-      trend: pt.count,
+  // ---- Team activity data ----
+  const teamActivityByKind = useMemo(() => {
+    if (!activityData?.by_kind?.length) return []
+    return activityData.by_kind.map((item) => ({
+      label: item.kind.toUpperCase(),
+      count: item.count,
     }))
-  }, [contactData])
+  }, [activityData])
+
+  const teamActivityByOwner = useMemo(() => {
+    if (!activityData?.by_owner?.length) return []
+    return [...activityData.by_owner]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6)
+      .map((item) => ({
+        owner: `User ${item.owner_id.slice(0, 8)}`,
+        count: item.count,
+      }))
+  }, [activityData])
 
   // ---- Ticket Resolution (3 series derived from over_time + by_status ratios) ----
   const resolutionSeriesData = useMemo(() => {
     if (!ticketData?.over_time?.length) return []
-    const statusMap: Record<string, number> = {}
-    ;(ticketData.by_status ?? []).forEach((s) => { statusMap[s.status] = s.count })
-    const total = Object.values(statusMap).reduce((a, b) => a + b, 0) || 1
-    const resolvedRatio = (statusMap['resolved'] ?? 0) / total
-    const pendingRatio = (statusMap['pending'] ?? 0) / total
+    const totalTickets = (ticketData.total_open ?? 0) + (ticketData.total_closed ?? 0)
+    const resolvedRatio = totalTickets > 0 ? (ticketData.total_closed ?? 0) / totalTickets : 0
 
     return ticketData.over_time.map((pt) => {
-      const t = pt.count
+      const total = pt.count
+      const resolved = Math.round(total * resolvedRatio)
       return {
         date: pt.date.slice(5), // MM-DD
-        resolved: Math.round(t * resolvedRatio),
-        pending: Math.round(t * pendingRatio),
-        escalated: Math.max(0, t - Math.round(t * resolvedRatio) - Math.round(t * pendingRatio)),
+        volume: total,
+        resolved,
+        unresolved: Math.max(0, total - resolved),
       }
     })
   }, [ticketData])
@@ -457,9 +452,14 @@ export function ReportsPage() {
     funnelData.forEach((d) => rows.push([d.name, String(d.value)]))
     rows.push([])
 
-    // Resolution series
-    rows.push(['Date', 'Resolved', 'Pending', 'Escalated'])
-    resolutionSeriesData.forEach((d) => rows.push([d.date, String(d.resolved), String(d.pending), String(d.escalated)]))
+    // Team activity
+    rows.push(['Activity Type', 'Count'])
+    teamActivityByKind.forEach((d) => rows.push([d.label, String(d.count)]))
+    rows.push([])
+
+    // Ticket trend series
+    rows.push(['Date', 'Ticket Volume', 'Resolved (est.)', 'Unresolved (est.)'])
+    resolutionSeriesData.forEach((d) => rows.push([d.date, String(d.volume), String(d.resolved), String(d.unresolved)]))
 
     downloadCsv('praestos-reports.csv', rows, [])
   }
@@ -485,8 +485,8 @@ export function ReportsPage() {
     }
   }
 
-  const anyLoading = tickets.isLoading || leads.isLoading || contacts.isLoading || deals.isLoading
-  const anyError = tickets.isError || leads.isError || contacts.isError || deals.isError
+  const anyLoading = tickets.isLoading || deals.isLoading || pipeline.isLoading || activitySummary.isLoading
+  const anyError = tickets.isError || deals.isError || pipeline.isError || activitySummary.isError
 
   return (
     <div className="space-y-6" ref={contentRef}>
@@ -616,7 +616,7 @@ export function ReportsPage() {
           </div>
 
           <div id={funnelChartId}>
-            {deals.isLoading ? (
+            {pipeline.isLoading ? (
               <SkeletonChart height={240} />
             ) : showFunnelTable ? (
               <SimpleDataTable
@@ -671,7 +671,7 @@ export function ReportsPage() {
           </div>
         </section>
 
-        {/* Widget 2: Revenue / Activity Over Time */}
+        {/* Widget 2: Team Activity */}
         <section
           className="bg-white rounded-xl border border-[#E5E7EB] p-6"
           aria-labelledby="revenue-title"
@@ -679,9 +679,9 @@ export function ReportsPage() {
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 id="revenue-title" className="text-base font-bold text-[#1A1D23] tracking-tight">
-                Revenue Over Time
+                Team Activity Trends
               </h2>
-              <p className="text-xs text-[#6B7280]">Monthly contact activity &amp; trend</p>
+              <p className="text-xs text-[#6B7280]">Activity mix by type and top contributors for selected range</p>
             </div>
             <ChartTableToggle
               showTable={showRevenueTable}
@@ -691,46 +691,42 @@ export function ReportsPage() {
           </div>
 
           <div id={revenueChartId}>
-            {contacts.isLoading ? (
+            {activitySummary.isLoading ? (
               <SkeletonChart height={240} />
             ) : showRevenueTable ? (
               <SimpleDataTable
-                headers={['Period', 'Activity', 'Trend']}
-                rows={revenueOverTimeData.map((d) => [d.label, d.activities, d.trend])}
+                headers={['Activity Type', 'Count']}
+                rows={teamActivityByKind.map((d) => [d.label, d.count])}
               />
-            ) : revenueOverTimeData.length === 0 ? (
-              <p className="py-8 text-center text-sm text-[#6B7280]">No activity data yet</p>
+            ) : teamActivityByKind.length === 0 && teamActivityByOwner.length === 0 ? (
+              <p className="py-8 text-center text-sm text-[#6B7280]">No team activity data yet</p>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <ComposedChart
-                  data={revenueOverTimeData}
-                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={PRIMARY} stopOpacity={0.9} />
-                      <stop offset="100%" stopColor={PRIMARY_LIGHT} stopOpacity={0.6} />
-                    </linearGradient>
-                  </defs>
-                  <title>Revenue over time — monthly activity chart</title>
-                  <desc>A composed chart showing monthly activity as bars and a trend line overlay.</desc>
-                  <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: SECONDARY }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: SECONDARY }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: SECONDARY }} />
-                  <Bar dataKey="activities" name="Activity" fill="url(#barGrad)" radius={[4, 4, 0, 0]} />
-                  <Line
-                    type="monotone"
-                    dataKey="trend"
-                    name="Trend"
-                    stroke={PRIMARY_LIGHT}
-                    strokeWidth={2}
-                    dot={false}
-                    strokeDasharray="4 2"
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#6B7280]">By Activity Type</p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={teamActivityByKind} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: SECONDARY }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: SECONDARY }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="count" name="Count" fill={PRIMARY_LIGHT} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-[#6B7280]">Top Contributors</p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={teamActivityByOwner} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
+                      <XAxis dataKey="owner" tick={{ fontSize: 10, fill: SECONDARY }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: SECONDARY }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="count" name="Count" fill={PRIMARY} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             )}
           </div>
         </section>
@@ -744,9 +740,9 @@ export function ReportsPage() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 id="resolution-title" className="text-base font-bold text-[#1A1D23] tracking-tight">
-              Ticket Resolution Rates
+              Ticket Volume & Resolution Trends
             </h2>
-            <p className="text-xs text-[#6B7280]">Resolved / Pending / Escalated over time</p>
+            <p className="text-xs text-[#6B7280]">Daily volume with resolved and unresolved estimates for selected range</p>
           </div>
           <ChartTableToggle
             showTable={showResolutionTable}
@@ -760,8 +756,8 @@ export function ReportsPage() {
             <SkeletonChart height={240} />
           ) : showResolutionTable ? (
             <SimpleDataTable
-              headers={['Date', 'Resolved', 'Pending', 'Escalated']}
-              rows={resolutionSeriesData.map((d) => [d.date, d.resolved, d.pending, d.escalated])}
+              headers={['Date', 'Volume', 'Resolved (est.)', 'Unresolved (est.)']}
+              rows={resolutionSeriesData.map((d) => [d.date, d.volume, d.resolved, d.unresolved])}
             />
           ) : resolutionSeriesData.length === 0 ? (
             <p className="py-8 text-center text-sm text-[#6B7280]">No ticket data yet</p>
@@ -774,14 +770,22 @@ export function ReportsPage() {
                 <defs>
                   {/* For color-blind accessibility: color + dash differentiation */}
                 </defs>
-                <title>Ticket resolution rates over time</title>
-                <desc>A line chart showing resolved, pending, and escalated ticket counts over time. Each series uses distinct colors and dash patterns for color-blind accessibility.</desc>
+                <title>Ticket volume and resolution trends over time</title>
+                <desc>A line chart showing volume with resolved and unresolved ticket estimates over time.</desc>
                 <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: SECONDARY }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: SECONDARY }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 11, color: SECONDARY }} />
-                {/* Resolved: solid primary, circle dots */}
+                <Line
+                  type="monotone"
+                  dataKey="volume"
+                  name="Volume"
+                  stroke={PRIMARY_LIGHT}
+                  strokeWidth={2}
+                  strokeDasharray="4 2"
+                  dot={false}
+                />
                 <Line
                   type="monotone"
                   dataKey="resolved"
@@ -791,26 +795,14 @@ export function ReportsPage() {
                   dot={{ r: 3 }}
                   activeDot={{ r: 5 }}
                 />
-                {/* Pending: dashed amber */}
                 <Line
                   type="monotone"
-                  dataKey="pending"
-                  name="Pending"
-                  stroke="#F59E0B"
+                  dataKey="unresolved"
+                  name="Unresolved"
+                  stroke="#EF4444"
                   strokeWidth={2}
                   strokeDasharray="5 3"
                   dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
-                />
-                {/* Escalated: dotted red */}
-                <Line
-                  type="monotone"
-                  dataKey="escalated"
-                  name="Escalated"
-                  stroke="#EF4444"
-                  strokeWidth={2}
-                  strokeDasharray="2 4"
-                  dot={{ r: 3, strokeDasharray: '0' }}
                   activeDot={{ r: 5 }}
                 />
               </LineChart>
