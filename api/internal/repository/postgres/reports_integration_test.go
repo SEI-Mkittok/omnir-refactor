@@ -148,10 +148,18 @@ func TestReportsRepo_ManagerDashboard_RangeAndOrgIsolation(t *testing.T) {
 	otherOwnerID := uuid.New()
 
 	_, err := pool.Exec(context.Background(), `
-		INSERT INTO orgs (id, name, slug, plan) VALUES ($1, 'Other Org', 'other-org', 'pro');
-		INSERT INTO pipelines (id, org_id, name, stages) VALUES ($2, $1, 'Other Pipeline', '[]'::jsonb);
-		INSERT INTO users (id, org_id, email, name, role) VALUES ($3, $1, $4, 'Other User', 'agent');
-	`, otherOrgID, otherPipelineID, otherOwnerID, "other+"+otherOwnerID.String()+"@omnir.test")
+		INSERT INTO orgs (id, name, slug, plan) VALUES ($1, 'Other Org', 'other-org', 'pro')
+	`, otherOrgID)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO pipelines (id, org_id, name, stages) VALUES ($1, $2, 'Other Pipeline', '[]'::jsonb)
+	`, otherPipelineID, otherOrgID)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO users (id, org_id, email, name, role) VALUES ($1, $2, $3, 'Other User', 'agent')
+	`, otherOwnerID, otherOrgID, "other+"+otherOwnerID.String()+"@omnir.test")
 	require.NoError(t, err)
 
 	now := time.Now().UTC()
@@ -163,20 +171,26 @@ func TestReportsRepo_ManagerDashboard_RangeAndOrgIsolation(t *testing.T) {
 		VALUES
 			(gen_random_uuid(), $1, 'Recent Qualified', 100000, 'USD', 'qualified',  $2, $3, $4, $4),
 			(gen_random_uuid(), $1, 'Old Lost',          50000, 'USD', 'closed_lost', $2, $3, $5, $5),
-			(gen_random_uuid(), $6, 'Other Won',        999999, 'USD', 'closed_won',  $7, $8, $4, $4);
+			(gen_random_uuid(), $6, 'Other Won',        999999, 'USD', 'closed_won',  $7, $8, $4, $4)
+	`, defaultOrgID, ownerID, defaultPipelineID, recent, old, otherOrgID, otherOwnerID, otherPipelineID)
+	require.NoError(t, err)
 
+	_, err = pool.Exec(context.Background(), `
 		INSERT INTO tickets (id, org_id, subject, status, priority, assignee_id, created_at, updated_at)
 		VALUES
 			(gen_random_uuid(), $1, 'Recent Open',     'open',     'medium', $2, $4, $4),
 			(gen_random_uuid(), $1, 'Old Resolved',    'resolved', 'medium', $2, $5, $4),
-			(gen_random_uuid(), $6, 'Other Open',      'open',     'low',    $7, $4, $4);
+			(gen_random_uuid(), $6, 'Other Open',      'open',     'low',    $7, $4, $4)
+	`, defaultOrgID, ownerID, recent, old, otherOrgID, otherOwnerID)
+	require.NoError(t, err)
 
+	_, err = pool.Exec(context.Background(), `
 		INSERT INTO activities (id, org_id, type, subject, owner_id, created_at, updated_at, completed_at)
 		VALUES
 			(gen_random_uuid(), $1, 'call', 'Recent Activity', $2, $4, $4, $4),
 			(gen_random_uuid(), $1, 'task', 'Old Activity',    $2, $5, $5, NULL),
-			(gen_random_uuid(), $6, 'email','Other Activity',  $7, $4, $4, $4);
-	`, defaultOrgID, ownerID, defaultPipelineID, recent, old, otherOrgID, otherOwnerID, otherPipelineID)
+			(gen_random_uuid(), $6, 'email','Other Activity',  $6, $3, $3, $3)
+	`, defaultOrgID, ownerID, recent, old, otherOrgID, otherOwnerID)
 	require.NoError(t, err)
 
 	from := now.Add(-24 * time.Hour)
