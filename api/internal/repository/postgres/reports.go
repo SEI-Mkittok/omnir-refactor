@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +34,19 @@ func reportArgs(orgID interface{}, f domain.ReportFilter, alias string) ([]inter
 	if f.To != nil {
 		args = append(args, *f.To)
 		sb.WriteString(" AND " + alias + ".created_at <= $" + strconv.Itoa(len(args)))
+	}
+	return args, sb.String()
+}
+
+func reportDateClause(args []interface{}, f domain.ReportFilter, alias, col string) ([]interface{}, string) {
+	var sb strings.Builder
+	if f.From != nil {
+		args = append(args, *f.From)
+		sb.WriteString(" AND " + alias + "." + col + " >= $" + strconv.Itoa(len(args)))
+	}
+	if f.To != nil {
+		args = append(args, *f.To)
+		sb.WriteString(" AND " + alias + "." + col + " <= $" + strconv.Itoa(len(args)))
 	}
 	return args, sb.String()
 }
@@ -723,5 +737,227 @@ func (r *ReportsRepo) ActivitySummary(ctx context.Context, filter domain.ReportF
 	return &domain.ActivitySummaryReport{
 		ByKind:  byKind,
 		ByOwner: byOwner,
+	}, nil
+}
+
+// ManagerDashboard returns a fixed manager dashboard response contract that
+// aggregates CRM, help desk, and team activity metrics.
+func (r *ReportsRepo) ManagerDashboard(ctx context.Context, filter domain.ReportFilter) (*domain.ManagerDashboardReport, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	if filter.OrgID != nil {
+		orgID = *filter.OrgID
+	}
+
+	dealReport, err := r.DealMetrics(domain.WithOrgID(ctx, orgID), filter)
+	if err != nil {
+		return nil, err
+	}
+	ticketReport, err := r.TicketMetrics(domain.WithOrgID(ctx, orgID), filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Backlog = open-like tickets older than 48h, respecting the created_at range.
+	backlogArgs := []interface{}{orgID}
+	backlogArgs, backlogDateClause := reportDateClause(backlogArgs, filter, "t", "created_at")
+	backlogArgs = append(backlogArgs, time.Now().Add(-48*time.Hour))
+	backlogThresholdIdx := "$" + strconv.Itoa(len(backlogArgs))
+
+	var backlogCount int
+	if err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM tickets t
+		WHERE t.org_id = $1
+		  AND t.deleted_at IS NULL
+		  AND t.status IN ('open','in_progress','pending')
+		  AND t.created_at <= `+backlogThresholdIdx+backlogDateClause,
+		backlogArgs...,
+	).Scan(&backlogCount); err != nil {
+		return nil, err
+	}
+
+	// Resolution trend: resolved/closed ticket counts grouped by updated_at date.
+	resolutionArgs := []interface{}{orgID}
+	resolutionArgs, resolutionDateClause := reportDateClause(resolutionArgs, filter, "t", "updated_at")
+	resolutionRows, err := r.db.Query(ctx, `
+		SELECT TO_CHAR(t.updated_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
+		FROM tickets t
+		WHERE t.org_id = $1
+		  AND t.deleted_at IS NULL
+		  AND t.status IN ('resolved','closed')`+resolutionDateClause+`
+		GROUP BY date
+		ORDER BY date
+	`, resolutionArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer resolutionRows.Close()
+
+	resolutionTrend := make([]domain.DailyCountMetric, 0)
+	for resolutionRows.Next() {
+		var point domain.DailyCountMetric
+		if err := resolutionRows.Scan(&point.Date, &point.Count); err != nil {
+			return nil, err
+		}
+		resolutionTrend = append(resolutionTrend, point)
+	}
+	if err := resolutionRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Team activity by user: combine created and completed aggregates.
+	byOwner := map[uuid.UUID]*domain.TeamActivityByUserMetric{}
+
+	createdByOwnerArgs := []interface{}{orgID}
+	createdByOwnerArgs, createdByOwnerClause := reportDateClause(createdByOwnerArgs, filter, "a", "created_at")
+	createdByOwnerRows, err := r.db.Query(ctx, `
+		SELECT a.owner_id, COUNT(*) AS created_count
+		FROM activities a
+		WHERE a.org_id = $1
+		  AND a.deleted_at IS NULL`+createdByOwnerClause+`
+		GROUP BY a.owner_id
+	`, createdByOwnerArgs...)
+	if err != nil {
+		return nil, err
+	}
+	for createdByOwnerRows.Next() {
+		var ownerID uuid.UUID
+		var count int
+		if err := createdByOwnerRows.Scan(&ownerID, &count); err != nil {
+			createdByOwnerRows.Close()
+			return nil, err
+		}
+		byOwner[ownerID] = &domain.TeamActivityByUserMetric{
+			OwnerID:      ownerID,
+			CreatedCount: count,
+		}
+	}
+	if err := createdByOwnerRows.Err(); err != nil {
+		createdByOwnerRows.Close()
+		return nil, err
+	}
+	createdByOwnerRows.Close()
+
+	completedByOwnerArgs := []interface{}{orgID}
+	completedByOwnerArgs, completedByOwnerClause := reportDateClause(completedByOwnerArgs, filter, "a", "completed_at")
+	completedByOwnerRows, err := r.db.Query(ctx, `
+		SELECT a.owner_id, COUNT(*) AS completed_count
+		FROM activities a
+		WHERE a.org_id = $1
+		  AND a.deleted_at IS NULL
+		  AND a.completed_at IS NOT NULL`+completedByOwnerClause+`
+		GROUP BY a.owner_id
+	`, completedByOwnerArgs...)
+	if err != nil {
+		return nil, err
+	}
+	for completedByOwnerRows.Next() {
+		var ownerID uuid.UUID
+		var count int
+		if err := completedByOwnerRows.Scan(&ownerID, &count); err != nil {
+			completedByOwnerRows.Close()
+			return nil, err
+		}
+		if byOwner[ownerID] == nil {
+			byOwner[ownerID] = &domain.TeamActivityByUserMetric{OwnerID: ownerID}
+		}
+		byOwner[ownerID].CompletedCount = count
+	}
+	if err := completedByOwnerRows.Err(); err != nil {
+		completedByOwnerRows.Close()
+		return nil, err
+	}
+	completedByOwnerRows.Close()
+
+	teamByUser := make([]domain.TeamActivityByUserMetric, 0, len(byOwner))
+	for _, row := range byOwner {
+		teamByUser = append(teamByUser, *row)
+	}
+	sort.Slice(teamByUser, func(i, j int) bool {
+		left := teamByUser[i].CreatedCount + teamByUser[i].CompletedCount
+		right := teamByUser[j].CreatedCount + teamByUser[j].CompletedCount
+		if left == right {
+			return teamByUser[i].OwnerID.String() < teamByUser[j].OwnerID.String()
+		}
+		return left > right
+	})
+
+	createdTrendArgs := []interface{}{orgID}
+	createdTrendArgs, createdTrendClause := reportDateClause(createdTrendArgs, filter, "a", "created_at")
+	createdTrendRows, err := r.db.Query(ctx, `
+		SELECT TO_CHAR(a.created_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
+		FROM activities a
+		WHERE a.org_id = $1
+		  AND a.deleted_at IS NULL`+createdTrendClause+`
+		GROUP BY date
+		ORDER BY date
+	`, createdTrendArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer createdTrendRows.Close()
+
+	createdTrend := make([]domain.DailyCountMetric, 0)
+	for createdTrendRows.Next() {
+		var point domain.DailyCountMetric
+		if err := createdTrendRows.Scan(&point.Date, &point.Count); err != nil {
+			return nil, err
+		}
+		createdTrend = append(createdTrend, point)
+	}
+	if err := createdTrendRows.Err(); err != nil {
+		return nil, err
+	}
+
+	completedTrendArgs := []interface{}{orgID}
+	completedTrendArgs, completedTrendClause := reportDateClause(completedTrendArgs, filter, "a", "completed_at")
+	completedTrendRows, err := r.db.Query(ctx, `
+		SELECT TO_CHAR(a.completed_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
+		FROM activities a
+		WHERE a.org_id = $1
+		  AND a.deleted_at IS NULL
+		  AND a.completed_at IS NOT NULL`+completedTrendClause+`
+		GROUP BY date
+		ORDER BY date
+	`, completedTrendArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer completedTrendRows.Close()
+
+	completedTrend := make([]domain.DailyCountMetric, 0)
+	for completedTrendRows.Next() {
+		var point domain.DailyCountMetric
+		if err := completedTrendRows.Scan(&point.Date, &point.Count); err != nil {
+			return nil, err
+		}
+		completedTrend = append(completedTrend, point)
+	}
+	if err := completedTrendRows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &domain.ManagerDashboardReport{
+		CRM: domain.DashboardCRMMetrics{
+			PipelineValueCents: dealReport.PipelineValueCents,
+			WonCount:           dealReport.WonCount,
+			LostCount:          dealReport.LostCount,
+			StageDistribution:  dealReport.ByStage,
+		},
+		HelpDesk: domain.DashboardHelpDeskMetrics{
+			OpenCount:          ticketReport.TotalOpen,
+			BacklogCount:       backlogCount,
+			StatusDistribution: ticketReport.ByStatus,
+			VolumeTrend:        ticketReport.OverTime,
+			ResolutionTrend:    resolutionTrend,
+		},
+		TeamActivity: domain.DashboardTeamActivityMetrics{
+			ByUser:            teamByUser,
+			CreatedOverTime:   createdTrend,
+			CompletedOverTime: completedTrend,
+		},
 	}, nil
 }

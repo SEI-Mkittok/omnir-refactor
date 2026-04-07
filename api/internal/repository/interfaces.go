@@ -109,6 +109,9 @@ type ReportsRepository interface {
 	RevenueProjection(ctx context.Context, months int) (*domain.RevenueProjectionReport, error)
 	// ActivitySummary returns activity counts by kind and by owner.
 	ActivitySummary(ctx context.Context, filter domain.ReportFilter) (*domain.ActivitySummaryReport, error)
+	// ManagerDashboard returns a fixed manager dashboard contract spanning CRM,
+	// help desk, and team activity metrics for the given date range.
+	ManagerDashboard(ctx context.Context, filter domain.ReportFilter) (*domain.ManagerDashboardReport, error)
 }
 
 // UserRepository defines the persistence contract for users.
