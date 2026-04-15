@@ -634,7 +634,6 @@ function ThreadDetailPanel({
   const [showReply, setShowReply] = useState(false)
 
   const messages = thread?.messages ?? []
-  const account = accounts.find((a) => a.id === thread?.account_id)
 
   const COLLAPSE_THRESHOLD = 5
   const [showAll, setShowAll] = useState(false)
@@ -648,13 +647,13 @@ function ThreadDetailPanel({
     const fromAccount = accounts.find((a) => a.id === fromAccountId)
     const replyTo = thread.participants.find((p) => p !== fromAccount?.email_address) ?? thread.participants[0]
     await sendEmail({
-      account_id: fromAccountId,
+      connection_id: fromAccountId,
       to: [replyTo],
       cc: cc ? [cc] : undefined,
       bcc: bcc ? [bcc] : undefined,
       subject: thread.subject.startsWith('Re:') ? thread.subject : `Re: ${thread.subject}`,
       body_html: `<p>${body.replace(/\n/g, '<br/>')}</p>`,
-      thread_id: thread.id,
+      thread_id: thread.thread_id,
     })
     setShowReply(false)
   }
@@ -721,7 +720,7 @@ function ThreadDetailPanel({
               onClick={() => setShowReply(true)}
               className="w-full rounded-lg border border-[#E5E7EB] px-4 py-3 text-left text-sm text-[#9CA3AF] transition-colors hover:bg-[#F7F8FA]"
             >
-              Reply to {senderLabel(messages[messages.length - 1] ?? { from_addr: '', from_name: undefined, direction: 'inbound', id: '', org_id: '', account_id: '', thread_id: '', message_id: '', to_addrs: [], subject: '', body_text: '', snippet: '', has_attachments: false, sent_at: '', created_at: '' })}…
+              Reply to {senderLabel(messages[messages.length - 1] ?? { from_addr: '', from_name: undefined, direction: 'inbound', id: '', org_id: '', connection_id: '', thread_id: '', message_id: '', to_addrs: [], subject: '', body_text: '', snippet: '', has_attachments: false, sent_at: '', created_at: '' })}…
             </button>
           )}
         </div>
@@ -793,7 +792,7 @@ export function InboxPage() {
   const [showCompose, setShowCompose] = useState(false)
 
   const { data: threadsPage, isLoading: loadingThreads } = useInboxThreads({
-    account_id: filterAccountId ?? undefined,
+    connection_id: filterAccountId ?? undefined,
     unread_only: unreadOnly || undefined,
   })
   const threads = threadsPage?.data ?? []
@@ -805,8 +804,8 @@ export function InboxPage() {
   const unreadCount = threads.filter((t) => t.unread).length
 
   function handleSelectThread(t: InboxThread) {
-    setSelectedThreadId(t.id)
-    if (t.unread) markRead(t.id)
+    setSelectedThreadId(t.thread_id)
+    if (t.unread) markRead(t.thread_id)
   }
 
   async function handleConnect(provider: 'gmail' | 'outlook') {
@@ -819,7 +818,7 @@ export function InboxPage() {
     subject: string; body: string
   }) {
     await sendEmail({
-      account_id: payload.accountId,
+      connection_id: payload.accountId,
       to: payload.to,
       cc: payload.cc,
       bcc: payload.bcc,
@@ -945,10 +944,10 @@ export function InboxPage() {
 
           {threads.map((t) => (
             <ThreadRow
-              key={t.id}
+              key={t.thread_id}
               thread={t}
-              account={accounts.find((a) => a.id === t.account_id)}
-              isSelected={selectedThreadId === t.id}
+              account={accounts.find((a) => a.id === t.connection_id)}
+              isSelected={selectedThreadId === t.thread_id}
               onClick={() => handleSelectThread(t)}
             />
           ))}

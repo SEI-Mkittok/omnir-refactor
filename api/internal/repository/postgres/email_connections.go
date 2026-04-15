@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -311,6 +313,146 @@ func (r *EmailInboxRepo) List(ctx context.Context, filter domain.EmailInboxFilte
 			return nil, 0, err
 		}
 		out = append(out, m)
+	}
+	return out, total, rows.Err()
+}
+
+func (r *EmailInboxRepo) ListThreads(ctx context.Context, filter domain.EmailInboxFilter) ([]*domain.EmailInboxThreadSummary, int, error) {
+	if filter.Limit <= 0 {
+		filter.Limit = 50
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+
+	where := []string{"org_id = $1"}
+	args := []any{filter.OrgID}
+	i := 2
+
+	if filter.ConnectionID != nil {
+		where = append(where, fmt.Sprintf("connection_id = $%d", i))
+		args = append(args, *filter.ConnectionID)
+		i++
+	}
+	if filter.ContactID != nil {
+		where = append(where, fmt.Sprintf("contact_id = $%d", i))
+		args = append(args, *filter.ContactID)
+		i++
+	}
+	if filter.UnreadOnly {
+		where = append(where, "direction = 'inbound' AND read_at IS NULL")
+	}
+
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	countQuery := `
+		WITH filtered AS (
+			SELECT thread_id
+			FROM email_inbox_messages
+			WHERE ` + whereClause + `
+		)
+		SELECT COUNT(DISTINCT thread_id) FROM filtered`
+	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []*domain.EmailInboxThreadSummary{}, 0, nil
+	}
+
+	offset := (filter.Page - 1) * filter.Limit
+	queryArgs := append([]any{}, args...)
+	queryArgs = append(queryArgs, filter.Limit, offset)
+	limitIdx := len(queryArgs) - 1
+	offsetIdx := len(queryArgs)
+
+	query := `
+		WITH filtered AS (
+			SELECT *
+			FROM email_inbox_messages
+			WHERE ` + whereClause + `
+		),
+		latest AS (
+			SELECT DISTINCT ON (thread_id)
+				thread_id,
+				org_id,
+				connection_id,
+				subject,
+				COALESCE(NULLIF(body_text, ''), '') AS snippet,
+				sent_at,
+				contact_id
+			FROM filtered
+			ORDER BY thread_id, sent_at DESC, created_at DESC
+		),
+		aggregated AS (
+			SELECT
+				thread_id,
+				org_id,
+				connection_id,
+				COUNT(*) AS message_count,
+				BOOL_OR(direction = 'inbound' AND read_at IS NULL) AS unread,
+				MAX(sent_at) AS last_message_at,
+				(array_agg(contact_id) FILTER (WHERE contact_id IS NOT NULL))[1] AS contact_id
+			FROM filtered
+			GROUP BY thread_id, org_id, connection_id
+		),
+		participants AS (
+			SELECT
+				thread_id,
+				array_agg(DISTINCT participant ORDER BY participant) AS participants
+			FROM (
+				SELECT thread_id, from_addr AS participant FROM filtered
+				UNION ALL
+				SELECT f.thread_id, addr.value AS participant
+				FROM filtered f
+				CROSS JOIN LATERAL jsonb_array_elements_text(f.to_addrs) AS addr(value)
+			) p
+			GROUP BY thread_id
+		)
+		SELECT
+			a.thread_id,
+			a.org_id,
+			a.connection_id,
+			l.subject,
+			COALESCE(p.participants, ARRAY[]::text[]),
+			l.snippet,
+			a.unread,
+			a.message_count,
+			a.last_message_at,
+			COALESCE(a.contact_id, l.contact_id) AS contact_id
+		FROM aggregated a
+		JOIN latest l ON l.thread_id = a.thread_id
+		LEFT JOIN participants p ON p.thread_id = a.thread_id
+		ORDER BY a.last_message_at DESC
+		LIMIT $` + itoa(limitIdx) + ` OFFSET $` + itoa(offsetIdx)
+
+	rows, err := r.db.Query(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var out []*domain.EmailInboxThreadSummary
+	for rows.Next() {
+		var summary domain.EmailInboxThreadSummary
+		if err := rows.Scan(
+			&summary.ThreadID,
+			&summary.OrgID,
+			&summary.ConnectionID,
+			&summary.Subject,
+			&summary.Participants,
+			&summary.Snippet,
+			&summary.Unread,
+			&summary.MessageCount,
+			&summary.LastMessageAt,
+			&summary.ContactID,
+		); err != nil {
+			return nil, 0, err
+		}
+		if summary.Participants == nil {
+			summary.Participants = []string{}
+		}
+		out = append(out, &summary)
 	}
 	return out, total, rows.Err()
 }

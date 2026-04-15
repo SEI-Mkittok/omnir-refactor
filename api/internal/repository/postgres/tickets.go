@@ -239,6 +239,9 @@ func (r *TicketRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Tick
 	if patch.Source != nil {
 		addArg("source", *patch.Source)
 	}
+	if patch.Tags != nil {
+		addArg("tags", patch.Tags)
+	}
 	if len(patch.CustomFields) > 0 {
 		addArg("custom_fields", []byte(patch.CustomFields))
 	}

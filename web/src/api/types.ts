@@ -452,6 +452,7 @@ export interface UpdateTicketRequest {
   priority?: TicketPriority
   assignee_id?: string
   account_id?: string | null
+  tags?: string[]
 }
 
 export interface TicketListParams {
@@ -1328,16 +1329,16 @@ export interface EmailAccount {
   user_id: string
   provider: EmailAccountProvider
   email_address: string
-  display_name?: string
-  status: EmailAccountStatus
+  token_expiry?: string
   last_synced_at?: string
   created_at: string
+  updated_at: string
 }
 
 export interface InboxMessage {
   id: string
   org_id: string
-  account_id: string
+  connection_id: string
   thread_id: string
   message_id: string
   direction: EmailDirection
@@ -1365,9 +1366,9 @@ export interface InboxAttachment {
 }
 
 export interface InboxThread {
-  id: string
+  thread_id: string
   org_id: string
-  account_id: string
+  connection_id: string
   subject: string
   participants: string[]
   snippet: string
@@ -1379,14 +1380,14 @@ export interface InboxThread {
 }
 
 export interface InboxListParams {
-  account_id?: string
+  connection_id?: string
   unread_only?: boolean
   page?: number
   limit?: number
 }
 
 export interface SendInboxEmailRequest {
-  account_id: string
+  connection_id: string
   to: string[]
   cc?: string[]
   bcc?: string[]

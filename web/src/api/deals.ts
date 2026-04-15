@@ -11,7 +11,20 @@ import type {
 
 export const dealsApi = {
   list: async (params?: DealListParams): Promise<PaginatedResponse<Deal>> => {
-    const { data } = await apiClient.get('/deals', { params })
+    const query = params
+      ? {
+          page: params.page,
+          limit: params.per_page,
+          q: params.search,
+          stage: params.stage,
+          account_id: params.account_id,
+          pipeline_id: params.pipeline_id,
+          owner_id: params.owner_id,
+          sort: params.sort_by,
+          order: params.sort_dir,
+        }
+      : undefined
+    const { data } = await apiClient.get('/deals', { params: query })
     return data
   },
 
