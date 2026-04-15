@@ -178,18 +178,18 @@ func TestReportsRepo_ManagerDashboard_RangeAndOrgIsolation(t *testing.T) {
 	_, err = pool.Exec(context.Background(), `
 		INSERT INTO tickets (id, org_id, subject, status, priority, assignee_id, created_at, updated_at)
 		VALUES
-			(gen_random_uuid(), $1, 'Recent Open',     'open',     'medium', $2, $4, $4),
-			(gen_random_uuid(), $1, 'Old Resolved',    'resolved', 'medium', $2, $5, $4),
-			(gen_random_uuid(), $6, 'Other Open',      'open',     'low',    $7, $4, $4)
+			(gen_random_uuid(), $1, 'Recent Open',     'open',     'medium', $2, $3, $3),
+			(gen_random_uuid(), $1, 'Old Resolved',    'resolved', 'medium', $2, $4, $3),
+			(gen_random_uuid(), $5, 'Other Open',      'open',     'low',    $6, $3, $3)
 	`, defaultOrgID, ownerID, recent, old, otherOrgID, otherOwnerID)
 	require.NoError(t, err)
 
 	_, err = pool.Exec(context.Background(), `
 		INSERT INTO activities (id, org_id, type, subject, owner_id, created_at, updated_at, completed_at)
 		VALUES
-			(gen_random_uuid(), $1, 'call', 'Recent Activity', $2, $4, $4, $4),
-			(gen_random_uuid(), $1, 'task', 'Old Activity',    $2, $5, $5, NULL),
-			(gen_random_uuid(), $6, 'email','Other Activity',  $6, $3, $3, $3)
+			(gen_random_uuid(), $1, 'call', 'Recent Activity', $2, $3, $3, $3),
+			(gen_random_uuid(), $1, 'task', 'Old Activity',    $2, $4, $4, NULL),
+			(gen_random_uuid(), $5, 'email','Other Activity',  $6, $3, $3, $3)
 	`, defaultOrgID, ownerID, recent, old, otherOrgID, otherOwnerID)
 	require.NoError(t, err)
 
