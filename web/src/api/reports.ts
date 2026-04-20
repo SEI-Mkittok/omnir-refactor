@@ -5,6 +5,8 @@ import type {
   LeadReport,
   ContactReport,
   DealReport,
+  PipelineFunnelReport,
+  ActivitySummaryReport,
 } from './types'
 
 export interface ReportsParams {
@@ -34,5 +36,15 @@ export async function getContactReport(params?: ReportsParams): Promise<ContactR
 
 export async function getDealReport(params?: ReportsParams): Promise<DealReport> {
   const res = await apiClient.get<DealReport>('/reports/deals', { params })
+  return res.data
+}
+
+export async function getPipelineFunnelReport(params?: ReportsParams): Promise<PipelineFunnelReport> {
+  const res = await apiClient.get<PipelineFunnelReport>('/reports/pipeline-funnel', { params })
+  return res.data
+}
+
+export async function getActivitySummaryReport(params?: ReportsParams): Promise<ActivitySummaryReport> {
+  const res = await apiClient.get<ActivitySummaryReport>('/reports/activity-summary', { params })
   return res.data
 }

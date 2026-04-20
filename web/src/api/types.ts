@@ -377,6 +377,31 @@ export interface DealReport {
   lost_count: number
 }
 
+export interface PipelineFunnelStage {
+  name: string
+  count: number
+  value_cents: number
+}
+
+export interface PipelineFunnelReport {
+  stages: PipelineFunnelStage[]
+}
+
+export interface ActivityKindCount {
+  kind: ActivityType
+  count: number
+}
+
+export interface ActivityOwnerCount {
+  owner_id: string
+  count: number
+}
+
+export interface ActivitySummaryReport {
+  by_kind: ActivityKindCount[]
+  by_owner: ActivityOwnerCount[]
+}
+
 // ---- Search ----
 
 export interface SearchResult {
