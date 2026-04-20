@@ -72,9 +72,9 @@ type UsageStat struct {
 type BillingUsageStats struct {
 	Plan  BillingPlan `json:"plan"`
 	Usage struct {
-		Users      UsageStat `json:"users"`
-		Contacts   UsageStat `json:"contacts"`
-		StorageMB  UsageStat `json:"storage_mb"`
+		Users     UsageStat `json:"users"`
+		Contacts  UsageStat `json:"contacts"`
+		StorageMB UsageStat `json:"storage_mb"`
 	} `json:"usage"`
 	BillingCycle struct {
 		CurrentPeriodStart string `json:"current_period_start"`

@@ -34,6 +34,7 @@ func (h *ReportsHandler) Router() chi.Router {
 	r.Get("/conversion-rates", h.ConversionRates)
 	r.Get("/revenue-projection", h.RevenueProjection)
 	r.Get("/activity-summary", h.ActivitySummary)
+	r.Get("/manager-dashboard", h.ManagerDashboard)
 	return r
 }
 
@@ -224,6 +225,21 @@ func (h *ReportsHandler) ActivitySummary(w http.ResponseWriter, r *http.Request)
 	report, err := h.repo.ActivitySummary(r.Context(), f)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to load activity summary")
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+// ManagerDashboard handles GET /reports/manager-dashboard.
+func (h *ReportsHandler) ManagerDashboard(w http.ResponseWriter, r *http.Request) {
+	f, err := parseReportFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	report, err := h.repo.ManagerDashboard(r.Context(), f)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load manager dashboard metrics")
 		return
 	}
 	writeJSON(w, http.StatusOK, report)
