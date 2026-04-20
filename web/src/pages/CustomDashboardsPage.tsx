@@ -73,6 +73,7 @@ const WIDGET_CATALOGUE: WidgetMeta[] = [
 ]
 
 const PIE_COLORS = ['#1B3A4B', '#2E5068', '#446585', '#5D7FA0', '#7C8DB0', '#A0B3C0']
+const WIDGET_CHART_MIN_HEIGHT = 160
 
 function widgetMeta(type: string): WidgetMeta {
   return WIDGET_CATALOGUE.find((w) => w.type === type) ?? {
@@ -107,7 +108,7 @@ function WidgetChart({ type, data }: { type: string; data: unknown }) {
 
   if (type === 'deals_by_stage' || type === 'pipeline_funnel') {
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={WIDGET_CHART_MIN_HEIGHT}>
         <BarChart data={arr} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
           <XAxis dataKey="stage" tick={{ fontSize: 10 }} />
@@ -121,7 +122,7 @@ function WidgetChart({ type, data }: { type: string; data: unknown }) {
 
   if (type === 'contacts_monthly') {
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={WIDGET_CHART_MIN_HEIGHT}>
         <RLineChart data={arr} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
           <XAxis dataKey="month" tick={{ fontSize: 10 }} />
@@ -135,7 +136,7 @@ function WidgetChart({ type, data }: { type: string; data: unknown }) {
 
   if (type === 'activities_by_type' || type === 'conversion_rates') {
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={WIDGET_CHART_MIN_HEIGHT}>
         <RPieChart>
           <Pie data={arr} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius="70%">
             {arr.map((_: unknown, i: number) => (
@@ -150,7 +151,7 @@ function WidgetChart({ type, data }: { type: string; data: unknown }) {
 
   if (type === 'revenue_projection') {
     return (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={WIDGET_CHART_MIN_HEIGHT}>
         <RLineChart data={arr} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
           <XAxis dataKey="month" tick={{ fontSize: 10 }} />
@@ -226,7 +227,7 @@ function SortableWidgetCard({ widget, runData, onRemove }: SortableWidgetCardPro
         </button>
       </div>
       {/* Content */}
-      <div className="flex-1 p-3 min-h-0" style={{ height: 180 }}>
+      <div className="flex-1 min-w-0 p-3 min-h-0" style={{ height: 180 }}>
         {runData !== undefined ? (
           <WidgetChart type={widget.type} data={runData} />
         ) : (
