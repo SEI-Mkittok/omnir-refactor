@@ -16,8 +16,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   BarChart2, LineChart, PieChart, Activity, TrendingUp, Users,
-  Mail, Ticket, Plus, Trash2, GripVertical, Save, Edit2, X,
-  Calendar, Clock, ChevronDown, MoreVertical, Play,
+  Ticket, Plus, Trash2, GripVertical, Save, Edit2, X,
+  Calendar, Clock, ChevronDown, MoreVertical,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,

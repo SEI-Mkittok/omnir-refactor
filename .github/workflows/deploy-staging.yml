@@ -28,7 +28,7 @@ jobs:
       frontend_tag: ${{ steps.meta-frontend.outputs.tags }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -94,7 +94,7 @@ jobs:
       url: http://100.73.134.90
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Sync prod compose and scripts to deploy dir
         run: |
