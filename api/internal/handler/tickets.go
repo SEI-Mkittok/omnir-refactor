@@ -275,6 +275,9 @@ func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if comments == nil {
+		comments = []*domain.TicketComment{}
+	}
 	writeJSON(w, http.StatusOK, comments)
 }
 
@@ -364,6 +367,9 @@ func (h *TicketHandler) ListAttachments(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if attachments == nil {
+		attachments = []*domain.TicketAttachment{}
 	}
 	writeJSON(w, http.StatusOK, attachments)
 }
