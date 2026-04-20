@@ -22,7 +22,7 @@ import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
 import { LeadScoreBadge } from '@/components/omnir/LeadScoreBadge'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
-import type { Lead, LeadStatus, UpdateLeadRequest, CustomFieldValues, User } from '@/api/types'
+import type { LeadStatus, UpdateLeadRequest, CustomFieldValues, User } from '@/api/types'
 
 // ── Status badge helpers ─────────────────────────────────────────────────────
 

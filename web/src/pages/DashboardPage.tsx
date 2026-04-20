@@ -25,7 +25,7 @@ import * as RadixSelect from '@radix-ui/react-select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { useDealReport, useTicketReport, useReportsSummary } from '@/hooks/useReports'
 import { useActivities, useUpdateActivity } from '@/hooks/useActivities'
-import { formatCurrency, formatCompactCurrency } from '@/lib/utils'
+import { formatCompactCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
