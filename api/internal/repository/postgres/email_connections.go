@@ -327,17 +327,14 @@ func (r *EmailInboxRepo) ListThreads(ctx context.Context, filter domain.EmailInb
 
 	where := []string{"org_id = $1"}
 	args := []any{filter.OrgID}
-	i := 2
 
 	if filter.ConnectionID != nil {
-		where = append(where, fmt.Sprintf("connection_id = $%d", i))
+		where = append(where, fmt.Sprintf("connection_id = $%d", len(args)+1))
 		args = append(args, *filter.ConnectionID)
-		i++
 	}
 	if filter.ContactID != nil {
-		where = append(where, fmt.Sprintf("contact_id = $%d", i))
+		where = append(where, fmt.Sprintf("contact_id = $%d", len(args)+1))
 		args = append(args, *filter.ContactID)
-		i++
 	}
 	if filter.UnreadOnly {
 		where = append(where, "direction = 'inbound' AND read_at IS NULL")
