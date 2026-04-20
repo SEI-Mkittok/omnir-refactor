@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -74,7 +75,11 @@ func (r *CustomFieldDefinitionRepo) Create(ctx context.Context, def *domain.Cust
 		def.ID, def.OrgID, def.EntityType, def.Name, def.Label, def.FieldType,
 		optionsJSON, def.Required, def.OrderIdx, def.CreatedAt, def.UpdatedAt,
 	)
-	return scanCFD(row)
+	created, err := scanCFD(row)
+	if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+		return nil, fmt.Errorf("%w: custom field name already exists for this entity type", domain.ErrConflict)
+	}
+	return created, err
 }
 
 func (r *CustomFieldDefinitionRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.CustomFieldDefinition, error) {
@@ -126,7 +131,11 @@ func (r *CustomFieldDefinitionRepo) Update(ctx context.Context, id uuid.UUID, pa
 
 	q := fmt.Sprintf(`UPDATE custom_field_definitions SET %s %s RETURNING `+cfdCols,
 		strings.Join(sets, ", "), whereClause)
-	return scanCFD(r.db.QueryRow(ctx, q, args...))
+	updated, err := scanCFD(r.db.QueryRow(ctx, q, args...))
+	if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+		return nil, fmt.Errorf("%w: custom field name already exists for this entity type", domain.ErrConflict)
+	}
+	return updated, err
 }
 
 func (r *CustomFieldDefinitionRepo) Delete(ctx context.Context, id uuid.UUID) error {

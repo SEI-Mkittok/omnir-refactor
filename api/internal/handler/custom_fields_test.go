@@ -187,6 +187,27 @@ func TestCustomFieldHandler_Create_MaxFieldsExceeded(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }
 
+func TestCustomFieldHandler_Create_DuplicateName(t *testing.T) {
+	repo := &cfdMock{}
+	h := handler.NewCustomFieldHandler(repo)
+
+	repo.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{
+		{ID: uuid.New(), Name: "contract_value", EntityType: domain.CustomFieldEntityTicket},
+	}, nil)
+
+	req := cfdAdminReq(t, http.MethodPost, "/custom-fields", map[string]any{
+		"entity_type": "ticket",
+		"name":        "contract_value",
+		"label":       "Contract Value",
+		"field_type":  "text",
+	})
+	w := httptest.NewRecorder()
+	cfdRouter(h).ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	repo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
 func TestCustomFieldHandler_List(t *testing.T) {
 	repo := &cfdMock{}
 	h := handler.NewCustomFieldHandler(repo)
