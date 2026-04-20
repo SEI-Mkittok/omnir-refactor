@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react'
+import { useState, useEffect, useId, useRef } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -437,6 +437,10 @@ function newWidgetId() { return `widget-${++_widgetCounter}` }
 
 type LocalWidget = Widget & { _id: string }
 
+function hydrateWidgets(widgets: Widget[]): LocalWidget[] {
+  return widgets.map((widget) => ({ ...widget, _id: newWidgetId() }))
+}
+
 export function CustomDashboardsPage() {
   const { data: dashboards, isLoading: loadingList } = useDashboards()
   const { data: schedules } = useSchedules()
@@ -453,6 +457,7 @@ export function CustomDashboardsPage() {
   const [showSchedule, setShowSchedule] = useState(false)
   const [showNewModal, setShowNewModal] = useState(false)
   const [newDashName, setNewDashName] = useState('')
+  const previousDashIdRef = useRef<string | null>(null)
 
   const activeDash = dashboards?.find((d) => d.id === activeDashId) ?? null
 
@@ -460,23 +465,29 @@ export function CustomDashboardsPage() {
 
   const scheduleForActive = schedules?.find((s) => s.dashboard_id === activeDashId) ?? null
 
-  // When a dashboard is selected, load its widgets into local state
+  // Switch dashboards immediately, but avoid blowing away local edits on same-dashboard refetches.
   useEffect(() => {
-    if (activeDash) {
+    if (!activeDash) {
+      previousDashIdRef.current = null
+      return
+    }
+
+    const isSwitchingDashboards = previousDashIdRef.current !== activeDash.id
+    if (isSwitchingDashboards || !dirty) {
       setDraftName(activeDash.name)
-      setWidgets(
-        activeDash.widgets.map((w) => ({ ...w, _id: newWidgetId() }))
-      )
+      setWidgets(hydrateWidgets(activeDash.widgets))
       setDirty(false)
     }
-  }, [activeDash?.id])
+
+    previousDashIdRef.current = activeDash.id
+  }, [activeDash, dirty])
 
   // Auto-select first dashboard
   useEffect(() => {
     if (!activeDashId && dashboards?.length) {
       setActiveDashId(dashboards[0].id)
     }
-  }, [dashboards])
+  }, [activeDashId, dashboards])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -514,15 +525,16 @@ export function CustomDashboardsPage() {
     setDirty(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!activeDashId) return
     const patch: { name?: string; widgets?: Widget[] } = {}
     if (draftName !== activeDash?.name) patch.name = draftName
     patch.widgets = widgets.map(({ _id: _, ...w }) => w)
-    updateDash.mutate(
-      { id: activeDashId, patch },
-      { onSuccess: () => setDirty(false) }
-    )
+    const savedDashboard = await updateDash.mutateAsync({ id: activeDashId, patch })
+    setDraftName(savedDashboard.name)
+    setWidgets(hydrateWidgets(savedDashboard.widgets))
+    setDirty(false)
+    previousDashIdRef.current = savedDashboard.id
   }
 
   function handleCreateDashboard() {

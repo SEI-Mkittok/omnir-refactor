@@ -47,10 +47,10 @@ export function useMarkThreadRead() {
       const previous = qc.getQueriesData({ queryKey: inboxKeys.threads() })
       qc.setQueriesData({ queryKey: inboxKeys.threads() }, (old: unknown) => {
         if (!old || typeof old !== 'object') return old
-        const page = old as { data: { id: string; unread: boolean }[]; meta: unknown }
+        const page = old as { data: { thread_id: string; unread: boolean }[]; meta: unknown }
         return {
           ...page,
-          data: page.data.map((t) => (t.id === threadId ? { ...t, unread: false } : t)),
+          data: page.data.map((t) => (t.thread_id === threadId ? { ...t, unread: false } : t)),
         }
       })
       return { previous }

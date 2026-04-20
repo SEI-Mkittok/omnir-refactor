@@ -40,8 +40,9 @@ function CommentBubble({ comment }: { comment: TicketComment }) {
 }
 
 export function CommentThread({ ticketId }: CommentThreadProps) {
-  const { data: comments = [], isLoading } = useTicketComments(ticketId)
+  const { data: commentsData, isLoading } = useTicketComments(ticketId)
   const { mutateAsync: addComment, isPending } = useAddTicketComment()
+  const comments = Array.isArray(commentsData) ? commentsData : []
 
   const [body, setBody] = useState('')
   const [isInternal, setIsInternal] = useState(false)

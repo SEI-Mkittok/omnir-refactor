@@ -101,3 +101,11 @@ func (m *MockReportsRepository) ActivitySummary(ctx context.Context, filter doma
 	}
 	return args.Get(0).(*domain.ActivitySummaryReport), args.Error(1)
 }
+
+func (m *MockReportsRepository) ManagerDashboard(ctx context.Context, filter domain.ReportFilter) (*domain.ManagerDashboardReport, error) {
+	args := m.Called(ctx, filter)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.ManagerDashboardReport), args.Error(1)
+}

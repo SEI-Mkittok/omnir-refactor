@@ -272,6 +272,19 @@ func TestTicketHandler_Update(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:     "updates ticket tags",
+			ticketID: ticketID.String(),
+			body: map[string]any{
+				"tags": []string{"vip", "renewal"},
+			},
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("Update", mock.Anything, ticketID, mock.MatchedBy(func(p domain.TicketPatch) bool {
+					return len(p.Tags) == 2 && p.Tags[0] == "vip" && p.Tags[1] == "renewal"
+				})).Return(&domain.Ticket{ID: ticketID, Tags: []string{"vip", "renewal"}}, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:       "returns 400 for invalid uuid",
 			ticketID:   "not-a-uuid",
 			body:       map[string]any{"status": "closed"},
@@ -549,6 +562,30 @@ func TestTicketHandler_ListComments(t *testing.T) {
 	}
 }
 
+func TestTicketHandler_ListComments_NormalizesNilSlice(t *testing.T) {
+	ticketID := uuid.New()
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+
+	mockComments.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketCommentFilter) bool {
+		return f.TicketID == ticketID
+	})).Return(nil, nil)
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+ticketID.String()+"/comments", nil)
+	req = withURLParam(req, "id", ticketID.String())
+	w := httptest.NewRecorder()
+
+	h.ListComments(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.JSONEq(t, "[]", w.Body.String())
+	mockComments.AssertExpectations(t)
+}
+
 func TestTicketHandler_CreateComment(t *testing.T) {
 	ticketID := uuid.New()
 	userID := uuid.New()
@@ -670,6 +707,28 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 			mockComments.AssertExpectations(t)
 		})
 	}
+}
+
+func TestTicketHandler_ListAttachments_NormalizesNilSlice(t *testing.T) {
+	ticketID := uuid.New()
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+
+	mockAttachments.On("List", mock.Anything, ticketID).Return(nil, nil)
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+ticketID.String()+"/attachments", nil)
+	req = withURLParam(req, "id", ticketID.String())
+	w := httptest.NewRecorder()
+
+	h.ListAttachments(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.JSONEq(t, "[]", w.Body.String())
+	mockAttachments.AssertExpectations(t)
 }
 
 func TestTicketHandler_DeleteComment(t *testing.T) {

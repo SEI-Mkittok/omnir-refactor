@@ -3,9 +3,11 @@
 package postgres_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -134,4 +136,74 @@ func TestReportsRepo_LeadMetrics(t *testing.T) {
 		assert.Equal(t, 2, report.ConvertedCount)
 		assert.InDelta(t, 0.6667, report.ConversionRate, 0.001)
 	})
+}
+
+func TestReportsRepo_ManagerDashboard_RangeAndOrgIsolation(t *testing.T) {
+	pool, ctx := setupDB(t)
+	repo := postgres.NewReportsRepo(pool)
+
+	ownerID := seedUser(t, pool)
+	otherOrgID := uuid.New()
+	otherPipelineID := uuid.New()
+	otherOwnerID := uuid.New()
+
+	_, err := pool.Exec(context.Background(), `
+		INSERT INTO orgs (id, name, slug, plan) VALUES ($1, 'Other Org', 'other-org', 'pro')
+	`, otherOrgID)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO pipelines (id, org_id, name, stages) VALUES ($1, $2, 'Other Pipeline', '[]'::jsonb)
+	`, otherPipelineID, otherOrgID)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO users (id, org_id, email, name, role) VALUES ($1, $2, $3, 'Other User', 'agent')
+	`, otherOwnerID, otherOrgID, "other+"+otherOwnerID.String()+"@omnir.test")
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	recent := now.Add(-2 * time.Hour)
+	old := now.Add(-72 * time.Hour)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO deals (id, org_id, title, value_cents, currency, stage, owner_id, pipeline_id, created_at, updated_at)
+		VALUES
+			(gen_random_uuid(), $1, 'Recent Qualified', 100000, 'USD', 'qualified',  $2, $3, $4, $4),
+			(gen_random_uuid(), $1, 'Old Lost',          50000, 'USD', 'closed_lost', $2, $3, $5, $5),
+			(gen_random_uuid(), $6, 'Other Won',        999999, 'USD', 'closed_won',  $7, $8, $4, $4)
+	`, defaultOrgID, ownerID, defaultPipelineID, recent, old, otherOrgID, otherOwnerID, otherPipelineID)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO tickets (id, org_id, subject, status, priority, assignee_id, created_at, updated_at)
+		VALUES
+			(gen_random_uuid(), $1, 'Recent Open',     'open',     'medium', $2, $3, $3),
+			(gen_random_uuid(), $1, 'Old Resolved',    'resolved', 'medium', $2, $4, $3),
+			(gen_random_uuid(), $5, 'Other Open',      'open',     'low',    $6, $3, $3)
+	`, defaultOrgID, ownerID, recent, old, otherOrgID, otherOwnerID)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(context.Background(), `
+		INSERT INTO activities (id, org_id, type, subject, owner_id, created_at, updated_at, completed_at)
+		VALUES
+			(gen_random_uuid(), $1, 'call', 'Recent Activity', $2, $3, $3, $3),
+			(gen_random_uuid(), $1, 'task', 'Old Activity',    $2, $4, $4, NULL),
+			(gen_random_uuid(), $5, 'email','Other Activity',  $6, $3, $3, $3)
+	`, defaultOrgID, ownerID, recent, old, otherOrgID, otherOwnerID)
+	require.NoError(t, err)
+
+	from := now.Add(-24 * time.Hour)
+	report, err := repo.ManagerDashboard(ctx, domain.ReportFilter{From: &from})
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(100000), report.CRM.PipelineValueCents)
+	assert.Equal(t, 0, report.CRM.WonCount)
+	assert.Equal(t, 0, report.CRM.LostCount)
+	assert.Equal(t, 1, report.HelpDesk.OpenCount)
+	assert.Equal(t, 0, report.HelpDesk.BacklogCount)
+	require.Len(t, report.TeamActivity.ByUser, 1)
+	assert.Equal(t, ownerID, report.TeamActivity.ByUser[0].OwnerID)
+	assert.Equal(t, 1, report.TeamActivity.ByUser[0].CreatedCount)
+	assert.Equal(t, 1, report.TeamActivity.ByUser[0].CompletedCount)
 }

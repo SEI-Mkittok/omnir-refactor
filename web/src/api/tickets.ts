@@ -37,7 +37,7 @@ export const ticketsApi = {
 
   getComments: async (id: string): Promise<TicketComment[]> => {
     const { data } = await apiClient.get(`/tickets/${id}/comments`)
-    return data
+    return Array.isArray(data) ? data : []
   },
 
   addComment: async (id: string, payload: CreateTicketCommentRequest): Promise<TicketComment> => {
@@ -47,7 +47,7 @@ export const ticketsApi = {
 
   getAttachments: async (id: string): Promise<TicketAttachment[]> => {
     const { data } = await apiClient.get(`/tickets/${id}/attachments`)
-    return data
+    return Array.isArray(data) ? data : []
   },
 
   uploadAttachment: async (id: string, file: File): Promise<TicketAttachment> => {

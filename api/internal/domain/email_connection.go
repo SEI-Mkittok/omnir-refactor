@@ -87,12 +87,33 @@ type EmailInboxMessage struct {
 	CreatedAt    time.Time      `json:"created_at"`
 }
 
+// EmailInboxThreadSummary is the thread-first view used by the inbox UI.
+type EmailInboxThreadSummary struct {
+	ThreadID      string     `json:"thread_id"`
+	OrgID         uuid.UUID  `json:"org_id"`
+	ConnectionID  uuid.UUID  `json:"connection_id"`
+	Subject       string     `json:"subject"`
+	Participants  []string   `json:"participants"`
+	Snippet       string     `json:"snippet"`
+	Unread        bool       `json:"unread"`
+	MessageCount  int        `json:"message_count"`
+	LastMessageAt time.Time  `json:"last_message_at"`
+	ContactID     *uuid.UUID `json:"contact_id,omitempty"`
+}
+
+// EmailInboxThreadDetail is a thread summary plus ordered messages.
+type EmailInboxThreadDetail struct {
+	ThreadSummary EmailInboxThreadSummary `json:"thread"`
+	Messages      []*EmailInboxMessage    `json:"messages"`
+}
+
 // EmailInboxFilter holds query parameters for listing inbox messages.
 type EmailInboxFilter struct {
 	OrgID        uuid.UUID
 	ConnectionID *uuid.UUID
 	ContactID    *uuid.UUID
 	ThreadID     *string
+	UnreadOnly   bool
 	Page         int
 	Limit        int
 }
@@ -100,9 +121,11 @@ type EmailInboxFilter struct {
 // SendInboxEmailRequest is the payload for sending via a connected account.
 type SendInboxEmailRequest struct {
 	ConnectionID uuid.UUID `json:"connection_id"`
-	To           string    `json:"to"`
+	To           []string  `json:"to"`
+	CC           []string  `json:"cc,omitempty"`
+	BCC          []string  `json:"bcc,omitempty"`
 	Subject      string    `json:"subject"`
-	Body         string    `json:"body"`
+	BodyHTML     string    `json:"body_html"`
 	// ThreadID links a reply to an existing conversation. Optional.
 	ThreadID  *string    `json:"thread_id,omitempty"`
 	ContactID *uuid.UUID `json:"contact_id,omitempty"`
@@ -113,14 +136,14 @@ func (r *SendInboxEmailRequest) Validate() error {
 	if r.ConnectionID == uuid.Nil {
 		return fmt.Errorf("%w: connection_id is required", ErrValidation)
 	}
-	if r.To == "" {
+	if len(r.To) == 0 {
 		return fmt.Errorf("%w: to is required", ErrValidation)
 	}
 	if r.Subject == "" {
 		return fmt.Errorf("%w: subject is required", ErrValidation)
 	}
-	if r.Body == "" {
-		return fmt.Errorf("%w: body is required", ErrValidation)
+	if r.BodyHTML == "" {
+		return fmt.Errorf("%w: body_html is required", ErrValidation)
 	}
 	return nil
 }

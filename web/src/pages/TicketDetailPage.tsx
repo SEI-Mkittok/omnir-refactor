@@ -26,8 +26,7 @@ import {
   useAddTicketComment,
 } from '@/hooks/useTickets'
 import { useUsers } from '@/hooks/useUsers'
-import type { TicketStatus, TicketPriority, TicketComment } from '@/api/types'
-import { cn } from '@/lib/utils'
+import type { TicketStatus, TicketComment } from '@/api/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,13 +48,6 @@ const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: 'resolved', label: 'Resolved' },
   { value: 'closed', label: 'Closed' },
 ]
-const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
-  { value: 'critical', label: 'Critical' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-]
-
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
@@ -483,12 +475,15 @@ function RightPanel({ ticketId }: RightPanelProps) {
   const [localTags, setLocalTags] = useState<string[]>([])
 
   useEffect(() => {
-    if (ticket?.tags) {
-      setLocalTags(ticket.tags)
-    }
-  }, [ticket?.id])
+    setLocalTags(ticket?.tags ?? [])
+  }, [ticket?.id, ticket?.tags])
 
   if (!ticket) return null
+
+  function handleTagsChange(tags: string[]) {
+    setLocalTags(tags)
+    updateTicket.mutate({ id: ticketId, payload: { tags } })
+  }
 
   const contact = ticket.contact
   const UNASSIGNED = '__unassigned__'
@@ -568,7 +563,7 @@ function RightPanel({ ticketId }: RightPanelProps) {
               )}
             </div>
             <a
-              href={`/contacts?id=${contact.id}`}
+              href={`/contacts/${contact.id}`}
               className="text-[13px] font-medium text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded"
             >
               View Contact →
@@ -603,7 +598,7 @@ function RightPanel({ ticketId }: RightPanelProps) {
 
       {/* Tags */}
       <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
-        <TagEditor tags={localTags} onChange={setLocalTags} />
+        <TagEditor tags={localTags} onChange={handleTagsChange} />
       </div>
     </aside>
   )

@@ -133,8 +133,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function AttachmentsSection({ ticketId }: { ticketId: string }) {
-  const { data: attachments = [] } = useTicketAttachments(ticketId)
+  const { data: attachmentsData } = useTicketAttachments(ticketId)
   const { mutateAsync: upload, isPending } = useUploadTicketAttachment()
+  const attachments = Array.isArray(attachmentsData) ? attachmentsData : []
   const [showUpload, setShowUpload] = useState(false)
 
   const handleFiles = async (files: File[]) => {
