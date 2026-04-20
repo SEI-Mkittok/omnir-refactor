@@ -272,6 +272,19 @@ func TestTicketHandler_Update(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:     "updates ticket tags",
+			ticketID: ticketID.String(),
+			body: map[string]any{
+				"tags": []string{"vip", "renewal"},
+			},
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("Update", mock.Anything, ticketID, mock.MatchedBy(func(p domain.TicketPatch) bool {
+					return len(p.Tags) == 2 && p.Tags[0] == "vip" && p.Tags[1] == "renewal"
+				})).Return(&domain.Ticket{ID: ticketID, Tags: []string{"vip", "renewal"}}, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:       "returns 400 for invalid uuid",
 			ticketID:   "not-a-uuid",
 			body:       map[string]any{"status": "closed"},

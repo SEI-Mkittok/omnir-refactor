@@ -1,205 +1,143 @@
-// TODO(OMN-529): Some endpoints below are still scaffolded against the expected
-// API contract. Remove remaining mock data when the backend stubs land.
-
-import apiClient from './client'
+import { apiClient, mgmtClient } from './client'
 import type {
-  EmailAccount,
-  InboxThread,
-  InboxMessage,
-  EmailTemplate,
-  PaginatedResponse,
-  InboxListParams,
-  SendInboxEmailRequest,
   ConnectEmailAccountRequest,
+  EmailAccount,
+  EmailTemplate,
+  InboxListParams,
+  InboxMessage,
+  InboxThread,
+  PaginatedResponse,
+  SendInboxEmailRequest,
 } from './types'
 
-// ── Mock data (remove when OMN-528 merges) ──────────────────────────────────
+interface InboxThreadDetailResponse {
+  thread: BackendInboxThread
+  messages: BackendInboxMessage[]
+}
 
-const MOCK_ACCOUNTS: EmailAccount[] = [
-  {
-    id: 'acc-1',
-    org_id: 'org-1',
-    user_id: 'user-1',
-    provider: 'gmail',
-    email_address: 'alex@company.com',
-    display_name: 'Alex (Work)',
-    status: 'connected',
-    last_synced_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString(),
-  },
-]
+interface BackendInboxMessage {
+  id: string
+  org_id: string
+  connection_id: string
+  thread_id: string
+  message_id: string
+  direction: 'inbound' | 'outbound'
+  from_addr: string
+  to_addrs?: string[]
+  subject: string
+  body_html?: string
+  body_text?: string
+  contact_id?: string
+  sent_at: string
+  created_at: string
+}
 
-const MOCK_THREADS: InboxThread[] = [
-  {
-    id: 'thread-1',
-    org_id: 'org-1',
-    account_id: 'acc-1',
-    subject: 'Re: Proposal follow-up',
-    participants: ['sarah@acme.com', 'alex@company.com'],
-    snippet: 'Thanks for sending over the proposal. I had a chance to review it with our team…',
-    unread: true,
-    message_count: 4,
-    last_message_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-    contact_id: 'contact-1',
-  },
-  {
-    id: 'thread-2',
-    org_id: 'org-1',
-    account_id: 'acc-1',
-    subject: 'Q3 Contract Review',
-    participants: ['marcus@webb.co', 'alex@company.com'],
-    snippet: 'Please find attached the updated contract terms for Q3. Let me know if you have any questions.',
-    unread: false,
-    message_count: 2,
-    last_message_at: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'thread-3',
-    org_id: 'org-1',
-    account_id: 'acc-1',
-    subject: 'Introduction — TechCorp Partnership',
-    participants: ['jennifer@techcorp.com', 'alex@company.com'],
-    snippet: 'Hi Alex, I was referred to you by David at GrowthCo. We are looking for a CRM solution.',
-    unread: true,
-    message_count: 1,
-    last_message_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    contact_id: 'contact-2',
-  },
-]
+interface BackendInboxThread {
+  thread_id: string
+  org_id: string
+  connection_id: string
+  subject: string
+  participants?: string[]
+  snippet?: string
+  unread: boolean
+  message_count: number
+  last_message_at: string
+  contact_id?: string
+}
 
-const MOCK_MESSAGES: InboxMessage[] = [
-  {
-    id: 'msg-1',
-    org_id: 'org-1',
-    account_id: 'acc-1',
-    thread_id: 'thread-1',
-    message_id: '<msg-1@gmail.com>',
-    direction: 'outbound',
-    from_addr: 'alex@company.com',
-    from_name: 'Alex',
-    to_addrs: ['sarah@acme.com'],
-    subject: 'Proposal follow-up',
-    body_text: 'Hi Sarah,\n\nI wanted to follow up on the proposal I sent last week. Please let me know if you have any questions.\n\nBest,\nAlex',
-    snippet: 'I wanted to follow up on the proposal I sent last week.',
+interface EmailTemplateListResponse {
+  data?: EmailTemplate[]
+}
+
+function normalizeMessage(message: BackendInboxMessage): InboxMessage {
+  const bodyText = message.body_text ?? ''
+
+  return {
+    id: message.id,
+    org_id: message.org_id,
+    connection_id: message.connection_id,
+    thread_id: message.thread_id,
+    message_id: message.message_id,
+    direction: message.direction,
+    from_addr: message.from_addr,
+    to_addrs: message.to_addrs ?? [],
+    subject: message.subject,
+    body_html: message.body_html,
+    body_text: bodyText,
+    snippet: bodyText.slice(0, 160),
     has_attachments: false,
-    sent_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'msg-2',
-    org_id: 'org-1',
-    account_id: 'acc-1',
-    thread_id: 'thread-1',
-    message_id: '<msg-2@gmail.com>',
-    direction: 'inbound',
-    from_addr: 'sarah@acme.com',
-    from_name: 'Sarah Chen',
-    to_addrs: ['alex@company.com'],
-    subject: 'Re: Proposal follow-up',
-    body_text: 'Thanks for sending over the proposal. I had a chance to review it with our team and we have a few questions. Can we schedule a call this week?\n\nBest,\nSarah',
-    snippet: 'Thanks for sending over the proposal. I had a chance to review it with our team…',
-    has_attachments: false,
-    contact_id: 'contact-1',
-    sent_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-    created_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-  },
-]
+    contact_id: message.contact_id,
+    sent_at: message.sent_at,
+    created_at: message.created_at,
+  }
+}
 
-const MOCK_TEMPLATES: EmailTemplate[] = [
-  {
-    id: 'tmpl-1',
-    org_id: 'org-1',
-    name: 'Follow-up after demo',
-    subject: 'Great speaking with you!',
-    body_html: '<p>Hi {first_name},</p><p>Thanks for joining us for the demo today. I wanted to follow up and answer any questions you might have.</p><p>Best,<br>{sender_name}</p>',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tmpl-2',
-    org_id: 'org-1',
-    name: 'Proposal sent confirmation',
-    body_html: '<p>Attached please find our proposal for {company_name}. Please review at your convenience and let me know if you have any questions.</p>',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tmpl-3',
-    org_id: 'org-1',
-    name: 'Meeting request',
-    body_html: '<p>Hi {first_name},</p><p>I\'d love to schedule 30 minutes to discuss how we can help {company_name}. Are you available this week?</p>',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
-
-// ── API client (real calls, uncomment when OMN-528 merges) ──────────────────
+function normalizeThread(thread: BackendInboxThread): InboxThread {
+  return {
+    thread_id: thread.thread_id,
+    org_id: thread.org_id,
+    connection_id: thread.connection_id,
+    subject: thread.subject,
+    participants: thread.participants ?? [],
+    snippet: thread.snippet ?? '',
+    unread: thread.unread,
+    message_count: thread.message_count,
+    last_message_at: thread.last_message_at,
+    contact_id: thread.contact_id,
+  }
+}
 
 export const inboxApi = {
-  // List connected email accounts
   listAccounts: async (): Promise<EmailAccount[]> => {
-    // TODO(OMN-528): return (await apiClient.get<EmailAccount[]>('/inbox/accounts')).data
-    return Promise.resolve(MOCK_ACCOUNTS)
+    const { data } = await mgmtClient.get<EmailAccount[]>('/integrations/email/connections')
+    return data
   },
 
-  // Connect a new email account — returns OAuth redirect URL
   connectAccount: async (payload: ConnectEmailAccountRequest): Promise<{ redirect_url: string }> => {
-    // TODO(OMN-528): return (await apiClient.post<{ redirect_url: string }>('/inbox/accounts/connect', payload)).data
-    return Promise.resolve({ redirect_url: `https://accounts.${payload.provider}.com/oauth` })
+    void payload.redirect_uri
+    const providerRoute = payload.provider === 'outlook' ? 'microsoft' : payload.provider
+    return { redirect_url: `/api/integrations/email/auth/${providerRoute}` }
   },
 
-  // Disconnect an account
   disconnectAccount: async (accountId: string): Promise<void> => {
-    // TODO(OMN-528): await apiClient.delete(`/inbox/accounts/${accountId}`)
-    void accountId
+    await mgmtClient.delete(`/integrations/email/connections/${accountId}`)
   },
 
-  // List threads (unified inbox)
   listThreads: async (params?: InboxListParams): Promise<PaginatedResponse<InboxThread>> => {
-    return (await apiClient.get<PaginatedResponse<InboxThread>>('/emails/threads', { params })).data
+    const query = params
+      ? {
+          connection_id: params.connection_id,
+          unread_only: params.unread_only,
+          page: params.page,
+          limit: params.limit,
+        }
+      : undefined
+    const { data } = await apiClient.get<PaginatedResponse<BackendInboxThread>>('/emails/threads', { params: query })
+    return {
+      ...data,
+      data: (data.data ?? []).map(normalizeThread),
+    }
   },
 
-  // Get a single thread with messages
   getThread: async (threadId: string): Promise<InboxThread & { messages: InboxMessage[] }> => {
-    // TODO(OMN-528): return (await apiClient.get<InboxThread & { messages: InboxMessage[] }>(`/inbox/threads/${threadId}`)).data
-    const thread = MOCK_THREADS.find((t) => t.id === threadId) ?? MOCK_THREADS[0]
-    return Promise.resolve({ ...thread, messages: MOCK_MESSAGES.filter((m) => m.thread_id === threadId) })
+    const { data } = await apiClient.get<InboxThreadDetailResponse>(`/emails/threads/${threadId}`)
+    return {
+      ...normalizeThread(data.thread),
+      messages: (data.messages ?? []).map(normalizeMessage),
+    }
   },
 
-  // Mark thread as read
   markRead: async (threadId: string): Promise<void> => {
     await apiClient.patch(`/emails/${threadId}/read`)
   },
 
-  // Send / reply
   sendEmail: async (payload: SendInboxEmailRequest): Promise<InboxMessage> => {
-    // TODO(OMN-528): return (await apiClient.post<InboxMessage>('/inbox/send', payload)).data
-    const msg: InboxMessage = {
-      id: `msg-${Date.now()}`,
-      org_id: 'org-1',
-      account_id: payload.account_id,
-      thread_id: payload.thread_id ?? `thread-${Date.now()}`,
-      message_id: `<${Date.now()}@mock.local>`,
-      direction: 'outbound',
-      from_addr: MOCK_ACCOUNTS[0]?.email_address ?? '',
-      to_addrs: payload.to,
-      cc_addrs: payload.cc,
-      subject: payload.subject,
-      body_text: payload.body_html.replace(/<[^>]+>/g, ''),
-      snippet: payload.body_html.replace(/<[^>]+>/g, '').slice(0, 100),
-      has_attachments: false,
-      sent_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-    }
-    return Promise.resolve(msg)
+    const { data } = await apiClient.post<BackendInboxMessage>('/emails/send', payload)
+    return normalizeMessage(data)
   },
 
-  // List email templates
   listTemplates: async (q?: string): Promise<EmailTemplate[]> => {
-    // TODO(OMN-528): return (await apiClient.get<EmailTemplate[]>('/inbox/templates', { params: { q } })).data
-    if (q) {
-      return Promise.resolve(MOCK_TEMPLATES.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())))
-    }
-    return Promise.resolve(MOCK_TEMPLATES)
+    const { data } = await apiClient.get<EmailTemplateListResponse>('/email-templates', { params: q ? { q } : undefined })
+    return data.data ?? []
   },
 }
