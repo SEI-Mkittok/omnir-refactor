@@ -52,12 +52,12 @@ func (h *OnboardingHandler) Router() chi.Router {
 // onboardingResponse is the shape returned to the frontend:
 // matches the TypeScript OnboardingState interface.
 type onboardingResponse struct {
-	ID             string                                  `json:"id"`
-	CompletedSteps []string                                `json:"completedSteps"`
+	ID             string                                 `json:"id"`
+	CompletedSteps []string                               `json:"completedSteps"`
 	StepStatus     map[string]domain.OnboardingStepStatus `json:"stepStatus"`
-	Completed      bool                                    `json:"completed"`
-	Dismissed      bool                                    `json:"dismissed"`
-	OrgName        string                                  `json:"orgName,omitempty"`
+	Completed      bool                                   `json:"completed"`
+	Dismissed      bool                                   `json:"dismissed"`
+	OrgName        string                                 `json:"orgName,omitempty"`
 }
 
 func toOnboardingResponse(state *domain.OrgOnboarding, orgName string) onboardingResponse {

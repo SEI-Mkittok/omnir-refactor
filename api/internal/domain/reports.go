@@ -158,3 +158,47 @@ type ActivitySummaryReport struct {
 	ByKind  []ActivityKindCount  `json:"by_kind"`
 	ByOwner []ActivityOwnerCount `json:"by_owner"`
 }
+
+// DailyCountMetric is a generic daily timeseries point used by dashboard metrics.
+type DailyCountMetric struct {
+	Date  string `json:"date"` // YYYY-MM-DD
+	Count int    `json:"count"`
+}
+
+// TeamActivityByUserMetric holds per-user created/completed activity counts.
+type TeamActivityByUserMetric struct {
+	OwnerID        uuid.UUID `json:"owner_id"`
+	CreatedCount   int       `json:"created_count"`
+	CompletedCount int       `json:"completed_count"`
+}
+
+// DashboardCRMMetrics captures manager-facing CRM pipeline metrics.
+type DashboardCRMMetrics struct {
+	PipelineValueCents int64            `json:"pipeline_value_cents"`
+	WonCount           int              `json:"won_count"`
+	LostCount          int              `json:"lost_count"`
+	StageDistribution  []DealStageCount `json:"stage_distribution"`
+}
+
+// DashboardHelpDeskMetrics captures manager-facing help desk metrics.
+type DashboardHelpDeskMetrics struct {
+	OpenCount          int                 `json:"open_count"`
+	BacklogCount       int                 `json:"backlog_count"`
+	StatusDistribution []TicketStatusCount `json:"status_distribution"`
+	VolumeTrend        []TicketDailyMetric `json:"volume_trend"`
+	ResolutionTrend    []DailyCountMetric  `json:"resolution_trend"`
+}
+
+// DashboardTeamActivityMetrics captures manager-facing team activity trends.
+type DashboardTeamActivityMetrics struct {
+	ByUser            []TeamActivityByUserMetric `json:"by_user"`
+	CreatedOverTime   []DailyCountMetric         `json:"created_over_time"`
+	CompletedOverTime []DailyCountMetric         `json:"completed_over_time"`
+}
+
+// ManagerDashboardReport is the fixed backend contract for the manager dashboard.
+type ManagerDashboardReport struct {
+	CRM          DashboardCRMMetrics          `json:"crm"`
+	HelpDesk     DashboardHelpDeskMetrics     `json:"help_desk"`
+	TeamActivity DashboardTeamActivityMetrics `json:"team_activity"`
+}

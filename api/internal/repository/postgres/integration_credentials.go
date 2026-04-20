@@ -21,6 +21,7 @@ func NewIntegrationCredentialRepo(db *pgxpool.Pool) *IntegrationCredentialRepo {
 	return &IntegrationCredentialRepo{db: db}
 }
 
+//nolint:gosec // This is a SQL column list; it contains field names, not credential values.
 const integrationCredCols = `
 	id, org_id, provider, client_id, client_secret_enc, api_key_enc, webhook_secret,
 	created_at, updated_at
