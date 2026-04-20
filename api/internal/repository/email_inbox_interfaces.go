@@ -40,6 +40,9 @@ type EmailInboxRepository interface {
 	// List returns messages matching the filter, newest first.
 	List(ctx context.Context, filter domain.EmailInboxFilter) ([]*domain.EmailInboxMessage, int, error)
 
+	// ListThreads returns thread summaries matching the filter, newest thread first.
+	ListThreads(ctx context.Context, filter domain.EmailInboxFilter) ([]*domain.EmailInboxThreadSummary, int, error)
+
 	// GetThread returns all messages with the given thread_id, ordered by sent_at asc.
 	GetThread(ctx context.Context, orgID uuid.UUID, threadID string) ([]*domain.EmailInboxMessage, error)
 

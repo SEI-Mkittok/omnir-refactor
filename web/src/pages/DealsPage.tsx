@@ -33,12 +33,6 @@ const STAGE_OPTIONS = [
   { label: 'Closed Lost', value: 'closed_lost' },
 ]
 
-const PRIORITY_OPTIONS = [
-  { label: 'High', value: 'high' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'Low', value: 'low' },
-]
-
 const stageBadge: Record<DealStage, 'blue' | 'indigo' | 'purple' | 'yellow' | 'green' | 'red'> = {
   lead: 'blue',
   qualified: 'indigo',
@@ -397,7 +391,6 @@ export function DealsPage() {
   const viewMode = (searchParams.get('view') as ViewMode) ?? 'board'
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState('')
-  const [priority, setPriority] = useState('')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -419,21 +412,18 @@ export function DealsPage() {
     const chips: FilterChip[] = []
     if (debouncedSearch) chips.push({ key: 'search', label: `"${debouncedSearch}"` })
     if (stage) chips.push({ key: 'stage', label: STAGE_OPTIONS.find((o) => o.value === stage)?.label ?? stage })
-    if (priority) chips.push({ key: 'priority', label: PRIORITY_OPTIONS.find((o) => o.value === priority)?.label ?? priority })
     return chips
-  }, [debouncedSearch, stage, priority])
+  }, [debouncedSearch, stage])
 
   function removeChip(key: string) {
     if (key === 'search') setSearch('')
     if (key === 'stage') setStage('')
-    if (key === 'priority') setPriority('')
     setPage(1)
   }
 
   function clearAll() {
     setSearch('')
     setStage('')
-    setPriority('')
     setPage(1)
   }
 
@@ -617,18 +607,6 @@ export function DealsPage() {
         >
           <option value="">All Stages</option>
           {STAGE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        <select
-          value={priority}
-          onChange={(e) => { setPriority(e.target.value); setPage(1) }}
-          aria-label="Filter by priority"
-          className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-sm text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#1B3A4B]"
-        >
-          <option value="">All Priorities</option>
-          {PRIORITY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>

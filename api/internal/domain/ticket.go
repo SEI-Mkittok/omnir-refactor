@@ -79,6 +79,7 @@ type TicketPatch struct {
 	ContactID    *uuid.UUID      `json:"contact_id,omitempty"`
 	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
 	Source       *string         `json:"source,omitempty"`
+	Tags         []string        `json:"tags,omitempty"`
 	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
 }
 

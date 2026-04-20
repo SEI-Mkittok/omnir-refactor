@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -90,9 +91,10 @@ func (h *EmailInboxHandler) OAuthRouter() chi.Router {
 func (h *EmailInboxHandler) InboxRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
+	r.Get("/threads", h.ListThreads)
+	r.Get("/threads/{threadId}", h.GetThread)
 	r.Get("/", h.ListInbox)
 	r.Post("/send", h.SendViaConnection)
-	r.Get("/{threadId}", h.GetThread)
 	r.Patch("/{threadId}/read", h.MarkThreadRead)
 	return r
 }
@@ -411,6 +413,44 @@ func (h *EmailInboxHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
 
 // ─── Inbox routes ─────────────────────────────────────────────────────────────
 
+func (h *EmailInboxHandler) ListThreads(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
+		return
+	}
+
+	filter := domain.EmailInboxFilter{OrgID: orgID}
+	if s := r.URL.Query().Get("connection_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err == nil {
+			filter.ConnectionID = &id
+		}
+	}
+	if s := r.URL.Query().Get("contact_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err == nil {
+			filter.ContactID = &id
+		}
+	}
+	filter.UnreadOnly = r.URL.Query().Get("unread_only") == "true"
+	filter.Page, _ = strconv.Atoi(r.URL.Query().Get("page"))
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	filter.Limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
+	if filter.Limit < 1 || filter.Limit > 200 {
+		filter.Limit = 50
+	}
+
+	threads, total, err := h.inbox.ListThreads(r.Context(), filter)
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, paginated(threads, total, filter.Page, filter.Limit))
+}
+
 func (h *EmailInboxHandler) ListInbox(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := domain.OrgIDFromContext(r.Context())
 	if !ok {
@@ -475,7 +515,15 @@ func (h *EmailInboxHandler) GetThread(w http.ResponseWriter, r *http.Request) {
 	if msgs == nil {
 		msgs = []*domain.EmailInboxMessage{}
 	}
-	writeJSON(w, http.StatusOK, msgs)
+	summary, err := h.threadSummaryFromMessages(orgID, msgs)
+	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, domain.EmailInboxThreadDetail{
+		ThreadSummary: summary,
+		Messages:      msgs,
+	})
 }
 
 // MarkThreadRead marks all messages in a thread as read.
@@ -531,11 +579,13 @@ func (h *EmailInboxHandler) SendViaConnection(w http.ResponseWriter, r *http.Req
 	}
 
 	var sendErr error
+	bodyText := htmlStripper.ReplaceAllString(req.BodyHTML, "")
+	toCSV := strings.Join(req.To, ", ")
 	switch conn.Provider {
 	case domain.EmailProviderGmail:
-		sendErr = h.sendViaGmail(accessToken, conn.EmailAddress, req.To, req.Subject, req.Body, req.ThreadID)
+		sendErr = h.sendViaGmail(accessToken, conn.EmailAddress, req.To, req.CC, req.BCC, req.Subject, bodyText, req.ThreadID)
 	case domain.EmailProviderOutlook:
-		sendErr = h.sendViaOutlook(accessToken, req.To, req.Subject, req.Body)
+		sendErr = h.sendViaOutlook(accessToken, req.To, req.CC, req.BCC, req.Subject, req.BodyHTML)
 	default:
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "unsupported provider")
 		return
@@ -557,14 +607,14 @@ func (h *EmailInboxHandler) SendViaConnection(w http.ResponseWriter, r *http.Req
 		MessageID:    uuid.New().String(),
 		ThreadID:     threadID,
 		FromAddr:     conn.EmailAddress,
-		ToAddrs:      []string{req.To},
+		ToAddrs:      req.To,
 		Subject:      req.Subject,
 		Direction:    domain.EmailDirectionOutbound,
 		ContactID:    req.ContactID,
 		SentAt:       time.Now().UTC(),
 	}
-	bodyText := req.Body
 	msg.BodyText = &bodyText
+	msg.BodyHTML = &req.BodyHTML
 
 	saved, err := h.inbox.Upsert(r.Context(), msg)
 	if err != nil {
@@ -573,16 +623,27 @@ func (h *EmailInboxHandler) SendViaConnection(w http.ResponseWriter, r *http.Req
 		writeJSON(w, http.StatusCreated, msg)
 		return
 	}
+	if saved != nil && len(saved.ToAddrs) == 0 && toCSV != "" {
+		saved.ToAddrs = req.To
+	}
 	writeJSON(w, http.StatusCreated, saved)
 }
 
 // ─── Provider send helpers ────────────────────────────────────────────────────
 
-func (h *EmailInboxHandler) sendViaGmail(accessToken, from, to, subject, body string, threadID *string) error {
+var htmlStripper = regexp.MustCompile(`<[^>]+>`)
+
+func (h *EmailInboxHandler) sendViaGmail(accessToken, from string, to, cc, bcc []string, subject, body string, threadID *string) error {
 	// Build a minimal RFC2822 message.
 	var raw strings.Builder
 	raw.WriteString("From: " + from + "\r\n")
-	raw.WriteString("To: " + to + "\r\n")
+	raw.WriteString("To: " + strings.Join(to, ", ") + "\r\n")
+	if len(cc) > 0 {
+		raw.WriteString("Cc: " + strings.Join(cc, ", ") + "\r\n")
+	}
+	if len(bcc) > 0 {
+		raw.WriteString("Bcc: " + strings.Join(bcc, ", ") + "\r\n")
+	}
 	raw.WriteString("Subject: " + subject + "\r\n")
 	raw.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	raw.WriteString("\r\n")
@@ -611,19 +672,35 @@ func (h *EmailInboxHandler) sendViaGmail(accessToken, from, to, subject, body st
 	return nil
 }
 
-func (h *EmailInboxHandler) sendViaOutlook(accessToken, to, subject, body string) error {
+func (h *EmailInboxHandler) sendViaOutlook(accessToken string, to, cc, bcc []string, subject, bodyHTML string) error {
+	toRecipients := make([]map[string]any, 0, len(to))
+	for _, addr := range to {
+		toRecipients = append(toRecipients, map[string]any{"emailAddress": map[string]string{"address": addr}})
+	}
+	ccRecipients := make([]map[string]any, 0, len(cc))
+	for _, addr := range cc {
+		ccRecipients = append(ccRecipients, map[string]any{"emailAddress": map[string]string{"address": addr}})
+	}
+	bccRecipients := make([]map[string]any, 0, len(bcc))
+	for _, addr := range bcc {
+		bccRecipients = append(bccRecipients, map[string]any{"emailAddress": map[string]string{"address": addr}})
+	}
 	payload := map[string]any{
 		"message": map[string]any{
 			"subject": subject,
 			"body": map[string]string{
-				"contentType": "Text",
-				"content":     body,
+				"contentType": "HTML",
+				"content":     bodyHTML,
 			},
-			"toRecipients": []map[string]any{
-				{"emailAddress": map[string]string{"address": to}},
-			},
+			"toRecipients": toRecipients,
 		},
 		"saveToSentItems": "true",
+	}
+	if len(ccRecipients) > 0 {
+		payload["message"].(map[string]any)["ccRecipients"] = ccRecipients
+	}
+	if len(bccRecipients) > 0 {
+		payload["message"].(map[string]any)["bccRecipients"] = bccRecipients
 	}
 
 	bodyBytes, _ := json.Marshal(payload)
@@ -641,4 +718,55 @@ func (h *EmailInboxHandler) sendViaOutlook(accessToken, to, subject, body string
 		return fmt.Errorf("outlook send failed (%d): %s", resp.StatusCode, string(b))
 	}
 	return nil
+}
+
+func (h *EmailInboxHandler) threadSummaryFromMessages(orgID uuid.UUID, msgs []*domain.EmailInboxMessage) (domain.EmailInboxThreadSummary, error) {
+	if len(msgs) == 0 {
+		return domain.EmailInboxThreadSummary{}, domain.ErrNotFound
+	}
+
+	last := msgs[len(msgs)-1]
+	participantsMap := make(map[string]struct{})
+	unread := false
+	contactID := last.ContactID
+	for _, msg := range msgs {
+		if msg.FromAddr != "" {
+			participantsMap[msg.FromAddr] = struct{}{}
+		}
+		for _, addr := range msg.ToAddrs {
+			participantsMap[addr] = struct{}{}
+		}
+		if msg.Direction == domain.EmailDirectionInbound && msg.ReadAt == nil {
+			unread = true
+		}
+		if contactID == nil && msg.ContactID != nil {
+			contactID = msg.ContactID
+		}
+	}
+
+	participants := make([]string, 0, len(participantsMap))
+	for participant := range participantsMap {
+		participants = append(participants, participant)
+	}
+
+	snippet := ""
+	if last.BodyText != nil {
+		snippet = *last.BodyText
+	}
+	if len(snippet) > 140 {
+		snippet = snippet[:140]
+	}
+
+	return domain.EmailInboxThreadSummary{
+		ThreadID:      last.ThreadID,
+		OrgID:         orgID,
+		ConnectionID:  last.ConnectionID,
+		Subject:       last.Subject,
+		Participants:  participants,
+		Snippet:       snippet,
+		Unread:        unread,
+		MessageCount:  len(msgs),
+		LastMessageAt: last.SentAt,
+		ContactID:     contactID,
+	}, nil
 }
