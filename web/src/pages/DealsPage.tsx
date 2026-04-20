@@ -51,6 +51,8 @@ const stageLabel: Record<DealStage, string> = {
   closed_lost: 'Closed Lost',
 }
 
+const EMPTY_DEALS: Deal[] = []
+
 // ---- Active filter chips ----
 
 interface FilterChip {
@@ -444,7 +446,7 @@ export function DealsPage() {
     sort_dir: sortDir,
   })
 
-  const kanbanDeals = kanbanQuery.data?.data ?? []
+  const kanbanDeals = useMemo(() => kanbanQuery.data?.data ?? EMPTY_DEALS, [kanbanQuery.data?.data])
   const listDeals = listQuery.data?.data ?? []
   const meta = listQuery.data?.meta
   const totalDeals = (viewMode === 'board' ? kanbanQuery.data?.meta : listQuery.data?.meta)?.total
