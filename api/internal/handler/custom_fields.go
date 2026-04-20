@@ -80,6 +80,12 @@ func (h *CustomFieldHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	for _, field := range existing {
+		if field != nil && field.Name == req.Name {
+			writeError(w, http.StatusConflict, "custom field name already exists for this entity type")
+			return
+		}
+	}
 	if len(existing) >= maxCustomFieldsPerEntityType {
 		writeError(w, http.StatusUnprocessableEntity, "maximum of 50 custom fields per entity type reached")
 		return

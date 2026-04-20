@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import axios from 'axios'
 import { Plus, Pencil, Trash2, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -6,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -55,6 +57,16 @@ const fieldTypeBadge: Record<CustomFieldType, 'default' | 'blue' | 'green' | 'ye
 
 const selectClass =
   'flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]'
+
+function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const message = err.response?.data?.error
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+  return fallback
+}
 
 // ── Options editor (for select / multiselect) ─────────────────────────────────
 
@@ -155,7 +167,7 @@ function CreateFieldDialog({ entityType, open, onClose }: CreateFieldDialogProps
         setForm({ entity_type: entityType, name: '', label: '', field_type: 'text', options: [], required: false })
         onClose()
       },
-      onError: () => setError('Failed to create field.'),
+      onError: (err) => setError(getApiErrorMessage(err, 'Failed to create field.')),
     })
   }
 
@@ -164,6 +176,9 @@ function CreateFieldDialog({ entityType, open, onClose }: CreateFieldDialogProps
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Custom Field</DialogTitle>
+          <DialogDescription>
+            Create a reusable field for {entityType} records. The label is used to generate the stored field key.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           <div className="space-y-1.5">
@@ -254,7 +269,7 @@ function EditFieldDialog({ field, onClose }: EditFieldDialogProps) {
     }
     update(
       { id: field.id, payload: { ...form, options: needsOptions ? form.options : undefined } },
-      { onSuccess: onClose, onError: () => setError('Failed to update field.') }
+      { onSuccess: onClose, onError: (err) => setError(getApiErrorMessage(err, 'Failed to update field.')) }
     )
   }
 
@@ -263,6 +278,9 @@ function EditFieldDialog({ field, onClose }: EditFieldDialogProps) {
       <DialogContent className="max-w-md" onOpenAutoFocus={handleOpen}>
         <DialogHeader>
           <DialogTitle>Edit Custom Field</DialogTitle>
+          <DialogDescription>
+            Update how this field appears on records. Changes affect all {field?.entity_type ?? 'selected'} entries using it.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           <div className="space-y-1.5">
