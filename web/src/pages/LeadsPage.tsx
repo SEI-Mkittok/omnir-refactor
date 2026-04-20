@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, UserPlus, UserCheck, Upload } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useLeads, useCreateLead, useLeadSources } from '@/hooks/useLeads'
+import { useLeads, useCreateLead } from '@/hooks/useLeads'
 import { useUpdateView } from '@/hooks/useViews'
 import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { ImportModal } from '@/components/omnir/ImportModal'
@@ -78,7 +78,7 @@ const STATUS_BADGE_STYLES: Record<LeadStatus | 'unqualified', { bg: string; text
   unqualified: { bg: '#9CA3AF', text: '#FFFFFF', label: 'DEAD' },
 }
 
-function ConversionStatusBadge({ status, lead }: { status: LeadStatus; lead: Lead }) {
+function ConversionStatusBadge({ status, lead: _lead }: { status: LeadStatus; lead: Lead }) {
   const s = STATUS_BADGE_STYLES[status] ?? STATUS_BADGE_STYLES.unqualified
   return (
     <span
@@ -361,8 +361,6 @@ export function LeadsPage() {
   const updateView = useUpdateView()
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
-
-  const { data: sourcesData } = useLeadSources()
 
   const [scoreMin, scoreMax] = scoreRange
     ? scoreRange.split(':').map(Number)
