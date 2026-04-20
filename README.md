@@ -2,100 +2,132 @@
 
 Modern CRM built on Go + React. Replaces vtiger CE with a clean, fast, maintainable stack.
 [![CI](https://github.com/SEI-Mkittok/omnir-refactor/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/SEI-Mkittok/omnir-refactor/actions/workflows/ci.yml)
+
 ---
 
-## Quickstart (< 5 minutes)
+## Setup & Environment (Local Development)
 
-**Prerequisites:** Docker Desktop (or Docker + Compose), Git.
+### Prerequisites
+
+- Docker Desktop (or Docker Engine + Compose plugin)
+- Git
+- Optional for running outside containers: Go 1.22+ and Node 20+
+
+### 1) Clone and bootstrap env files
 
 ```bash
-# 1. Clone
-git clone https://github.com/omnir/omnir-crm.git
-cd omnir-crm
-
-# 2. Copy env files (safe defaults for local dev)
+git clone https://github.com/SEI-Mkittok/omnir-refactor.git
+cd omnir-refactor
 make setup
+```
 
-# 3. Start the stack
+`make setup` creates these files only if they do not already exist:
+
+- `.env`
+- `api/.env`
+- `web/.env.local`
+
+### 2) Start the development stack
+
+```bash
 make up
 ```
 
-That's it. Services:
+Stack is defined in `infra/docker-compose.yml` and starts:
 
-| Service  | URL                        | Notes                   |
-|----------|----------------------------|-------------------------|
-| Frontend | http://localhost:5173      | React/Vite (hot reload) |
-| API      | http://localhost:8080      | Go/Chi (hot reload)     |
-| Health   | http://localhost:8080/health | `{"status":"ok"}`     |
-| DB       | localhost:5432             | PostgreSQL 16           |
-| pgAdmin  | http://localhost:5050      | `make up -- --profile tools` |
+- `postgres` (PostgreSQL 16)
+- `api` (Go API with hot reload via Air)
+- `frontend` (React/Vite)
+- `minio` (S3-compatible storage)
+- `mailhog` (local SMTP + inbox UI)
+
+### 3) Verify services
+
+- Frontend: http://localhost:5173
+- API: http://localhost:8080
+- API health: http://localhost:8080/health
+- Postgres: `localhost:5432`
+- MinIO API: http://localhost:9000
+- MinIO Console: http://localhost:9001
+- MailHog UI: http://localhost:8025
+- pgAdmin (optional profile): http://localhost:5050
+
+To include pgAdmin:
+
+```bash
+docker compose -f infra/docker-compose.yml --profile tools up
+```
 
 ---
 
 ## Common Commands
 
 ```bash
-make up          # Start all services
-make down        # Stop + remove volumes
-make logs        # Tail all logs
-make shell-api   # Shell into API container
-make shell-db    # psql into the database
-make migrate     # Run pending DB migrations
-make test        # Run all tests (API + frontend)
-make lint        # Lint all code
+make up              # Start all services
+make up-d            # Start all services in detached mode
+make down            # Stop and remove containers + volumes
+make logs            # Tail logs from all services
+make shell-api       # Shell into API container
+make shell-db        # psql into PostgreSQL
+make migrate         # Run pending DB migrations
+make migrate-status  # Show migration status
+make test            # Run all tests (API + frontend)
+make lint            # Run linters
+make fmt             # Format API + frontend code
 ```
+
+---
+
+## Environment Variables
+
+Primary references:
+
+- Root compose env template: `.env.example`
+- API local env template: `api/.env.example`
+- Frontend local env template: `web/.env.example`
+- Extended ops reference: `docs/ops/env-reference.md`
+
+Never commit real secrets in `.env` files.
 
 ---
 
 ## Project Structure
 
-```
-omnir-crm/
-├── omnir-go-backend/    # Go REST API (Chi + pgx + JWT)
-├── omnir-frontend/      # React + TypeScript + Vite
-├── .github/workflows/   # CI/CD (GitHub Actions)
-├── scripts/             # DB init, seed scripts
-├── docker-compose.yml   # Local dev stack
-├── docker-compose.prod.yml  # Production deploy
-├── Makefile             # Dev shortcuts
-└── .env.example         # Env config template
+```text
+omnir-refactor/
+├── api/                  # Go REST API
+├── web/                  # React + TypeScript + Vite frontend
+├── infra/                # Docker Compose + Dockerfiles
+├── scripts/              # Utility scripts and DB init
+├── docs/                 # Architecture and operations docs
+├── .github/workflows/    # CI/CD workflows
+└── Makefile              # Local development shortcuts
 ```
 
 ---
 
 ## Architecture
 
-- **API:** Go 1.22, Chi router, pgx/v5 (raw SQL, no ORM), JWT auth, goose migrations
-- **Frontend:** React 18, TypeScript, Vite, shadcn/ui, TanStack Query + Router, Zustand
+- **API:** Go 1.22, Chi router, pgx/v5, JWT auth, goose migrations
+- **Frontend:** React 18, TypeScript, Vite, TanStack Query/Router, Zustand
 - **Database:** PostgreSQL 16
-- **CI:** GitHub Actions (lint → test → build → Docker → staging deploy)
+- **CI:** GitHub Actions (lint → test → build)
 
-See `omnir-go-backend/ARCHITECTURE.md` and `docs/frontend-architecture.md` for full details.
-
----
-
-## Environment Variables
-
-Copy `.env.example` → `.env` (root) for Docker Compose.  
-See `omnir-go-backend/.env.example` for API vars.  
-See `omnir-frontend/.env.example` for frontend vars.
-
-**Never commit `.env` files with real secrets.**  
-In CI/staging, inject secrets via GitHub Secrets + environment vars.
+See `docs/frontend-architecture.md` and API docs in `api/` for implementation details.
 
 ---
 
 ## CI/CD
 
-| Workflow | Trigger | What it does |
+| Workflow | Trigger | Purpose |
 |---|---|---|
-| `ci.yml` | Push/PR to main, develop | Lint + test + build check |
-| `deploy-staging.yml` | Push to develop | Build → push images → deploy to staging |
+| `ci.yml` | Push/PR to `main`, `develop` | Lint + test + build validation |
+| `deploy-staging.yml` | Push to `develop` | Build images and deploy to staging |
 
 ---
 
 ## Contributing
 
 1. Branch from `develop`
-2. PRs require CI green
-3. Squash merge to `develop`, rebase-merge to `main` for releases
+2. Keep CI green
+3. Open PR with clear scope and test evidence
