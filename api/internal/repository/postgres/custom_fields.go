@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/omnir/crm-api/internal/domain"
@@ -58,13 +58,13 @@ func (r *CustomFieldDefinitionRepo) Create(ctx context.Context, def *domain.Cust
 	def.CreatedAt = now
 	def.UpdatedAt = now
 
-	var optionsJSON []byte
+	var optionsJSON any
 	if len(def.Options) > 0 {
-		var err error
-		optionsJSON, err = json.Marshal(def.Options)
+		b, err := json.Marshal(def.Options)
 		if err != nil {
 			return nil, fmt.Errorf("marshal options: %w", err)
 		}
+		optionsJSON = json.RawMessage(b)
 	}
 
 	row := r.db.QueryRow(ctx, `
@@ -117,7 +117,7 @@ func (r *CustomFieldDefinitionRepo) Update(ctx context.Context, id uuid.UUID, pa
 		if err != nil {
 			return nil, fmt.Errorf("marshal options: %w", err)
 		}
-		addArg("options", b)
+		addArg("options", json.RawMessage(b))
 	}
 
 	args = append(args, id)
