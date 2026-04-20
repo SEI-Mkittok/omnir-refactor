@@ -549,6 +549,30 @@ func TestTicketHandler_ListComments(t *testing.T) {
 	}
 }
 
+func TestTicketHandler_ListComments_NormalizesNilSlice(t *testing.T) {
+	ticketID := uuid.New()
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+
+	mockComments.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketCommentFilter) bool {
+		return f.TicketID == ticketID
+	})).Return(nil, nil)
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+ticketID.String()+"/comments", nil)
+	req = withURLParam(req, "id", ticketID.String())
+	w := httptest.NewRecorder()
+
+	h.ListComments(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.JSONEq(t, "[]", w.Body.String())
+	mockComments.AssertExpectations(t)
+}
+
 func TestTicketHandler_CreateComment(t *testing.T) {
 	ticketID := uuid.New()
 	userID := uuid.New()
@@ -670,6 +694,28 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 			mockComments.AssertExpectations(t)
 		})
 	}
+}
+
+func TestTicketHandler_ListAttachments_NormalizesNilSlice(t *testing.T) {
+	ticketID := uuid.New()
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+
+	mockAttachments.On("List", mock.Anything, ticketID).Return(nil, nil)
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+ticketID.String()+"/attachments", nil)
+	req = withURLParam(req, "id", ticketID.String())
+	w := httptest.NewRecorder()
+
+	h.ListAttachments(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.JSONEq(t, "[]", w.Body.String())
+	mockAttachments.AssertExpectations(t)
 }
 
 func TestTicketHandler_DeleteComment(t *testing.T) {
