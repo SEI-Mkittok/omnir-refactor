@@ -1,7 +1,7 @@
 # Omnir CRM
 
 Modern CRM built on Go + React. Replaces vtiger CE with a clean, fast, maintainable stack.
-
+[![CI](https://github.com/SEI-Mkittok/omnir-refactor/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/SEI-Mkittok/omnir-refactor/actions/workflows/ci.yml)
 ---
 
 ## Quickstart (< 5 minutes)
