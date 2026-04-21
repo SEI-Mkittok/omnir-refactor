@@ -2,8 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
-  Mail,
-  Phone,
   Lock,
   CheckCircle,
   AlertCircle,
@@ -26,6 +24,7 @@ import {
   useAddTicketComment,
 } from '@/hooks/useTickets'
 import { useUsers } from '@/hooks/useUsers'
+import { ContactSection } from '@/components/omnir/ContactSection'
 import type { TicketStatus, TicketComment } from '@/api/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -485,7 +484,6 @@ function RightPanel({ ticketId }: RightPanelProps) {
     updateTicket.mutate({ id: ticketId, payload: { tags } })
   }
 
-  const contact = ticket.contact
   const UNASSIGNED = '__unassigned__'
   const assigneeOptions = [
     { value: UNASSIGNED, label: 'Unassigned' },
@@ -533,45 +531,7 @@ function RightPanel({ ticketId }: RightPanelProps) {
     <aside className="w-full lg:w-[320px] lg:flex-shrink-0 space-y-3">
       {/* Contact card */}
       <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--text-label)]">
-          CONTACT
-        </p>
-        {contact ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-light)] text-[14px] font-semibold text-[var(--color-primary)]">
-                {nameInitials(contact.name)}
-              </div>
-              <div>
-                <p className="text-[16px] font-bold text-[var(--text-primary)]">
-                  {contact.name || 'Unknown Contact'}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              {contact.email && (
-                <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
-                  <Mail className="h-3.5 w-3.5 text-[var(--text-label)] shrink-0" />
-                  {contact.email}
-                </div>
-              )}
-              {contact.phone && (
-                <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
-                  <Phone className="h-3.5 w-3.5 text-[var(--text-label)] shrink-0" />
-                  {contact.phone}
-                </div>
-              )}
-            </div>
-            <a
-              href={`/contacts/${contact.id}`}
-              className="text-[13px] font-medium text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded"
-            >
-              View Contact →
-            </a>
-          </div>
-        ) : (
-          <p className="text-[13px] text-[var(--text-secondary)]">No contact linked.</p>
-        )}
+        <ContactSection ticketId={ticketId} contact={ticket.contact} ticketStatus={ticket.status} />
       </div>
 
       {/* Ticket properties */}
