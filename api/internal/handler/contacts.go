@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -13,6 +14,22 @@ import (
 	"github.com/omnir/crm-api/internal/repository"
 	"github.com/omnir/crm-api/internal/worker"
 )
+
+var allowedRelationshipTypes = map[string]struct{}{
+	"decision_maker": {},
+	"billing":        {},
+	"technical":      {},
+	"executive":      {},
+	"champion":       {},
+}
+
+func isValidRelationshipType(v *string) bool {
+	if v == nil || strings.TrimSpace(*v) == "" {
+		return true
+	}
+	_, ok := allowedRelationshipTypes[*v]
+	return ok
+}
 
 type ContactHandler struct {
 	repo        repository.ContactRepository
@@ -159,6 +176,10 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
 	}
+	if !isValidRelationshipType(c.RelationshipType) {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationship_type")
+		return
+	}
 	if err := c.Validate(); err != nil {
 		handleDomainErr(w, err)
 		return
@@ -203,6 +224,10 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var patch domain.ContactPatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if !isValidRelationshipType(patch.RelationshipType) {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationship_type")
 		return
 	}
 	if h.cfDefs != nil && len(patch.CustomFields) > 0 {

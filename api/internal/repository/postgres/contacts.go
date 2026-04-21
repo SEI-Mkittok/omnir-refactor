@@ -23,18 +23,37 @@ func NewContactRepo(db *pgxpool.Pool) *ContactRepo {
 }
 
 const contactCols = `
-	id, org_id, first_name, last_name, email, phone,
-	account_id, owner_id, lead_source, lead_score, stage, tags,
-	custom_fields, email_opt_out, bounce_count,
-	converted_at, converted_by, converted_deal_id, converted_from_lead_id,
-	created_at, updated_at, deleted_at
+	c.id, c.org_id, c.first_name, c.last_name, c.email, c.phone,
+	COALESCE(ac.account_id, c.account_id) AS account_id,
+	ac.relationship_type, COALESCE(ac.is_primary, false) AS is_primary,
+	ac.title_at_account,
+	CASE WHEN ac.start_date IS NOT NULL THEN ac.start_date::timestamptz END AS start_date,
+	CASE WHEN ac.end_date IS NOT NULL THEN ac.end_date::timestamptz END AS end_date,
+	c.owner_id, c.lead_source, c.lead_score, c.stage, c.tags,
+	c.custom_fields, c.email_opt_out, c.bounce_count,
+	c.converted_at, c.converted_by, c.converted_deal_id, c.converted_from_lead_id,
+	c.created_at, c.updated_at, c.deleted_at
+`
+
+const contactPrimaryJoin = `
+	LEFT JOIN LATERAL (
+		SELECT account_id, relationship_type, is_primary, title_at_account, start_date, end_date
+		FROM account_contacts ac
+		WHERE ac.contact_id = c.id
+		  AND ac.org_id = c.org_id
+		  AND ac.deleted_at IS NULL
+		  AND ac.end_date IS NULL
+		ORDER BY ac.is_primary DESC, ac.created_at DESC
+		LIMIT 1
+	) ac ON TRUE
 `
 
 func scanContact(row pgx.Row) (*domain.Contact, error) {
 	var c domain.Contact
 	err := row.Scan(
 		&c.ID, &c.OrgID, &c.FirstName, &c.LastName, &c.Email, &c.Phone,
-		&c.AccountID, &c.OwnerID, &c.LeadSource, &c.LeadScore, &c.Stage, &c.Tags,
+		&c.AccountID, &c.RelationshipType, &c.IsPrimary, &c.TitleAtAccount, &c.StartDate, &c.EndDate,
+		&c.OwnerID, &c.LeadSource, &c.LeadScore, &c.Stage, &c.Tags,
 		&c.CustomFields, &c.EmailOptOut, &c.BounceCount,
 		&c.ConvertedAt, &c.ConvertedBy, &c.ConvertedDealID, &c.ConvertedFromLeadID,
 		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
@@ -62,26 +81,47 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 		c.Tags = []string{}
 	}
 
-	row := r.db.QueryRow(ctx, `
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `
 		INSERT INTO contacts
 			(id, org_id, first_name, last_name, email, phone,
 			 account_id, owner_id, lead_source, stage, tags,
 			 custom_fields, converted_from_lead_id, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-		RETURNING `+contactCols,
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		c.ID, c.OrgID, c.FirstName, c.LastName, c.Email, c.Phone,
 		c.AccountID, c.OwnerID, c.LeadSource, c.Stage, c.Tags,
 		c.CustomFields, c.ConvertedFromLeadID, c.CreatedAt, c.UpdatedAt,
 	)
-	return scanContact(row)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.upsertPrimaryAccountContact(ctx, tx, c.OrgID, c.ID, c); err != nil {
+		return nil, err
+	}
+
+	created, err := scanContact(tx.QueryRow(ctx,
+		`SELECT `+contactCols+` FROM contacts c `+contactPrimaryJoin+` WHERE c.id=$1 AND c.deleted_at IS NULL`, c.ID))
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return created, nil
 }
 
 func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contact, error) {
-	q := `SELECT ` + contactCols + ` FROM contacts WHERE id=$1 AND deleted_at IS NULL`
+	q := `SELECT ` + contactCols + ` FROM contacts c ` + contactPrimaryJoin + ` WHERE c.id=$1 AND c.deleted_at IS NULL`
 	args := []any{id}
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += ` AND c.org_id=$2`
 		args = append(args, orgID)
 	}
 
@@ -90,11 +130,11 @@ func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contac
 }
 
 func (r *ContactRepo) GetByEmail(ctx context.Context, email string) (*domain.Contact, error) {
-	q := `SELECT ` + contactCols + ` FROM contacts WHERE email=$1 AND deleted_at IS NULL`
+	q := `SELECT ` + contactCols + ` FROM contacts c ` + contactPrimaryJoin + ` WHERE c.email=$1 AND c.deleted_at IS NULL`
 	args := []any{email}
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += ` AND c.org_id=$2`
 		args = append(args, orgID)
 	}
 
@@ -148,17 +188,52 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 	args = append(args, id)
 	i++
 
-	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+	orgID, hasCtxOrg := domain.OrgIDFromContext(ctx)
+	if hasCtxOrg {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
 	}
 
-	query := fmt.Sprintf(
-		`UPDATE contacts SET %s WHERE %s RETURNING %s`,
-		strings.Join(sets, ", "), whereClause, contactCols,
-	)
-	row := r.db.QueryRow(ctx, query, args...)
-	return scanContact(row)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	query := fmt.Sprintf(`UPDATE contacts SET %s WHERE %s`, strings.Join(sets, ", "), whereClause)
+	result, err := tx.Exec(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	if result.RowsAffected() == 0 {
+		return nil, domain.ErrNotFound
+	}
+
+	if !hasCtxOrg {
+		if err := tx.QueryRow(ctx, `SELECT org_id FROM contacts WHERE id = $1`, id).Scan(&orgID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, domain.ErrNotFound
+			}
+			return nil, err
+		}
+	}
+
+	if patch.AccountID != nil || patch.RelationshipType != nil || patch.IsPrimary != nil || patch.TitleAtAccount != nil || patch.StartDate != nil || patch.EndDate != nil {
+		if err := r.upsertPrimaryAccountContactPatch(ctx, tx, orgID, id, patch); err != nil {
+			return nil, err
+		}
+	}
+
+	updated, err := scanContact(tx.QueryRow(ctx,
+		`SELECT `+contactCols+` FROM contacts c `+contactPrimaryJoin+` WHERE c.id=$1 AND c.deleted_at IS NULL`, id))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 
 func (r *ContactRepo) Delete(ctx context.Context, id uuid.UUID) error {
@@ -189,7 +264,7 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	}
 	offset := (f.Page - 1) * f.Limit
 
-	where := []string{"deleted_at IS NULL"}
+	where := []string{"c.deleted_at IS NULL"}
 	args := []any{}
 	i := 1
 
@@ -199,37 +274,36 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 		i++
 	}
 
-	// Always scope by org_id: prefer context, fall back to filter field.
 	orgID, hasCtxOrg := domain.OrgIDFromContext(ctx)
 	if !hasCtxOrg {
 		orgID = f.OrgID
 	}
 	if orgID != uuid.Nil {
-		addWhere("org_id", orgID)
+		addWhere("c.org_id", orgID)
 	}
 
 	if f.OwnerID != nil {
-		addWhere("owner_id", *f.OwnerID)
+		addWhere("c.owner_id", *f.OwnerID)
 	}
 	if f.Stage != nil {
-		addWhere("stage", *f.Stage)
+		addWhere("c.stage", *f.Stage)
 	}
 	if f.Source != nil {
-		addWhere("lead_source", *f.Source)
+		addWhere("c.lead_source", *f.Source)
 	}
 	if f.ScoreMin != nil {
-		where = append(where, fmt.Sprintf("lead_score >= $%d", i))
+		where = append(where, fmt.Sprintf("c.lead_score >= $%d", i))
 		args = append(args, *f.ScoreMin)
 		i++
 	}
 	if f.ScoreMax != nil {
-		where = append(where, fmt.Sprintf("lead_score <= $%d", i))
+		where = append(where, fmt.Sprintf("c.lead_score <= $%d", i))
 		args = append(args, *f.ScoreMax)
 		i++
 	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
-			`to_tsvector('english', first_name || ' ' || last_name || ' ' || coalesce(email, '') || ' ' || coalesce(phone, '')) @@ plainto_tsquery('english', $%d)`, i,
+			`to_tsvector('english', c.first_name || ' ' || c.last_name || ' ' || coalesce(c.email, '') || ' ' || coalesce(c.phone, '')) @@ plainto_tsquery('english', $%d)`, i,
 		))
 		args = append(args, f.Q)
 		i++
@@ -239,7 +313,7 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 
 	var total int
 	err := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM contacts WHERE `+whereClause, args...).Scan(&total)
+		`SELECT COUNT(*) FROM contacts c WHERE `+whereClause, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -259,8 +333,8 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 
 	rows, err := r.db.Query(ctx,
 		fmt.Sprintf(
-			`SELECT %s FROM contacts WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
-			contactCols, whereClause, sortCol, order, i, i+1,
+			`SELECT %s FROM contacts c %s WHERE %s ORDER BY c.%s %s LIMIT $%d OFFSET $%d`,
+			contactCols, contactPrimaryJoin, whereClause, sortCol, order, i, i+1,
 		),
 		append(args, f.Limit, offset)...,
 	)
@@ -309,9 +383,15 @@ func (r *ContactRepo) UpdateLeadScore(ctx context.Context, id uuid.UUID, patch d
 		args = append(args, orgID)
 	}
 
-	q := fmt.Sprintf(`UPDATE contacts SET %s, updated_at = NOW() WHERE %s RETURNING %s`,
-		scoreExpr, whereClause, contactCols)
-	return scanContact(r.db.QueryRow(ctx, q, args...))
+	q := fmt.Sprintf(`UPDATE contacts SET %s, updated_at = NOW() WHERE %s`, scoreExpr, whereClause)
+	result, err := r.db.Exec(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	if result.RowsAffected() == 0 {
+		return nil, domain.ErrNotFound
+	}
+	return r.GetByID(ctx, id)
 }
 
 // ConvertLead transitions a contact from stage='lead' to stage='prospect',
@@ -334,9 +414,15 @@ func (r *ContactRepo) ConvertLead(ctx context.Context, id, byUserID uuid.UUID, d
 		    converted_by = COALESCE(converted_by, $1),
 		    converted_deal_id = COALESCE(converted_deal_id, $2),
 		    updated_at = NOW()
-		WHERE %s
-		RETURNING %s`, whereClause, contactCols)
-	return scanContact(r.db.QueryRow(ctx, q, args...))
+		WHERE %s`, whereClause)
+	result, err := r.db.Exec(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	if result.RowsAffected() == 0 {
+		return nil, domain.ErrNotFound
+	}
+	return r.GetByID(ctx, id)
 }
 
 // SetEmailOptOut sets email_opt_out=true for a contact, scoped to orgID.
@@ -385,4 +471,100 @@ func (r *ContactRepo) ListLeadSources(ctx context.Context) ([]string, error) {
 		sources = []string{}
 	}
 	return sources, rows.Err()
+}
+
+func (r *ContactRepo) upsertPrimaryAccountContact(ctx context.Context, tx pgx.Tx, orgID, contactID uuid.UUID, c *domain.Contact) error {
+	if c.AccountID == nil {
+		return nil
+	}
+
+	isPrimary := true
+	relationshipType := "champion"
+	if c.RelationshipType != nil && *c.RelationshipType != "" {
+		relationshipType = *c.RelationshipType
+	}
+
+	_, err := tx.Exec(ctx, `
+		UPDATE account_contacts
+		SET is_primary = false,
+		    end_date = COALESCE(end_date, CURRENT_DATE),
+		    updated_at = NOW()
+		WHERE org_id = $1
+		  AND contact_id = $2
+		  AND is_primary = true
+		  AND deleted_at IS NULL
+		  AND end_date IS NULL`, orgID, contactID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO account_contacts
+			(id, org_id, account_id, contact_id, relationship_type, is_primary, title_at_account, start_date, end_date, created_at, updated_at)
+		VALUES
+			($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+		uuid.New(), orgID, *c.AccountID, contactID, relationshipType, isPrimary, c.TitleAtAccount, c.StartDate, c.EndDate)
+	return err
+}
+
+func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx pgx.Tx, orgID, contactID uuid.UUID, patch domain.ContactPatch) error {
+	var accountID *uuid.UUID
+	if patch.AccountID != nil {
+		accountID = patch.AccountID
+	} else {
+		err := tx.QueryRow(ctx, `
+			SELECT COALESCE(ac.account_id, c.account_id)
+			FROM contacts c
+			LEFT JOIN LATERAL (
+				SELECT account_id
+				FROM account_contacts ac
+				WHERE ac.org_id = c.org_id
+				  AND ac.contact_id = c.id
+				  AND ac.deleted_at IS NULL
+				  AND ac.end_date IS NULL
+				ORDER BY ac.is_primary DESC, ac.created_at DESC
+				LIMIT 1
+			) ac ON TRUE
+			WHERE c.id = $1`, contactID).Scan(&accountID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			return err
+		}
+	}
+	if accountID == nil {
+		return nil
+	}
+
+	isPrimary := true
+	if patch.IsPrimary != nil {
+		isPrimary = *patch.IsPrimary
+	}
+	relationshipType := "champion"
+	if patch.RelationshipType != nil && *patch.RelationshipType != "" {
+		relationshipType = *patch.RelationshipType
+	}
+
+	_, err := tx.Exec(ctx, `
+		UPDATE account_contacts
+		SET is_primary = false,
+		    end_date = COALESCE(end_date, CURRENT_DATE),
+		    updated_at = NOW()
+		WHERE org_id = $1
+		  AND contact_id = $2
+		  AND is_primary = true
+		  AND deleted_at IS NULL
+		  AND end_date IS NULL`, orgID, contactID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO account_contacts
+			(id, org_id, account_id, contact_id, relationship_type, is_primary, title_at_account, start_date, end_date, created_at, updated_at)
+		VALUES
+			($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+		uuid.New(), orgID, *accountID, contactID, relationshipType, isPrimary, patch.TitleAtAccount, patch.StartDate, patch.EndDate)
+	return err
 }

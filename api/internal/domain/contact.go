@@ -26,6 +26,11 @@ type Contact struct {
 	Email               *string         `json:"email,omitempty"`
 	Phone               *string         `json:"phone,omitempty"`
 	AccountID           *uuid.UUID      `json:"account_id,omitempty"`
+	RelationshipType    *string         `json:"relationship_type,omitempty"`
+	IsPrimary           bool            `json:"is_primary"`
+	TitleAtAccount      *string         `json:"title_at_account,omitempty"`
+	StartDate           *time.Time      `json:"start_date,omitempty"`
+	EndDate             *time.Time      `json:"end_date,omitempty"`
 	OwnerID             uuid.UUID       `json:"owner_id"`
 	LeadSource          *string         `json:"lead_source,omitempty"`
 	LeadScore           int             `json:"lead_score"`
@@ -45,16 +50,21 @@ type Contact struct {
 
 // ContactPatch holds optional fields for partial updates.
 type ContactPatch struct {
-	FirstName    *string         `json:"first_name,omitempty"`
-	LastName     *string         `json:"last_name,omitempty"`
-	Email        *string         `json:"email,omitempty"`
-	Phone        *string         `json:"phone,omitempty"`
-	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
-	OwnerID      *uuid.UUID      `json:"owner_id,omitempty"`
-	LeadSource   *string         `json:"lead_source,omitempty"`
-	Stage        *ContactStage   `json:"stage,omitempty"`
-	Tags         []string        `json:"tags,omitempty"`
-	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
+	FirstName        *string         `json:"first_name,omitempty"`
+	LastName         *string         `json:"last_name,omitempty"`
+	Email            *string         `json:"email,omitempty"`
+	Phone            *string         `json:"phone,omitempty"`
+	AccountID        *uuid.UUID      `json:"account_id,omitempty"`
+	RelationshipType *string         `json:"relationship_type,omitempty"`
+	IsPrimary        *bool           `json:"is_primary,omitempty"`
+	TitleAtAccount   *string         `json:"title_at_account,omitempty"`
+	StartDate        *time.Time      `json:"start_date,omitempty"`
+	EndDate          *time.Time      `json:"end_date,omitempty"`
+	OwnerID          *uuid.UUID      `json:"owner_id,omitempty"`
+	LeadSource       *string         `json:"lead_source,omitempty"`
+	Stage            *ContactStage   `json:"stage,omitempty"`
+	Tags             []string        `json:"tags,omitempty"`
+	CustomFields     json.RawMessage `json:"custom_fields,omitempty"`
 }
 
 // IsValid returns true if the stage is a known value.
