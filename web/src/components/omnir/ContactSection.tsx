@@ -16,7 +16,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'
 import { contactsApi } from '@/api/contacts'
 import { useUpdateTicketContact } from '@/hooks/useTickets'
-import type { Contact, TicketStatus } from '@/api/types'
+import type { Contact, TicketContactSummary, TicketStatus } from '@/api/types'
 
 // ── Initials avatar ──────────────────────────────────────────────────────────
 
@@ -195,13 +195,13 @@ function ContactSearch({ onSelect, onCancel }: ContactSearchProps) {
 
 interface ContactSectionProps {
   ticketId: string
-  contact: Contact | undefined
+  contact: Contact | TicketContactSummary | undefined
   ticketStatus: TicketStatus
 }
 
 export function ContactSection({ ticketId, contact, ticketStatus }: ContactSectionProps) {
   const [mode, setMode] = useState<'view' | 'search'>('view')
-  const [optimisticContact, setOptimisticContact] = useState<Contact | null | undefined>(undefined)
+  const [optimisticContact, setOptimisticContact] = useState<Contact | TicketContactSummary | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -213,6 +213,13 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
 
   const isReadOnly = ticketStatus === 'resolved' || ticketStatus === 'closed'
   const displayed = optimisticContact !== undefined ? optimisticContact : contact
+
+  const getFullName = useCallback((value: Contact | TicketContactSummary) => {
+    if ('first_name' in value && 'last_name' in value) {
+      return `${value.first_name ?? ''} ${value.last_name ?? ''}`.trim() || 'Unknown Contact'
+    }
+    return value.name?.trim() || 'Unknown Contact'
+  }, [])
 
   const showError = useCallback((msg: string) => {
     setError(msg)
@@ -229,7 +236,7 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
       try {
         await updateContact({ ticketId, contactId: selected.id })
         if (liveRef.current) {
-          liveRef.current.textContent = `${selected.first_name} ${selected.last_name} linked to ticket`
+          liveRef.current.textContent = `${getFullName(selected)} linked to ticket`
         }
       } catch {
         setOptimisticContact(previous ?? undefined)
@@ -239,7 +246,7 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
         setTimeout(() => changeBtnRef.current?.focus(), 0)
       }
     },
-    [displayed, ticketId, updateContact, showError]
+    [displayed, ticketId, updateContact, showError, getFullName]
   )
 
   const handleUnlink = useCallback(async () => {
@@ -296,13 +303,13 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
           )}
 
           <div className="flex items-start gap-2.5">
-            <InitialsAvatar name={`${displayed.first_name} ${displayed.last_name}`} />
+            <InitialsAvatar name={getFullName(displayed)} />
             <div className="min-w-0 flex-1">
               <p
                 className="truncate font-semibold text-sm text-slate-800"
-                title={`${displayed.first_name} ${displayed.last_name}`}
+                title={getFullName(displayed)}
               >
-                {displayed.first_name} {displayed.last_name}
+                {getFullName(displayed)}
               </p>
               {displayed.email && (
                 <div className="flex items-center gap-1.5 mt-0.5">
@@ -316,7 +323,7 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
                   <span className="text-xs text-slate-500">{displayed.phone}</span>
                 </div>
               )}
-              {displayed.account && (
+              {'account' in displayed && displayed.account && (
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                   <span className="text-xs text-slate-500">{displayed.account.name}</span>
@@ -342,7 +349,7 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
                   size="icon"
                   className="h-8 w-8"
                   onClick={handleUnlink}
-                  aria-label={`Unlink contact ${displayed.first_name} ${displayed.last_name}`}
+                  aria-label={`Unlink contact ${getFullName(displayed)}`}
                   disabled={saving}
                 >
                   <X className="h-3.5 w-3.5" />
