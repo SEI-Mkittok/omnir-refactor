@@ -508,9 +508,9 @@ func (r *ContactRepo) upsertPrimaryAccountContact(ctx context.Context, tx pgx.Tx
 }
 
 func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx pgx.Tx, orgID, contactID uuid.UUID, patch domain.ContactPatch) error {
-	var accountID *uuid.UUID
+	var accountID uuid.UUID
 	if patch.AccountID != nil {
-		accountID = patch.AccountID
+		accountID = *patch.AccountID
 	} else {
 		err := tx.QueryRow(ctx, `
 			SELECT COALESCE(ac.account_id, c.account_id)
@@ -525,7 +525,8 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 				ORDER BY ac.is_primary DESC, ac.created_at DESC
 				LIMIT 1
 			) ac ON TRUE
-			WHERE c.id = $1`, contactID).Scan(&accountID)
+			WHERE c.id = $1
+			  AND COALESCE(ac.account_id, c.account_id) IS NOT NULL`, contactID).Scan(&accountID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return nil
@@ -533,10 +534,6 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 			return err
 		}
 	}
-	if accountID == nil {
-		return nil
-	}
-
 	isPrimary := true
 	if patch.IsPrimary != nil {
 		isPrimary = *patch.IsPrimary
@@ -565,6 +562,6 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 			(id, org_id, account_id, contact_id, relationship_type, is_primary, title_at_account, start_date, end_date, created_at, updated_at)
 		VALUES
 			($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
-		uuid.New(), orgID, *accountID, contactID, relationshipType, isPrimary, patch.TitleAtAccount, patch.StartDate, patch.EndDate)
+		uuid.New(), orgID, accountID, contactID, relationshipType, isPrimary, patch.TitleAtAccount, patch.StartDate, patch.EndDate)
 	return err
 }
