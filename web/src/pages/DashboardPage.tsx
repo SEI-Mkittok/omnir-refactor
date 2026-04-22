@@ -211,8 +211,8 @@ function ActivityBarChart() {
           <p className="py-8 text-center text-[13px] text-[var(--text-secondary)]">No data yet</p>
         ) : (
           <>
-            <div role="img" aria-label="Monthly activity bar chart" className="h-[240px] w-full sm:h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <div role="img" aria-label="Monthly activity bar chart" className="w-full">
+              <ResponsiveContainer width="100%" height={240} minWidth={0}>
                 <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <XAxis
                     dataKey="month"
