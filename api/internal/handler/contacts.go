@@ -23,8 +23,16 @@ var allowedRelationshipTypes = map[string]struct{}{
 	"champion":       {},
 }
 
+func normalizeRelationshipType(v *string) {
+	if v == nil {
+		return
+	}
+	n := strings.ToLower(strings.TrimSpace(*v))
+	*v = n
+}
+
 func isValidRelationshipType(v *string) bool {
-	if v == nil || strings.TrimSpace(*v) == "" {
+	if v == nil || *v == "" {
 		return true
 	}
 	_, ok := allowedRelationshipTypes[*v]
@@ -176,6 +184,7 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
 	}
+	normalizeRelationshipType(c.RelationshipType)
 	if !isValidRelationshipType(c.RelationshipType) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationship_type")
 		return
@@ -226,6 +235,7 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	normalizeRelationshipType(patch.RelationshipType)
 	if !isValidRelationshipType(patch.RelationshipType) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationship_type")
 		return
