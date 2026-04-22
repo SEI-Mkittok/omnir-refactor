@@ -14,17 +14,17 @@ CREATE TABLE IF NOT EXISTS account_contacts (
     deleted_at        TIMESTAMPTZ
 );
 
--- Add org FK when organizations table exists in this migration context.
+-- Add org FK when orgs table exists in this migration context.
 DO $$
 BEGIN
-    IF to_regclass('organizations') IS NOT NULL AND NOT EXISTS (
+    IF to_regclass('orgs') IS NOT NULL AND NOT EXISTS (
         SELECT 1
         FROM pg_constraint
         WHERE conname = 'fk_account_contacts_org'
     ) THEN
         ALTER TABLE account_contacts
             ADD CONSTRAINT fk_account_contacts_org
-            FOREIGN KEY (org_id) REFERENCES organizations(id);
+            FOREIGN KEY (org_id) REFERENCES orgs(id);
     END IF;
 END $$;
 

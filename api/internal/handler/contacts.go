@@ -31,6 +31,14 @@ func isValidRelationshipType(v *string) bool {
 	return ok
 }
 
+func normalizeRelationshipType(v *string) *string {
+	if v == nil {
+		return nil
+	}
+	normalized := strings.ToLower(strings.TrimSpace(*v))
+	return &normalized
+}
+
 type ContactHandler struct {
 	repo        repository.ContactRepository
 	deals       repository.DealRepository
@@ -176,6 +184,7 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
 	}
+	c.RelationshipType = normalizeRelationshipType(c.RelationshipType)
 	if !isValidRelationshipType(c.RelationshipType) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationship_type")
 		return
@@ -226,6 +235,7 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	patch.RelationshipType = normalizeRelationshipType(patch.RelationshipType)
 	if !isValidRelationshipType(patch.RelationshipType) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationship_type")
 		return

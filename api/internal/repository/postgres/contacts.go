@@ -42,8 +42,11 @@ const contactPrimaryJoin = `
 		WHERE ac.contact_id = c.id
 		  AND ac.org_id = c.org_id
 		  AND ac.deleted_at IS NULL
-		  AND ac.end_date IS NULL
-		ORDER BY ac.is_primary DESC, ac.created_at DESC
+		ORDER BY
+		  CASE WHEN ac.end_date IS NULL THEN 0 ELSE 1 END,
+		  ac.is_primary DESC,
+		  ac.end_date DESC NULLS LAST,
+		  ac.created_at DESC
 		LIMIT 1
 	) ac ON TRUE
 `
@@ -514,6 +517,7 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 		relationshipType   = "champion"
 		titleAtAccount     *string
 		startDate, endDate *time.Time
+		hasActiveRow       bool
 	)
 
 	err := tx.QueryRow(ctx, `
@@ -550,6 +554,8 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 				return err
 			}
 		}
+	} else {
+		hasActiveRow = true
 	}
 
 	if patch.AccountID != nil {
@@ -571,18 +577,20 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 		endDate = patch.EndDate
 	}
 
-	_, err := tx.Exec(ctx, `
-		UPDATE account_contacts
-		SET is_primary = false,
-		    end_date = COALESCE(end_date, CURRENT_DATE),
-		    updated_at = NOW()
-		WHERE org_id = $1
-		  AND contact_id = $2
-		  AND is_primary = true
-		  AND deleted_at IS NULL
-		  AND end_date IS NULL`, orgID, contactID)
-	if err != nil {
-		return err
+	if hasActiveRow {
+		_, err := tx.Exec(ctx, `
+			UPDATE account_contacts
+			SET is_primary = false,
+			    end_date = COALESCE(end_date, CURRENT_DATE),
+			    updated_at = NOW()
+			WHERE org_id = $1
+			  AND contact_id = $2
+			  AND is_primary = true
+			  AND deleted_at IS NULL
+			  AND end_date IS NULL`, orgID, contactID)
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = tx.Exec(ctx, `
