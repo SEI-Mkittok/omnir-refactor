@@ -43,9 +43,9 @@ const contactPrimaryJoin = `
 		  AND ac.org_id = c.org_id
 		  AND ac.deleted_at IS NULL
 		ORDER BY
-		  CASE WHEN ac.end_date IS NULL THEN 0 ELSE 1 END,
+		  CASE WHEN ac.end_date IS NULL THEN 1 ELSE 0 END DESC,
 		  ac.is_primary DESC,
-		  ac.end_date DESC NULLS LAST,
+		  COALESCE(ac.end_date, DATE 'infinity') DESC,
 		  ac.created_at DESC
 		LIMIT 1
 	) ac ON TRUE
@@ -487,7 +487,7 @@ func (r *ContactRepo) upsertPrimaryAccountContact(ctx context.Context, tx pgx.Tx
 		relationshipType = *c.RelationshipType
 	}
 
-	_, err := tx.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 		UPDATE account_contacts
 		SET is_primary = false,
 		    end_date = COALESCE(end_date, CURRENT_DATE),
@@ -513,11 +513,11 @@ func (r *ContactRepo) upsertPrimaryAccountContact(ctx context.Context, tx pgx.Tx
 func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx pgx.Tx, orgID, contactID uuid.UUID, patch domain.ContactPatch) error {
 	var (
 		accountID          uuid.UUID
-		isPrimary          = true
-		relationshipType   = "champion"
+		isPrimary          bool
+		relationshipType   string
 		titleAtAccount     *string
 		startDate, endDate *time.Time
-		hasActiveRow       bool
+		hasExisting        bool
 	)
 
 	err := tx.QueryRow(ctx, `
@@ -533,11 +533,14 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 		LIMIT 1`, orgID, contactID).Scan(
 		&accountID, &relationshipType, &isPrimary, &titleAtAccount, &startDate, &endDate,
 	)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 
-	if errors.Is(err, pgx.ErrNoRows) {
+		// No active relationship exists yet. Seed from patch/compatibility column.
+		isPrimary = true
+		relationshipType = "champion"
 		if patch.AccountID != nil {
 			accountID = *patch.AccountID
 		} else {
@@ -555,7 +558,7 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 			}
 		}
 	} else {
-		hasActiveRow = true
+		hasExisting = true
 	}
 
 	if patch.AccountID != nil {
@@ -564,7 +567,7 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 	if patch.IsPrimary != nil {
 		isPrimary = *patch.IsPrimary
 	}
-	if patch.RelationshipType != nil && *patch.RelationshipType != "" {
+	if patch.RelationshipType != nil {
 		relationshipType = *patch.RelationshipType
 	}
 	if patch.TitleAtAccount != nil {
@@ -577,20 +580,18 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 		endDate = patch.EndDate
 	}
 
-	if hasActiveRow {
-		_, err := tx.Exec(ctx, `
-			UPDATE account_contacts
-			SET is_primary = false,
-			    end_date = COALESCE(end_date, CURRENT_DATE),
-			    updated_at = NOW()
-			WHERE org_id = $1
-			  AND contact_id = $2
-			  AND is_primary = true
-			  AND deleted_at IS NULL
-			  AND end_date IS NULL`, orgID, contactID)
-		if err != nil {
-			return err
-		}
+	_, err = tx.Exec(ctx, `
+		UPDATE account_contacts
+		SET is_primary = false,
+		    end_date = COALESCE(end_date, CURRENT_DATE),
+		    updated_at = NOW()
+		WHERE org_id = $1
+		  AND contact_id = $2
+		  AND is_primary = true
+		  AND deleted_at IS NULL
+		  AND end_date IS NULL`, orgID, contactID)
+	if err != nil {
+		return err
 	}
 
 	_, err = tx.Exec(ctx, `
