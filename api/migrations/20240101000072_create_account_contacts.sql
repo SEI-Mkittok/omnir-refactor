@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS account_contacts (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id            UUID NOT NULL REFERENCES organizations(id),
+    org_id            UUID NOT NULL,
     account_id        UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     contact_id        UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     relationship_type TEXT NOT NULL DEFAULT 'champion',
