@@ -43,6 +43,14 @@ func setupDB(t *testing.T) (*pgxpool.Pool, context.Context) {
 	`, defaultPipelineID, defaultOrgID)
 	require.NoError(t, err)
 
+	// Seed a sentinel owner row for tests that create accounts without
+	// explicitly setting owner_id (zero UUID fallback).
+	_, err = pool.Exec(ctx, `
+		INSERT INTO users (id, org_id, email, name, role)
+		VALUES ($1, $2, $3, 'Default Test Owner', 'admin')
+	`, uuid.Nil, defaultOrgID, "default-owner@omnir.test")
+	require.NoError(t, err)
+
 	return pool, domain.WithOrgID(ctx, defaultOrgID)
 }
 
