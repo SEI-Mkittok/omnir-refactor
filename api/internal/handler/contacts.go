@@ -27,12 +27,12 @@ func normalizeRelationshipType(v *string) {
 	if v == nil {
 		return
 	}
-	normalized := strings.TrimSpace(strings.ToLower(*v))
-	*v = normalized
+	n := strings.ToLower(strings.TrimSpace(*v))
+	*v = n
 }
 
 func isValidRelationshipType(v *string) bool {
-	if v == nil {
+	if v == nil || *v == "" {
 		return true
 	}
 	normalized := strings.TrimSpace(strings.ToLower(*v))
