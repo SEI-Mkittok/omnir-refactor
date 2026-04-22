@@ -14,6 +14,20 @@ CREATE TABLE IF NOT EXISTS account_contacts (
     deleted_at        TIMESTAMPTZ
 );
 
+-- Add org FK when organizations table exists in this migration context.
+DO $$
+BEGIN
+    IF to_regclass('organizations') IS NOT NULL AND NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_account_contacts_org'
+    ) THEN
+        ALTER TABLE account_contacts
+            ADD CONSTRAINT fk_account_contacts_org
+            FOREIGN KEY (org_id) REFERENCES organizations(id);
+    END IF;
+END $$;
+
 -- Ensure only one active primary account relationship for a contact in an org.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_account_contacts_primary_active_contact_org
     ON account_contacts (org_id, contact_id)
