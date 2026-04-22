@@ -125,7 +125,7 @@ const ticketDetailQuery = `
 		a.id, a.name
 	FROM tickets t
 	LEFT JOIN contacts c ON t.contact_id = c.id AND c.deleted_at IS NULL
-	LEFT JOIN accounts a ON c.account_id = a.id AND a.deleted_at IS NULL
+	LEFT JOIN accounts a ON t.account_id = a.id AND a.deleted_at IS NULL
 	WHERE t.id = $1 AND t.deleted_at IS NULL`
 
 func (r *TicketRepo) GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error) {

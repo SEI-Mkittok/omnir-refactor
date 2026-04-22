@@ -87,6 +87,54 @@ func TestRLS_TicketTenantIsolation(t *testing.T) {
 	})
 }
 
+func TestTicketDetailReturnsTicketAccountWhenDifferentFromContactAccount(t *testing.T) {
+	pool, _ := setupDB(t)
+
+	repo := postgres.NewTicketRepo(pool)
+	accountRepo := postgres.NewAccountRepo(pool)
+	contactRepo := postgres.NewContactRepo(pool)
+	ctx := domain.WithOrgID(context.Background(), defaultOrgID)
+
+	contactAccount, err := accountRepo.Create(ctx, &domain.Account{
+		OrgID: defaultOrgID,
+		Name:  "Contact Default Account",
+	})
+	require.NoError(t, err)
+
+	ticketAccount, err := accountRepo.Create(ctx, &domain.Account{
+		OrgID: defaultOrgID,
+		Name:  "Escalation Account",
+	})
+	require.NoError(t, err)
+
+	contact, err := contactRepo.Create(ctx, &domain.Contact{
+		OrgID:     defaultOrgID,
+		FirstName: "Taylor",
+		LastName:  "Contact",
+		AccountID: &contactAccount.ID,
+	})
+	require.NoError(t, err)
+
+	ticket, err := repo.Create(ctx, &domain.Ticket{
+		OrgID:     defaultOrgID,
+		Subject:   "Route ticket to escalation account",
+		ContactID: &contact.ID,
+		AccountID: &ticketAccount.ID,
+	})
+	require.NoError(t, err)
+
+	detail, err := repo.GetDetailByID(ctx, ticket.ID)
+	require.NoError(t, err)
+
+	require.NotNil(t, detail.Contact)
+	assert.Equal(t, contact.ID, detail.Contact.ID)
+
+	require.NotNil(t, detail.Account)
+	assert.Equal(t, ticketAccount.ID, detail.Account.ID)
+	assert.Equal(t, ticketAccount.Name, detail.Account.Name)
+	assert.NotEqual(t, contactAccount.ID, detail.Account.ID, "ticket detail account must come from tickets.account_id")
+}
+
 // TestRLS_TicketCommentTenantIsolation verifies that ticket comments created
 // for org A are invisible when listed under org B's session variable.
 func TestRLS_TicketCommentTenantIsolation(t *testing.T) {
