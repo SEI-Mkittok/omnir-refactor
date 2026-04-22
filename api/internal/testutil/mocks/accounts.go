@@ -58,3 +58,32 @@ func (m *MockAccountRepository) List(ctx context.Context, filter domain.AccountF
 	}
 	return args.Get(0).([]*domain.Account), args.Int(1), args.Error(2)
 }
+
+func (m *MockAccountRepository) CreateRelationship(ctx context.Context, rel *domain.AccountRelationship) (*domain.AccountRelationship, error) {
+	args := m.Called(ctx, rel)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.AccountRelationship), args.Error(1)
+}
+
+func (m *MockAccountRepository) DeleteRelationship(ctx context.Context, relationshipID uuid.UUID, deletedBy *uuid.UUID) error {
+	args := m.Called(ctx, relationshipID, deletedBy)
+	return args.Error(0)
+}
+
+func (m *MockAccountRepository) ListDescendants(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error) {
+	args := m.Called(ctx, accountID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]uuid.UUID), args.Error(1)
+}
+
+func (m *MockAccountRepository) ListAncestors(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error) {
+	args := m.Called(ctx, accountID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]uuid.UUID), args.Error(1)
+}
