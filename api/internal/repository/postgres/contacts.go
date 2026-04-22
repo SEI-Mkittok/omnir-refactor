@@ -42,8 +42,11 @@ const contactPrimaryJoin = `
 		WHERE ac.contact_id = c.id
 		  AND ac.org_id = c.org_id
 		  AND ac.deleted_at IS NULL
-		  AND ac.end_date IS NULL
-		ORDER BY ac.is_primary DESC, ac.created_at DESC
+		ORDER BY
+		  CASE WHEN ac.end_date IS NULL THEN 1 ELSE 0 END DESC,
+		  ac.is_primary DESC,
+		  COALESCE(ac.end_date, DATE 'infinity') DESC,
+		  ac.created_at DESC
 		LIMIT 1
 	) ac ON TRUE
 `
