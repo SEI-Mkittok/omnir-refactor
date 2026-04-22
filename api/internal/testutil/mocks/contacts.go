@@ -92,3 +92,11 @@ func (m *MockContactRepository) IncrementBounceCount(ctx context.Context, contac
 	args := m.Called(ctx, contactID, orgID)
 	return args.Error(0)
 }
+
+func (m *MockContactRepository) ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error) {
+	args := m.Called(ctx, id, filter)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]domain.LinkedEntity), args.Int(1), args.Error(2)
+}

@@ -58,3 +58,11 @@ func (m *MockAccountRepository) List(ctx context.Context, filter domain.AccountF
 	}
 	return args.Get(0).([]*domain.Account), args.Int(1), args.Error(2)
 }
+
+func (m *MockAccountRepository) ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error) {
+	args := m.Called(ctx, id, filter)
+	if args.Get(0) == nil {
+		return nil, args.Int(1), args.Error(2)
+	}
+	return args.Get(0).([]domain.LinkedEntity), args.Int(1), args.Error(2)
+}

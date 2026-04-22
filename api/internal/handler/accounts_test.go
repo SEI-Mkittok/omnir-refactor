@@ -114,6 +114,8 @@ func TestAccountHandler_GetByID(t *testing.T) {
 			setupMock: func(m *mocks.MockAccountRepository) {
 				m.On("GetByID", mock.Anything, accountID).
 					Return(&domain.Account{ID: accountID, Name: "Acme Corp"}, nil)
+				m.On("ListLinkedEntities", mock.Anything, accountID, mock.AnythingOfType("domain.LinkedEntityFilter")).
+					Return([]domain.LinkedEntity{}, 0, nil)
 			},
 			wantStatus: http.StatusOK,
 		},

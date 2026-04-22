@@ -26,6 +26,9 @@ type ContactRepository interface {
 	// Email opt-out and bounce tracking (OMN-398)
 	SetEmailOptOut(ctx context.Context, contactID, orgID uuid.UUID) error
 	IncrementBounceCount(ctx context.Context, contactID, orgID uuid.UUID) error
+
+	// ListLinkedEntities returns normalized associations for a contact.
+	ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error)
 }
 
 // AccountRepository defines the persistence contract for accounts.
@@ -36,6 +39,9 @@ type AccountRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.AccountPatch) (*domain.Account, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.AccountFilter) ([]*domain.Account, int, error)
+
+	// ListLinkedEntities returns normalized associations for an account.
+	ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error)
 }
 
 // DealRepository defines the persistence contract for deals.
