@@ -484,7 +484,7 @@ func (r *ContactRepo) upsertPrimaryAccountContact(ctx context.Context, tx pgx.Tx
 		relationshipType = *c.RelationshipType
 	}
 
-	_, err := tx.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 		UPDATE account_contacts
 		SET is_primary = false,
 		    end_date = COALESCE(end_date, CURRENT_DATE),
@@ -571,7 +571,7 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 		endDate = patch.EndDate
 	}
 
-	_, err := tx.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 		UPDATE account_contacts
 		SET is_primary = false,
 		    end_date = COALESCE(end_date, CURRENT_DATE),
