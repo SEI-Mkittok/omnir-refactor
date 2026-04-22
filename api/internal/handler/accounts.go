@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -31,11 +32,15 @@ func (h *AccountHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.List)
 	r.Get("/{id}", h.GetByID)
+	r.Get("/{id}/hierarchy/descendants", h.ListDescendants)
+	r.Get("/{id}/hierarchy/ancestors", h.ListAncestors)
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
 		r.Post("/", h.Create)
 		r.Patch("/{id}", h.Update)
 		r.Delete("/{id}", h.Delete)
+		r.Post("/{id}/relationships", h.CreateRelationship)
+		r.Delete("/relationships/{relationshipID}", h.DeleteRelationship)
 	})
 	return r
 }
@@ -169,4 +174,76 @@ func (h *AccountHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AccountHandler) CreateRelationship(w http.ResponseWriter, r *http.Request) {
+	parentID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	var rel domain.AccountRelationship
+	if err := json.NewDecoder(r.Body).Decode(&rel); err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	rel.ParentAccountID = parentID
+	if rel.EffectiveFrom.IsZero() {
+		rel.EffectiveFrom = time.Now().UTC()
+	}
+	if err := rel.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	created, err := h.repo.CreateRelationship(r.Context(), &rel)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, created)
+}
+
+func (h *AccountHandler) DeleteRelationship(w http.ResponseWriter, r *http.Request) {
+	relationshipID, err := uuid.Parse(chi.URLParam(r, "relationshipID"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid relationshipID")
+		return
+	}
+	var deletedBy *uuid.UUID
+	if claims, ok := middleware.ClaimsFromContext(r); ok && claims.UserID != uuid.Nil {
+		deletedBy = &claims.UserID
+	}
+	if err := h.repo.DeleteRelationship(r.Context(), relationshipID, deletedBy); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AccountHandler) ListDescendants(w http.ResponseWriter, r *http.Request) {
+	accountID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	ids, err := h.repo.ListDescendants(r.Context(), accountID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"account_id": accountID, "descendant_ids": ids})
+}
+
+func (h *AccountHandler) ListAncestors(w http.ResponseWriter, r *http.Request) {
+	accountID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	ids, err := h.repo.ListAncestors(r.Context(), accountID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"account_id": accountID, "ancestor_ids": ids})
 }
