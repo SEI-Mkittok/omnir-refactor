@@ -52,6 +52,7 @@ type Quote struct {
 	ID           uuid.UUID       `json:"id"`
 	OrgID        uuid.UUID       `json:"org_id"`
 	DealID       *uuid.UUID      `json:"deal_id,omitempty"`
+	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
 	ContactID    *uuid.UUID      `json:"contact_id,omitempty"`
 	Title        string          `json:"title"`
 	Status       QuoteStatus     `json:"status"`
@@ -112,6 +113,7 @@ type QuotePatch struct {
 	Currency   *string              `json:"currency,omitempty"`
 	ValidUntil *time.Time           `json:"valid_until,omitempty"`
 	Notes      *string              `json:"notes,omitempty"`
+	AccountID  *uuid.UUID           `json:"account_id,omitempty"`
 	ContactID  *uuid.UUID           `json:"contact_id,omitempty"`
 	DealID     *uuid.UUID           `json:"deal_id,omitempty"`
 	LineItems  []QuoteLineItemInput `json:"line_items,omitempty"`
@@ -121,11 +123,14 @@ type QuotePatch struct {
 type QuoteFilter struct {
 	OrgID     uuid.UUID
 	DealID    *uuid.UUID
+	AccountID *uuid.UUID
 	ContactID *uuid.UUID
 	Status    *QuoteStatus
 	Q         string
 	Page      int
 	Limit     int
+	Sort      string
+	Order     string
 }
 
 // SendQuoteRequest is used for the send-via-email action.
