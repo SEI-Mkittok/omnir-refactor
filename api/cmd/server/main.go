@@ -175,8 +175,8 @@ func main() {
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
 	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)
-	dealHandler := handler.NewDealHandler(dealRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
-	activityHandler := handler.NewActivityHandler(activityRepo)
+	dealHandler := handler.NewDealHandler(dealRepo).WithContacts(contactRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
+	activityHandler := handler.NewActivityHandler(activityRepo).WithContacts(contactRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
 	// Initialize file storage backend (S3-compatible or local fallback)
@@ -208,6 +208,7 @@ func main() {
 	}
 
 	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, storageBackend).
+		WithContacts(contactRepo).
 		WithEmailNotifier(emailNotifier, userRepo, contactRepo, logger).
 		WithTeamsNotifier(teamsNotifier).
 		WithPushNotifier(pushNotifier)
@@ -226,7 +227,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
-	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, mailer, cfg.SMTP.From)
+	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, contactRepo, dealRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
 	savedViewRepo := postgres.NewSavedViewRepo(db)
@@ -244,7 +245,7 @@ func main() {
 	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	productHandler := handler.NewProductHandler(productRepo)
-	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithMailer(mailer, cfg.SMTP.From)
+	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithRelations(contactRepo, dealRepo).WithMailer(mailer, cfg.SMTP.From)
 	automationHandler := handler.NewAutomationHandler(automationRepo)
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	emailInboxHandler := handler.NewEmailInboxHandler(emailConnectionRepo, emailInboxRepo, cfg.EmailInbox)
