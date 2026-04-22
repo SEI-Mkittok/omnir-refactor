@@ -111,6 +111,7 @@ func TestTicketDetailReturnsTicketAccountWhenDifferentFromContactAccount(t *test
 		OrgID:     defaultOrgID,
 		FirstName: "Taylor",
 		LastName:  "Contact",
+		Stage:     domain.ContactStageLead,
 		AccountID: &contactAccount.ID,
 	})
 	require.NoError(t, err)
