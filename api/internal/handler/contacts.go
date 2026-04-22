@@ -35,7 +35,11 @@ func isValidRelationshipType(v *string) bool {
 	if v == nil || *v == "" {
 		return true
 	}
-	_, ok := allowedRelationshipTypes[*v]
+	normalized := strings.TrimSpace(strings.ToLower(*v))
+	if normalized == "" {
+		return false
+	}
+	_, ok := allowedRelationshipTypes[normalized]
 	return ok
 }
 

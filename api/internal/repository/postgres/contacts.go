@@ -510,10 +510,11 @@ func (r *ContactRepo) upsertPrimaryAccountContact(ctx context.Context, tx pgx.Tx
 func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx pgx.Tx, orgID, contactID uuid.UUID, patch domain.ContactPatch) error {
 	var (
 		accountID          uuid.UUID
-		isPrimary          = true
-		relationshipType   = "champion"
+		isPrimary          bool
+		relationshipType   string
 		titleAtAccount     *string
 		startDate, endDate *time.Time
+		hasExisting        bool
 	)
 
 	err := tx.QueryRow(ctx, `
@@ -529,11 +530,14 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 		LIMIT 1`, orgID, contactID).Scan(
 		&accountID, &relationshipType, &isPrimary, &titleAtAccount, &startDate, &endDate,
 	)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return err
-	}
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 
-	if errors.Is(err, pgx.ErrNoRows) {
+		// No active relationship exists yet. Seed from patch/compatibility column.
+		isPrimary = true
+		relationshipType = "champion"
 		if patch.AccountID != nil {
 			accountID = *patch.AccountID
 		} else {
@@ -550,6 +554,8 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 				return err
 			}
 		}
+	} else {
+		hasExisting = true
 	}
 
 	if patch.AccountID != nil {
@@ -558,7 +564,7 @@ func (r *ContactRepo) upsertPrimaryAccountContactPatch(ctx context.Context, tx p
 	if patch.IsPrimary != nil {
 		isPrimary = *patch.IsPrimary
 	}
-	if patch.RelationshipType != nil && *patch.RelationshipType != "" {
+	if patch.RelationshipType != nil {
 		relationshipType = *patch.RelationshipType
 	}
 	if patch.TitleAtAccount != nil {
