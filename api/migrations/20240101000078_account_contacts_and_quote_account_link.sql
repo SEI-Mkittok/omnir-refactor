@@ -48,7 +48,6 @@ DO UPDATE SET
 -- +goose Down
 
 DROP INDEX IF EXISTS idx_quotes_org_account_id;
-ALTER TABLE quotes DROP COLUMN IF EXISTS account_id;
 
 DROP INDEX IF EXISTS idx_account_contacts_org_primary;
 DROP INDEX IF EXISTS idx_account_contacts_org_contact;
