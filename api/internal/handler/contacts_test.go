@@ -99,6 +99,8 @@ func TestContactHandler_GetByID(t *testing.T) {
 			setupMock: func(m *mocks.MockContactRepository) {
 				m.On("GetByID", mock.Anything, contactID).
 					Return(&domain.Contact{ID: contactID, FirstName: "Ada"}, nil)
+				m.On("ListLinkedEntities", mock.Anything, contactID, mock.AnythingOfType("domain.LinkedEntityFilter")).
+					Return([]domain.LinkedEntity{}, 0, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -226,6 +228,8 @@ func TestContactHandler_GetByID_ExpandsCustomFields(t *testing.T) {
 	mockCF := new(mocks.MockCustomFieldDefinitionRepository)
 	mockRepo.On("GetByID", mock.Anything, contactID).
 		Return(&domain.Contact{ID: contactID, OwnerID: ownerID}, nil)
+	mockRepo.On("ListLinkedEntities", mock.Anything, contactID, mock.AnythingOfType("domain.LinkedEntityFilter")).
+		Return([]domain.LinkedEntity{}, 0, nil)
 	mockCF.On("List", mock.Anything, mock.Anything).
 		Return([]*domain.CustomFieldDefinition{textDef}, nil)
 

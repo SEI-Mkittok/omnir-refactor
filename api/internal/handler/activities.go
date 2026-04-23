@@ -16,11 +16,17 @@ import (
 
 type ActivityHandler struct {
 	repo       repository.ActivityRepository
+	contacts   repository.ContactRepository
 	dispatcher chan<- worker.WebhookEvent
 }
 
 func NewActivityHandler(repo repository.ActivityRepository) *ActivityHandler {
 	return &ActivityHandler{repo: repo}
+}
+
+func (h *ActivityHandler) WithContacts(r repository.ContactRepository) *ActivityHandler {
+	h.contacts = r
+	return h
 }
 
 func (h *ActivityHandler) WithDispatcher(d chan<- worker.WebhookEvent) *ActivityHandler {
@@ -114,6 +120,10 @@ func (h *ActivityHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 		return
 	}
+	if err := validateContactAccountPair(r.Context(), h.contacts, a.ContactID, a.AccountID); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	created, err := h.repo.Create(r.Context(), &a)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -147,6 +157,25 @@ func (h *ActivityHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
+	}
+	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil) {
+		current, err := h.repo.GetByID(r.Context(), id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		contactID := current.ContactID
+		accountID := current.AccountID
+		if patch.ContactID != nil {
+			contactID = patch.ContactID
+		}
+		if patch.AccountID != nil {
+			accountID = patch.AccountID
+		}
+		if err := validateContactAccountPair(r.Context(), h.contacts, contactID, accountID); err != nil {
+			handleDomainErr(w, err)
+			return
+		}
 	}
 	a, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {

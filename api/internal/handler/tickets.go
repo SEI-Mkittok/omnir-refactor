@@ -48,6 +48,11 @@ func NewTicketHandler(
 	return &TicketHandler{tickets: tickets, comments: comments, attachments: attachments, storage: store}
 }
 
+func (h *TicketHandler) WithContacts(contacts repository.ContactRepository) *TicketHandler {
+	h.contacts = contacts
+	return h
+}
+
 // WithEmailNotifier wires async email notifications into the ticket handler.
 // userRepo and contactRepo are used to resolve email addresses for notifications.
 func (h *TicketHandler) WithEmailNotifier(n *worker.EmailNotifier, users repository.UserRepository, contacts repository.ContactRepository, logger *slog.Logger) *TicketHandler {
@@ -162,6 +167,10 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "subject is required")
 		return
 	}
+	if err := validateContactAccountPair(r.Context(), h.contacts, t.ContactID, t.AccountID); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 
 	created, err := h.tickets.Create(r.Context(), &t)
 	if err != nil {
@@ -198,6 +207,18 @@ func (h *TicketHandler) UpdateContact(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if h.contacts != nil {
+		current, err := h.tickets.GetByID(r.Context(), id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := validateContactAccountPair(r.Context(), h.contacts, req.ContactID, current.AccountID); err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+	}
+
 	t, err := h.tickets.UpdateContact(r.Context(), id, req.ContactID)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -216,6 +237,25 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
+	}
+	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil) {
+		current, err := h.tickets.GetByID(r.Context(), id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		contactID := current.ContactID
+		accountID := current.AccountID
+		if patch.ContactID != nil {
+			contactID = patch.ContactID
+		}
+		if patch.AccountID != nil {
+			accountID = patch.AccountID
+		}
+		if err := validateContactAccountPair(r.Context(), h.contacts, contactID, accountID); err != nil {
+			handleDomainErr(w, err)
+			return
+		}
 	}
 	t, err := h.tickets.Update(r.Context(), id, patch)
 	if err != nil {

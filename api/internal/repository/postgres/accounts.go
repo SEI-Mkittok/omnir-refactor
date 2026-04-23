@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -273,6 +274,88 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 		accounts = append(accounts, &a)
 	}
 	return accounts, total, rows.Err()
+}
+
+func (r *AccountRepo) ListLinkedEntities(ctx context.Context, id uuid.UUID, f domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error) {
+	if f.Limit <= 0 {
+		f.Limit = 25
+	}
+	if f.Page <= 0 {
+		f.Page = 1
+	}
+	offset := (f.Page - 1) * f.Limit
+
+	args := []any{id}
+	i := 2
+	where := []string{}
+
+	if f.Type != nil && *f.Type != "" {
+		where = append(where, fmt.Sprintf("entity_type = $%d", i))
+		args = append(args, *f.Type)
+		i++
+	}
+	if f.Role != nil && *f.Role != "" {
+		where = append(where, fmt.Sprintf("entity_role = $%d", i))
+		args = append(args, *f.Role)
+		i++
+	}
+	if f.Since != nil {
+		where = append(where, fmt.Sprintf("created_at >= $%d", i))
+		args = append(args, *f.Since)
+		i++
+	}
+
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		where = append(where, fmt.Sprintf("org_id = $%d", i))
+		args = append(args, orgID)
+		i++
+	}
+
+	filterClause := ""
+	if len(where) > 0 {
+		filterClause = " WHERE " + strings.Join(where, " AND ")
+	}
+
+	query := `
+		WITH linked AS (
+			SELECT c.org_id AS org_id, 'contact'::text AS entity_type, c.id::text AS entity_id,
+				'member'::text AS entity_role, 'contacts.account_id'::text AS source, c.created_at
+			FROM contacts c
+			WHERE c.account_id = $1 AND c.deleted_at IS NULL
+			UNION ALL
+			SELECT d.org_id AS org_id, 'deal'::text AS entity_type, d.id::text AS entity_id,
+				'linked'::text AS entity_role, 'deals.account_id'::text AS source, d.created_at
+			FROM deals d
+			WHERE d.account_id = $1 AND d.deleted_at IS NULL
+		), filtered AS (
+			SELECT * FROM linked` + filterClause + `
+		)
+		SELECT entity_type, entity_id, entity_role, source, created_at,
+			COUNT(*) OVER() AS total
+		FROM filtered
+		ORDER BY created_at DESC
+		LIMIT $` + strconv.Itoa(i) + ` OFFSET $` + strconv.Itoa(i+1)
+
+	args = append(args, f.Limit, offset)
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	items := make([]domain.LinkedEntity, 0)
+	total := 0
+	for rows.Next() {
+		var e domain.LinkedEntity
+		if err := rows.Scan(&e.Type, &e.ID, &e.Role, &e.Source, &e.CreatedAt, &total); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
 }
 
 func (r *AccountRepo) CreateRelationship(ctx context.Context, rel *domain.AccountRelationship) (*domain.AccountRelationship, error) {

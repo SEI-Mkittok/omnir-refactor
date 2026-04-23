@@ -18,12 +18,14 @@ import (
 type EmailHandler struct {
 	repo       repository.EmailRepository
 	activities repository.ActivityRepository
+	contacts   repository.ContactRepository
+	deals      repository.DealRepository
 	mailer     *email.Mailer
 	from       string
 }
 
-func NewEmailHandler(repo repository.EmailRepository, activities repository.ActivityRepository, mailer *email.Mailer, from string) *EmailHandler {
-	return &EmailHandler{repo: repo, activities: activities, mailer: mailer, from: from}
+func NewEmailHandler(repo repository.EmailRepository, activities repository.ActivityRepository, contacts repository.ContactRepository, deals repository.DealRepository, mailer *email.Mailer, from string) *EmailHandler {
+	return &EmailHandler{repo: repo, activities: activities, contacts: contacts, deals: deals, mailer: mailer, from: from}
 }
 
 // Router returns the top-level /emails routes.
@@ -52,6 +54,10 @@ func (h *EmailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := req.Validate(); err != nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
+		return
+	}
+	if err := validateContactDealPair(r.Context(), h.contacts, h.deals, req.ContactID, req.DealID); err != nil {
+		handleDomainErr(w, err)
 		return
 	}
 
