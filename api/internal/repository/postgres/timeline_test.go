@@ -1,10 +1,6 @@
 package postgres
 
-import (
-	"math"
-	"strconv"
-	"testing"
-)
+import "testing"
 
 func TestTimelineTotalFromInt64(t *testing.T) {
 	t.Parallel()
@@ -32,30 +28,11 @@ func TestTimelineTotalFromInt64(t *testing.T) {
 			input: 42,
 			want:  42,
 		},
-	}
-
-	if strconv.IntSize == 32 {
-		tests = append(tests, struct {
-			name    string
-			input   int64
-			want    int
-			wantErr bool
-		}{
+		{
 			name:    "totals above int range return error",
 			input:   maxInt + 1,
 			wantErr: true,
-		})
-	} else {
-		tests = append(tests, struct {
-			name    string
-			input   int64
-			want    int
-			wantErr bool
-		}{
-			name:  "max int64 is valid on 64-bit platforms",
-			input: math.MaxInt64,
-			want:  int(math.MaxInt64),
-		})
+		},
 	}
 
 	for _, tc := range tests {
