@@ -28,6 +28,11 @@ const accountCols = `
 	owner_id, tags, custom_fields, created_at, updated_at, deleted_at
 `
 
+const accountRelationshipCols = `
+	id, org_id, parent_account_id, child_account_id, relationship_type,
+	ownership_percent, effective_from, effective_to, created_at, updated_at, deleted_at, deleted_by
+`
+
 func scanAccount(row pgx.Row) (*domain.Account, error) {
 	var a domain.Account
 	err := row.Scan(
@@ -41,6 +46,21 @@ func scanAccount(row pgx.Row) (*domain.Account, error) {
 		return nil, err
 	}
 	return &a, nil
+}
+
+func scanAccountRelationship(row pgx.Row) (*domain.AccountRelationship, error) {
+	var rel domain.AccountRelationship
+	err := row.Scan(
+		&rel.ID, &rel.OrgID, &rel.ParentAccountID, &rel.ChildAccountID, &rel.RelationshipType,
+		&rel.OwnershipPercent, &rel.EffectiveFrom, &rel.EffectiveTo, &rel.CreatedAt, &rel.UpdatedAt, &rel.DeletedAt, &rel.DeletedBy,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &rel, nil
 }
 
 func (r *AccountRepo) Create(ctx context.Context, a *domain.Account) (*domain.Account, error) {
@@ -336,4 +356,131 @@ func (r *AccountRepo) ListLinkedEntities(ctx context.Context, id uuid.UUID, f do
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+func (r *AccountRepo) CreateRelationship(ctx context.Context, rel *domain.AccountRelationship) (*domain.AccountRelationship, error) {
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		rel.OrgID = orgID
+	}
+	if rel.EffectiveFrom.IsZero() {
+		rel.EffectiveFrom = time.Now().UTC()
+	}
+	if err := rel.Validate(); err != nil {
+		return nil, err
+	}
+
+	var cycleExists bool
+	err := r.db.QueryRow(ctx, `
+		WITH RECURSIVE descendants(id) AS (
+			SELECT $1::uuid
+			UNION
+			SELECT ar.child_account_id
+			FROM account_relationships ar
+			JOIN descendants d ON d.id = ar.parent_account_id
+			WHERE ar.org_id = $3
+			  AND ar.deleted_at IS NULL
+		)
+		SELECT EXISTS(SELECT 1 FROM descendants WHERE id = $2::uuid)`,
+		rel.ChildAccountID, rel.ParentAccountID, rel.OrgID,
+	).Scan(&cycleExists)
+	if err != nil {
+		return nil, err
+	}
+	if cycleExists {
+		return nil, fmt.Errorf("%w: relationship creates cycle", domain.ErrValidation)
+	}
+
+	row := r.db.QueryRow(ctx, `
+		INSERT INTO account_relationships
+			(org_id, parent_account_id, child_account_id, relationship_type, ownership_percent, effective_from, effective_to)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		RETURNING `+accountRelationshipCols,
+		rel.OrgID, rel.ParentAccountID, rel.ChildAccountID, rel.RelationshipType, rel.OwnershipPercent, rel.EffectiveFrom, rel.EffectiveTo,
+	)
+	return scanAccountRelationship(row)
+}
+
+func (r *AccountRepo) DeleteRelationship(ctx context.Context, relationshipID uuid.UUID, deletedBy *uuid.UUID) error {
+	q := `UPDATE account_relationships SET deleted_at=NOW(), deleted_by=$2 WHERE id=$1 AND deleted_at IS NULL`
+	args := []any{relationshipID, deletedBy}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id=$3`
+		args = append(args, orgID)
+	}
+	result, err := r.db.Exec(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *AccountRepo) ListDescendants(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("%w: org context required", domain.ErrValidation)
+	}
+
+	rows, err := r.db.Query(ctx, `
+		WITH RECURSIVE descendants(id) AS (
+			SELECT child_account_id
+			FROM account_relationships
+			WHERE org_id = $1 AND parent_account_id = $2 AND deleted_at IS NULL
+			UNION
+			SELECT ar.child_account_id
+			FROM account_relationships ar
+			JOIN descendants d ON d.id = ar.parent_account_id
+			WHERE ar.org_id = $1 AND ar.deleted_at IS NULL
+		)
+		SELECT id FROM descendants`, orgID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]uuid.UUID, 0)
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (r *AccountRepo) ListAncestors(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("%w: org context required", domain.ErrValidation)
+	}
+
+	rows, err := r.db.Query(ctx, `
+		WITH RECURSIVE ancestors(id) AS (
+			SELECT parent_account_id
+			FROM account_relationships
+			WHERE org_id = $1 AND child_account_id = $2 AND deleted_at IS NULL
+			UNION
+			SELECT ar.parent_account_id
+			FROM account_relationships ar
+			JOIN ancestors a ON a.id = ar.child_account_id
+			WHERE ar.org_id = $1 AND ar.deleted_at IS NULL
+		)
+		SELECT id FROM ancestors`, orgID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]uuid.UUID, 0)
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }

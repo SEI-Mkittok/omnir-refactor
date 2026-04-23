@@ -62,6 +62,9 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 	if c.Tags == nil {
 		c.Tags = []string{}
 	}
+	if c.Stage == "" {
+		c.Stage = domain.ContactStageLead
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO contacts

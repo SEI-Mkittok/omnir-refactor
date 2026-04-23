@@ -42,6 +42,10 @@ type AccountRepository interface {
 
 	// ListLinkedEntities returns normalized associations for an account.
 	ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error)
+	CreateRelationship(ctx context.Context, rel *domain.AccountRelationship) (*domain.AccountRelationship, error)
+	DeleteRelationship(ctx context.Context, relationshipID uuid.UUID, deletedBy *uuid.UUID) error
+	ListDescendants(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error)
+	ListAncestors(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error)
 }
 
 // DealRepository defines the persistence contract for deals.
@@ -217,6 +221,12 @@ type SearchRepository interface {
 	Search(ctx context.Context, q string, limit int) (*domain.SearchGroupedResult, error)
 }
 
+// TimelineRepository provides read-optimized event timeline queries.
+type TimelineRepository interface {
+	// List returns normalized timeline events for org/account/contact scopes.
+	List(ctx context.Context, filter domain.TimelineFilter) ([]*domain.TimelineEvent, int, error)
+}
+
 // OrgRepository defines the persistence contract for organizations (tenants).
 type OrgRepository interface {
 	// Create inserts a new organization. Returns ErrConflict when slug is already taken.
@@ -357,6 +367,18 @@ type EntityAttachmentRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.EntityAttachment, error)
 	// Delete removes an attachment record. Returns ErrNotFound when absent.
 	Delete(ctx context.Context, id uuid.UUID, entityType domain.EntityType, entityID uuid.UUID) error
+}
+
+// CRMEntityLinkRepository manages reusable typed links across CRM entities.
+type CRMEntityLinkRepository interface {
+	// Create inserts a new link row.
+	Create(ctx context.Context, link *domain.CRMEntityLink) (*domain.CRMEntityLink, error)
+	// GetByID returns a single link by ID.
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.CRMEntityLink, error)
+	// ListForEntity returns links where the entity is either the source and/or target.
+	ListForEntity(ctx context.Context, filter domain.CRMEntityLinkFilter) ([]*domain.CRMEntityLink, error)
+	// Delete removes one link row by ID.
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // SSOConfigRepository manages per-org OIDC SSO configurations.

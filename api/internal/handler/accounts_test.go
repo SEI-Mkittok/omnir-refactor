@@ -349,3 +349,37 @@ func TestAccountHandler_List(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountHandler_ListDescendants(t *testing.T) {
+	accountID := uuid.New()
+	descendantID := uuid.New()
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("ListDescendants", mock.Anything, accountID).Return([]uuid.UUID{descendantID}, nil)
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+accountID.String()+"/hierarchy/descendants", nil)
+	req = withURLParam(req, "id", accountID.String())
+	w := httptest.NewRecorder()
+
+	h.ListDescendants(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestAccountHandler_ListAncestors(t *testing.T) {
+	accountID := uuid.New()
+	ancestorID := uuid.New()
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("ListAncestors", mock.Anything, accountID).Return([]uuid.UUID{ancestorID}, nil)
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+accountID.String()+"/hierarchy/ancestors", nil)
+	req = withURLParam(req, "id", accountID.String())
+	w := httptest.NewRecorder()
+
+	h.ListAncestors(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+}
