@@ -7,7 +7,6 @@ web/.env.local
 
 # Go
 api/tmp/
-api/vendor/
 api/*.out
 api/build-errors.log
 api/server
