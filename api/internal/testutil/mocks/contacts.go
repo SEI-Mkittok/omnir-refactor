@@ -100,3 +100,8 @@ func (m *MockContactRepository) ListLinkedEntities(ctx context.Context, id uuid.
 	}
 	return args.Get(0).([]domain.LinkedEntity), args.Int(1), args.Error(2)
 }
+
+func (m *MockContactRepository) IsRelatedToAccount(ctx context.Context, contactID, accountID uuid.UUID) (bool, error) {
+	args := m.Called(ctx, contactID, accountID)
+	return args.Bool(0), args.Error(1)
+}

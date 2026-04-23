@@ -29,6 +29,9 @@ type ContactRepository interface {
 
 	// ListLinkedEntities returns normalized associations for a contact.
 	ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error)
+	// IsRelatedToAccount returns true when the contact is linked to the account
+	// via contacts.account_id (primary relationship) or account_contacts membership.
+	IsRelatedToAccount(ctx context.Context, contactID, accountID uuid.UUID) (bool, error)
 }
 
 // AccountRepository defines the persistence contract for accounts.
