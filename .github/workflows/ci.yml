@@ -47,7 +47,16 @@ jobs:
         with:
           go-version: "1.25"
           cache: true
-          cache-dependency-path: api/go.sum
+          cache-dependency-path: |
+            api/go.sum
+            api/vendor/modules.txt
+
+      - name: Use vendored modules when present
+        run: |
+          if [ -f vendor/modules.txt ]; then
+            echo "GOFLAGS=-mod=vendor" >> "$GITHUB_ENV"
+            echo "Using vendored Go modules (api/vendor)"
+          fi
 
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@v6

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -21,7 +22,7 @@ func NewQuoteRepo(db *pgxpool.Pool) *QuoteRepo {
 }
 
 const quoteCols = `
-	id, org_id, deal_id, contact_id, title, status, currency,
+	id, org_id, deal_id, account_id, contact_id, title, status, currency,
 	valid_until, notes, sent_at, approved_at, rejected_at,
 	total_cents, created_by, number, number_prefix, created_at, updated_at
 `
@@ -30,7 +31,7 @@ func scanQuote(row pgx.Row) (*domain.Quote, error) {
 	var q domain.Quote
 	var notes *string
 	err := row.Scan(
-		&q.ID, &q.OrgID, &q.DealID, &q.ContactID,
+		&q.ID, &q.OrgID, &q.DealID, &q.AccountID, &q.ContactID,
 		&q.Title, &q.Status, &q.Currency,
 		&q.ValidUntil, &notes, &q.SentAt, &q.ApprovedAt, &q.RejectedAt,
 		&q.TotalCents, &q.CreatedBy, &q.Number, &q.NumberPrefix, &q.CreatedAt, &q.UpdatedAt,
@@ -57,6 +58,9 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 	if q.Currency == "" {
 		q.Currency = "USD"
 	}
+	if err := r.validateDealAccountContext(ctx, q.DealID, q.AccountID, q.OrgID); err != nil {
+		return nil, err
+	}
 	num, err := getNextDocNumber(ctx, r.db, q.OrgID, domain.DocTypeQuote)
 	if err != nil {
 		return nil, err
@@ -64,10 +68,10 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 	const prefix = "QUO"
 	row := r.db.QueryRow(ctx,
 		`INSERT INTO quotes
-		 (id, org_id, deal_id, contact_id, title, status, currency, valid_until, notes, created_by, number, number_prefix)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		 (id, org_id, deal_id, account_id, contact_id, title, status, currency, valid_until, notes, created_by, number, number_prefix)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		 RETURNING `+quoteCols,
-		q.ID, q.OrgID, q.DealID, q.ContactID,
+		q.ID, q.OrgID, q.DealID, q.AccountID, q.ContactID,
 		q.Title, q.Status, q.Currency,
 		q.ValidUntil, nilIfEmpty(q.Notes), q.CreatedBy, num, prefix,
 	)
@@ -127,6 +131,23 @@ func (r *QuoteRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Quote, e
 }
 
 func (r *QuoteRepo) Update(ctx context.Context, id uuid.UUID, patch domain.QuotePatch) (*domain.Quote, error) {
+	current, err := r.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	nextDealID := current.DealID
+	if patch.DealID != nil {
+		nextDealID = patch.DealID
+	}
+	nextAccountID := current.AccountID
+	if patch.AccountID != nil {
+		nextAccountID = patch.AccountID
+	}
+	if err := r.validateDealAccountContext(ctx, nextDealID, nextAccountID, current.OrgID); err != nil {
+		return nil, err
+	}
+
 	setClauses := []string{}
 	args := []any{}
 	i := 1
@@ -154,6 +175,11 @@ func (r *QuoteRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Quote
 	if patch.Notes != nil {
 		setClauses = append(setClauses, "notes=$"+itoa(i))
 		args = append(args, nilIfEmpty(*patch.Notes))
+		i++
+	}
+	if patch.AccountID != nil {
+		setClauses = append(setClauses, "account_id=$"+itoa(i))
+		args = append(args, *patch.AccountID)
 		i++
 	}
 	if patch.ContactID != nil {
@@ -221,6 +247,11 @@ func (r *QuoteRepo) List(ctx context.Context, filter domain.QuoteFilter) ([]*dom
 		args = append(args, *filter.ContactID)
 		i++
 	}
+	if filter.AccountID != nil {
+		where = append(where, "account_id=$"+itoa(i))
+		args = append(args, *filter.AccountID)
+		i++
+	}
 	if filter.Status != nil {
 		where = append(where, "status=$"+itoa(i))
 		args = append(args, string(*filter.Status))
@@ -250,9 +281,27 @@ func (r *QuoteRepo) List(ctx context.Context, filter domain.QuoteFilter) ([]*dom
 	offset := (page - 1) * limit
 	args = append(args, limit, offset)
 
+	sortCol := "created_at"
+	allowedSorts := map[string]bool{
+		"created_at":  true,
+		"updated_at":  true,
+		"title":       true,
+		"status":      true,
+		"total_cents": true,
+		"valid_until": true,
+		"account_id":  true,
+	}
+	if allowedSorts[filter.Sort] {
+		sortCol = filter.Sort
+	}
+	order := "DESC"
+	if strings.ToUpper(filter.Order) == "ASC" {
+		order = "ASC"
+	}
+
 	rows, err := r.db.Query(ctx,
 		`SELECT `+quoteCols+` FROM quotes `+clause+
-			` ORDER BY created_at DESC LIMIT $`+itoa(i)+` OFFSET $`+itoa(i+1),
+			fmt.Sprintf(` ORDER BY %s %s LIMIT $`, sortCol, order)+itoa(i)+` OFFSET $`+itoa(i+1),
 		args...,
 	)
 	if err != nil {
@@ -282,6 +331,29 @@ func (r *QuoteRepo) List(ctx context.Context, filter domain.QuoteFilter) ([]*dom
 		q.ComputeTotal()
 	}
 	return quotes, total, nil
+}
+
+func (r *QuoteRepo) validateDealAccountContext(ctx context.Context, dealID, accountID *uuid.UUID, orgID uuid.UUID) error {
+	if dealID == nil || accountID == nil {
+		return nil
+	}
+
+	var dealAccountID *uuid.UUID
+	err := r.db.QueryRow(ctx,
+		`SELECT account_id FROM deals WHERE id=$1 AND org_id=$2 AND deleted_at IS NULL`,
+		*dealID, orgID,
+	).Scan(&dealAccountID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("%w: deal_id not found in org", domain.ErrValidation)
+		}
+		return err
+	}
+
+	if dealAccountID == nil || *dealAccountID != *accountID {
+		return fmt.Errorf("%w: deal_id and account_id must reference the same account", domain.ErrValidation)
+	}
+	return nil
 }
 
 func (r *QuoteRepo) ReplaceLineItems(ctx context.Context, quoteID uuid.UUID, inputs []domain.QuoteLineItemInput) ([]domain.QuoteLineItem, error) {
