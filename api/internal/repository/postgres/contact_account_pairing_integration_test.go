@@ -33,7 +33,10 @@ func TestContactRepo_IsRelatedToAccount_PrimaryAndMembership(t *testing.T) {
 		FirstName: "Member", LastName: "Contact", OwnerID: ownerID, Stage: domain.ContactStageLead,
 	})
 	require.NoError(t, err)
-	_, err = pool.Exec(ctx, `INSERT INTO account_contacts (account_id, contact_id) VALUES ($1,$2)`, account.ID, memberContact.ID)
+	_, err = pool.Exec(ctx, `
+		INSERT INTO account_contacts (org_id, account_id, contact_id)
+		VALUES ($1, $2, $3)
+	`, defaultOrgID, account.ID, memberContact.ID)
 	require.NoError(t, err)
 	related, err = contactRepo.IsRelatedToAccount(ctx, memberContact.ID, account.ID)
 	require.NoError(t, err)
