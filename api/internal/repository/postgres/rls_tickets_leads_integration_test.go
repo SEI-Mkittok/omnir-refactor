@@ -95,15 +95,24 @@ func TestTicketDetailReturnsTicketAccountWhenDifferentFromContactAccount(t *test
 	contactRepo := postgres.NewContactRepo(pool)
 	ctx := domain.WithOrgID(context.Background(), defaultOrgID)
 
+	ownerID := uuid.New()
+	_, err := pool.Exec(context.Background(), `
+		INSERT INTO users (id, org_id, email, name, role)
+		VALUES ($1, $2, $3, $4, 'admin')
+	`, ownerID, defaultOrgID, "account-owner+"+ownerID.String()+"@omnir.test", "Account Owner")
+	require.NoError(t, err)
+
 	contactAccount, err := accountRepo.Create(ctx, &domain.Account{
-		OrgID: defaultOrgID,
-		Name:  "Contact Default Account",
+		OrgID:   defaultOrgID,
+		Name:    "Contact Default Account",
+		OwnerID: ownerID,
 	})
 	require.NoError(t, err)
 
 	ticketAccount, err := accountRepo.Create(ctx, &domain.Account{
-		OrgID: defaultOrgID,
-		Name:  "Escalation Account",
+		OrgID:   defaultOrgID,
+		Name:    "Escalation Account",
+		OwnerID: ownerID,
 	})
 	require.NoError(t, err)
 
