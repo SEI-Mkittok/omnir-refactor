@@ -357,6 +357,18 @@ type EntityAttachmentRepository interface {
 	Delete(ctx context.Context, id uuid.UUID, entityType domain.EntityType, entityID uuid.UUID) error
 }
 
+// CRMEntityLinkRepository manages reusable typed links across CRM entities.
+type CRMEntityLinkRepository interface {
+	// Create inserts a new link row.
+	Create(ctx context.Context, link *domain.CRMEntityLink) (*domain.CRMEntityLink, error)
+	// GetByID returns a single link by ID.
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.CRMEntityLink, error)
+	// ListForEntity returns links where the entity is either the source and/or target.
+	ListForEntity(ctx context.Context, filter domain.CRMEntityLinkFilter) ([]*domain.CRMEntityLink, error)
+	// Delete removes one link row by ID.
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
 // SSOConfigRepository manages per-org OIDC SSO configurations.
 type SSOConfigRepository interface {
 	// Upsert creates or updates the SSO config for an org.
