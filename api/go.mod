@@ -1,5 +1,7 @@
 module github.com/omnir/crm-api
 
+replace github.com/omnir/crm-api => .
+
 go 1.24.0
 
 require (
