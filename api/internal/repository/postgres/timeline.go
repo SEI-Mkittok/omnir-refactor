@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,12 +22,12 @@ func NewTimelineRepo(db *pgxpool.Pool) *TimelineRepo {
 }
 
 func timelineTotalFromInt64(total64 int64) (int, error) {
-	maxInt := int64(^uint(0) >> 1)
 	if total64 < 0 {
 		return 0, nil
 	}
-	if total64 > maxInt {
-		return 0, fmt.Errorf("timeline total_count %d exceeds max int %d", total64, maxInt)
+	const maxInt32 = int64(^uint32(0) >> 1)
+	if strconv.IntSize == 32 && total64 > maxInt32 {
+		return 0, fmt.Errorf("timeline total_count %d exceeds max int %d", total64, maxInt32)
 	}
 	return int(total64), nil
 }
@@ -48,7 +49,19 @@ func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*do
 		return []*domain.TimelineEvent{}, 0, nil
 	}
 
-	rows, err := r.db.Query(ctx, timelineListSQL,
+	total64, err := r.count(ctx, orgID, f)
+	if err != nil {
+		return nil, 0, err
+	}
+	total, err := timelineTotalFromInt64(total64)
+	if err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []*domain.TimelineEvent{}, 0, nil
+	}
+
+	rows, err := r.db.Query(ctx, timelinePageSQL,
 		orgID,
 		f.AccountID,
 		f.ContactID,
@@ -63,8 +76,6 @@ func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*do
 	defer rows.Close()
 
 	events := make([]*domain.TimelineEvent, 0, f.Limit)
-	total := 0
-	var total64 int64
 	for rows.Next() {
 		var evt domain.TimelineEvent
 		var refsRaw []byte
@@ -75,12 +86,7 @@ func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*do
 			&evt.ActorID,
 			&refsRaw,
 			&evt.Preview,
-			&total64,
 		); err != nil {
-			return nil, 0, err
-		}
-		total, err = timelineTotalFromInt64(total64)
-		if err != nil {
 			return nil, 0, err
 		}
 		if len(refsRaw) > 0 {
@@ -96,7 +102,19 @@ func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*do
 	return events, total, nil
 }
 
-const timelineListSQL = `
+func (r *TimelineRepo) count(ctx context.Context, orgID uuid.UUID, f domain.TimelineFilter) (int64, error) {
+	var total int64
+	err := r.db.QueryRow(ctx, timelineCountSQL,
+		orgID,
+		f.AccountID,
+		f.ContactID,
+		f.OccurredAtGTE,
+		f.OccurredAtLTE,
+	).Scan(&total)
+	return total, err
+}
+
+const timelineBaseSQL = `
 WITH p AS (
 	SELECT
 		$1::uuid AS org_id,
@@ -183,13 +201,20 @@ WITH p AS (
 			jsonb_build_object('entity_type', 'note', 'entity_id', n.id)
 		),
 		LEFT(n.content, 240)
-	FROM notes n, p
+	FROM notes n
+	LEFT JOIN deals d_note
+		ON n.entity_type = 'deal'
+		AND d_note.id = n.entity_id
+		AND d_note.deleted_at IS NULL
+	JOIN p ON TRUE
 	WHERE n.deleted_at IS NULL
 		AND n.org_id = p.org_id
 		AND (
 			(p.account_id IS NULL AND p.contact_id IS NULL)
 			OR (p.account_id IS NOT NULL AND n.entity_type = 'account' AND n.entity_id = p.account_id)
+			OR (p.account_id IS NOT NULL AND n.entity_type = 'deal' AND d_note.account_id = p.account_id)
 			OR (p.contact_id IS NOT NULL AND n.entity_type = 'contact' AND n.entity_id = p.contact_id)
+			OR (p.contact_id IS NOT NULL AND n.entity_type = 'deal' AND d_note.contact_id = p.contact_id)
 		)
 		AND (p.occurred_from IS NULL OR n.created_at >= p.occurred_from)
 		AND (p.occurred_to IS NULL OR n.created_at <= p.occurred_to)
@@ -280,15 +305,21 @@ WITH p AS (
 		AND (p.occurred_from IS NULL OR q.created_at >= p.occurred_from)
 		AND (p.occurred_to IS NULL OR q.created_at <= p.occurred_to)
 )
+`
+
+const timelinePageSQL = timelineBaseSQL + `
 SELECT
 	event_type,
 	event_id,
 	occurred_at,
 	actor_id,
 	entity_refs,
-	preview,
-	COUNT(*) OVER()::bigint AS total_count
+	preview
 FROM timeline_union
 ORDER BY occurred_at DESC, event_id DESC
 LIMIT $6 OFFSET $7;
+`
+
+const timelineCountSQL = timelineBaseSQL + `
+SELECT COUNT(*)::bigint FROM timeline_union;
 `

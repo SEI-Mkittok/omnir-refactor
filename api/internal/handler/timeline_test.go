@@ -69,3 +69,27 @@ func TestTimelineHandler_List_InvalidStartAt(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+func TestTimelineHandler_List_NormalizesPaginationMetadata(t *testing.T) {
+	repo := new(mocks.MockTimelineRepository)
+	h := handler.NewTimelineHandler(repo)
+
+	repo.On("List", mock.Anything, mock.MatchedBy(func(f domain.TimelineFilter) bool {
+		return f.Page == 1 && f.Limit == 50
+	})).Return([]*domain.TimelineEvent{}, 3, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/?page=-2&limit=-10", nil)
+	w := httptest.NewRecorder()
+
+	h.List(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+	meta, ok := body["meta"].(map[string]any)
+	require.True(t, ok)
+	assert.EqualValues(t, 1, meta["page"])
+	assert.EqualValues(t, 50, meta["per_page"])
+	assert.EqualValues(t, 3, meta["total"])
+	repo.AssertExpectations(t)
+}
