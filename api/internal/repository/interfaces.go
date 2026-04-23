@@ -215,6 +215,12 @@ type SearchRepository interface {
 	Search(ctx context.Context, q string, limit int) (*domain.SearchGroupedResult, error)
 }
 
+// TimelineRepository provides read-optimized event timeline queries.
+type TimelineRepository interface {
+	// List returns normalized timeline events for org/account/contact scopes.
+	List(ctx context.Context, filter domain.TimelineFilter) ([]*domain.TimelineEvent, int, error)
+}
+
 // OrgRepository defines the persistence contract for organizations (tenants).
 type OrgRepository interface {
 	// Create inserts a new organization. Returns ErrConflict when slug is already taken.
