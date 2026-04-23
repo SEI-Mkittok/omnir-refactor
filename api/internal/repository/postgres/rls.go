@@ -25,6 +25,7 @@ var orgScopedTables = []string{
 	"ticket_comments",
 	"ticket_attachments",
 	"leads",
+	"crm_entity_links",
 }
 
 // EnableRLS activates FORCE ROW LEVEL SECURITY on every org-scoped table so
