@@ -2,14 +2,6 @@
 
 -- +goose Up
 
-CREATE TABLE IF NOT EXISTS account_contacts (
-    account_id  UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    contact_id  UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-    is_primary  BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (account_id, contact_id)
-);
-
 ALTER TABLE account_contacts
     ADD COLUMN IF NOT EXISTS id UUID,
     ADD COLUMN IF NOT EXISTS org_id UUID,
