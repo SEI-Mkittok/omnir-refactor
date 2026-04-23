@@ -43,6 +43,14 @@ func TestContactRepo_Create(t *testing.T) {
 				Stage:     domain.ContactStageLead,
 			},
 		},
+		{
+			name: "defaults empty stage to lead",
+			input: &domain.Contact{
+				FirstName: "Linus",
+				LastName:  "Torvalds",
+				OwnerID:   ownerID,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -58,6 +66,9 @@ func TestContactRepo_Create(t *testing.T) {
 			assert.Equal(t, tt.input.FirstName, got.FirstName)
 			assert.Equal(t, tt.input.LastName, got.LastName)
 			assert.Equal(t, tt.input.OwnerID, got.OwnerID)
+			if tt.input.Stage == "" {
+				assert.Equal(t, domain.ContactStageLead, got.Stage)
+			}
 			assert.Nil(t, got.DeletedAt)
 		})
 	}
