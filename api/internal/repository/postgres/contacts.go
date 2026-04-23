@@ -283,6 +283,31 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	return contacts, total, rows.Err()
 }
 
+func (r *ContactRepo) IsRelatedToAccount(ctx context.Context, contactID, accountID uuid.UUID) (bool, error) {
+	var related bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM contacts c
+			WHERE c.id = $1
+			  AND c.deleted_at IS NULL
+			  AND (
+				c.account_id = $2
+				OR EXISTS (
+					SELECT 1
+					FROM account_contacts ac
+					WHERE ac.contact_id = c.id
+					  AND ac.account_id = $2
+				)
+			  )
+		)
+	`, contactID, accountID).Scan(&related)
+	if err != nil {
+		return false, err
+	}
+	return related, nil
+}
+
 // UpdateLeadScore adjusts or sets the lead_score on a contact.
 // If patch.Score is set, it is applied as an absolute value.
 // If patch.Delta is set (and Score is nil), it is added to the current score (clamped to >= 0).

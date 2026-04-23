@@ -470,6 +470,39 @@ func TestTicketHandler_UpdateContact(t *testing.T) {
 	}
 }
 
+func TestTicketHandler_UpdateContact_RejectsUnrelatedAccountContactPair(t *testing.T) {
+	ticketID := uuid.New()
+	accountID := uuid.New()
+	contactID := uuid.New()
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+	mockContacts := new(mocks.MockContactRepository)
+
+	mockTickets.On("GetByID", mock.Anything, ticketID).
+		Return(&domain.Ticket{ID: ticketID, AccountID: &accountID}, nil)
+	mockContacts.On("IsRelatedToAccount", mock.Anything, contactID, accountID).
+		Return(false, nil)
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{}).
+		WithContacts(mockContacts)
+
+	body, err := json.Marshal(map[string]any{"contact_id": contactID.String()})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/tickets/"+ticketID.String()+"/contact", bytes.NewReader(body))
+	req = withURLParam(req, "id", ticketID.String())
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.UpdateContact(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	mockTickets.AssertNotCalled(t, "UpdateContact", mock.Anything, mock.Anything, mock.Anything)
+	mockTickets.AssertExpectations(t)
+	mockContacts.AssertExpectations(t)
+}
+
 func TestTicketHandler_ListComments(t *testing.T) {
 	ticketID := uuid.New()
 	userID := uuid.New()

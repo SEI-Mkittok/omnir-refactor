@@ -92,3 +92,8 @@ func (m *MockContactRepository) IncrementBounceCount(ctx context.Context, contac
 	args := m.Called(ctx, contactID, orgID)
 	return args.Error(0)
 }
+
+func (m *MockContactRepository) IsRelatedToAccount(ctx context.Context, contactID, accountID uuid.UUID) (bool, error) {
+	args := m.Called(ctx, contactID, accountID)
+	return args.Bool(0), args.Error(1)
+}

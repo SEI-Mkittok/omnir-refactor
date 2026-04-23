@@ -16,13 +16,21 @@ import (
 )
 
 type QuoteHandler struct {
-	repo   repository.QuoteRepository
-	mailer *email.Mailer
-	from   string
+	repo     repository.QuoteRepository
+	contacts repository.ContactRepository
+	deals    repository.DealRepository
+	mailer   *email.Mailer
+	from     string
 }
 
 func NewQuoteHandler(repo repository.QuoteRepository) *QuoteHandler {
 	return &QuoteHandler{repo: repo}
+}
+
+func (h *QuoteHandler) WithRelations(contacts repository.ContactRepository, deals repository.DealRepository) *QuoteHandler {
+	h.contacts = contacts
+	h.deals = deals
+	return h
 }
 
 func (h *QuoteHandler) WithMailer(mailer *email.Mailer, from string) *QuoteHandler {
@@ -163,6 +171,10 @@ func (h *QuoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 		return
 	}
+	if err := validateContactDealPair(r.Context(), h.contacts, h.deals, q.ContactID, q.DealID); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 
 	created, err := h.repo.Create(r.Context(), &q)
 	if err != nil {
@@ -186,6 +198,25 @@ func (h *QuoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
+	}
+	if h.contacts != nil && h.deals != nil && (patch.ContactID != nil || patch.DealID != nil) {
+		current, err := h.repo.GetByID(r.Context(), id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		contactID := current.ContactID
+		dealID := current.DealID
+		if patch.ContactID != nil {
+			contactID = patch.ContactID
+		}
+		if patch.DealID != nil {
+			dealID = patch.DealID
+		}
+		if err := validateContactDealPair(r.Context(), h.contacts, h.deals, contactID, dealID); err != nil {
+			handleDomainErr(w, err)
+			return
+		}
 	}
 	updated, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {

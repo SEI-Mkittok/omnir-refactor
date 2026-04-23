@@ -219,3 +219,34 @@ func TestActivityHandler_Delete(t *testing.T) {
 		})
 	}
 }
+
+func TestActivityHandler_Create_RejectsUnrelatedContactAccountPair(t *testing.T) {
+	ownerID := uuid.New()
+	contactID := uuid.New()
+	accountID := uuid.New()
+
+	mockRepo := new(mocks.MockActivityRepository)
+	mockContacts := new(mocks.MockContactRepository)
+	mockContacts.On("IsRelatedToAccount", mock.Anything, contactID, accountID).Return(false, nil)
+
+	h := handler.NewActivityHandler(mockRepo).WithContacts(mockContacts)
+
+	body, err := json.Marshal(map[string]any{
+		"type":       "call",
+		"subject":    "Discovery call",
+		"owner_id":   ownerID.String(),
+		"contact_id": contactID.String(),
+		"account_id": accountID.String(),
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/activities", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	mockRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	mockContacts.AssertExpectations(t)
+}

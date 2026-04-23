@@ -26,6 +26,9 @@ type ContactRepository interface {
 	// Email opt-out and bounce tracking (OMN-398)
 	SetEmailOptOut(ctx context.Context, contactID, orgID uuid.UUID) error
 	IncrementBounceCount(ctx context.Context, contactID, orgID uuid.UUID) error
+	// IsRelatedToAccount returns true when the contact is linked to the account
+	// via contacts.account_id (primary relationship) or account_contacts membership.
+	IsRelatedToAccount(ctx context.Context, contactID, accountID uuid.UUID) (bool, error)
 }
 
 // AccountRepository defines the persistence contract for accounts.

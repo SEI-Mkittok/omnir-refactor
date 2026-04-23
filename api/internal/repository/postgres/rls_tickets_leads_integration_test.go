@@ -125,6 +125,14 @@ func TestTicketDetailReturnsTicketAccountWhenDifferentFromContactAccount(t *test
 	})
 	require.NoError(t, err)
 
+	// The ticket can point at a different account than the contact's primary
+	// account, as long as the contact is explicitly linked to that account.
+	_, err = pool.Exec(ctx, `
+		INSERT INTO account_contacts (account_id, contact_id, is_primary)
+		VALUES ($1, $2, false)
+	`, ticketAccount.ID, contact.ID)
+	require.NoError(t, err)
+
 	ticket, err := repo.Create(ctx, &domain.Ticket{
 		OrgID:     defaultOrgID,
 		Subject:   "Route ticket to escalation account",
