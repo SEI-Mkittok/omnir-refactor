@@ -3,16 +3,52 @@
 -- +goose Up
 
 CREATE TABLE IF NOT EXISTS account_contacts (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     account_id  UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     contact_id  UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     is_primary  BOOLEAN NOT NULL DEFAULT FALSE,
-    role        TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (org_id, account_id, contact_id)
+    PRIMARY KEY (account_id, contact_id)
 );
+
+ALTER TABLE account_contacts
+    ADD COLUMN IF NOT EXISTS id UUID,
+    ADD COLUMN IF NOT EXISTS org_id UUID,
+    ADD COLUMN IF NOT EXISTS role TEXT,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+UPDATE account_contacts ac
+SET id = gen_random_uuid()
+WHERE ac.id IS NULL;
+
+UPDATE account_contacts ac
+SET org_id = a.org_id
+FROM accounts a
+WHERE a.id = ac.account_id
+  AND ac.org_id IS NULL;
+
+ALTER TABLE account_contacts
+    ALTER COLUMN id SET DEFAULT gen_random_uuid(),
+    ALTER COLUMN id SET NOT NULL,
+    ALTER COLUMN org_id SET NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_account_contacts_org_id'
+    ) THEN
+        ALTER TABLE account_contacts
+            ADD CONSTRAINT fk_account_contacts_org_id
+            FOREIGN KEY (org_id) REFERENCES orgs(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_contacts_id
+    ON account_contacts (id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_contacts_org_account_contact
+    ON account_contacts (org_id, account_id, contact_id);
 
 -- At most one primary account per contact per org.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_account_contacts_primary_per_contact
@@ -48,9 +84,10 @@ DO UPDATE SET
 -- +goose Down
 
 DROP INDEX IF EXISTS idx_quotes_org_account_id;
+DROP INDEX IF EXISTS idx_account_contacts_org_account_contact;
+DROP INDEX IF EXISTS idx_account_contacts_id;
 
 DROP INDEX IF EXISTS idx_account_contacts_org_primary;
 DROP INDEX IF EXISTS idx_account_contacts_org_contact;
 DROP INDEX IF EXISTS idx_account_contacts_org_account;
 DROP INDEX IF EXISTS idx_account_contacts_primary_per_contact;
-DROP TABLE IF EXISTS account_contacts;
