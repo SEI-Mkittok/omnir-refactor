@@ -19,6 +19,7 @@ import (
 
 type DealHandler struct {
 	repo          repository.DealRepository
+	contacts      repository.ContactRepository
 	cfDefs        repository.CustomFieldDefinitionRepository
 	dispatcher    chan<- worker.WebhookEvent
 	automations   chan<- worker.AutomationEvent
@@ -31,6 +32,11 @@ type DealHandler struct {
 
 func NewDealHandler(repo repository.DealRepository) *DealHandler {
 	return &DealHandler{repo: repo}
+}
+
+func (h *DealHandler) WithContacts(r repository.ContactRepository) *DealHandler {
+	h.contacts = r
+	return h
 }
 
 func (h *DealHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *DealHandler {
@@ -184,6 +190,10 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if err := validateContactAccountPair(r.Context(), h.contacts, d.ContactID, d.AccountID); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	created, err := h.repo.Create(r.Context(), &d)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -231,6 +241,25 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity,
 			`invalid stage: must be one of [lead, qualified, proposal, negotiation, closed_won, closed_lost]`)
 		return
+	}
+	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil) {
+		current, err := h.repo.GetByID(r.Context(), id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		contactID := current.ContactID
+		accountID := current.AccountID
+		if patch.ContactID != nil {
+			contactID = patch.ContactID
+		}
+		if patch.AccountID != nil {
+			accountID = patch.AccountID
+		}
+		if err := validateContactAccountPair(r.Context(), h.contacts, contactID, accountID); err != nil {
+			handleDomainErr(w, err)
+			return
+		}
 	}
 	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
 		et := domain.CustomFieldEntityDeal

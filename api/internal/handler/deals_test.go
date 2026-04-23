@@ -170,3 +170,36 @@ func TestDealHandler_Update_InvalidStageReturns422(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "closed_won")
 	mockRepo.AssertNotCalled(t, "Update")
 }
+
+func TestDealHandler_Create_RejectsUnrelatedContactAccountPair(t *testing.T) {
+	dealRepo := new(mocks.MockDealRepository)
+	contactRepo := new(mocks.MockContactRepository)
+	h := handler.NewDealHandler(dealRepo).WithContacts(contactRepo)
+
+	contactID := uuid.New()
+	accountID := uuid.New()
+	ownerID := uuid.New()
+	pipelineID := uuid.New()
+
+	contactRepo.On("IsRelatedToAccount", mock.Anything, contactID, accountID).Return(false, nil)
+
+	reqBody := map[string]any{
+		"title":       "Bad Pair",
+		"owner_id":    ownerID.String(),
+		"pipeline_id": pipelineID.String(),
+		"contact_id":  contactID.String(),
+		"account_id":  accountID.String(),
+	}
+	body, err := json.Marshal(reqBody)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/deals", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	dealRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	contactRepo.AssertExpectations(t)
+}
