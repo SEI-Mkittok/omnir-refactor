@@ -121,6 +121,7 @@ func TestTicketDetailReturnsTicketAccountWhenDifferentFromContactAccount(t *test
 		FirstName: "Taylor",
 		LastName:  "Contact",
 		AccountID: &contactAccount.ID,
+		OwnerID:   ownerID,
 	})
 	require.NoError(t, err)
 
