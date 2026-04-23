@@ -53,7 +53,7 @@ jobs:
 
       - name: Use vendored modules when present
         run: |
-          if [ -d vendor ]; then
+          if [ -f vendor/modules.txt ]; then
             echo "GOFLAGS=-mod=vendor" >> "$GITHUB_ENV"
             echo "Using vendored Go modules (api/vendor)"
           fi

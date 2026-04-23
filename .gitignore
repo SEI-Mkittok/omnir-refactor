@@ -7,8 +7,6 @@ web/.env.local
 
 # Go
 api/tmp/
-api/vendor/*
-!api/vendor/.gitkeep
 api/*.out
 api/build-errors.log
 api/server

@@ -29,7 +29,10 @@ func (h *TimelineHandler) Router() chi.Router {
 
 func (h *TimelineHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	filter := domain.TimelineFilter{}
+	filter := domain.TimelineFilter{
+		Page:  1,
+		Limit: 50,
+	}
 
 	if v := q.Get("account_id"); v != "" {
 		id, err := uuid.Parse(v)
@@ -64,20 +67,14 @@ func (h *TimelineHandler) List(w http.ResponseWriter, r *http.Request) {
 		filter.OccurredAtLTE = &ts
 	}
 	if v := q.Get("page"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			filter.Page = n
 		}
 	}
 	if v := q.Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n <= 200 {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
 			filter.Limit = n
 		}
-	}
-	if filter.Page == 0 {
-		filter.Page = 1
-	}
-	if filter.Limit == 0 {
-		filter.Limit = 50
 	}
 
 	events, total, err := h.repo.List(r.Context(), filter)

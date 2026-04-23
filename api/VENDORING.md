@@ -30,8 +30,8 @@ git commit -m "Vendor Go dependencies for offline builds"
 
 ## CI behavior in this repo
 
-CI is configured to automatically use vendored dependencies when `api/vendor/` exists by setting:
+CI is configured to automatically use vendored dependencies when `api/vendor/modules.txt` exists by setting:
 
 - `GOFLAGS=-mod=vendor`
 
-That allows `go test`, `go build`, and related commands to resolve dependencies from `api/vendor` without downloading modules.
+That allows `go test`, `go build`, and related commands to resolve dependencies from `api/vendor` without downloading modules once the vendor tree has actually been generated and committed.
