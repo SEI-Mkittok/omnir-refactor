@@ -39,6 +39,10 @@ type AccountRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.AccountPatch) (*domain.Account, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.AccountFilter) ([]*domain.Account, int, error)
+	CreateRelationship(ctx context.Context, rel *domain.AccountRelationship) (*domain.AccountRelationship, error)
+	DeleteRelationship(ctx context.Context, relationshipID uuid.UUID, deletedBy *uuid.UUID) error
+	ListDescendants(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error)
+	ListAncestors(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error)
 }
 
 // DealRepository defines the persistence contract for deals.

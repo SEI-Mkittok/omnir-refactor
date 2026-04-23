@@ -100,6 +100,7 @@ func main() {
 	dashboardRepo := postgres.NewDashboardRepo(db)
 	onboardingRepo := postgres.NewOnboardingRepo(db)
 	emailTemplateRepo := postgres.NewEmailTemplateRepo(db)
+	opsFinanceRepo := postgres.NewOperationsFinanceRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -259,6 +260,7 @@ func main() {
 	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo)
 	billingHandler := handler.NewBillingHandler(billingRepo, cfg.Stripe, appURL)
 	emailTemplateHandler := handler.NewEmailTemplateHandler(emailTemplateRepo)
+	opsFinanceHandler := handler.NewOperationsFinanceHandler(opsFinanceRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, emailTemplateRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -383,6 +385,7 @@ func main() {
 		r.Mount("/integrations", integrationsHandler.Router())
 		r.Mount("/settings/numbering", orgSettingsHandler.Router())
 		r.Mount("/billing", billingHandler.Router())
+		r.Mount("/ops-finance", opsFinanceHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())
 		r.Mount("/push", pushHandler.Router())
 		r.Route("/deals/{dealId}/quotes", func(r chi.Router) { r.Mount("/", quoteHandler.DealQuotesRouter()) })

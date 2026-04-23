@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -69,7 +70,12 @@ func (h *QuoteHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
-	filter := domain.QuoteFilter{OrgID: orgID, Q: q.Get("q")}
+	filter := domain.QuoteFilter{
+		OrgID: orgID,
+		Q:     q.Get("q"),
+		Sort:  q.Get("sort"),
+		Order: q.Get("order"),
+	}
 	if v := q.Get("page"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			filter.Page = n
@@ -92,6 +98,11 @@ func (h *QuoteHandler) List(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("contact_id"); v != "" {
 		if id, err := uuid.Parse(v); err == nil {
 			filter.ContactID = &id
+		}
+	}
+	if v := q.Get("account_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.AccountID = &id
 		}
 	}
 
@@ -167,6 +178,10 @@ func (h *QuoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	created, err := h.repo.Create(r.Context(), &q)
 	if err != nil {
+		if errors.Is(err, domain.ErrValidation) {
+			writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
+			return
+		}
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
@@ -207,6 +222,10 @@ func (h *QuoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == domain.ErrNotFound {
 			writeProblem(w, http.StatusNotFound, "Not Found", "quote not found")
+			return
+		}
+		if errors.Is(err, domain.ErrValidation) {
+			writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 			return
 		}
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
