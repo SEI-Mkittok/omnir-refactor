@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,6 +18,17 @@ type TimelineRepo struct {
 
 func NewTimelineRepo(db *pgxpool.Pool) *TimelineRepo {
 	return &TimelineRepo{db: db}
+}
+
+func timelineTotalFromInt64(total64 int64) (int, error) {
+	maxInt := int64(^uint(0) >> 1)
+	if total64 < 0 {
+		return 0, nil
+	}
+	if total64 > maxInt {
+		return 0, fmt.Errorf("timeline total_count %d exceeds max int %d", total64, maxInt)
+	}
+	return int(total64), nil
 }
 
 func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*domain.TimelineEvent, int, error) {
@@ -52,6 +64,7 @@ func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*do
 
 	events := make([]*domain.TimelineEvent, 0, f.Limit)
 	total := 0
+	var total64 int64
 	for rows.Next() {
 		var evt domain.TimelineEvent
 		var refsRaw []byte
@@ -62,8 +75,12 @@ func (r *TimelineRepo) List(ctx context.Context, f domain.TimelineFilter) ([]*do
 			&evt.ActorID,
 			&refsRaw,
 			&evt.Preview,
-			&total,
+			&total64,
 		); err != nil {
+			return nil, 0, err
+		}
+		total, err = timelineTotalFromInt64(total64)
+		if err != nil {
 			return nil, 0, err
 		}
 		if len(refsRaw) > 0 {
@@ -270,7 +287,7 @@ SELECT
 	actor_id,
 	entity_refs,
 	preview,
-	COUNT(*) OVER() AS total_count
+	COUNT(*) OVER()::bigint AS total_count
 FROM timeline_union
 ORDER BY occurred_at DESC, event_id DESC
 LIMIT $6 OFFSET $7;
