@@ -191,7 +191,32 @@ func (h *ContactHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 			c.CustomFields = domain.ExpandCustomFields(c.CustomFields, defs)
 		}
 	}
-	writeJSON(w, http.StatusOK, c)
+	linkedFilter, err := parseLinkedEntityFilter(r)
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid linked entity filters")
+		return
+	}
+	linked, total, err := h.repo.ListLinkedEntities(r.Context(), id, linkedFilter)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	resp := struct {
+		*domain.Contact
+		LinkedEntities     []domain.LinkedEntity `json:"linked_entities"`
+		Associations       []domain.LinkedEntity `json:"associations"`
+		LinkedEntitiesMeta linkedEntitiesMeta    `json:"linked_entities_meta"`
+	}{
+		Contact:        c,
+		LinkedEntities: linked,
+		Associations:   linked, // compatibility alias during rollout
+		LinkedEntitiesMeta: linkedEntitiesMeta{
+			Total: total,
+			Page:  linkedFilter.Page,
+			Limit: linkedFilter.Limit,
+		},
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {

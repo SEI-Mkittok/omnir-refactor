@@ -211,6 +211,11 @@ paths:
   /contacts/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/LinkedPage'
+      - $ref: '#/components/parameters/LinkedLimit'
+      - $ref: '#/components/parameters/LinkedType'
+      - $ref: '#/components/parameters/LinkedRole'
+      - $ref: '#/components/parameters/LinkedSince'
     get:
       tags: [contacts]
       summary: Get contact
@@ -220,7 +225,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Contact'
+                $ref: '#/components/schemas/ContactDetail'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
@@ -342,6 +347,11 @@ paths:
   /accounts/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/LinkedPage'
+      - $ref: '#/components/parameters/LinkedLimit'
+      - $ref: '#/components/parameters/LinkedType'
+      - $ref: '#/components/parameters/LinkedRole'
+      - $ref: '#/components/parameters/LinkedSince'
     get:
       tags: [accounts]
       summary: Get account
@@ -351,7 +361,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/AccountDetail'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
@@ -797,6 +807,37 @@ components:
       schema:
         type: string
         format: uuid
+    LinkedPage:
+      name: linked_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LinkedLimit:
+      name: linked_limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 25
+    LinkedType:
+      name: type
+      in: query
+      schema:
+        type: string
+    LinkedRole:
+      name: role
+      in: query
+      schema:
+        type: string
+    LinkedSince:
+      name: since
+      in: query
+      schema:
+        type: string
+        format: date-time
 
   responses:
     Unauthorized:
@@ -1043,6 +1084,50 @@ components:
               items:
                 $ref: '#/components/schemas/Contact'
 
+    LinkedEntity:
+      type: object
+      required: [type, id, role, source, created_at]
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        source:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    LinkedEntitiesMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    ContactDetail:
+      allOf:
+        - $ref: '#/components/schemas/Contact'
+        - type: object
+          properties:
+            linked_entities:
+              type: array
+              items:
+                $ref: '#/components/schemas/LinkedEntity'
+            associations:
+              description: Deprecated compatibility alias for linked_entities.
+              type: array
+              items:
+                $ref: '#/components/schemas/LinkedEntity'
+            linked_entities_meta:
+              $ref: '#/components/schemas/LinkedEntitiesMeta'
+
     # ── Account ─────────────────────────────────────────────────────────────
 
     AccountSize:
@@ -1140,6 +1225,23 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Account'
+
+    AccountDetail:
+      allOf:
+        - $ref: '#/components/schemas/Account'
+        - type: object
+          properties:
+            linked_entities:
+              type: array
+              items:
+                $ref: '#/components/schemas/LinkedEntity'
+            associations:
+              description: Deprecated compatibility alias for linked_entities.
+              type: array
+              items:
+                $ref: '#/components/schemas/LinkedEntity'
+            linked_entities_meta:
+              $ref: '#/components/schemas/LinkedEntitiesMeta'
 
     # ── Deal ────────────────────────────────────────────────────────────────
 

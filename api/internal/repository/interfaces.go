@@ -26,6 +26,9 @@ type ContactRepository interface {
 	// Email opt-out and bounce tracking (OMN-398)
 	SetEmailOptOut(ctx context.Context, contactID, orgID uuid.UUID) error
 	IncrementBounceCount(ctx context.Context, contactID, orgID uuid.UUID) error
+
+	// ListLinkedEntities returns normalized associations for a contact.
+	ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error)
 	// IsRelatedToAccount returns true when the contact is linked to the account
 	// via contacts.account_id (primary relationship) or account_contacts membership.
 	IsRelatedToAccount(ctx context.Context, contactID, accountID uuid.UUID) (bool, error)
@@ -39,6 +42,9 @@ type AccountRepository interface {
 	Update(ctx context.Context, id uuid.UUID, patch domain.AccountPatch) (*domain.Account, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.AccountFilter) ([]*domain.Account, int, error)
+
+	// ListLinkedEntities returns normalized associations for an account.
+	ListLinkedEntities(ctx context.Context, id uuid.UUID, filter domain.LinkedEntityFilter) ([]domain.LinkedEntity, int, error)
 	CreateRelationship(ctx context.Context, rel *domain.AccountRelationship) (*domain.AccountRelationship, error)
 	DeleteRelationship(ctx context.Context, relationshipID uuid.UUID, deletedBy *uuid.UUID) error
 	ListDescendants(ctx context.Context, accountID uuid.UUID) ([]uuid.UUID, error)
