@@ -511,6 +511,8 @@ export function TicketsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const accountId = searchParams.get('account_id') ?? ''
   const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const { status, priority, search, page, setStatus, setPriority, setSearch, setPage, reset } =
     useTicketFilterStore()
   const [sortKey, setSortKey] = useState('created_at:desc')
@@ -528,6 +530,7 @@ export function TicketsPage() {
     search: debouncedSearch || undefined,
     status: (status as TicketStatus) || undefined,
     priority: (priority as TicketPriority) || undefined,
+    contact_id: contactId || undefined,
     account_id: accountId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
@@ -566,10 +569,16 @@ export function TicketsPage() {
       {/* Metrics row */}
       <MetricsRow />
 
-      {accountId && (
+      {(accountId || contactId) && (
         <div className="flex items-center gap-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3">
           <span className="text-[14px] font-medium text-[var(--text-primary)]">
-            {accountName ? `Filtered to ${accountName}` : 'Account filter active'}
+            {contactId
+              ? contactName
+                ? `Filtered to ${contactName}`
+                : 'Contact filter active'
+              : accountName
+                ? `Filtered to ${accountName}`
+                : 'Account filter active'}
           </span>
           <button
             onClick={() =>
@@ -577,6 +586,8 @@ export function TicketsPage() {
                 const next = new URLSearchParams(prev)
                 next.delete('account_id')
                 next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
                 return next
               })
             }
@@ -660,6 +671,10 @@ export function TicketsPage() {
       {showNewTicket && (
         <TicketForm
           onClose={() => setShowNewTicket(false)}
+          initialValues={{
+            contact_id: contactId || undefined,
+            account_id: accountId || undefined,
+          }}
           onCreated={(ticketId) => navigate(`/tickets/${ticketId}`)}
         />
       )}

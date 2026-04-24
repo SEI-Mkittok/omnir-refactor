@@ -792,6 +792,8 @@ export function InboxPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const accountId = searchParams.get('account_id') ?? ''
   const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const { data: accounts = [], isLoading: loadingAccounts } = useEmailAccounts()
   const contactsQuery = useAccountContacts(accountId)
   const [filterAccountId, setFilterAccountId] = useState<string | null>(null)
@@ -801,12 +803,13 @@ export function InboxPage() {
 
   const { data: threadsPage, isLoading: loadingThreadsBase } = useInboxThreads({
     connection_id: filterAccountId ?? undefined,
+    contact_id: contactId || undefined,
     unread_only: unreadOnly || undefined,
   })
 
   const accountThreadsQuery = useQuery({
     queryKey: ['inbox', 'account-threads', accountId, contactsQuery.data, filterAccountId, unreadOnly],
-    enabled: !!accountId && !contactsQuery.isLoading,
+    enabled: !!accountId && !contactId && !contactsQuery.isLoading,
     staleTime: 30_000,
     queryFn: async () => {
       const contactIds = (contactsQuery.data ?? []).map((contact: Contact) => contact.id)
@@ -837,8 +840,8 @@ export function InboxPage() {
     },
   })
 
-  const threads = accountId ? accountThreadsQuery.data ?? [] : threadsPage?.data ?? []
-  const loadingThreads = accountId ? contactsQuery.isLoading || accountThreadsQuery.isLoading : loadingThreadsBase
+  const threads = accountId && !contactId ? accountThreadsQuery.data ?? [] : threadsPage?.data ?? []
+  const loadingThreads = accountId && !contactId ? contactsQuery.isLoading || accountThreadsQuery.isLoading : loadingThreadsBase
 
   const { mutateAsync: sendEmail } = useSendEmail()
   const { mutate: markRead } = useMarkThreadRead()
@@ -914,10 +917,16 @@ export function InboxPage() {
         </div>
       </div>
 
-      {accountId && (
+      {(accountId || contactId) && (
         <div className="flex shrink-0 items-center gap-3 border-b border-[#F3F4F6] bg-[#F8FAFC] px-4 py-2 lg:px-6">
           <span className="text-sm font-medium text-[#374151]">
-            {accountName ? `Filtered to ${accountName}` : 'Account filter active'}
+            {contactId
+              ? contactName
+                ? `Filtered to ${contactName}`
+                : 'Contact filter active'
+              : accountName
+                ? `Filtered to ${accountName}`
+                : 'Account filter active'}
           </span>
           <button
             onClick={() =>
@@ -925,6 +934,8 @@ export function InboxPage() {
                 const next = new URLSearchParams(prev)
                 next.delete('account_id')
                 next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
                 return next
               })
             }
@@ -1003,6 +1014,10 @@ export function InboxPage() {
                   ? unreadOnly
                     ? 'No unread emails for this account.'
                     : 'No inbox threads matched this account yet.'
+                  : contactId
+                    ? unreadOnly
+                      ? 'No unread emails for this contact.'
+                      : 'No inbox threads matched this contact yet.'
                   : unreadOnly
                     ? 'No unread emails.'
                     : 'No emails from this account yet.'}

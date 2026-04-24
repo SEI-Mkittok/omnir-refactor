@@ -2,6 +2,7 @@ import { render, type RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactElement } from 'react'
+import { Toaster } from '@/components/ui/Toast'
 
 /**
  * Custom render that wraps components with all required providers:
@@ -33,9 +34,11 @@ function customRender(ui: ReactElement, { initialRoute = '/', ...options }: Cust
   function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[initialRoute]}>
-          {children}
-        </MemoryRouter>
+        <Toaster>
+          <MemoryRouter initialEntries={[initialRoute]}>
+            {children}
+          </MemoryRouter>
+        </Toaster>
       </QueryClientProvider>
     )
   }

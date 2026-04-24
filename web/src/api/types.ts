@@ -241,6 +241,7 @@ export interface DealListParams {
   search?: string
   stage?: DealStage
   account_id?: string
+  contact_id?: string
   pipeline_id?: string
   owner_id?: string
   sort_by?: string

@@ -646,23 +646,25 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const accountId = searchParams.get('account_id') ?? ''
   const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const [statusFilter, setStatusFilter] = useState<SequenceStatus | ''>('')
   const [showCreate, setShowCreate] = useState(false)
   const contactsQuery = useAccountContacts(accountId)
-  const contactIds = useMemo(
-    () => (contactsQuery.data ?? []).map((contact) => contact.id),
-    [contactsQuery.data]
-  )
+  const scopedContactIds = useMemo(() => {
+    if (contactId) return [contactId]
+    return (contactsQuery.data ?? []).map((contact) => contact.id)
+  }, [contactId, contactsQuery.data])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sequences', statusFilter, accountId, contactIds],
-    enabled: !accountId || !contactsQuery.isLoading,
+    queryKey: ['sequences', statusFilter, accountId, contactId, scopedContactIds],
+    enabled: (!accountId || !contactsQuery.isLoading) && (!contactId || scopedContactIds.length > 0),
     queryFn: async () => {
       const result = await sequencesApi.list(statusFilter ? { status: statusFilter as SequenceStatus } : {})
-      if (!accountId) return result
-      if (contactIds.length === 0) return { data: [], total: 0 }
+      if (!accountId && !contactId) return result
+      if (scopedContactIds.length === 0) return { data: [], total: 0 }
 
-      const contactIdSet = new Set(contactIds)
+      const contactIdSet = new Set(scopedContactIds)
       const matches: EmailSequence[] = []
 
       await Promise.all(
@@ -702,10 +704,16 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
         </Button>
       </div>
 
-      {accountId && (
+      {(accountId || contactId) && (
         <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
           <span className="font-medium text-slate-700">
-            {accountName ? `Filtered to ${accountName}` : 'Account filter active'}
+            {contactId
+              ? contactName
+                ? `Filtered to ${contactName}`
+                : 'Contact filter active'
+              : accountName
+                ? `Filtered to ${accountName}`
+                : 'Account filter active'}
           </span>
           <button
             onClick={() =>
@@ -713,6 +721,8 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
                 const next = new URLSearchParams(prev)
                 next.delete('account_id')
                 next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
                 return next
               })
             }
@@ -749,7 +759,11 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
         <div className="rounded-xl border border-dashed border-slate-300 py-16 text-center">
           <Mail className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="text-slate-500">
-            {accountId ? 'No sequences matched this account yet.' : 'No sequences yet. Create your first one.'}
+            {contactId
+              ? 'No sequences matched this contact yet.'
+              : accountId
+                ? 'No sequences matched this account yet.'
+                : 'No sequences yet. Create your first one.'}
           </p>
         </div>
       ) : (

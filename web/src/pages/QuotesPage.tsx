@@ -141,6 +141,8 @@ export function QuotesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const accountId = searchParams.get('account_id') ?? ''
   const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | ''>('')
   const [search, setSearch] = useState('')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
@@ -150,14 +152,16 @@ export function QuotesPage() {
     q: search || undefined,
     status: statusFilter || undefined,
     account_id: accountId || undefined,
+    contact_id: contactId || undefined,
     limit: 50,
   })
 
   const quotes = data?.data ?? []
   const activeContextLabel = useMemo(() => {
-    if (!accountId) return null
-    return accountName ? `Account: ${accountName}` : 'Account filter active'
-  }, [accountId, accountName])
+    if (contactId) return contactName ? `Contact: ${contactName}` : 'Contact filter active'
+    if (accountId) return accountName ? `Account: ${accountName}` : 'Account filter active'
+    return null
+  }, [accountId, accountName, contactId, contactName])
 
   const selectedQuote = selectedQuoteId ? quotes.find((q) => q.id === selectedQuoteId) : null
 
@@ -220,6 +224,8 @@ export function QuotesPage() {
                 const next = new URLSearchParams(prev)
                 next.delete('account_id')
                 next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
                 return next
               })
             }

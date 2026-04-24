@@ -393,6 +393,8 @@ export function DealsPage() {
   const viewMode = (searchParams.get('view') as ViewMode) ?? 'board'
   const accountId = searchParams.get('account_id') ?? ''
   const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
@@ -417,8 +419,9 @@ export function DealsPage() {
     if (debouncedSearch) chips.push({ key: 'search', label: `"${debouncedSearch}"` })
     if (stage) chips.push({ key: 'stage', label: STAGE_OPTIONS.find((o) => o.value === stage)?.label ?? stage })
     if (accountId) chips.push({ key: 'account_id', label: accountName ? `Account: ${accountName}` : 'Account filter' })
+    if (contactId) chips.push({ key: 'contact_id', label: contactName ? `Contact: ${contactName}` : 'Contact filter' })
     return chips
-  }, [accountId, accountName, debouncedSearch, stage])
+  }, [accountId, accountName, contactId, contactName, debouncedSearch, stage])
 
   function removeChip(key: string) {
     if (key === 'search') setSearch('')
@@ -428,6 +431,14 @@ export function DealsPage() {
         const next = new URLSearchParams(prev)
         next.delete('account_id')
         next.delete('account_name')
+        return next
+      })
+    }
+    if (key === 'contact_id') {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('contact_id')
+        next.delete('contact_name')
         return next
       })
     }
@@ -441,6 +452,8 @@ export function DealsPage() {
       const next = new URLSearchParams(prev)
       next.delete('account_id')
       next.delete('account_name')
+      next.delete('contact_id')
+      next.delete('contact_name')
       return next
     })
     setPage(1)
@@ -452,6 +465,7 @@ export function DealsPage() {
     search: debouncedSearch || undefined,
     stage: (stage as DealStage) || undefined,
     account_id: accountId || undefined,
+    contact_id: contactId || undefined,
   })
 
   // List: paginated
@@ -461,6 +475,7 @@ export function DealsPage() {
     search: debouncedSearch || undefined,
     stage: (stage as DealStage) || undefined,
     account_id: accountId || undefined,
+    contact_id: contactId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   })
@@ -709,7 +724,15 @@ export function DealsPage() {
         <DealDetail dealId={selectedId} onClose={() => setSelectedId(null)} />
       )}
 
-      {showCreate && <DealForm onClose={() => setShowCreate(false)} />}
+      {showCreate && (
+        <DealForm
+          onClose={() => setShowCreate(false)}
+          initialValues={{
+            contact_id: contactId || undefined,
+            account_id: accountId || undefined,
+          }}
+        />
+      )}
     </div>
   )
 }

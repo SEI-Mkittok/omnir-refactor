@@ -11,6 +11,7 @@ import type { CreateTicketRequest, TicketStatus, TicketPriority, CustomFieldValu
 
 interface TicketFormProps {
   onClose: () => void
+  initialValues?: Partial<CreateTicketRequest>
   onCreated?: (ticketId: string) => void
 }
 
@@ -28,16 +29,16 @@ const PRIORITY_OPTIONS: { label: string; value: TicketPriority }[] = [
   { label: 'Critical', value: 'critical' },
 ]
 
-export function TicketForm({ onClose, onCreated }: TicketFormProps) {
+export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProps) {
   const { mutateAsync: createTicket, isPending } = useCreateTicket()
   const { data: customFields = [] } = useCustomFieldDefinitions('ticket')
   const activeOrg = useAuthStore((s) => s.activeOrg)
   const user = useAuthStore((s) => s.user)
   const orgSlug = activeOrg?.slug ?? user?.email?.split('@')[1] ?? ''
 
-  const [subject, setSubject] = useState('')
-  const [status, setStatus] = useState<TicketStatus>('open')
-  const [priority, setPriority] = useState<TicketPriority>('medium')
+  const [subject, setSubject] = useState(initialValues?.subject ?? '')
+  const [status, setStatus] = useState<TicketStatus>(initialValues?.status ?? 'open')
+  const [priority, setPriority] = useState<TicketPriority>(initialValues?.priority ?? 'medium')
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const [error, setError] = useState('')
   const [deflectionDismissed, setDeflectionDismissed] = useState(false)
@@ -57,6 +58,9 @@ export function TicketForm({ onClose, onCreated }: TicketFormProps) {
       subject: subject.trim(),
       status,
       priority,
+      ...(initialValues?.contact_id ? { contact_id: initialValues.contact_id } : {}),
+      ...(initialValues?.account_id ? { account_id: initialValues.account_id } : {}),
+      ...(initialValues?.assignee_id ? { assignee_id: initialValues.assignee_id } : {}),
       ...(Object.keys(customFieldValues).length ? { custom_fields: customFieldValues } : {}),
     } as CreateTicketRequest & { custom_fields?: CustomFieldValues }
     const ticket = await createTicket(payload as CreateTicketRequest)
