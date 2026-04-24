@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import {
   Plus,
   Play,
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Spinner } from '@/components/ui/Spinner'
+import { useAccountContacts } from '@/hooks/useAccounts'
 import type {
   EmailSequence,
   SequenceStatus,
@@ -641,13 +643,42 @@ function CreateSequenceModal({
 
 function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
   const qc = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountId = searchParams.get('account_id') ?? ''
+  const accountName = searchParams.get('account_name') ?? ''
   const [statusFilter, setStatusFilter] = useState<SequenceStatus | ''>('')
   const [showCreate, setShowCreate] = useState(false)
+  const contactsQuery = useAccountContacts(accountId)
+  const contactIds = useMemo(
+    () => (contactsQuery.data ?? []).map((contact) => contact.id),
+    [contactsQuery.data]
+  )
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sequences', statusFilter],
-    queryFn: () =>
-      sequencesApi.list(statusFilter ? { status: statusFilter as SequenceStatus } : {}),
+    queryKey: ['sequences', statusFilter, accountId, contactIds],
+    enabled: !accountId || !contactsQuery.isLoading,
+    queryFn: async () => {
+      const result = await sequencesApi.list(statusFilter ? { status: statusFilter as SequenceStatus } : {})
+      if (!accountId) return result
+      if (contactIds.length === 0) return { data: [], total: 0 }
+
+      const contactIdSet = new Set(contactIds)
+      const matches: EmailSequence[] = []
+
+      await Promise.all(
+        (result.data ?? []).map(async (sequence) => {
+          const enrollments = await sequencesApi.listEnrollments(sequence.id)
+          if ((enrollments.data ?? []).some((enrollment) => contactIdSet.has(enrollment.contact_id))) {
+            matches.push(sequence)
+          }
+        })
+      )
+
+      return {
+        data: matches.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+        total: matches.length,
+      }
+    },
     staleTime: 30_000,
   })
 
@@ -671,6 +702,27 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
         </Button>
       </div>
 
+      {accountId && (
+        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+          <span className="font-medium text-slate-700">
+            {accountName ? `Filtered to ${accountName}` : 'Account filter active'}
+          </span>
+          <button
+            onClick={() =>
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev)
+                next.delete('account_id')
+                next.delete('account_name')
+                return next
+              })
+            }
+            className="text-slate-500 hover:text-slate-900"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex gap-2">
         {(['', 'active', 'draft', 'paused', 'archived'] as const).map((s) => (
@@ -689,14 +741,16 @@ function SequenceList({ onOpen }: { onOpen: (seq: EmailSequence) => void }) {
       </div>
 
       {/* List */}
-      {isLoading ? (
+      {isLoading || contactsQuery.isLoading ? (
         <div className="flex justify-center py-16">
           <Spinner />
         </div>
       ) : sequences.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 py-16 text-center">
           <Mail className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-          <p className="text-slate-500">No sequences yet. Create your first one.</p>
+          <p className="text-slate-500">
+            {accountId ? 'No sequences matched this account yet.' : 'No sequences yet. Create your first one.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2">

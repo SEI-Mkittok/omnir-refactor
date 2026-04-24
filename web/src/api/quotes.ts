@@ -11,7 +11,25 @@ import type {
 export const quotesApi = {
   list: async (params?: QuoteListParams): Promise<PaginatedResponse<Quote>> => {
     const { data } = await apiClient.get('/quotes', { params })
-    return data
+    const page = params?.page ?? 1
+    const limit = params?.limit ?? 50
+    const total = typeof data.total === 'number' ? data.total : data.meta?.total ?? 0
+    const totalPages =
+      typeof data.meta?.total_pages === 'number'
+        ? data.meta.total_pages
+        : limit > 0
+          ? Math.ceil(total / limit)
+          : 0
+
+    return {
+      data: data.data ?? [],
+      meta: data.meta ?? {
+        page,
+        per_page: limit,
+        total,
+        total_pages: totalPages,
+      },
+    }
   },
 
   listByDeal: async (dealId: string): Promise<PaginatedResponse<Quote>> => {

@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   ChevronRight,
   Building2,
@@ -15,6 +16,9 @@ import {
   Search,
   Loader2,
   Ticket,
+  FileText,
+  Mail,
+  Zap,
 } from 'lucide-react'
 import {
   useAccount,
@@ -28,13 +32,19 @@ import {
   useLinkDealToAccount,
   useLinkTicketToAccount,
 } from '@/hooks/useAccounts'
+import { useDeals } from '@/hooks/useDeals'
+import { useTickets } from '@/hooks/useTickets'
+import { useQuotes } from '@/hooks/useQuotes'
 import { contactsApi } from '@/api/contacts'
 import { dealsApi } from '@/api/deals'
+import { inboxApi } from '@/api/inbox'
+import { sequencesApi } from '@/api/sequences'
 import { ticketsApi } from '@/api/tickets'
 
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
-import type { Contact, Deal, Note, Ticket as TicketType } from '@/api/types'
+import { Spinner } from '@/components/ui/Spinner'
+import type { Contact, Deal, EmailSequence, InboxThread, Note, Ticket as TicketType } from '@/api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -681,6 +691,668 @@ function NotesPanel({ accountId }: { accountId: string }) {
   )
 }
 
+// ── Linked Entities ───────────────────────────────────────────────────────────
+
+type LinkedEntitiesTab = 'contacts' | 'deals' | 'quotes' | 'tickets' | 'sequences' | 'inbox'
+
+type LinkedEntityPageState = Record<LinkedEntitiesTab, number>
+
+const LINKED_ENTITY_PAGE_SIZE = 5
+
+const LINKED_TAB_ORDER: LinkedEntitiesTab[] = [
+  'contacts',
+  'deals',
+  'quotes',
+  'tickets',
+  'sequences',
+  'inbox',
+]
+
+const LINKED_TAB_META: Record<
+  LinkedEntitiesTab,
+  { label: string; route: string; icon: typeof Users; empty: string }
+> = {
+  contacts: { label: 'Contacts', route: '/contacts', icon: Users, empty: 'No contacts linked yet.' },
+  deals: { label: 'Deals', route: '/deals', icon: Briefcase, empty: 'No deals linked yet.' },
+  quotes: { label: 'Quotes', route: '/quotes', icon: FileText, empty: 'No quotes linked yet.' },
+  tickets: { label: 'Tickets', route: '/tickets', icon: Ticket, empty: 'No tickets linked yet.' },
+  sequences: { label: 'Sequences', route: '/sequences', icon: Zap, empty: "No sequences are linked through this account's contacts yet." },
+  inbox: { label: 'Inbox', route: '/inbox', icon: Mail, empty: "No inbox threads are linked through this account's contacts yet." },
+}
+
+function buildAccountScopedPath(path: string, accountId: string, accountName: string) {
+  const params = new URLSearchParams({ account_id: accountId, account_name: accountName })
+  return `${path}?${params.toString()}`
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
+  if (totalPages <= 1) return null
+
+  return (
+    <div
+      className="mt-4 flex items-center justify-between border-t pt-3"
+      style={{ borderColor: 'var(--border-subtle)' }}
+    >
+      <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+        Page {page} of {totalPages}
+      </p>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          Previous
+        </Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+          Next
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function LinkedPanelLoading() {
+  return (
+    <div className="flex items-center justify-center py-10">
+      <Spinner />
+    </div>
+  )
+}
+
+function LinkedPanelError({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        We couldn’t load this panel.
+      </p>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function LinkedPanelEmpty({ message, ctaHref, ctaLabel }: { message: string; ctaHref: string; ctaLabel: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+      <p className="text-sm" style={{ color: 'var(--text-label)' }}>
+        {message}
+      </p>
+      <Link to={ctaHref} className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
+        {ctaLabel}
+      </Link>
+    </div>
+  )
+}
+
+function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; accountName: string }) {
+  const [activeTab, setActiveTab] = useState<LinkedEntitiesTab>('contacts')
+  const [pages, setPages] = useState<LinkedEntityPageState>({
+    contacts: 1,
+    deals: 1,
+    quotes: 1,
+    tickets: 1,
+    sequences: 1,
+    inbox: 1,
+  })
+
+  const contactsQuery = useAccountContacts(accountId)
+  const dealsQuery = useDeals({
+    account_id: accountId,
+    page: pages.deals,
+    per_page: LINKED_ENTITY_PAGE_SIZE,
+    sort_by: 'created_at',
+    sort_dir: 'desc',
+  })
+  const quotesQuery = useQuotes({
+    account_id: accountId,
+    page: pages.quotes,
+    limit: LINKED_ENTITY_PAGE_SIZE,
+  })
+  const ticketsQuery = useTickets({
+    account_id: accountId,
+    page: pages.tickets,
+    per_page: LINKED_ENTITY_PAGE_SIZE,
+    sort_by: 'created_at',
+    sort_dir: 'desc',
+  })
+
+  const contactIds = useMemo(
+    () => (contactsQuery.data ?? []).map((contact) => contact.id),
+    [contactsQuery.data]
+  )
+
+  const sequencesQuery = useQuery({
+    queryKey: ['accounts', accountId, 'linked-sequences', contactIds],
+    enabled: contactIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const result = await sequencesApi.list({ page: 1, limit: 200 })
+      const matches: EmailSequence[] = []
+      const contactIdSet = new Set(contactIds)
+
+      await Promise.all(
+        (result.data ?? []).map(async (sequence) => {
+          const enrollments = await sequencesApi.listEnrollments(sequence.id)
+          if ((enrollments.data ?? []).some((enrollment) => contactIdSet.has(enrollment.contact_id))) {
+            matches.push(sequence)
+          }
+        })
+      )
+
+      return matches.sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )
+    },
+  })
+
+  const inboxQuery = useQuery({
+    queryKey: ['accounts', accountId, 'linked-inbox', contactIds],
+    enabled: contactIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const byThreadId = new Map<string, InboxThread>()
+
+      await Promise.all(
+        contactIds.map(async (contactId) => {
+          const response = await inboxApi.listThreads({ contact_id: contactId, page: 1, limit: 50 })
+          for (const thread of response.data ?? []) {
+            const existing = byThreadId.get(thread.thread_id)
+            if (!existing || new Date(thread.last_message_at) > new Date(existing.last_message_at)) {
+              byThreadId.set(thread.thread_id, thread)
+            }
+          }
+        })
+      )
+
+      return Array.from(byThreadId.values()).sort(
+        (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      )
+    },
+  })
+
+  const linkContact = useLinkContactToAccount()
+  const linkDeal = useLinkDealToAccount()
+  const linkTicket = useLinkTicketToAccount()
+  const [showContactModal, setShowContactModal] = useState(false)
+  const [showDealModal, setShowDealModal] = useState(false)
+  const [showTicketModal, setShowTicketModal] = useState(false)
+
+  const contactsTotal = contactsQuery.data?.length ?? 0
+  const contactsPageItems = useMemo(() => {
+    const allContacts = contactsQuery.data ?? []
+    const start = (pages.contacts - 1) * LINKED_ENTITY_PAGE_SIZE
+    return allContacts.slice(start, start + LINKED_ENTITY_PAGE_SIZE)
+  }, [contactsQuery.data, pages.contacts])
+  const contactsTotalPages = Math.max(1, Math.ceil(contactsTotal / LINKED_ENTITY_PAGE_SIZE))
+
+  const sequences = sequencesQuery.data ?? []
+  const sequencesTotal = sequences.length
+  const sequencesPageItems = useMemo(() => {
+    const start = (pages.sequences - 1) * LINKED_ENTITY_PAGE_SIZE
+    return sequences.slice(start, start + LINKED_ENTITY_PAGE_SIZE)
+  }, [pages.sequences, sequences])
+  const sequencesTotalPages = Math.max(1, Math.ceil(sequencesTotal / LINKED_ENTITY_PAGE_SIZE))
+
+  const inboxThreads = inboxQuery.data ?? []
+  const inboxTotal = inboxThreads.length
+  const inboxPageItems = useMemo(() => {
+    const start = (pages.inbox - 1) * LINKED_ENTITY_PAGE_SIZE
+    return inboxThreads.slice(start, start + LINKED_ENTITY_PAGE_SIZE)
+  }, [inboxThreads, pages.inbox])
+  const inboxTotalPages = Math.max(1, Math.ceil(inboxTotal / LINKED_ENTITY_PAGE_SIZE))
+
+  const counts: Record<LinkedEntitiesTab, number> = {
+    contacts: contactsTotal,
+    deals: dealsQuery.data?.meta?.total ?? 0,
+    quotes: quotesQuery.data?.meta?.total ?? 0,
+    tickets: ticketsQuery.data?.meta?.total ?? 0,
+    sequences: sequencesTotal,
+    inbox: inboxTotal,
+  }
+
+  const setPageFor = (tab: LinkedEntitiesTab, page: number) => {
+    setPages((prev) => ({ ...prev, [tab]: page }))
+  }
+
+  const activeRoute = buildAccountScopedPath(LINKED_TAB_META[activeTab].route, accountId, accountName)
+
+  const renderContactsPanel = () => {
+    if (contactsQuery.isLoading) return <LinkedPanelLoading />
+    if (contactsQuery.isError) return <LinkedPanelError onRetry={() => void contactsQuery.refetch()} />
+    if (!contactsTotal) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.contacts.empty} ctaHref={activeRoute} ctaLabel="Open Contacts" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {contactsPageItems.map((contact) => (
+            <li key={contact.id} className="flex items-center gap-2">
+              <Link
+                to={`/contacts/${contact.id}`}
+                className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-app)]"
+              >
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold"
+                  style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                >
+                  {((contact.first_name?.[0] ?? '') + (contact.last_name?.[0] ?? '')).toUpperCase() || '?'}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {contact.first_name} {contact.last_name}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-label)' }}>
+                    {contact.email ?? contact.title ?? 'No email yet'}
+                  </p>
+                </div>
+              </Link>
+              <button
+                onClick={() => linkContact.mutate({ contactId: contact.id, accountId: null })}
+                className="rounded p-1 transition-colors hover:bg-[var(--surface-app)]"
+                aria-label="Unlink contact"
+              >
+                <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls
+          page={pages.contacts}
+          totalPages={contactsTotalPages}
+          onPageChange={(page) => setPageFor('contacts', page)}
+        />
+      </>
+    )
+  }
+
+  const renderDealsPanel = () => {
+    if (dealsQuery.isLoading) return <LinkedPanelLoading />
+    if (dealsQuery.isError) return <LinkedPanelError onRetry={() => void dealsQuery.refetch()} />
+    const deals = dealsQuery.data?.data ?? []
+    const totalPages = dealsQuery.data?.meta?.total_pages ?? 1
+    if (!deals.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.deals.empty} ctaHref={activeRoute} ctaLabel="Open Deals" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {deals.map((deal) => {
+            const stageStyle = STAGE_STYLES[deal.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+            return (
+              <li key={deal.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {deal.title}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {formatCurrency((deal.value_cents ?? 0) / 100)}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
+                  style={{ background: stageStyle.bg, color: stageStyle.text }}
+                >
+                  {deal.stage.replace('_', ' ')}
+                </span>
+                <button
+                  onClick={() => linkDeal.mutate({ dealId: deal.id, accountId: null })}
+                  className="rounded p-1 transition-colors hover:bg-white/70"
+                  aria-label="Unlink deal"
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <PaginationControls page={pages.deals} totalPages={totalPages} onPageChange={(page) => setPageFor('deals', page)} />
+      </>
+    )
+  }
+
+  const renderQuotesPanel = () => {
+    if (quotesQuery.isLoading) return <LinkedPanelLoading />
+    if (quotesQuery.isError) return <LinkedPanelError onRetry={() => void quotesQuery.refetch()} />
+    const quotes = quotesQuery.data?.data ?? []
+    const totalPages = quotesQuery.data?.meta?.total_pages ?? 1
+    if (!quotes.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.quotes.empty} ctaHref={activeRoute} ctaLabel="Open Quotes" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {quotes.map((quote) => (
+            <li key={quote.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {quote.title}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {quote.deal?.title ?? 'No linked deal'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                    {formatCurrency(quote.total_cents / 100, quote.currency)}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {quote.status}
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls page={pages.quotes} totalPages={totalPages} onPageChange={(page) => setPageFor('quotes', page)} />
+      </>
+    )
+  }
+
+  const renderTicketsPanel = () => {
+    if (ticketsQuery.isLoading) return <LinkedPanelLoading />
+    if (ticketsQuery.isError) return <LinkedPanelError onRetry={() => void ticketsQuery.refetch()} />
+    const tickets = ticketsQuery.data?.data ?? []
+    const totalPages = ticketsQuery.data?.meta?.total_pages ?? 1
+    if (!tickets.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.tickets.empty} ctaHref={activeRoute} ctaLabel="Open Tickets" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {tickets.map((ticket) => {
+            const statusStyle = TICKET_STATUS_STYLES[ticket.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+            return (
+              <li key={ticket.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+                <div className="min-w-0 flex-1">
+                  <Link to={`/tickets/${ticket.id}`} className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {ticket.subject}
+                  </Link>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {ticket.contact?.name ?? 'No linked contact'}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
+                  style={{ background: statusStyle.bg, color: statusStyle.text }}
+                >
+                  {ticket.status}
+                </span>
+                <button
+                  onClick={() => linkTicket.mutate({ ticketId: ticket.id, accountId: null })}
+                  className="rounded p-1 transition-colors hover:bg-white/70"
+                  aria-label="Unlink ticket"
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <PaginationControls page={pages.tickets} totalPages={totalPages} onPageChange={(page) => setPageFor('tickets', page)} />
+      </>
+    )
+  }
+
+  const renderSequencesPanel = () => {
+    if (contactsQuery.isLoading || sequencesQuery.isLoading) return <LinkedPanelLoading />
+    if (contactsQuery.isError || sequencesQuery.isError) {
+      return <LinkedPanelError onRetry={() => void sequencesQuery.refetch()} />
+    }
+    if (!contactIds.length || !sequencesPageItems.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.sequences.empty} ctaHref={activeRoute} ctaLabel="Open Sequences" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {sequencesPageItems.map((sequence) => (
+            <li key={sequence.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {sequence.name}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-label)' }}>
+                    {sequence.description || 'No description'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {sequence.enrolled_count}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    enrolled
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls
+          page={pages.sequences}
+          totalPages={sequencesTotalPages}
+          onPageChange={(page) => setPageFor('sequences', page)}
+        />
+      </>
+    )
+  }
+
+  const renderInboxPanel = () => {
+    if (contactsQuery.isLoading || inboxQuery.isLoading) return <LinkedPanelLoading />
+    if (contactsQuery.isError || inboxQuery.isError) {
+      return <LinkedPanelError onRetry={() => void inboxQuery.refetch()} />
+    }
+    if (!contactIds.length || !inboxPageItems.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.inbox.empty} ctaHref={activeRoute} ctaLabel="Open Inbox" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {inboxPageItems.map((thread) => (
+            <li key={thread.thread_id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {thread.subject}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-label)' }}>
+                    {thread.participants.join(', ')}
+                  </p>
+                  <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {thread.snippet}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {formatRelativeTime(thread.last_message_at)}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {thread.message_count} messages
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls page={pages.inbox} totalPages={inboxTotalPages} onPageChange={(page) => setPageFor('inbox', page)} />
+      </>
+    )
+  }
+
+  const renderActivePanel = () => {
+    switch (activeTab) {
+      case 'contacts':
+        return renderContactsPanel()
+      case 'deals':
+        return renderDealsPanel()
+      case 'quotes':
+        return renderQuotesPanel()
+      case 'tickets':
+        return renderTicketsPanel()
+      case 'sequences':
+        return renderSequencesPanel()
+      case 'inbox':
+        return renderInboxPanel()
+    }
+  }
+
+  const showLinkButton = activeTab === 'contacts' || activeTab === 'deals' || activeTab === 'tickets'
+
+  return (
+    <div
+      className="rounded-xl border p-5"
+      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+    >
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <p
+          className="text-[11px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
+        >
+          Linked Entities
+        </p>
+        <Link to={activeRoute} className="ml-auto text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
+          Open {LINKED_TAB_META[activeTab].label}
+        </Link>
+        {showLinkButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={() => {
+              if (activeTab === 'contacts') setShowContactModal(true)
+              if (activeTab === 'deals') setShowDealModal(true)
+              if (activeTab === 'tickets') setShowTicketModal(true)
+            }}
+          >
+            <Plus className="h-3 w-3" />
+            Link
+          </Button>
+        )}
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {LINKED_TAB_ORDER.map((tab) => {
+          const Icon = LINKED_TAB_META[tab].icon
+          const isActive = activeTab === tab
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              style={{
+                borderColor: isActive ? 'var(--color-primary)' : 'var(--border-default)',
+                background: isActive ? 'var(--color-primary-light)' : 'transparent',
+                color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
+              }}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>{LINKED_TAB_META[tab].label}</span>
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold"
+                style={{
+                  background: isActive ? 'var(--surface-card)' : 'var(--surface-app)',
+                  color: isActive ? 'var(--color-primary)' : 'var(--text-label)',
+                }}
+              >
+                {counts[tab]}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {renderActivePanel()}
+
+      <LinkModal<Contact>
+        open={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        title="Link Contact"
+        placeholder="Search by name or email…"
+        onSearch={contactsApi.search}
+        onSelect={(contact) => linkContact.mutateAsync({ contactId: contact.id, accountId })}
+        renderItem={(contact) => (
+          <div className="flex items-center gap-2.5">
+            <div
+              className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+            >
+              {((contact.first_name?.[0] ?? '') + (contact.last_name?.[0] ?? '')).toUpperCase() || '?'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {contact.first_name} {contact.last_name}
+              </p>
+              <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
+                {contact.email ?? 'No email'}
+              </p>
+            </div>
+          </div>
+        )}
+        getKey={(contact) => contact.id}
+      />
+
+      <LinkModal<Deal>
+        open={showDealModal}
+        onClose={() => setShowDealModal(false)}
+        title="Link Deal"
+        placeholder="Search deals by title…"
+        onSearch={dealsApi.search}
+        onSelect={(deal) => linkDeal.mutateAsync({ dealId: deal.id, accountId })}
+        renderItem={(deal) => (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {deal.title}
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                {formatCurrency((deal.value_cents ?? 0) / 100)}
+              </p>
+            </div>
+          </div>
+        )}
+        getKey={(deal) => deal.id}
+      />
+
+      <LinkModal<TicketType>
+        open={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+        title="Link Ticket"
+        placeholder="Search tickets by subject…"
+        onSearch={async (q) => {
+          const result = await ticketsApi.list({ search: q, per_page: 10 })
+          return result.data ?? []
+        }}
+        onSelect={(ticket) => linkTicket.mutateAsync({ ticketId: ticket.id, accountId })}
+        renderItem={(ticket) => (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {ticket.subject}
+            </p>
+            <span className="text-xs" style={{ color: 'var(--text-label)' }}>
+              {ticket.status}
+            </span>
+          </div>
+        )}
+        getKey={(ticket) => ticket.id}
+      />
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AccountDetailPage() {
@@ -808,88 +1480,78 @@ export function AccountDetailPage() {
       </div>
 
       {/* Body */}
-      <div className="flex flex-col lg:flex-row gap-5">
-        {/* Left column — details + notes */}
-        <div className="flex-1 min-w-0 space-y-5">
-          {/* Details card */}
-          <div
-            className="rounded-xl border p-5"
-            style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+      <div className="space-y-5">
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+        >
+          <p
+            className="mb-4 text-[11px] font-semibold uppercase tracking-widest"
+            style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
           >
-            <p
-              className="mb-4 text-[11px] font-semibold uppercase tracking-widest"
-              style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-            >
-              Details
-            </p>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-              {account.phone && (
-                <div>
-                  <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                    <Phone className="h-3.5 w-3.5" /> Phone
-                  </dt>
-                  <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {account.phone}
-                  </dd>
-                </div>
-              )}
-              {account.website && (
-                <div>
-                  <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                    <Globe className="h-3.5 w-3.5" /> Website
-                  </dt>
-                  <dd>
-                    <a
-                      href={account.website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-medium hover:underline"
-                      style={{ color: 'var(--color-primary)' }}
-                    >
-                      {account.website}
-                    </a>
-                  </dd>
-                </div>
-              )}
-              {account.address && (
-                <div className="sm:col-span-2">
-                  <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                    <MapPin className="h-3.5 w-3.5" /> Address
-                  </dt>
-                  <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {account.address}
-                  </dd>
-                </div>
-              )}
+            Details
+          </p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            {account.phone && (
               <div>
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <Building2 className="h-3.5 w-3.5" /> Created
+                  <Phone className="h-3.5 w-3.5" /> Phone
                 </dt>
                 <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {formatDate(account.created_at)}
+                  {account.phone}
                 </dd>
               </div>
+            )}
+            {account.website && (
               <div>
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <Building2 className="h-3.5 w-3.5" /> Last Updated
+                  <Globe className="h-3.5 w-3.5" /> Website
                 </dt>
-                <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {formatRelativeTime(account.updated_at)}
+                <dd>
+                  <a
+                    href={account.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    {account.website}
+                  </a>
                 </dd>
               </div>
-            </dl>
-          </div>
-
-          {/* Notes */}
-          <NotesPanel accountId={account.id} />
+            )}
+            {account.address && (
+              <div className="sm:col-span-2">
+                <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
+                  <MapPin className="h-3.5 w-3.5" /> Address
+                </dt>
+                <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {account.address}
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
+                <Building2 className="h-3.5 w-3.5" /> Created
+              </dt>
+              <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatDate(account.created_at)}
+              </dd>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
+                <Building2 className="h-3.5 w-3.5" /> Last Updated
+              </dt>
+              <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatRelativeTime(account.updated_at)}
+              </dd>
+            </div>
+          </dl>
         </div>
 
-        {/* Right column — contacts + deals + tickets */}
-        <div className="w-full lg:w-[300px] shrink-0 space-y-5">
-          <ContactsList accountId={account.id} />
-          <DealsList accountId={account.id} />
-          <TicketsList accountId={account.id} />
-        </div>
+        <LinkedEntitiesSection accountId={account.id} accountName={account.name} />
+
+        <NotesPanel accountId={account.id} />
       </div>
 
       {/* Delete confirm */}

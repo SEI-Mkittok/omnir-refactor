@@ -391,6 +391,8 @@ type ViewMode = 'board' | 'list'
 export function DealsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const viewMode = (searchParams.get('view') as ViewMode) ?? 'board'
+  const accountId = searchParams.get('account_id') ?? ''
+  const accountName = searchParams.get('account_name') ?? ''
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
@@ -414,18 +416,33 @@ export function DealsPage() {
     const chips: FilterChip[] = []
     if (debouncedSearch) chips.push({ key: 'search', label: `"${debouncedSearch}"` })
     if (stage) chips.push({ key: 'stage', label: STAGE_OPTIONS.find((o) => o.value === stage)?.label ?? stage })
+    if (accountId) chips.push({ key: 'account_id', label: accountName ? `Account: ${accountName}` : 'Account filter' })
     return chips
-  }, [debouncedSearch, stage])
+  }, [accountId, accountName, debouncedSearch, stage])
 
   function removeChip(key: string) {
     if (key === 'search') setSearch('')
     if (key === 'stage') setStage('')
+    if (key === 'account_id') {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('account_id')
+        next.delete('account_name')
+        return next
+      })
+    }
     setPage(1)
   }
 
   function clearAll() {
     setSearch('')
     setStage('')
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('account_id')
+      next.delete('account_name')
+      return next
+    })
     setPage(1)
   }
 
@@ -434,6 +451,7 @@ export function DealsPage() {
     per_page: 500,
     search: debouncedSearch || undefined,
     stage: (stage as DealStage) || undefined,
+    account_id: accountId || undefined,
   })
 
   // List: paginated
@@ -442,6 +460,7 @@ export function DealsPage() {
     per_page: 25,
     search: debouncedSearch || undefined,
     stage: (stage as DealStage) || undefined,
+    account_id: accountId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   })

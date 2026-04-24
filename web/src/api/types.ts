@@ -1246,6 +1246,7 @@ export interface QuoteListParams {
   limit?: number
   q?: string
   status?: QuoteStatus
+  account_id?: string
   deal_id?: string
   contact_id?: string
 }
@@ -1406,6 +1407,7 @@ export interface InboxThread {
 
 export interface InboxListParams {
   connection_id?: string
+  contact_id?: string
   unread_only?: boolean
   page?: number
   limit?: number

@@ -508,7 +508,9 @@ const PRIORITY_OPTIONS = [
 
 export function TicketsPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountId = searchParams.get('account_id') ?? ''
+  const accountName = searchParams.get('account_name') ?? ''
   const { status, priority, search, page, setStatus, setPriority, setSearch, setPage, reset } =
     useTicketFilterStore()
   const [sortKey, setSortKey] = useState('created_at:desc')
@@ -526,6 +528,7 @@ export function TicketsPage() {
     search: debouncedSearch || undefined,
     status: (status as TicketStatus) || undefined,
     priority: (priority as TicketPriority) || undefined,
+    account_id: accountId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   })
@@ -562,6 +565,27 @@ export function TicketsPage() {
 
       {/* Metrics row */}
       <MetricsRow />
+
+      {accountId && (
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3">
+          <span className="text-[14px] font-medium text-[var(--text-primary)]">
+            {accountName ? `Filtered to ${accountName}` : 'Account filter active'}
+          </span>
+          <button
+            onClick={() =>
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev)
+                next.delete('account_id')
+                next.delete('account_name')
+                return next
+              })
+            }
+            className="text-[13px] text-[var(--color-primary)] hover:underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 py-1">

@@ -107,6 +107,7 @@ export const inboxApi = {
     const query = params
       ? {
           connection_id: params.connection_id,
+          contact_id: params.contact_id,
           unread_only: params.unread_only,
           page: params.page,
           limit: params.limit,
