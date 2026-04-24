@@ -4,6 +4,7 @@
 .env.*.local
 api/.env
 web/.env.local
+docs/screenshots_original_UIUX/
 
 # Go
 api/tmp/

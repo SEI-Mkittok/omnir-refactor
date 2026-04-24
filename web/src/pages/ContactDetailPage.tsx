@@ -54,6 +54,12 @@ import type { Account, Activity, ActivityType, Contact, Deal, EmailSequence, Enr
 import { AccountForm } from '@/components/omnir/AccountForm'
 import { ComposeEmailModal } from '@/components/omnir/ComposeEmailModal'
 import { DealForm } from '@/components/omnir/DealForm'
+import {
+  RelationshipEditor,
+  type RelationshipRow,
+  createRelationshipRow,
+  normalizeRelationshipRows,
+} from '@/components/omnir/RelationshipEditor'
 import { TicketForm } from '@/components/omnir/TicketForm'
 // Note: 'Activity' from lucide-react aliased to ActivityIcon above to avoid collision
 
@@ -79,6 +85,23 @@ function syncPrimaryAccount(contact: ContactRecord, linkedAccounts: ContactLinke
     account: linkedAccounts[0],
     account_id: linkedAccounts[0]?.id,
   }
+}
+
+function createContactRelationshipRows(linkedAccounts: ContactLinkedAccount[]): RelationshipRow[] {
+  if (!linkedAccounts.length) return []
+
+  return normalizeRelationshipRows(
+    linkedAccounts.map((account, index) =>
+      createRelationshipRow({
+        id: `contact-relationship-${account.id}`,
+        entityId: account.id,
+        label: account.name,
+        meta: account.industry ?? account.domain ?? '',
+        role: index === 0 ? 'primary' : 'billing',
+        isPrimary: index === 0,
+      })
+    )
+  )
 }
 
 // ── Activity Timeline ─────────────────────────────────────────────────────────
@@ -1656,6 +1679,41 @@ export function ContactDetailPage() {
 
   const { data: contact, isLoading, isError } = useContact(id!)
   const deleteContact = useDeleteContact()
+  const [relationshipRows, setRelationshipRows] = useState<RelationshipRow[]>([])
+  const seedContactRecord = (contact as ContactRecord | undefined) ?? null
+  const seedContactId = seedContactRecord?.id ?? null
+  const linkedAccounts = getLinkedAccounts(seedContactRecord)
+  const relationshipSeed = useMemo(
+    () => createContactRelationshipRows(linkedAccounts),
+    [linkedAccounts]
+  )
+  const relationshipSeedKey = useMemo(
+    () => relationshipSeed.map((row) => `${row.entityId ?? row.id}:${row.label}:${row.meta}`).join('|'),
+    [relationshipSeed]
+  )
+  const previousRelationshipSeedKeyRef = useRef<string | null>(null)
+  const previousRelationshipContactIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!seedContactId) return
+
+    const isNewContact = previousRelationshipContactIdRef.current !== seedContactId
+
+    setRelationshipRows((currentRows) => {
+      const currentRowsKey = currentRows
+        .map((row) => `${row.entityId ?? row.id}:${row.label}:${row.meta}`)
+        .join('|')
+      const canReseed =
+        isNewContact ||
+        currentRows.length === 0 ||
+        currentRowsKey === previousRelationshipSeedKeyRef.current
+
+      return canReseed ? relationshipSeed : currentRows
+    })
+
+    previousRelationshipContactIdRef.current = seedContactId
+    previousRelationshipSeedKeyRef.current = relationshipSeedKey
+  }, [seedContactId, relationshipSeed, relationshipSeedKey])
 
   if (isLoading) {
     return (
@@ -1710,8 +1768,8 @@ export function ContactDetailPage() {
   }
 
   const contactRecord = contact as ContactRecord
-  const linkedAccounts = getLinkedAccounts(contactRecord)
-  const primaryLinkedAccount = linkedAccounts[0]
+  const primaryRelationship = relationshipRows.find((row) => row.isPrimary) ?? relationshipRows[0]
+  const primaryLinkedAccount = linkedAccounts.find((account) => account.id === primaryRelationship?.entityId)
   const fullName = `${contact.first_name} ${contact.last_name}`
   const initials = contactInitials(contact.first_name, contact.last_name)
 
@@ -1756,24 +1814,30 @@ export function ContactDetailPage() {
               {contact.title}
             </p>
           )}
-          {primaryLinkedAccount ? (
-            <Link
-              to={`/accounts/${primaryLinkedAccount.id}`}
-              className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium hover:underline"
-              style={{ color: 'var(--color-primary)' }}
-              aria-label={`${primaryLinkedAccount.name} (opens account detail)`}
-            >
-              {primaryLinkedAccount.name}
-              <ExternalLink className="h-3 w-3" aria-hidden="true" />
-            </Link>
+          {primaryRelationship ? (
+            primaryLinkedAccount ? (
+              <Link
+                to={`/accounts/${primaryLinkedAccount.id}`}
+                className="mt-0.5 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+                style={{ color: 'var(--color-primary)' }}
+                aria-label={`${primaryRelationship.label} (opens account detail)`}
+              >
+                {primaryRelationship.label}
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              </Link>
+            ) : (
+              <p className="mt-0.5 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {primaryRelationship.label}
+              </p>
+            )
           ) : (
             <p className="mt-0.5 text-sm italic" style={{ color: 'var(--text-label)' }}>
               No accounts linked
             </p>
           )}
-          {linkedAccounts.length > 1 && (
+          {relationshipRows.length > 1 && (
             <p className="mt-1 text-xs font-medium" style={{ color: 'var(--text-label)' }}>
-              +{linkedAccounts.length - 1} more linked
+              +{relationshipRows.length - 1} more linked
             </p>
           )}
         </div>
@@ -1820,6 +1884,14 @@ export function ContactDetailPage() {
       <div className="flex flex-col md:flex-row gap-5">
         {/* Right column on mobile (linked entities + notes + enrichment) */}
         <div className="md:hidden flex flex-col gap-4">
+          <RelationshipEditor
+            title="Relationship Roles"
+            entityLabel="Account"
+            value={relationshipRows}
+            onChange={setRelationshipRows}
+            emptyMessage="No account relationships yet."
+            addLabel="Add account role"
+          />
           <LinkedEntitiesSection contact={contactRecord} contactId={id!} contactName={fullName} />
           <PrivateNotesPanel contactId={id!} contactName={fullName} />
           <EnrichmentPanel contactId={id!} />
@@ -1832,6 +1904,14 @@ export function ContactDetailPage() {
 
         {/* Right — Desktop only */}
         <div className="hidden md:block w-[320px] shrink-0">
+          <RelationshipEditor
+            title="Relationship Roles"
+            entityLabel="Account"
+            value={relationshipRows}
+            onChange={setRelationshipRows}
+            emptyMessage="No account relationships yet."
+            addLabel="Add account role"
+          />
           <LinkedEntitiesSection contact={contactRecord} contactId={id!} contactName={fullName} />
           <PrivateNotesPanel contactId={id!} contactName={fullName} />
           <EnrichmentPanel contactId={id!} />

@@ -79,16 +79,6 @@ function nameInitials(name?: string): string {
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-/** Full name from first + last */
-function fullName(first?: string, last?: string): string {
-  return [first, last].filter(Boolean).join(' ') || '—'
-}
-
-/** Initials from first + last */
-function contactInitials(first?: string, last?: string): string {
-  return ((first?.[0] ?? '') + (last?.[0] ?? '')).toUpperCase() || '?'
-}
-
 function formatHours(h: number | null): string {
   if (h === null) return '—'
   if (h < 1) return `${Math.round(h * 60)}m`

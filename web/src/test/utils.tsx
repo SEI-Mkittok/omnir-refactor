@@ -35,7 +35,10 @@ function customRender(ui: ReactElement, { initialRoute = '/', ...options }: Cust
     return (
       <QueryClientProvider client={queryClient}>
         <Toaster>
-          <MemoryRouter initialEntries={[initialRoute]}>
+          <MemoryRouter
+            initialEntries={[initialRoute]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
             {children}
           </MemoryRouter>
         </Toaster>

@@ -3,7 +3,7 @@ import { delay, http, HttpResponse } from 'msw'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { ContactDetailPage } from '@/pages/ContactDetailPage'
-import { render, screen, waitFor } from '@/test/utils'
+import { render, screen, waitFor, within } from '@/test/utils'
 import { server } from '@/test/mocks/server'
 
 const contactId = 'contact-1'
@@ -52,6 +52,11 @@ function renderPage() {
   )
 }
 
+function getRelationshipEditor(): HTMLElement {
+  const editors = screen.getAllByRole('region', { name: /relationship roles/i })
+  return editors[editors.length - 1] as HTMLElement
+}
+
 function installBaseHandlers() {
   server.use(
     http.get('/api/v1/contacts/:id', () =>
@@ -63,6 +68,7 @@ function installBaseHandlers() {
     ),
     http.get('/api/v1/contacts/:id/notes', () => HttpResponse.json([])),
     http.get('/api/v1/activities', () => HttpResponse.json(paginated([]))),
+    http.get('/api/v1/deals/:id/quotes', () => HttpResponse.json(paginated([]))),
     http.get('/api/v1/deals', ({ request }) => {
       const url = new URL(request.url)
       if (url.searchParams.get('q')) {
@@ -89,6 +95,33 @@ function installBaseHandlers() {
 }
 
 describe('ContactDetailPage optimistic association flows', () => {
+  it('seeds relationship rows from linked accounts and preserves exactly one primary after interaction', async () => {
+    installBaseHandlers()
+
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findAllByRole('region', { name: /relationship roles/i })
+
+    await waitFor(() => {
+      expect(within(getRelationshipEditor()).getAllByLabelText(/acme corp is primary/i)).not.toHaveLength(0)
+    })
+
+    await user.click(within(getRelationshipEditor()).getByRole('button', { name: /add account role/i }))
+
+    const editor = getRelationshipEditor()
+    const accountInputs = within(editor).getAllByPlaceholderText('Enter account name')
+    await user.type(accountInputs[1], 'Beta Corp')
+
+    const detailInputs = within(editor).getAllByPlaceholderText('Title, email, or context')
+    await user.type(detailInputs[1], 'Regional partner')
+
+    await user.click(within(getRelationshipEditor()).getByRole('button', { name: /make beta corp primary/i }))
+
+    expect((await screen.findAllByDisplayValue('Beta Corp')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByRole('button', { name: /beta corp is primary/i })).length).toBeGreaterThan(0)
+    expect((await screen.findAllByRole('button', { name: /make acme corp primary/i })).length).toBeGreaterThan(0)
+  })
+
   it('rolls back account unlink when the mutation fails', async () => {
     installBaseHandlers()
     server.use(
@@ -105,7 +138,9 @@ describe('ContactDetailPage optimistic association flows', () => {
 
     await user.click((await screen.findAllByLabelText('Unlink account'))[0])
 
-    expect((await screen.findAllByText('No accounts linked')).length).toBeGreaterThan(0)
+    await waitFor(() => {
+      expect(screen.queryAllByLabelText('Unlink account')).toHaveLength(0)
+    })
     expect(await screen.findByText('Could not unlink account')).toBeInTheDocument()
     expect((await screen.findAllByText('Acme Corp')).length).toBeGreaterThan(0)
   })
@@ -178,3 +213,4 @@ describe('ContactDetailPage optimistic association flows', () => {
     expect((await screen.findAllByText('Billing portal outage')).length).toBeGreaterThan(0)
   })
 })
+

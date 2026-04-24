@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -42,8 +42,15 @@ import { sequencesApi } from '@/api/sequences'
 import { ticketsApi } from '@/api/tickets'
 
 import { Button } from '@/components/ui/Button'
+import {
+  RelationshipEditor,
+  type RelationshipRow,
+  createRelationshipRow,
+  normalizeRelationshipRows,
+} from '@/components/omnir/RelationshipEditor'
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
 import { Spinner } from '@/components/ui/Spinner'
+import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
 import type { Contact, Deal, EmailSequence, InboxThread, Note, Ticket as TicketType } from '@/api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -57,155 +64,20 @@ function accountInitials(name: string) {
     .toUpperCase()
 }
 
-// ── Generic Link Modal ────────────────────────────────────────────────────────
+function createAccountRelationshipRows(contacts: Contact[] | undefined): RelationshipRow[] {
+  if (!contacts?.length) return []
 
-interface LinkModalProps<T> {
-  open: boolean
-  onClose: () => void
-  title: string
-  placeholder: string
-  onSearch: (q: string) => Promise<T[]>
-  onSelect: (item: T) => Promise<unknown>
-  renderItem: (item: T) => React.ReactNode
-  getKey: (item: T) => string
-}
-
-function LinkModal<T>({
-  open,
-  onClose,
-  title,
-  placeholder,
-  onSearch,
-  onSelect,
-  renderItem,
-  getKey,
-}: LinkModalProps<T>) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<T[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isPending, setIsPending] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (open) {
-      setQuery('')
-      setResults([])
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-    setIsSearching(true)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const data = await onSearch(query)
-        setResults(data)
-      } finally {
-        setIsSearching(false)
-      }
-    }, 300)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [query, onSearch])
-
-  if (!open) return null
-
-  const handleSelect = async (item: T) => {
-    setIsPending(true)
-    try {
-      await onSelect(item)
-      onClose()
-    } finally {
-      setIsPending(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="rounded-xl border shadow-xl w-full max-w-sm"
-        style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ borderColor: 'var(--border-default)' }}
-        >
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="rounded p-0.5 hover:bg-[var(--surface-app)] transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-          </button>
-        </div>
-
-        {/* Search input */}
-        <div className="px-4 py-3">
-          <div className="relative">
-            <Search
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
-              style={{ color: 'var(--text-label)' }}
-            />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={placeholder}
-              className="w-full rounded-lg border text-sm pl-8 pr-3 py-2 focus:outline-none"
-              style={{
-                borderColor: 'var(--border-default)',
-                color: 'var(--text-primary)',
-                background: 'var(--surface-app)',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--border-focus)' }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)' }}
-            />
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="px-4 pb-4 max-h-64 overflow-y-auto">
-          {isSearching ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--text-label)' }} />
-            </div>
-          ) : results.length > 0 ? (
-            <ul className="space-y-1">
-              {results.map((item) => (
-                <li key={getKey(item)}>
-                  <button
-                    disabled={isPending}
-                    onClick={() => handleSelect(item)}
-                    className="w-full text-left rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors disabled:opacity-50"
-                  >
-                    {renderItem(item)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : query.trim() ? (
-            <p className="text-sm text-center py-4" style={{ color: 'var(--text-label)' }}>
-              No results found.
-            </p>
-          ) : (
-            <p className="text-sm text-center py-4" style={{ color: 'var(--text-label)' }}>
-              Start typing to search…
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+  return normalizeRelationshipRows(
+    contacts.map((contact, index) =>
+      createRelationshipRow({
+        id: `account-relationship-${contact.id}`,
+        entityId: contact.id,
+        label: `${contact.first_name} ${contact.last_name}`.trim(),
+        meta: contact.title ?? contact.email ?? '',
+        role: index === 0 ? 'primary' : 'billing',
+        isPrimary: index === 0,
+      })
+    )
   )
 }
 
@@ -302,12 +174,12 @@ function ContactsList({ accountId }: { accountId: string }) {
         </ul>
       )}
 
-      <LinkModal<Contact>
+      <EntityLinkModal<Contact>
         open={showModal}
         onClose={() => setShowModal(false)}
         title="Link Contact"
         placeholder="Search by name or email…"
-        onSearch={contactsApi.search}
+        search={contactsApi.search}
         onSelect={(c) => linkContact.mutateAsync({ contactId: c.id, accountId })}
         renderItem={(c) => (
           <div className="flex items-center gap-2.5">
@@ -438,12 +310,12 @@ function DealsList({ accountId }: { accountId: string }) {
         </ul>
       )}
 
-      <LinkModal<Deal>
+      <EntityLinkModal<Deal>
         open={showModal}
         onClose={() => setShowModal(false)}
         title="Link Deal"
         placeholder="Search deals by title…"
-        onSearch={dealsApi.search}
+        search={dealsApi.search}
         onSelect={(d) => linkDeal.mutateAsync({ dealId: d.id, accountId })}
         renderItem={(d) => {
           const stageStyle = STAGE_STYLES[d.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
@@ -571,12 +443,12 @@ function TicketsList({ accountId }: { accountId: string }) {
         </ul>
       )}
 
-      <LinkModal<TicketType>
+      <EntityLinkModal<TicketType>
         open={showModal}
         onClose={() => setShowModal(false)}
         title="Link Ticket"
         placeholder="Search tickets by subject…"
-        onSearch={searchTickets}
+        search={searchTickets}
         onSelect={(t) => linkTicket.mutateAsync({ ticketId: t.id, accountId })}
         renderItem={(t) => {
           const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
@@ -1277,12 +1149,12 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
 
       {renderActivePanel()}
 
-      <LinkModal<Contact>
+      <EntityLinkModal<Contact>
         open={showContactModal}
         onClose={() => setShowContactModal(false)}
         title="Link Contact"
         placeholder="Search by name or email…"
-        onSearch={contactsApi.search}
+        search={contactsApi.search}
         onSelect={(contact) => linkContact.mutateAsync({ contactId: contact.id, accountId })}
         renderItem={(contact) => (
           <div className="flex items-center gap-2.5">
@@ -1305,12 +1177,12 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
         getKey={(contact) => contact.id}
       />
 
-      <LinkModal<Deal>
+      <EntityLinkModal<Deal>
         open={showDealModal}
         onClose={() => setShowDealModal(false)}
         title="Link Deal"
         placeholder="Search deals by title…"
-        onSearch={dealsApi.search}
+        search={dealsApi.search}
         onSelect={(deal) => linkDeal.mutateAsync({ dealId: deal.id, accountId })}
         renderItem={(deal) => (
           <div className="flex items-center justify-between gap-2">
@@ -1327,12 +1199,12 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
         getKey={(deal) => deal.id}
       />
 
-      <LinkModal<TicketType>
+      <EntityLinkModal<TicketType>
         open={showTicketModal}
         onClose={() => setShowTicketModal(false)}
         title="Link Ticket"
         placeholder="Search tickets by subject…"
-        onSearch={async (q) => {
+        search={async (q) => {
           const result = await ticketsApi.list({ search: q, per_page: 10 })
           return result.data ?? []
         }}
@@ -1361,7 +1233,25 @@ export function AccountDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const { data: account, isLoading, isError } = useAccount(id!)
+  const { data: accountContacts } = useAccountContacts(id!)
   const deleteAccount = useDeleteAccount()
+  const [relationshipRows, setRelationshipRows] = useState<RelationshipRow[]>([])
+  const accountContactsSeedKey = (accountContacts ?? [])
+    .map((contact) => `${contact.id}:${contact.first_name}:${contact.last_name}:${contact.title ?? ''}:${contact.email ?? ''}`)
+    .join('|')
+  const accountRelationshipSeed = useMemo(
+    () => createAccountRelationshipRows(accountContacts),
+    [accountContactsSeedKey]
+  )
+  const accountRelationshipSeedKey = useMemo(
+    () => accountRelationshipSeed.map((row) => `${row.entityId ?? row.id}:${row.label}:${row.meta}`).join('|'),
+    [accountRelationshipSeed]
+  )
+
+  useEffect(() => {
+    if (!id) return
+    setRelationshipRows(accountRelationshipSeed)
+  }, [id, accountRelationshipSeed, accountRelationshipSeedKey])
 
   if (isLoading) {
     return (
@@ -1548,6 +1438,15 @@ export function AccountDetailPage() {
             </div>
           </dl>
         </div>
+
+        <RelationshipEditor
+          title="Relationship Roles"
+          entityLabel="Contact"
+          value={relationshipRows}
+          onChange={setRelationshipRows}
+          emptyMessage="No contact relationships yet."
+          addLabel="Add contact role"
+        />
 
         <LinkedEntitiesSection accountId={account.id} accountName={account.name} />
 

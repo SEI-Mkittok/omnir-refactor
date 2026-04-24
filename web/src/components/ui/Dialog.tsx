@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -7,12 +8,13 @@ export const DialogTrigger = RadixDialog.Trigger
 export const DialogPortal = RadixDialog.Portal
 export const DialogClose = RadixDialog.Close
 
-export function DialogOverlay({
-  className,
-  ...props
-}: React.ComponentPropsWithoutRef<typeof RadixDialog.Overlay>) {
+export const DialogOverlay = forwardRef<
+  React.ElementRef<typeof RadixDialog.Overlay>,
+  React.ComponentPropsWithoutRef<typeof RadixDialog.Overlay>
+>(function DialogOverlay({ className, ...props }, ref) {
   return (
     <RadixDialog.Overlay
+      ref={ref}
       className={cn(
         'fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         className
@@ -20,7 +22,7 @@ export function DialogOverlay({
       {...props}
     />
   )
-}
+})
 
 export function DialogContent({
   className,
