@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   ChevronRight,
   Building2,
@@ -12,29 +13,41 @@ import {
   ExternalLink,
   Plus,
   X,
-  Search,
-  Loader2,
   Ticket,
+  FileText,
+  Mail,
+  Zap,
 } from 'lucide-react'
 import {
   useAccount,
   useAccountContacts,
-  useAccountDeals,
   useAccountNotes,
-  useAccountTickets,
   useDeleteAccount,
   useAddAccountNote,
   useLinkContactToAccount,
   useLinkDealToAccount,
   useLinkTicketToAccount,
 } from '@/hooks/useAccounts'
+import { useDeals } from '@/hooks/useDeals'
+import { useTickets } from '@/hooks/useTickets'
+import { useQuotes } from '@/hooks/useQuotes'
 import { contactsApi } from '@/api/contacts'
 import { dealsApi } from '@/api/deals'
+import { inboxApi } from '@/api/inbox'
+import { sequencesApi } from '@/api/sequences'
 import { ticketsApi } from '@/api/tickets'
 
 import { Button } from '@/components/ui/Button'
+import {
+  RelationshipEditor,
+  type RelationshipRow,
+  createRelationshipRow,
+  normalizeRelationshipRows,
+} from '@/components/omnir/RelationshipEditor'
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
-import type { Contact, Deal, Note, Ticket as TicketType } from '@/api/types'
+import { Spinner } from '@/components/ui/Spinner'
+import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
+import type { Contact, Deal, EmailSequence, InboxThread, Note, Ticket as TicketType } from '@/api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,551 +60,24 @@ function accountInitials(name: string) {
     .toUpperCase()
 }
 
-// ── Generic Link Modal ────────────────────────────────────────────────────────
+function createAccountRelationshipRows(contacts: Contact[] | undefined): RelationshipRow[] {
+  if (!contacts?.length) return []
 
-interface LinkModalProps<T> {
-  open: boolean
-  onClose: () => void
-  title: string
-  placeholder: string
-  onSearch: (q: string) => Promise<T[]>
-  onSelect: (item: T) => Promise<unknown>
-  renderItem: (item: T) => React.ReactNode
-  getKey: (item: T) => string
-}
-
-function LinkModal<T>({
-  open,
-  onClose,
-  title,
-  placeholder,
-  onSearch,
-  onSelect,
-  renderItem,
-  getKey,
-}: LinkModalProps<T>) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<T[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isPending, setIsPending] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (open) {
-      setQuery('')
-      setResults([])
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-    setIsSearching(true)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const data = await onSearch(query)
-        setResults(data)
-      } finally {
-        setIsSearching(false)
-      }
-    }, 300)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [query, onSearch])
-
-  if (!open) return null
-
-  const handleSelect = async (item: T) => {
-    setIsPending(true)
-    try {
-      await onSelect(item)
-      onClose()
-    } finally {
-      setIsPending(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="rounded-xl border shadow-xl w-full max-w-sm"
-        style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ borderColor: 'var(--border-default)' }}
-        >
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="rounded p-0.5 hover:bg-[var(--surface-app)] transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-          </button>
-        </div>
-
-        {/* Search input */}
-        <div className="px-4 py-3">
-          <div className="relative">
-            <Search
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
-              style={{ color: 'var(--text-label)' }}
-            />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={placeholder}
-              className="w-full rounded-lg border text-sm pl-8 pr-3 py-2 focus:outline-none"
-              style={{
-                borderColor: 'var(--border-default)',
-                color: 'var(--text-primary)',
-                background: 'var(--surface-app)',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--border-focus)' }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)' }}
-            />
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="px-4 pb-4 max-h-64 overflow-y-auto">
-          {isSearching ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--text-label)' }} />
-            </div>
-          ) : results.length > 0 ? (
-            <ul className="space-y-1">
-              {results.map((item) => (
-                <li key={getKey(item)}>
-                  <button
-                    disabled={isPending}
-                    onClick={() => handleSelect(item)}
-                    className="w-full text-left rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors disabled:opacity-50"
-                  >
-                    {renderItem(item)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : query.trim() ? (
-            <p className="text-sm text-center py-4" style={{ color: 'var(--text-label)' }}>
-              No results found.
-            </p>
-          ) : (
-            <p className="text-sm text-center py-4" style={{ color: 'var(--text-label)' }}>
-              Start typing to search…
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Contacts List ─────────────────────────────────────────────────────────────
-
-function ContactsList({ accountId }: { accountId: string }) {
-  const { data: contacts, isLoading } = useAccountContacts(accountId)
-  const linkContact = useLinkContactToAccount()
-  const [showModal, setShowModal] = useState(false)
-
-  const handleUnlink = (contactId: string) => {
-    linkContact.mutate({ contactId, accountId: null })
-  }
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Users className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-        >
-          Contacts
-        </p>
-        {contacts && (
-          <span
-            className="text-xs font-medium rounded-full px-2 py-0.5"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
-            {contacts.length}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="h-3 w-3" />
-          Link
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : !contacts?.length ? (
-        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
-          No contacts linked.
-        </p>
-      ) : (
-        <ul className="space-y-1">
-          {contacts.map((c: Contact) => (
-            <li key={c.id} className="flex items-center gap-1">
-              <Link
-                to={`/contacts/${c.id}`}
-                className="flex flex-1 items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors min-w-0"
-              >
-                <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                  style={{
-                    background: 'var(--color-primary-light)',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  {((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {c.first_name} {c.last_name}
-                  </p>
-                  {c.title && (
-                    <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
-                      {c.title}
-                    </p>
-                  )}
-                </div>
-              </Link>
-              <button
-                onClick={() => handleUnlink(c.id)}
-                className="shrink-0 rounded p-0.5 hover:bg-[var(--surface-app)] transition-colors"
-                aria-label="Unlink contact"
-              >
-                <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <LinkModal<Contact>
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Link Contact"
-        placeholder="Search by name or email…"
-        onSearch={contactsApi.search}
-        onSelect={(c) => linkContact.mutateAsync({ contactId: c.id, accountId })}
-        renderItem={(c) => (
-          <div className="flex items-center gap-2.5">
-            <div
-              className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-            >
-              {((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                {c.first_name} {c.last_name}
-              </p>
-              {c.email && (
-                <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
-                  {c.email}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-        getKey={(c) => c.id}
-      />
-    </div>
-  )
-}
-
-// ── Deals List ────────────────────────────────────────────────────────────────
-
-const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
-  prospecting:    { bg: '#EFF6FF', text: '#2563EB' },
-  qualification:  { bg: '#F0FDF4', text: '#15803D' },
-  proposal:       { bg: '#FAF5FF', text: '#7C3AED' },
-  negotiation:    { bg: '#FFF7ED', text: '#C2410C' },
-  closed_won:     { bg: '#F0FDF4', text: '#15803D' },
-  closed_lost:    { bg: '#FEF2F2', text: '#DC2626' },
-}
-
-function DealsList({ accountId }: { accountId: string }) {
-  const { data: deals, isLoading } = useAccountDeals(accountId)
-  const linkDeal = useLinkDealToAccount()
-  const [showModal, setShowModal] = useState(false)
-
-  const handleUnlink = (dealId: string) => {
-    linkDeal.mutate({ dealId, accountId: null })
-  }
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Briefcase className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-        >
-          Deals
-        </p>
-        {deals && (
-          <span
-            className="text-xs font-medium rounded-full px-2 py-0.5"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
-            {deals.length}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="h-3 w-3" />
-          Link
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : !deals?.length ? (
-        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
-          No deals linked.
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {deals.map((d: Deal) => {
-            const stageStyle = STAGE_STYLES[d.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-            return (
-              <li
-                key={d.id}
-                className="flex items-center justify-between gap-2 rounded-lg px-2 py-2"
-                style={{ background: 'var(--surface-app)' }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {d.title}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {formatCurrency((d.value_cents ?? 0) / 100)}
-                  </p>
-                </div>
-                <span
-                  className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                  style={{
-                    background: stageStyle.bg,
-                    color: stageStyle.text,
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {d.stage.replace('_', ' ')}
-                </span>
-                <button
-                  onClick={() => handleUnlink(d.id)}
-                  className="shrink-0 rounded p-0.5 hover:bg-slate-200 transition-colors"
-                  aria-label="Unlink deal"
-                >
-                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      <LinkModal<Deal>
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Link Deal"
-        placeholder="Search deals by title…"
-        onSearch={dealsApi.search}
-        onSelect={(d) => linkDeal.mutateAsync({ dealId: d.id, accountId })}
-        renderItem={(d) => {
-          const stageStyle = STAGE_STYLES[d.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-          return (
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                  {d.title}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {formatCurrency((d.value_cents ?? 0) / 100)}
-                </p>
-              </div>
-              <span
-                className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                style={{ background: stageStyle.bg, color: stageStyle.text, letterSpacing: '0.04em' }}
-              >
-                {d.stage.replace('_', ' ')}
-              </span>
-            </div>
-          )
-        }}
-        getKey={(d) => d.id}
-      />
-    </div>
-  )
-}
-
-// ── Tickets List ───────────────────────────────────────────────────────────────
-
-const TICKET_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  open:     { bg: '#EFF6FF', text: '#2563EB' },
-  pending:  { bg: '#FFF7ED', text: '#C2410C' },
-  resolved: { bg: '#F0FDF4', text: '#15803D' },
-  closed:   { bg: '#F1F5F9', text: '#64748B' },
-}
-
-function TicketsList({ accountId }: { accountId: string }) {
-  const { data: tickets, isLoading } = useAccountTickets(accountId)
-  const linkTicket = useLinkTicketToAccount()
-  const [showModal, setShowModal] = useState(false)
-
-  const handleUnlink = (ticketId: string) => {
-    linkTicket.mutate({ ticketId, accountId: null })
-  }
-
-  const searchTickets = async (q: string): Promise<TicketType[]> => {
-    const result = await ticketsApi.list({ search: q, per_page: 10 })
-    return result.data ?? []
-  }
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Ticket className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-        >
-          Tickets
-        </p>
-        {tickets && (
-          <span
-            className="text-xs font-medium rounded-full px-2 py-0.5"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
-            {tickets.length}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="h-3 w-3" />
-          Link
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : !tickets?.length ? (
-        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
-          No tickets linked.
-        </p>
-      ) : (
-        <ul className="space-y-1">
-          {tickets.map((t: TicketType) => {
-            const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-            return (
-              <li
-                key={t.id}
-                className="flex items-center gap-2 rounded-lg px-2 py-2"
-                style={{ background: 'var(--surface-app)' }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {t.subject}
-                  </p>
-                </div>
-                <span
-                  className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                  style={{ background: statusStyle.bg, color: statusStyle.text, letterSpacing: '0.04em' }}
-                >
-                  {t.status}
-                </span>
-                <button
-                  onClick={() => handleUnlink(t.id)}
-                  className="shrink-0 rounded p-0.5 hover:bg-slate-200 transition-colors"
-                  aria-label="Unlink ticket"
-                >
-                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      <LinkModal<TicketType>
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Link Ticket"
-        placeholder="Search tickets by subject…"
-        onSearch={searchTickets}
-        onSelect={(t) => linkTicket.mutateAsync({ ticketId: t.id, accountId })}
-        renderItem={(t) => {
-          const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-          return (
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                {t.subject}
-              </p>
-              <span
-                className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                style={{ background: statusStyle.bg, color: statusStyle.text, letterSpacing: '0.04em' }}
-              >
-                {t.status}
-              </span>
-            </div>
-          )
-        }}
-        getKey={(t) => t.id}
-      />
-    </div>
+  return normalizeRelationshipRows(
+    contacts.map((contact, index) =>
+      createRelationshipRow({
+        id: `account-relationship-${contact.id}`,
+        entityId: contact.id,
+        label: `${contact.first_name} ${contact.last_name}`.trim(),
+        meta: contact.title ?? contact.email ?? '',
+        role: index === 0 ? 'primary' : 'billing',
+        isPrimary: index === 0,
+      })
+    )
   )
 }
 
 // ── Notes Panel ───────────────────────────────────────────────────────────────
-
 function NotesPanel({ accountId }: { accountId: string }) {
   const { data: notes, isLoading } = useAccountNotes(accountId)
   const addNote = useAddAccountNote()
@@ -681,6 +167,698 @@ function NotesPanel({ accountId }: { accountId: string }) {
   )
 }
 
+// ── Linked Entities ───────────────────────────────────────────────────────────
+
+type LinkedEntitiesTab = 'contacts' | 'deals' | 'quotes' | 'tickets' | 'sequences' | 'inbox'
+
+type LinkedEntityPageState = Record<LinkedEntitiesTab, number>
+
+const LINKED_ENTITY_PAGE_SIZE = 5
+
+const LINKED_TAB_ORDER: LinkedEntitiesTab[] = [
+  'contacts',
+  'deals',
+  'quotes',
+  'tickets',
+  'sequences',
+  'inbox',
+]
+
+const LINKED_TAB_META: Record<
+  LinkedEntitiesTab,
+  { label: string; route: string; icon: typeof Users; empty: string }
+> = {
+  contacts: { label: 'Contacts', route: '/contacts', icon: Users, empty: 'No contacts linked yet.' },
+  deals: { label: 'Deals', route: '/deals', icon: Briefcase, empty: 'No deals linked yet.' },
+  quotes: { label: 'Quotes', route: '/quotes', icon: FileText, empty: 'No quotes linked yet.' },
+  tickets: { label: 'Tickets', route: '/tickets', icon: Ticket, empty: 'No tickets linked yet.' },
+  sequences: { label: 'Sequences', route: '/sequences', icon: Zap, empty: "No sequences are linked through this account's contacts yet." },
+  inbox: { label: 'Inbox', route: '/inbox', icon: Mail, empty: "No inbox threads are linked through this account's contacts yet." },
+}
+
+const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
+  lead: { bg: 'var(--color-primary-light)', text: 'var(--color-primary)' },
+  qualified: { bg: 'var(--color-info-light)', text: 'var(--color-info)' },
+  proposal: { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  negotiation: { bg: 'var(--surface-app)', text: 'var(--text-secondary)' },
+  closed_won: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  closed_lost: { bg: 'var(--color-danger-light)', text: 'var(--color-danger)' },
+}
+
+const TICKET_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  open: { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  in_progress: { bg: 'var(--color-info-light)', text: 'var(--color-info)' },
+  resolved: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  closed: { bg: 'var(--surface-app)', text: 'var(--text-secondary)' },
+}
+
+function buildAccountScopedPath(path: string, accountId: string, accountName: string) {
+  const params = new URLSearchParams({ account_id: accountId, account_name: accountName })
+  return `${path}?${params.toString()}`
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
+  if (totalPages <= 1) return null
+
+  return (
+    <div
+      className="mt-4 flex items-center justify-between border-t pt-3"
+      style={{ borderColor: 'var(--border-subtle)' }}
+    >
+      <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+        Page {page} of {totalPages}
+      </p>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          Previous
+        </Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+          Next
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function LinkedPanelLoading() {
+  return (
+    <div className="flex items-center justify-center py-10">
+      <Spinner />
+    </div>
+  )
+}
+
+function LinkedPanelError({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+        We couldn’t load this panel.
+      </p>
+      {onRetry && (
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function LinkedPanelEmpty({ message, ctaHref, ctaLabel }: { message: string; ctaHref: string; ctaLabel: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+      <p className="text-sm" style={{ color: 'var(--text-label)' }}>
+        {message}
+      </p>
+      <Link to={ctaHref} className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
+        {ctaLabel}
+      </Link>
+    </div>
+  )
+}
+
+function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; accountName: string }) {
+  const [activeTab, setActiveTab] = useState<LinkedEntitiesTab>('contacts')
+  const [pages, setPages] = useState<LinkedEntityPageState>({
+    contacts: 1,
+    deals: 1,
+    quotes: 1,
+    tickets: 1,
+    sequences: 1,
+    inbox: 1,
+  })
+
+  const contactsQuery = useAccountContacts(accountId)
+  const dealsQuery = useDeals({
+    account_id: accountId,
+    page: pages.deals,
+    per_page: LINKED_ENTITY_PAGE_SIZE,
+    sort_by: 'created_at',
+    sort_dir: 'desc',
+  })
+  const quotesQuery = useQuotes({
+    account_id: accountId,
+    page: pages.quotes,
+    limit: LINKED_ENTITY_PAGE_SIZE,
+  })
+  const ticketsQuery = useTickets({
+    account_id: accountId,
+    page: pages.tickets,
+    per_page: LINKED_ENTITY_PAGE_SIZE,
+    sort_by: 'created_at',
+    sort_dir: 'desc',
+  })
+
+  const contactIds = useMemo(
+    () => (contactsQuery.data ?? []).map((contact) => contact.id),
+    [contactsQuery.data]
+  )
+
+  const sequencesQuery = useQuery({
+    queryKey: ['accounts', accountId, 'linked-sequences', contactIds],
+    enabled: contactIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const result = await sequencesApi.list({ page: 1, limit: 200 })
+      const matches: EmailSequence[] = []
+      const contactIdSet = new Set(contactIds)
+
+      await Promise.all(
+        (result.data ?? []).map(async (sequence) => {
+          const enrollments = await sequencesApi.listEnrollments(sequence.id)
+          if ((enrollments.data ?? []).some((enrollment) => contactIdSet.has(enrollment.contact_id))) {
+            matches.push(sequence)
+          }
+        })
+      )
+
+      return matches.sort(
+        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      )
+    },
+  })
+
+  const inboxQuery = useQuery({
+    queryKey: ['accounts', accountId, 'linked-inbox', contactIds],
+    enabled: contactIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const byThreadId = new Map<string, InboxThread>()
+
+      await Promise.all(
+        contactIds.map(async (contactId) => {
+          const response = await inboxApi.listThreads({ contact_id: contactId, page: 1, limit: 50 })
+          for (const thread of response.data ?? []) {
+            const existing = byThreadId.get(thread.thread_id)
+            if (!existing || new Date(thread.last_message_at) > new Date(existing.last_message_at)) {
+              byThreadId.set(thread.thread_id, thread)
+            }
+          }
+        })
+      )
+
+      return Array.from(byThreadId.values()).sort(
+        (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      )
+    },
+  })
+
+  const linkContact = useLinkContactToAccount()
+  const linkDeal = useLinkDealToAccount()
+  const linkTicket = useLinkTicketToAccount()
+  const [activeLinkModal, setActiveLinkModal] = useState<'contacts' | 'deals' | 'tickets' | null>(null)
+
+  const contactsTotal = contactsQuery.data?.length ?? 0
+  const contactsPageItems = useMemo(() => {
+    const allContacts = contactsQuery.data ?? []
+    const start = (pages.contacts - 1) * LINKED_ENTITY_PAGE_SIZE
+    return allContacts.slice(start, start + LINKED_ENTITY_PAGE_SIZE)
+  }, [contactsQuery.data, pages.contacts])
+  const contactsTotalPages = Math.max(1, Math.ceil(contactsTotal / LINKED_ENTITY_PAGE_SIZE))
+
+  const sequences = useMemo(() => sequencesQuery.data ?? [], [sequencesQuery.data])
+  const sequencesTotal = sequences.length
+  const sequencesPageItems = useMemo(() => {
+    const start = (pages.sequences - 1) * LINKED_ENTITY_PAGE_SIZE
+    return sequences.slice(start, start + LINKED_ENTITY_PAGE_SIZE)
+  }, [pages.sequences, sequences])
+  const sequencesTotalPages = Math.max(1, Math.ceil(sequencesTotal / LINKED_ENTITY_PAGE_SIZE))
+
+  const inboxThreads = useMemo(() => inboxQuery.data ?? [], [inboxQuery.data])
+  const inboxTotal = inboxThreads.length
+  const inboxPageItems = useMemo(() => {
+    const start = (pages.inbox - 1) * LINKED_ENTITY_PAGE_SIZE
+    return inboxThreads.slice(start, start + LINKED_ENTITY_PAGE_SIZE)
+  }, [inboxThreads, pages.inbox])
+  const inboxTotalPages = Math.max(1, Math.ceil(inboxTotal / LINKED_ENTITY_PAGE_SIZE))
+
+  const counts: Record<LinkedEntitiesTab, number> = {
+    contacts: contactsTotal,
+    deals: dealsQuery.data?.meta?.total ?? 0,
+    quotes: quotesQuery.data?.meta?.total ?? 0,
+    tickets: ticketsQuery.data?.meta?.total ?? 0,
+    sequences: sequencesTotal,
+    inbox: inboxTotal,
+  }
+
+  const setPageFor = (tab: LinkedEntitiesTab, page: number) => {
+    setPages((prev) => ({ ...prev, [tab]: page }))
+  }
+
+  const activeRoute = buildAccountScopedPath(LINKED_TAB_META[activeTab].route, accountId, accountName)
+
+  const renderContactsPanel = () => {
+    if (contactsQuery.isLoading) return <LinkedPanelLoading />
+    if (contactsQuery.isError) return <LinkedPanelError onRetry={() => void contactsQuery.refetch()} />
+    if (!contactsTotal) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.contacts.empty} ctaHref={activeRoute} ctaLabel="Open Contacts" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {contactsPageItems.map((contact) => (
+            <li key={contact.id} className="flex items-center gap-2">
+              <Link
+                to={`/contacts/${contact.id}`}
+                className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--surface-app)]"
+              >
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold"
+                  style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                >
+                  {((contact.first_name?.[0] ?? '') + (contact.last_name?.[0] ?? '')).toUpperCase() || '?'}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {contact.first_name} {contact.last_name}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-label)' }}>
+                    {contact.email ?? contact.title ?? 'No email yet'}
+                  </p>
+                </div>
+              </Link>
+              <button
+                onClick={() => linkContact.mutate({ contactId: contact.id, accountId: null })}
+                className="rounded p-1 transition-colors hover:bg-[var(--surface-app)]"
+                aria-label="Unlink contact"
+              >
+                <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls
+          page={pages.contacts}
+          totalPages={contactsTotalPages}
+          onPageChange={(page) => setPageFor('contacts', page)}
+        />
+      </>
+    )
+  }
+
+  const renderDealsPanel = () => {
+    if (dealsQuery.isLoading) return <LinkedPanelLoading />
+    if (dealsQuery.isError) return <LinkedPanelError onRetry={() => void dealsQuery.refetch()} />
+    const deals = dealsQuery.data?.data ?? []
+    const totalPages = dealsQuery.data?.meta?.total_pages ?? 1
+    if (!deals.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.deals.empty} ctaHref={activeRoute} ctaLabel="Open Deals" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {deals.map((deal) => {
+            const stageStyle = STAGE_STYLES[deal.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+            return (
+              <li key={deal.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {deal.title}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {formatCurrency((deal.value_cents ?? 0) / 100)}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
+                  style={{ background: stageStyle.bg, color: stageStyle.text }}
+                >
+                  {deal.stage.replace('_', ' ')}
+                </span>
+                <button
+                  onClick={() => linkDeal.mutate({ dealId: deal.id, accountId: null })}
+                  className="rounded p-1 transition-colors hover:bg-white/70"
+                  aria-label="Unlink deal"
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <PaginationControls page={pages.deals} totalPages={totalPages} onPageChange={(page) => setPageFor('deals', page)} />
+      </>
+    )
+  }
+
+  const renderQuotesPanel = () => {
+    if (quotesQuery.isLoading) return <LinkedPanelLoading />
+    if (quotesQuery.isError) return <LinkedPanelError onRetry={() => void quotesQuery.refetch()} />
+    const quotes = quotesQuery.data?.data ?? []
+    const totalPages = quotesQuery.data?.meta?.total_pages ?? 1
+    if (!quotes.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.quotes.empty} ctaHref={activeRoute} ctaLabel="Open Quotes" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {quotes.map((quote) => (
+            <li key={quote.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {quote.title}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {quote.deal?.title ?? 'No linked deal'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                    {formatCurrency(quote.total_cents / 100, quote.currency)}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {quote.status}
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls page={pages.quotes} totalPages={totalPages} onPageChange={(page) => setPageFor('quotes', page)} />
+      </>
+    )
+  }
+
+  const renderTicketsPanel = () => {
+    if (ticketsQuery.isLoading) return <LinkedPanelLoading />
+    if (ticketsQuery.isError) return <LinkedPanelError onRetry={() => void ticketsQuery.refetch()} />
+    const tickets = ticketsQuery.data?.data ?? []
+    const totalPages = ticketsQuery.data?.meta?.total_pages ?? 1
+    if (!tickets.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.tickets.empty} ctaHref={activeRoute} ctaLabel="Open Tickets" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {tickets.map((ticket) => {
+            const statusStyle = TICKET_STATUS_STYLES[ticket.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
+            return (
+              <li key={ticket.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+                <div className="min-w-0 flex-1">
+                  <Link to={`/tickets/${ticket.id}`} className="block truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {ticket.subject}
+                  </Link>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {ticket.contact?.name ?? 'No linked contact'}
+                  </p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
+                  style={{ background: statusStyle.bg, color: statusStyle.text }}
+                >
+                  {ticket.status}
+                </span>
+                <button
+                  onClick={() => linkTicket.mutate({ ticketId: ticket.id, accountId: null })}
+                  className="rounded p-1 transition-colors hover:bg-white/70"
+                  aria-label="Unlink ticket"
+                >
+                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <PaginationControls page={pages.tickets} totalPages={totalPages} onPageChange={(page) => setPageFor('tickets', page)} />
+      </>
+    )
+  }
+
+  const renderSequencesPanel = () => {
+    if (contactsQuery.isLoading || sequencesQuery.isLoading) return <LinkedPanelLoading />
+    if (contactsQuery.isError || sequencesQuery.isError) {
+      return <LinkedPanelError onRetry={() => void sequencesQuery.refetch()} />
+    }
+    if (!contactIds.length || !sequencesPageItems.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.sequences.empty} ctaHref={activeRoute} ctaLabel="Open Sequences" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {sequencesPageItems.map((sequence) => (
+            <li key={sequence.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {sequence.name}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-label)' }}>
+                    {sequence.description || 'No description'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {sequence.enrolled_count}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    enrolled
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls
+          page={pages.sequences}
+          totalPages={sequencesTotalPages}
+          onPageChange={(page) => setPageFor('sequences', page)}
+        />
+      </>
+    )
+  }
+
+  const renderInboxPanel = () => {
+    if (contactsQuery.isLoading || inboxQuery.isLoading) return <LinkedPanelLoading />
+    if (contactsQuery.isError || inboxQuery.isError) {
+      return <LinkedPanelError onRetry={() => void inboxQuery.refetch()} />
+    }
+    if (!contactIds.length || !inboxPageItems.length) {
+      return <LinkedPanelEmpty message={LINKED_TAB_META.inbox.empty} ctaHref={activeRoute} ctaLabel="Open Inbox" />
+    }
+
+    return (
+      <>
+        <ul className="space-y-2">
+          {inboxPageItems.map((thread) => (
+            <li key={thread.thread_id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {thread.subject}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: 'var(--text-label)' }}>
+                    {thread.participants.join(', ')}
+                  </p>
+                  <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {thread.snippet}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {formatRelativeTime(thread.last_message_at)}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
+                    {thread.message_count} messages
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <PaginationControls page={pages.inbox} totalPages={inboxTotalPages} onPageChange={(page) => setPageFor('inbox', page)} />
+      </>
+    )
+  }
+
+  const renderActivePanel = () => {
+    switch (activeTab) {
+      case 'contacts':
+        return renderContactsPanel()
+      case 'deals':
+        return renderDealsPanel()
+      case 'quotes':
+        return renderQuotesPanel()
+      case 'tickets':
+        return renderTicketsPanel()
+      case 'sequences':
+        return renderSequencesPanel()
+      case 'inbox':
+        return renderInboxPanel()
+    }
+  }
+
+  const showLinkButton = activeTab === 'contacts' || activeTab === 'deals' || activeTab === 'tickets'
+  const openActiveLinkModal = () => {
+    if (activeTab === 'contacts' || activeTab === 'deals' || activeTab === 'tickets') {
+      setActiveLinkModal(activeTab)
+    }
+  }
+  const closeActiveLinkModal = () => setActiveLinkModal(null)
+
+  const renderActiveLinkModal = () => {
+    switch (activeLinkModal) {
+      case 'contacts':
+        return (
+          <EntityLinkModal<Contact>
+            open
+            onClose={closeActiveLinkModal}
+            title="Link Contact"
+            placeholder="Search by name or email…"
+            search={contactsApi.search}
+            onSelect={(contact) => linkContact.mutateAsync({ contactId: contact.id, accountId })}
+            renderItem={(contact) => (
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                  style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                >
+                  {((contact.first_name?.[0] ?? '') + (contact.last_name?.[0] ?? '')).toUpperCase() || '?'}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {contact.first_name} {contact.last_name}
+                  </p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
+                    {contact.email ?? 'No email'}
+                  </p>
+                </div>
+              </div>
+            )}
+            getKey={(contact) => contact.id}
+          />
+        )
+      case 'deals':
+        return (
+          <EntityLinkModal<Deal>
+            open
+            onClose={closeActiveLinkModal}
+            title="Link Deal"
+            placeholder="Search deals by title…"
+            search={dealsApi.search}
+            onSelect={(deal) => linkDeal.mutateAsync({ dealId: deal.id, accountId })}
+            renderItem={(deal) => (
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {deal.title}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {formatCurrency((deal.value_cents ?? 0) / 100)}
+                  </p>
+                </div>
+              </div>
+            )}
+            getKey={(deal) => deal.id}
+          />
+        )
+      case 'tickets':
+        return (
+          <EntityLinkModal<TicketType>
+            open
+            onClose={closeActiveLinkModal}
+            title="Link Ticket"
+            placeholder="Search tickets by subject…"
+            search={async (q) => {
+              const result = await ticketsApi.list({ search: q, per_page: 10 })
+              return result.data ?? []
+            }}
+            onSelect={(ticket) => linkTicket.mutateAsync({ ticketId: ticket.id, accountId })}
+            renderItem={(ticket) => (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                  {ticket.subject}
+                </p>
+                <span className="text-xs" style={{ color: 'var(--text-label)' }}>
+                  {ticket.status}
+                </span>
+              </div>
+            )}
+            getKey={(ticket) => ticket.id}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div
+      className="rounded-xl border p-5"
+      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+    >
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <p
+          className="text-[11px] font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
+        >
+          Linked Entities
+        </p>
+        <Link to={activeRoute} className="ml-auto text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
+          Open {LINKED_TAB_META[activeTab].label}
+        </Link>
+        {showLinkButton && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={openActiveLinkModal}
+          >
+            <Plus className="h-3 w-3" />
+            Link
+          </Button>
+        )}
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {LINKED_TAB_ORDER.map((tab) => {
+          const Icon = LINKED_TAB_META[tab].icon
+          const isActive = activeTab === tab
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              style={{
+                borderColor: isActive ? 'var(--color-primary)' : 'var(--border-default)',
+                background: isActive ? 'var(--color-primary-light)' : 'transparent',
+                color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
+              }}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span>{LINKED_TAB_META[tab].label}</span>
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[11px] font-semibold"
+                style={{
+                  background: isActive ? 'var(--surface-card)' : 'var(--surface-app)',
+                  color: isActive ? 'var(--color-primary)' : 'var(--text-label)',
+                }}
+              >
+                {counts[tab]}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {renderActivePanel()}
+      {renderActiveLinkModal()}
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function AccountDetailPage() {
@@ -689,7 +867,22 @@ export function AccountDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const { data: account, isLoading, isError } = useAccount(id!)
+  const { data: accountContacts } = useAccountContacts(id!)
   const deleteAccount = useDeleteAccount()
+  const [relationshipRows, setRelationshipRows] = useState<RelationshipRow[]>([])
+  const accountRelationshipSeed = useMemo(
+    () => createAccountRelationshipRows(accountContacts),
+    [accountContacts]
+  )
+  const accountRelationshipSeedKey = useMemo(
+    () => accountRelationshipSeed.map((row) => `${row.entityId ?? row.id}:${row.label}:${row.meta}`).join('|'),
+    [accountRelationshipSeed]
+  )
+
+  useEffect(() => {
+    if (!id) return
+    setRelationshipRows(accountRelationshipSeed)
+  }, [id, accountRelationshipSeed, accountRelationshipSeedKey])
 
   if (isLoading) {
     return (
@@ -808,88 +1001,87 @@ export function AccountDetailPage() {
       </div>
 
       {/* Body */}
-      <div className="flex flex-col lg:flex-row gap-5">
-        {/* Left column — details + notes */}
-        <div className="flex-1 min-w-0 space-y-5">
-          {/* Details card */}
-          <div
-            className="rounded-xl border p-5"
-            style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+      <div className="space-y-5">
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
+        >
+          <p
+            className="mb-4 text-[11px] font-semibold uppercase tracking-widest"
+            style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
           >
-            <p
-              className="mb-4 text-[11px] font-semibold uppercase tracking-widest"
-              style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-            >
-              Details
-            </p>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-              {account.phone && (
-                <div>
-                  <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                    <Phone className="h-3.5 w-3.5" /> Phone
-                  </dt>
-                  <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {account.phone}
-                  </dd>
-                </div>
-              )}
-              {account.website && (
-                <div>
-                  <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                    <Globe className="h-3.5 w-3.5" /> Website
-                  </dt>
-                  <dd>
-                    <a
-                      href={account.website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-medium hover:underline"
-                      style={{ color: 'var(--color-primary)' }}
-                    >
-                      {account.website}
-                    </a>
-                  </dd>
-                </div>
-              )}
-              {account.address && (
-                <div className="sm:col-span-2">
-                  <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                    <MapPin className="h-3.5 w-3.5" /> Address
-                  </dt>
-                  <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {account.address}
-                  </dd>
-                </div>
-              )}
+            Details
+          </p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            {account.phone && (
               <div>
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <Building2 className="h-3.5 w-3.5" /> Created
+                  <Phone className="h-3.5 w-3.5" /> Phone
                 </dt>
                 <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {formatDate(account.created_at)}
+                  {account.phone}
                 </dd>
               </div>
+            )}
+            {account.website && (
               <div>
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <Building2 className="h-3.5 w-3.5" /> Last Updated
+                  <Globe className="h-3.5 w-3.5" /> Website
                 </dt>
-                <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {formatRelativeTime(account.updated_at)}
+                <dd>
+                  <a
+                    href={account.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    {account.website}
+                  </a>
                 </dd>
               </div>
-            </dl>
-          </div>
-
-          {/* Notes */}
-          <NotesPanel accountId={account.id} />
+            )}
+            {account.address && (
+              <div className="sm:col-span-2">
+                <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
+                  <MapPin className="h-3.5 w-3.5" /> Address
+                </dt>
+                <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {account.address}
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
+                <Building2 className="h-3.5 w-3.5" /> Created
+              </dt>
+              <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatDate(account.created_at)}
+              </dd>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
+                <Building2 className="h-3.5 w-3.5" /> Last Updated
+              </dt>
+              <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatRelativeTime(account.updated_at)}
+              </dd>
+            </div>
+          </dl>
         </div>
 
-        {/* Right column — contacts + deals + tickets */}
-        <div className="w-full lg:w-[300px] shrink-0 space-y-5">
-          <ContactsList accountId={account.id} />
-          <DealsList accountId={account.id} />
-          <TicketsList accountId={account.id} />
-        </div>
+        <RelationshipEditor
+          title="Relationship Roles"
+          entityLabel="Contact"
+          value={relationshipRows}
+          onChange={setRelationshipRows}
+          emptyMessage="No contact relationships yet."
+          addLabel="Add contact role"
+        />
+
+        <LinkedEntitiesSection accountId={account.id} accountName={account.name} />
+
+        <NotesPanel accountId={account.id} />
       </div>
 
       {/* Delete confirm */}

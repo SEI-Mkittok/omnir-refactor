@@ -1,10 +1,16 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TYPE account_relationship_type AS ENUM ('parent', 'subsidiary', 'partner', 'reseller', 'vendor');
+DO $$
+BEGIN
+    CREATE TYPE account_relationship_type AS ENUM ('parent', 'subsidiary', 'partner', 'reseller', 'vendor');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END
+$$;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
-CREATE TABLE account_relationships (
+CREATE TABLE IF NOT EXISTS account_relationships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     parent_account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -23,12 +29,12 @@ CREATE TABLE account_relationships (
 );
 -- +goose StatementEnd
 
-CREATE UNIQUE INDEX account_relationships_unique_active_idx
+CREATE UNIQUE INDEX IF NOT EXISTS account_relationships_unique_active_idx
     ON account_relationships (org_id, parent_account_id, child_account_id, relationship_type)
     WHERE deleted_at IS NULL;
 
-CREATE INDEX account_relationships_parent_idx ON account_relationships (org_id, parent_account_id) WHERE deleted_at IS NULL;
-CREATE INDEX account_relationships_child_idx ON account_relationships (org_id, child_account_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS account_relationships_parent_idx ON account_relationships (org_id, parent_account_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS account_relationships_child_idx ON account_relationships (org_id, child_account_id) WHERE deleted_at IS NULL;
 
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION set_account_relationships_updated_at()
@@ -40,6 +46,7 @@ END;
 $$ LANGUAGE plpgsql;
 -- +goose StatementEnd
 
+DROP TRIGGER IF EXISTS trg_account_relationships_updated_at ON account_relationships;
 CREATE TRIGGER trg_account_relationships_updated_at
 BEFORE UPDATE ON account_relationships
 FOR EACH ROW EXECUTE FUNCTION set_account_relationships_updated_at();
@@ -95,6 +102,7 @@ END;
 $$ LANGUAGE plpgsql;
 -- +goose StatementEnd
 
+DROP TRIGGER IF EXISTS trg_validate_account_relationship_cycle ON account_relationships;
 CREATE TRIGGER trg_validate_account_relationship_cycle
 BEFORE INSERT OR UPDATE OF parent_account_id, child_account_id, deleted_at ON account_relationships
 FOR EACH ROW
@@ -102,6 +110,7 @@ WHEN (NEW.deleted_at IS NULL)
 EXECUTE FUNCTION validate_account_relationship_cycle();
 
 ALTER TABLE account_relationships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS org_isolation ON account_relationships;
 CREATE POLICY org_isolation ON account_relationships
     USING (org_id = current_org_id());
 

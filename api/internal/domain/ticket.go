@@ -90,6 +90,7 @@ type TicketFilter struct {
 	Priority          *TicketPriority
 	AssigneeID        *uuid.UUID
 	ContactID         *uuid.UUID
+	AccountID         *uuid.UUID
 	SubmittedByUserID *uuid.UUID
 	Q                 string
 	Page              int

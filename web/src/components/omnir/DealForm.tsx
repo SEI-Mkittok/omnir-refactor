@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCreateDeal } from '@/hooks/useDeals'
-import type { CreateDealRequest, DealStage } from '@/api/types'
+import type { CreateDealRequest, Deal, DealStage } from '@/api/types'
 
 const STAGE_OPTIONS: { label: string; value: DealStage }[] = [
   { label: 'Lead', value: 'lead' },
@@ -15,14 +15,18 @@ const STAGE_OPTIONS: { label: string; value: DealStage }[] = [
 
 interface DealFormProps {
   onClose: () => void
+  initialValues?: Partial<CreateDealRequest>
+  onCreated?: (deal: Deal) => void
 }
 
-export function DealForm({ onClose }: DealFormProps) {
+export function DealForm({ onClose, initialValues, onCreated }: DealFormProps) {
   const { mutateAsync: createDeal, isPending } = useCreateDeal()
-  const [title, setTitle] = useState('')
-  const [value, setValue] = useState('')
-  const [stage, setStage] = useState<DealStage>('lead')
-  const [closeDate, setCloseDate] = useState('')
+  const [title, setTitle] = useState(initialValues?.title ?? '')
+  const [value, setValue] = useState(
+    typeof initialValues?.value_cents === 'number' ? (initialValues.value_cents / 100).toFixed(2) : ''
+  )
+  const [stage, setStage] = useState<DealStage>(initialValues?.stage ?? 'lead')
+  const [closeDate, setCloseDate] = useState(initialValues?.expected_close_date ?? '')
   const [errors, setErrors] = useState<{ title?: string; value?: string }>({})
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,9 +42,15 @@ export function DealForm({ onClose }: DealFormProps) {
       title: title.trim(),
       value_cents: Math.round(numValue * 100),
       stage,
+      ...(initialValues?.account_id ? { account_id: initialValues.account_id } : {}),
+      ...(initialValues?.contact_id ? { contact_id: initialValues.contact_id } : {}),
+      ...(initialValues?.pipeline_id ? { pipeline_id: initialValues.pipeline_id } : {}),
+      ...(initialValues?.owner_id ? { owner_id: initialValues.owner_id } : {}),
+      ...(initialValues?.currency ? { currency: initialValues.currency } : {}),
       ...(closeDate ? { expected_close_date: closeDate } : {}),
     }
-    await createDeal(payload)
+    const deal = await createDeal(payload)
+    onCreated?.(deal)
     onClose()
   }
 

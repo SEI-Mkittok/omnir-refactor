@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCreateAccount } from '@/hooks/useAccounts'
-import type { CreateAccountRequest } from '@/api/types'
+import type { Account, CreateAccountRequest } from '@/api/types'
 
 const INDUSTRY_OPTIONS = [
   'Technology', 'Finance', 'Healthcare', 'Retail', 'Manufacturing',
@@ -15,11 +15,22 @@ const SIZE_OPTIONS = [
 
 interface AccountFormProps {
   onClose: () => void
+  initialValues?: Partial<CreateAccountRequest>
+  onCreated?: (account: Account) => void
 }
 
-export function AccountForm({ onClose }: AccountFormProps) {
+export function AccountForm({ onClose, initialValues, onCreated }: AccountFormProps) {
   const { mutateAsync: createAccount, isPending } = useCreateAccount()
-  const [form, setForm] = useState<CreateAccountRequest>({ name: '' })
+  const [form, setForm] = useState<CreateAccountRequest>({
+    name: initialValues?.name ?? '',
+    domain: initialValues?.domain,
+    industry: initialValues?.industry,
+    size: initialValues?.size,
+    phone: initialValues?.phone,
+    address: initialValues?.address,
+    website: initialValues?.website,
+    owner_id: initialValues?.owner_id,
+  })
   const [nameError, setNameError] = useState('')
 
   const set = (field: keyof CreateAccountRequest) =>
@@ -33,7 +44,8 @@ export function AccountForm({ onClose }: AccountFormProps) {
       return
     }
     setNameError('')
-    await createAccount({ ...form, name: form.name.trim() })
+    const account = await createAccount({ ...form, name: form.name.trim() })
+    onCreated?.(account)
     onClose()
   }
 
