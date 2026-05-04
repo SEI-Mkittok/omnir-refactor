@@ -13,8 +13,6 @@ import {
   ExternalLink,
   Plus,
   X,
-  Search,
-  Loader2,
   Ticket,
   FileText,
   Mail,
@@ -23,9 +21,7 @@ import {
 import {
   useAccount,
   useAccountContacts,
-  useAccountDeals,
   useAccountNotes,
-  useAccountTickets,
   useDeleteAccount,
   useAddAccountNote,
   useLinkContactToAccount,
@@ -81,399 +77,7 @@ function createAccountRelationshipRows(contacts: Contact[] | undefined): Relatio
   )
 }
 
-// ── Contacts List ─────────────────────────────────────────────────────────────
-
-function ContactsList({ accountId }: { accountId: string }) {
-  const { data: contacts, isLoading } = useAccountContacts(accountId)
-  const linkContact = useLinkContactToAccount()
-  const [showModal, setShowModal] = useState(false)
-
-  const handleUnlink = (contactId: string) => {
-    linkContact.mutate({ contactId, accountId: null })
-  }
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Users className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-        >
-          Contacts
-        </p>
-        {contacts && (
-          <span
-            className="text-xs font-medium rounded-full px-2 py-0.5"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
-            {contacts.length}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="h-3 w-3" />
-          Link
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : !contacts?.length ? (
-        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
-          No contacts linked.
-        </p>
-      ) : (
-        <ul className="space-y-1">
-          {contacts.map((c: Contact) => (
-            <li key={c.id} className="flex items-center gap-1">
-              <Link
-                to={`/contacts/${c.id}`}
-                className="flex flex-1 items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-[var(--surface-app)] transition-colors min-w-0"
-              >
-                <div
-                  className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                  style={{
-                    background: 'var(--color-primary-light)',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  {((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {c.first_name} {c.last_name}
-                  </p>
-                  {c.title && (
-                    <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
-                      {c.title}
-                    </p>
-                  )}
-                </div>
-              </Link>
-              <button
-                onClick={() => handleUnlink(c.id)}
-                className="shrink-0 rounded p-0.5 hover:bg-[var(--surface-app)] transition-colors"
-                aria-label="Unlink contact"
-              >
-                <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <EntityLinkModal<Contact>
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Link Contact"
-        placeholder="Search by name or email…"
-        search={contactsApi.search}
-        onSelect={(c) => linkContact.mutateAsync({ contactId: c.id, accountId })}
-        renderItem={(c) => (
-          <div className="flex items-center gap-2.5">
-            <div
-              className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-            >
-              {((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                {c.first_name} {c.last_name}
-              </p>
-              {c.email && (
-                <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
-                  {c.email}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-        getKey={(c) => c.id}
-      />
-    </div>
-  )
-}
-
-// ── Deals List ────────────────────────────────────────────────────────────────
-
-const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
-  prospecting:    { bg: '#EFF6FF', text: '#2563EB' },
-  qualification:  { bg: '#F0FDF4', text: '#15803D' },
-  proposal:       { bg: '#FAF5FF', text: '#7C3AED' },
-  negotiation:    { bg: '#FFF7ED', text: '#C2410C' },
-  closed_won:     { bg: '#F0FDF4', text: '#15803D' },
-  closed_lost:    { bg: '#FEF2F2', text: '#DC2626' },
-}
-
-function DealsList({ accountId }: { accountId: string }) {
-  const { data: deals, isLoading } = useAccountDeals(accountId)
-  const linkDeal = useLinkDealToAccount()
-  const [showModal, setShowModal] = useState(false)
-
-  const handleUnlink = (dealId: string) => {
-    linkDeal.mutate({ dealId, accountId: null })
-  }
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Briefcase className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-        >
-          Deals
-        </p>
-        {deals && (
-          <span
-            className="text-xs font-medium rounded-full px-2 py-0.5"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
-            {deals.length}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="h-3 w-3" />
-          Link
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : !deals?.length ? (
-        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
-          No deals linked.
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {deals.map((d: Deal) => {
-            const stageStyle = STAGE_STYLES[d.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-            return (
-              <li
-                key={d.id}
-                className="flex items-center justify-between gap-2 rounded-lg px-2 py-2"
-                style={{ background: 'var(--surface-app)' }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {d.title}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {formatCurrency((d.value_cents ?? 0) / 100)}
-                  </p>
-                </div>
-                <span
-                  className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                  style={{
-                    background: stageStyle.bg,
-                    color: stageStyle.text,
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {d.stage.replace('_', ' ')}
-                </span>
-                <button
-                  onClick={() => handleUnlink(d.id)}
-                  className="shrink-0 rounded p-0.5 hover:bg-slate-200 transition-colors"
-                  aria-label="Unlink deal"
-                >
-                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      <EntityLinkModal<Deal>
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Link Deal"
-        placeholder="Search deals by title…"
-        search={dealsApi.search}
-        onSelect={(d) => linkDeal.mutateAsync({ dealId: d.id, accountId })}
-        renderItem={(d) => {
-          const stageStyle = STAGE_STYLES[d.stage] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-          return (
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                  {d.title}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  {formatCurrency((d.value_cents ?? 0) / 100)}
-                </p>
-              </div>
-              <span
-                className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                style={{ background: stageStyle.bg, color: stageStyle.text, letterSpacing: '0.04em' }}
-              >
-                {d.stage.replace('_', ' ')}
-              </span>
-            </div>
-          )
-        }}
-        getKey={(d) => d.id}
-      />
-    </div>
-  )
-}
-
-// ── Tickets List ───────────────────────────────────────────────────────────────
-
-const TICKET_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  open:     { bg: '#EFF6FF', text: '#2563EB' },
-  pending:  { bg: '#FFF7ED', text: '#C2410C' },
-  resolved: { bg: '#F0FDF4', text: '#15803D' },
-  closed:   { bg: '#F1F5F9', text: '#64748B' },
-}
-
-function TicketsList({ accountId }: { accountId: string }) {
-  const { data: tickets, isLoading } = useAccountTickets(accountId)
-  const linkTicket = useLinkTicketToAccount()
-  const [showModal, setShowModal] = useState(false)
-
-  const handleUnlink = (ticketId: string) => {
-    linkTicket.mutate({ ticketId, accountId: null })
-  }
-
-  const searchTickets = async (q: string): Promise<TicketType[]> => {
-    const result = await ticketsApi.list({ search: q, per_page: 10 })
-    return result.data ?? []
-  }
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Ticket className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-        <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-        >
-          Tickets
-        </p>
-        {tickets && (
-          <span
-            className="text-xs font-medium rounded-full px-2 py-0.5"
-            style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-          >
-            {tickets.length}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto h-6 px-2 text-xs"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="h-3 w-3" />
-          Link
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-10 bg-slate-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : !tickets?.length ? (
-        <p className="text-sm" style={{ color: 'var(--text-label)' }}>
-          No tickets linked.
-        </p>
-      ) : (
-        <ul className="space-y-1">
-          {tickets.map((t: TicketType) => {
-            const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-            return (
-              <li
-                key={t.id}
-                className="flex items-center gap-2 rounded-lg px-2 py-2"
-                style={{ background: 'var(--surface-app)' }}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                    {t.subject}
-                  </p>
-                </div>
-                <span
-                  className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                  style={{ background: statusStyle.bg, color: statusStyle.text, letterSpacing: '0.04em' }}
-                >
-                  {t.status}
-                </span>
-                <button
-                  onClick={() => handleUnlink(t.id)}
-                  className="shrink-0 rounded p-0.5 hover:bg-slate-200 transition-colors"
-                  aria-label="Unlink ticket"
-                >
-                  <X className="h-3.5 w-3.5" style={{ color: 'var(--text-label)' }} />
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      <EntityLinkModal<TicketType>
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title="Link Ticket"
-        placeholder="Search tickets by subject…"
-        search={searchTickets}
-        onSelect={(t) => linkTicket.mutateAsync({ ticketId: t.id, accountId })}
-        renderItem={(t) => {
-          const statusStyle = TICKET_STATUS_STYLES[t.status] ?? { bg: 'var(--surface-app)', text: 'var(--text-label)' }
-          return (
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                {t.subject}
-              </p>
-              <span
-                className="shrink-0 text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full"
-                style={{ background: statusStyle.bg, color: statusStyle.text, letterSpacing: '0.04em' }}
-              >
-                {t.status}
-              </span>
-            </div>
-          )
-        }}
-        getKey={(t) => t.id}
-      />
-    </div>
-  )
-}
-
 // ── Notes Panel ───────────────────────────────────────────────────────────────
-
 function NotesPanel({ accountId }: { accountId: string }) {
   const { data: notes, isLoading } = useAccountNotes(accountId)
   const addNote = useAddAccountNote()
@@ -763,7 +367,7 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
   }, [contactsQuery.data, pages.contacts])
   const contactsTotalPages = Math.max(1, Math.ceil(contactsTotal / LINKED_ENTITY_PAGE_SIZE))
 
-  const sequences = sequencesQuery.data ?? []
+  const sequences = useMemo(() => sequencesQuery.data ?? [], [sequencesQuery.data])
   const sequencesTotal = sequences.length
   const sequencesPageItems = useMemo(() => {
     const start = (pages.sequences - 1) * LINKED_ENTITY_PAGE_SIZE
@@ -771,7 +375,7 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
   }, [pages.sequences, sequences])
   const sequencesTotalPages = Math.max(1, Math.ceil(sequencesTotal / LINKED_ENTITY_PAGE_SIZE))
 
-  const inboxThreads = inboxQuery.data ?? []
+  const inboxThreads = useMemo(() => inboxQuery.data ?? [], [inboxQuery.data])
   const inboxTotal = inboxThreads.length
   const inboxPageItems = useMemo(() => {
     const start = (pages.inbox - 1) * LINKED_ENTITY_PAGE_SIZE
@@ -1250,12 +854,9 @@ export function AccountDetailPage() {
   const { data: accountContacts } = useAccountContacts(id!)
   const deleteAccount = useDeleteAccount()
   const [relationshipRows, setRelationshipRows] = useState<RelationshipRow[]>([])
-  const accountContactsSeedKey = (accountContacts ?? [])
-    .map((contact) => `${contact.id}:${contact.first_name}:${contact.last_name}:${contact.title ?? ''}:${contact.email ?? ''}`)
-    .join('|')
   const accountRelationshipSeed = useMemo(
     () => createAccountRelationshipRows(accountContacts),
-    [accountContactsSeedKey]
+    [accountContacts]
   )
   const accountRelationshipSeedKey = useMemo(
     () => accountRelationshipSeed.map((row) => `${row.entityId ?? row.id}:${row.label}:${row.meta}`).join('|'),

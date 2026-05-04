@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -840,7 +840,10 @@ export function InboxPage() {
     },
   })
 
-  const threads = accountId && !contactId ? accountThreadsQuery.data ?? [] : threadsPage?.data ?? []
+  const threads = useMemo(
+    () => (accountId && !contactId ? accountThreadsQuery.data ?? [] : threadsPage?.data ?? []),
+    [accountId, contactId, accountThreadsQuery.data, threadsPage?.data]
+  )
   const loadingThreads = accountId && !contactId ? contactsQuery.isLoading || accountThreadsQuery.isLoading : loadingThreadsBase
 
   const { mutateAsync: sendEmail } = useSendEmail()

@@ -43,7 +43,7 @@ describe('StepIndicator', () => {
 
   it('has accessible list semantics', () => {
     render(<StepIndicator steps={STEPS} currentStep={0} />)
-    expect(screen.getByRole('list')).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Progress' })).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
   })
 
