@@ -18,6 +18,7 @@ export const dealsApi = {
           q: params.search,
           stage: params.stage,
           account_id: params.account_id,
+          contact_id: params.contact_id,
           pipeline_id: params.pipeline_id,
           owner_id: params.owner_id,
           sort: params.sort_by,

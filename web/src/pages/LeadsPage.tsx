@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, UserPlus, UserCheck, Upload } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -405,15 +405,6 @@ export function LeadsPage() {
   const leads = data?.data ?? []
   const meta = data?.meta
   const hasFilters = !!(search || status || scoreRange)
-
-  const handleSort = useCallback((key: string) => {
-    setSortKey((prev) => {
-      const [prevKey, prevDir] = prev.split(':')
-      if (prevKey === key) return `${key}:${prevDir === 'asc' ? 'desc' : 'asc'}`
-      return `${key}:asc`
-    })
-    markChanged()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="p-6" style={{ maxWidth: 'var(--content-max-width, 1280px)' }}>

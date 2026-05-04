@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Plus, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
@@ -137,6 +138,11 @@ function QuoteDetail({ quote, onClose }: { quote: Quote; onClose: () => void }) 
 }
 
 export function QuotesPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountId = searchParams.get('account_id') ?? ''
+  const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | ''>('')
   const [search, setSearch] = useState('')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
@@ -145,10 +151,17 @@ export function QuotesPage() {
   const { data, isLoading } = useQuotes({
     q: search || undefined,
     status: statusFilter || undefined,
+    account_id: accountId || undefined,
+    contact_id: contactId || undefined,
     limit: 50,
   })
 
   const quotes = data?.data ?? []
+  const activeContextLabel = useMemo(() => {
+    if (contactId) return contactName ? `Contact: ${contactName}` : 'Contact filter active'
+    if (accountId) return accountName ? `Account: ${accountName}` : 'Account filter active'
+    return null
+  }, [accountId, accountName, contactId, contactName])
 
   const selectedQuote = selectedQuoteId ? quotes.find((q) => q.id === selectedQuoteId) : null
 
@@ -201,6 +214,30 @@ export function QuotesPage() {
           <Plus className="h-4 w-4 mr-1.5" /> New quote
         </Button>
       </div>
+
+      {activeContextLabel && (
+        <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+          <span className="font-medium text-slate-700">{activeContextLabel}</span>
+          <button
+            onClick={() =>
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev)
+                next.delete('account_id')
+                next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
+                return next
+              })
+            }
+            className="text-slate-500 hover:text-slate-900"
+          >
+            Clear
+          </button>
+          <Link to="/accounts" className="ml-auto text-[var(--color-primary)] hover:underline">
+            Browse accounts
+          </Link>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">

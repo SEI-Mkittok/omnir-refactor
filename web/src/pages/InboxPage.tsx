@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import {
   Mail, Plus, Search, RefreshCw, Archive, MoreHorizontal,
   ChevronDown, Send, X, Paperclip as PaperclipIcon,
@@ -14,7 +16,9 @@ import {
   useMarkThreadRead,
   useConnectEmailAccount,
 } from '@/hooks/useInbox'
-import type { InboxThread, InboxMessage, EmailAccount, EmailTemplate } from '@/api/types'
+import { useAccountContacts } from '@/hooks/useAccounts'
+import { inboxApi } from '@/api/inbox'
+import type { Contact, InboxThread, InboxMessage, EmailAccount, EmailTemplate } from '@/api/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -785,23 +789,74 @@ function ThreadDetailPanel({
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export function InboxPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountId = searchParams.get('account_id') ?? ''
+  const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const { data: accounts = [], isLoading: loadingAccounts } = useEmailAccounts()
+  const contactsQuery = useAccountContacts(accountId)
   const [filterAccountId, setFilterAccountId] = useState<string | null>(null)
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null)
   const [showCompose, setShowCompose] = useState(false)
 
-  const { data: threadsPage, isLoading: loadingThreads } = useInboxThreads({
+  const { data: threadsPage, isLoading: loadingThreadsBase } = useInboxThreads({
     connection_id: filterAccountId ?? undefined,
+    contact_id: contactId || undefined,
     unread_only: unreadOnly || undefined,
   })
-  const threads = threadsPage?.data ?? []
+
+  const accountThreadsQuery = useQuery({
+    queryKey: ['inbox', 'account-threads', accountId, contactsQuery.data, filterAccountId, unreadOnly],
+    enabled: !!accountId && !contactId && !contactsQuery.isLoading,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const contactIds = (contactsQuery.data ?? []).map((contact: Contact) => contact.id)
+      if (contactIds.length === 0) return [] as InboxThread[]
+
+      const byThreadId = new Map<string, InboxThread>()
+      await Promise.all(
+        contactIds.map(async (contactId: string) => {
+          const response = await inboxApi.listThreads({
+            contact_id: contactId,
+            connection_id: filterAccountId ?? undefined,
+            unread_only: unreadOnly || undefined,
+            page: 1,
+            limit: 50,
+          })
+          for (const thread of response.data ?? []) {
+            const existing = byThreadId.get(thread.thread_id)
+            if (!existing || new Date(thread.last_message_at) > new Date(existing.last_message_at)) {
+              byThreadId.set(thread.thread_id, thread)
+            }
+          }
+        })
+      )
+
+      return Array.from(byThreadId.values()).sort(
+        (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      )
+    },
+  })
+
+  const threads = useMemo(
+    () => (accountId && !contactId ? accountThreadsQuery.data ?? [] : threadsPage?.data ?? []),
+    [accountId, contactId, accountThreadsQuery.data, threadsPage?.data]
+  )
+  const loadingThreads = accountId && !contactId ? contactsQuery.isLoading || accountThreadsQuery.isLoading : loadingThreadsBase
 
   const { mutateAsync: sendEmail } = useSendEmail()
   const { mutate: markRead } = useMarkThreadRead()
   const { mutateAsync: connectAccount } = useConnectEmailAccount()
 
   const unreadCount = threads.filter((t) => t.unread).length
+
+  useEffect(() => {
+    if (selectedThreadId && !threads.some((thread) => thread.thread_id === selectedThreadId)) {
+      setSelectedThreadId(null)
+    }
+  }, [selectedThreadId, threads])
 
   function handleSelectThread(t: InboxThread) {
     setSelectedThreadId(t.thread_id)
@@ -864,6 +919,35 @@ export function InboxPage() {
           </button>
         </div>
       </div>
+
+      {(accountId || contactId) && (
+        <div className="flex shrink-0 items-center gap-3 border-b border-[#F3F4F6] bg-[#F8FAFC] px-4 py-2 lg:px-6">
+          <span className="text-sm font-medium text-[#374151]">
+            {contactId
+              ? contactName
+                ? `Filtered to ${contactName}`
+                : 'Contact filter active'
+              : accountName
+                ? `Filtered to ${accountName}`
+                : 'Account filter active'}
+          </span>
+          <button
+            onClick={() =>
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev)
+                next.delete('account_id')
+                next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
+                return next
+              })
+            }
+            className="text-[12px] font-medium text-[#1B3A4B] hover:underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Account filter tabs */}
       <nav
@@ -929,7 +1013,17 @@ export function InboxPage() {
             <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16">
               <Inbox className="h-10 w-10 text-[#D1D5DB]" />
               <p className="text-sm text-[#9CA3AF]">
-                {unreadOnly ? 'No unread emails.' : 'No emails from this account yet.'}
+                {accountId
+                  ? unreadOnly
+                    ? 'No unread emails for this account.'
+                    : 'No inbox threads matched this account yet.'
+                  : contactId
+                    ? unreadOnly
+                      ? 'No unread emails for this contact.'
+                      : 'No inbox threads matched this contact yet.'
+                  : unreadOnly
+                    ? 'No unread emails.'
+                    : 'No emails from this account yet.'}
               </p>
               {(filterAccountId || unreadOnly) && (
                 <button

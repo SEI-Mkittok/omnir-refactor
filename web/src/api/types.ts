@@ -241,6 +241,7 @@ export interface DealListParams {
   search?: string
   stage?: DealStage
   account_id?: string
+  contact_id?: string
   pipeline_id?: string
   owner_id?: string
   sort_by?: string
@@ -1246,6 +1247,7 @@ export interface QuoteListParams {
   limit?: number
   q?: string
   status?: QuoteStatus
+  account_id?: string
   deal_id?: string
   contact_id?: string
 }
@@ -1406,6 +1408,7 @@ export interface InboxThread {
 
 export interface InboxListParams {
   connection_id?: string
+  contact_id?: string
   unread_only?: boolean
   page?: number
   limit?: number

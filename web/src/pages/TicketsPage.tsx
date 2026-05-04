@@ -79,16 +79,6 @@ function nameInitials(name?: string): string {
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-/** Full name from first + last */
-function fullName(first?: string, last?: string): string {
-  return [first, last].filter(Boolean).join(' ') || '—'
-}
-
-/** Initials from first + last */
-function contactInitials(first?: string, last?: string): string {
-  return ((first?.[0] ?? '') + (last?.[0] ?? '')).toUpperCase() || '?'
-}
-
 function formatHours(h: number | null): string {
   if (h === null) return '—'
   if (h < 1) return `${Math.round(h * 60)}m`
@@ -508,7 +498,11 @@ const PRIORITY_OPTIONS = [
 
 export function TicketsPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const accountId = searchParams.get('account_id') ?? ''
+  const accountName = searchParams.get('account_name') ?? ''
+  const contactId = searchParams.get('contact_id') ?? ''
+  const contactName = searchParams.get('contact_name') ?? ''
   const { status, priority, search, page, setStatus, setPriority, setSearch, setPage, reset } =
     useTicketFilterStore()
   const [sortKey, setSortKey] = useState('created_at:desc')
@@ -526,6 +520,8 @@ export function TicketsPage() {
     search: debouncedSearch || undefined,
     status: (status as TicketStatus) || undefined,
     priority: (priority as TicketPriority) || undefined,
+    contact_id: contactId || undefined,
+    account_id: accountId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   })
@@ -562,6 +558,35 @@ export function TicketsPage() {
 
       {/* Metrics row */}
       <MetricsRow />
+
+      {(accountId || contactId) && (
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3">
+          <span className="text-[14px] font-medium text-[var(--text-primary)]">
+            {contactId
+              ? contactName
+                ? `Filtered to ${contactName}`
+                : 'Contact filter active'
+              : accountName
+                ? `Filtered to ${accountName}`
+                : 'Account filter active'}
+          </span>
+          <button
+            onClick={() =>
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev)
+                next.delete('account_id')
+                next.delete('account_name')
+                next.delete('contact_id')
+                next.delete('contact_name')
+                return next
+              })
+            }
+            className="text-[13px] text-[var(--color-primary)] hover:underline"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 py-1">
@@ -636,6 +661,10 @@ export function TicketsPage() {
       {showNewTicket && (
         <TicketForm
           onClose={() => setShowNewTicket(false)}
+          initialValues={{
+            contact_id: contactId || undefined,
+            account_id: accountId || undefined,
+          }}
           onCreated={(ticketId) => navigate(`/tickets/${ticketId}`)}
         />
       )}

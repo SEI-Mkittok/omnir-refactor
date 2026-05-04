@@ -141,6 +141,11 @@ func (h *TicketHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.ContactID = &id
 		}
 	}
+	if v := q.Get("account_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.AccountID = &id
+		}
+	}
 
 	if filter.Limit == 0 {
 		filter.Limit = 50

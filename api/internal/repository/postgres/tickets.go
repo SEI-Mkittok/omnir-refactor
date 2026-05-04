@@ -319,6 +319,9 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 	if f.ContactID != nil {
 		addWhere("contact_id", *f.ContactID)
 	}
+	if f.AccountID != nil {
+		addWhere("account_id", *f.AccountID)
+	}
 	if f.SubmittedByUserID != nil {
 		addWhere("submitted_by_user_id", *f.SubmittedByUserID)
 	}
