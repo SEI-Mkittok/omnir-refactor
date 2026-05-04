@@ -27,8 +27,8 @@ import {
 import { useContact, useDeleteContact, useUpdateContact, useContactNotes, useAddContactNote, useEnrichContact, contactKeys } from '@/hooks/useContacts'
 import { accountKeys } from '@/hooks/useAccounts'
 import { useContactActivities } from '@/hooks/useActivities'
-import { useDeals, dealKeys } from '@/hooks/useDeals'
-import { useTickets, ticketKeys } from '@/hooks/useTickets'
+import { dealKeys } from '@/hooks/useDeals'
+import { ticketKeys } from '@/hooks/useTickets'
 import { quoteKeys } from '@/hooks/useQuotes'
 import {
   Dialog,
@@ -454,8 +454,73 @@ function LinkedEntitiesSection({
     [contactId]
   )
 
-  const dealsQuery = useDeals(dealsParams)
-  const ticketsQuery = useTickets(ticketsParams)
+  const dealsQuery = useQuery({
+    queryKey: dealKeys.list(dealsParams),
+    staleTime: 30_000,
+    queryFn: async () => {
+      let page = 1
+      let total = 0
+      let totalPages = 1
+      const allDeals: Deal[] = []
+
+      let hasMore = true
+      while (hasMore) {
+        const response = await dealsApi.list({ ...dealsParams, page })
+        const pageDeals = response.data ?? []
+        const pageMeta = response.meta
+        allDeals.push(...pageDeals)
+        total = pageMeta.total ?? allDeals.length
+        totalPages = pageMeta.total_pages ?? Math.max(1, Math.ceil(total / dealsParams.per_page))
+
+        hasMore = pageDeals.length > 0 && page < totalPages
+        page += 1
+      }
+
+      return {
+        data: allDeals,
+        meta: {
+          page: 1,
+          per_page: dealsParams.per_page,
+          total,
+          total_pages: Math.max(1, Math.ceil(total / dealsParams.per_page)),
+        },
+      } satisfies PaginatedResponse<Deal>
+    },
+  })
+
+  const ticketsQuery = useQuery({
+    queryKey: ticketKeys.list(ticketsParams),
+    staleTime: 30_000,
+    queryFn: async () => {
+      let page = 1
+      let total = 0
+      let totalPages = 1
+      const allTickets: TicketType[] = []
+
+      let hasMore = true
+      while (hasMore) {
+        const response = await ticketsApi.list({ ...ticketsParams, page })
+        const pageTickets = response.data ?? []
+        const pageMeta = response.meta
+        allTickets.push(...pageTickets)
+        total = pageMeta.total ?? allTickets.length
+        totalPages = pageMeta.total_pages ?? Math.max(1, Math.ceil(total / ticketsParams.per_page))
+
+        hasMore = pageTickets.length > 0 && page < totalPages
+        page += 1
+      }
+
+      return {
+        data: allTickets,
+        meta: {
+          page: 1,
+          per_page: ticketsParams.per_page,
+          total,
+          total_pages: Math.max(1, Math.ceil(total / ticketsParams.per_page)),
+        },
+      } satisfies PaginatedResponse<TicketType>
+    },
+  })
 
   const quotesQuery = useQuery({
     queryKey: ['contacts', contactId, 'linked-quotes', dealsQuery.data?.data?.map((deal) => deal.id) ?? []],

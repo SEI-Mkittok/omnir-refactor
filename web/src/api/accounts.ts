@@ -19,7 +19,7 @@ export const accountsApi = {
   },
 
   search: async (q: string): Promise<Account[]> => {
-    const { data } = await apiClient.get('/accounts', { params: { search: q, per_page: 10 } })
+    const { data } = await apiClient.get('/accounts', { params: { q, limit: 10 } })
     return data.data ?? []
   },
 
