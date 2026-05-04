@@ -196,6 +196,22 @@ const LINKED_TAB_META: Record<
   inbox: { label: 'Inbox', route: '/inbox', icon: Mail, empty: "No inbox threads are linked through this account's contacts yet." },
 }
 
+const STAGE_STYLES: Record<string, { bg: string; text: string }> = {
+  lead: { bg: 'var(--color-primary-light)', text: 'var(--color-primary)' },
+  qualified: { bg: 'var(--color-info-light)', text: 'var(--color-info)' },
+  proposal: { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  negotiation: { bg: 'var(--surface-app)', text: 'var(--text-secondary)' },
+  closed_won: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  closed_lost: { bg: 'var(--color-danger-light)', text: 'var(--color-danger)' },
+}
+
+const TICKET_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  open: { bg: 'var(--color-warning-light)', text: 'var(--color-warning)' },
+  in_progress: { bg: 'var(--color-info-light)', text: 'var(--color-info)' },
+  resolved: { bg: 'var(--color-success-light)', text: 'var(--color-success)' },
+  closed: { bg: 'var(--surface-app)', text: 'var(--text-secondary)' },
+}
+
 function buildAccountScopedPath(path: string, accountId: string, accountName: string) {
   const params = new URLSearchParams({ account_id: accountId, account_name: accountName })
   return `${path}?${params.toString()}`
