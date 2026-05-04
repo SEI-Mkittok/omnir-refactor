@@ -43,6 +43,7 @@ export function EntityLinkModal<T>({
   const [isPending, setIsPending] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const requestIdRef = useRef(0)
   const listboxId = useId()
@@ -132,8 +133,39 @@ export function EntityLinkModal<T>({
     if (!results.length) return
     setHighlightedIndex((current) => {
       if (current < 0) return direction === 1 ? 0 : results.length - 1
-      return Math.max(0, Math.min(results.length - 1, current + direction))
+      if (direction === 1) return current >= results.length - 1 ? 0 : current + 1
+      return current <= 0 ? results.length - 1 : current - 1
     })
+  }
+
+  const trapFocusInsideModal = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return
+    const container = contentRef.current
+    if (!container) return
+
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute('disabled') && !el.getAttribute('aria-hidden'))
+
+    if (focusable.length === 0) return
+
+    const activeElement = document.activeElement as HTMLElement | null
+    const currentIndex = activeElement ? focusable.indexOf(activeElement) : -1
+
+    if (event.shiftKey) {
+      if (currentIndex <= 0) {
+        event.preventDefault()
+        focusable[focusable.length - 1]?.focus()
+      }
+      return
+    }
+
+    if (currentIndex === focusable.length - 1) {
+      event.preventDefault()
+      focusable[0]?.focus()
+    }
   }
 
   const handleInputKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -155,6 +187,25 @@ export function EntityLinkModal<T>({
       return
     }
 
+    if (event.key === 'Home' && results.length > 0) {
+      event.preventDefault()
+      setHighlightedIndex(0)
+      return
+    }
+
+    if (event.key === 'End' && results.length > 0) {
+      event.preventDefault()
+      setHighlightedIndex(results.length - 1)
+      return
+    }
+
+    if (event.key === 'Tab' && !event.shiftKey && results.length > 0) {
+      event.preventDefault()
+      const nextIndex = highlightedIndex >= 0 ? highlightedIndex : 0
+      optionRefs.current[nextIndex]?.focus()
+      return
+    }
+
     if (event.key === 'Enter' && highlightedIndex >= 0 && results[highlightedIndex]) {
       event.preventDefault()
       await selectItem(results[highlightedIndex])
@@ -164,12 +215,14 @@ export function EntityLinkModal<T>({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogContent
+        ref={contentRef}
         className="max-w-sm border p-0 shadow-xl"
         style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           inputRef.current?.focus()
         }}
+        onKeyDown={trapFocusInsideModal}
         aria-describedby={undefined}
       >
         <DialogHeader
@@ -204,6 +257,7 @@ export function EntityLinkModal<T>({
               }}
               aria-label={placeholder}
               role="combobox"
+              aria-haspopup="listbox"
               aria-expanded={listboxOpen}
               aria-controls={listboxId}
               aria-activedescendant={activeOptionId}
@@ -261,6 +315,46 @@ export function EntityLinkModal<T>({
                     onMouseDown={(event) => {
                       event.preventDefault()
                       void selectItem(item)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        onClose()
+                        return
+                      }
+                      if (event.key === 'ArrowDown') {
+                        event.preventDefault()
+                        moveHighlight(1)
+                        optionRefs.current[index === results.length - 1 ? 0 : index + 1]?.focus()
+                        return
+                      }
+                      if (event.key === 'ArrowUp') {
+                        event.preventDefault()
+                        moveHighlight(-1)
+                        optionRefs.current[index === 0 ? results.length - 1 : index - 1]?.focus()
+                        return
+                      }
+                      if (event.key === 'Home') {
+                        event.preventDefault()
+                        setHighlightedIndex(0)
+                        optionRefs.current[0]?.focus()
+                        return
+                      }
+                      if (event.key === 'End') {
+                        event.preventDefault()
+                        setHighlightedIndex(results.length - 1)
+                        optionRefs.current[results.length - 1]?.focus()
+                        return
+                      }
+                      if (event.key === 'Tab' && event.shiftKey) {
+                        event.preventDefault()
+                        inputRef.current?.focus()
+                        return
+                      }
+                      if ((event.key === 'Enter' || event.key === ' ') && !isPending) {
+                        event.preventDefault()
+                        void selectItem(item)
+                      }
                     }}
                   >
                     {renderItem(item, { isHighlighted })}

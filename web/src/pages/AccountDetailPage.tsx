@@ -753,9 +753,7 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
   const linkContact = useLinkContactToAccount()
   const linkDeal = useLinkDealToAccount()
   const linkTicket = useLinkTicketToAccount()
-  const [showContactModal, setShowContactModal] = useState(false)
-  const [showDealModal, setShowDealModal] = useState(false)
-  const [showTicketModal, setShowTicketModal] = useState(false)
+  const [activeLinkModal, setActiveLinkModal] = useState<'contacts' | 'deals' | 'tickets' | null>(null)
 
   const contactsTotal = contactsQuery.data?.length ?? 0
   const contactsPageItems = useMemo(() => {
@@ -1083,6 +1081,98 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
   }
 
   const showLinkButton = activeTab === 'contacts' || activeTab === 'deals' || activeTab === 'tickets'
+  const openActiveLinkModal = () => {
+    if (activeTab === 'contacts' || activeTab === 'deals' || activeTab === 'tickets') {
+      setActiveLinkModal(activeTab)
+    }
+  }
+  const closeActiveLinkModal = () => setActiveLinkModal(null)
+
+  const renderActiveLinkModal = () => {
+    switch (activeLinkModal) {
+      case 'contacts':
+        return (
+          <EntityLinkModal<Contact>
+            open
+            onClose={closeActiveLinkModal}
+            title="Link Contact"
+            placeholder="Search by name or email…"
+            search={contactsApi.search}
+            onSelect={(contact) => linkContact.mutateAsync({ contactId: contact.id, accountId })}
+            renderItem={(contact) => (
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                  style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                >
+                  {((contact.first_name?.[0] ?? '') + (contact.last_name?.[0] ?? '')).toUpperCase() || '?'}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {contact.first_name} {contact.last_name}
+                  </p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
+                    {contact.email ?? 'No email'}
+                  </p>
+                </div>
+              </div>
+            )}
+            getKey={(contact) => contact.id}
+          />
+        )
+      case 'deals':
+        return (
+          <EntityLinkModal<Deal>
+            open
+            onClose={closeActiveLinkModal}
+            title="Link Deal"
+            placeholder="Search deals by title…"
+            search={dealsApi.search}
+            onSelect={(deal) => linkDeal.mutateAsync({ dealId: deal.id, accountId })}
+            renderItem={(deal) => (
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                    {deal.title}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {formatCurrency((deal.value_cents ?? 0) / 100)}
+                  </p>
+                </div>
+              </div>
+            )}
+            getKey={(deal) => deal.id}
+          />
+        )
+      case 'tickets':
+        return (
+          <EntityLinkModal<TicketType>
+            open
+            onClose={closeActiveLinkModal}
+            title="Link Ticket"
+            placeholder="Search tickets by subject…"
+            search={async (q) => {
+              const result = await ticketsApi.list({ search: q, per_page: 10 })
+              return result.data ?? []
+            }}
+            onSelect={(ticket) => linkTicket.mutateAsync({ ticketId: ticket.id, accountId })}
+            renderItem={(ticket) => (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                  {ticket.subject}
+                </p>
+                <span className="text-xs" style={{ color: 'var(--text-label)' }}>
+                  {ticket.status}
+                </span>
+              </div>
+            )}
+            getKey={(ticket) => ticket.id}
+          />
+        )
+      default:
+        return null
+    }
+  }
 
   return (
     <div
@@ -1104,11 +1194,7 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
             variant="ghost"
             size="sm"
             className="h-8 px-2 text-xs"
-            onClick={() => {
-              if (activeTab === 'contacts') setShowContactModal(true)
-              if (activeTab === 'deals') setShowDealModal(true)
-              if (activeTab === 'tickets') setShowTicketModal(true)
-            }}
+            onClick={openActiveLinkModal}
           >
             <Plus className="h-3 w-3" />
             Link
@@ -1148,79 +1234,7 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
       </div>
 
       {renderActivePanel()}
-
-      <EntityLinkModal<Contact>
-        open={showContactModal}
-        onClose={() => setShowContactModal(false)}
-        title="Link Contact"
-        placeholder="Search by name or email…"
-        search={contactsApi.search}
-        onSelect={(contact) => linkContact.mutateAsync({ contactId: contact.id, accountId })}
-        renderItem={(contact) => (
-          <div className="flex items-center gap-2.5">
-            <div
-              className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-              style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
-            >
-              {((contact.first_name?.[0] ?? '') + (contact.last_name?.[0] ?? '')).toUpperCase() || '?'}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                {contact.first_name} {contact.last_name}
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--text-label)' }}>
-                {contact.email ?? 'No email'}
-              </p>
-            </div>
-          </div>
-        )}
-        getKey={(contact) => contact.id}
-      />
-
-      <EntityLinkModal<Deal>
-        open={showDealModal}
-        onClose={() => setShowDealModal(false)}
-        title="Link Deal"
-        placeholder="Search deals by title…"
-        search={dealsApi.search}
-        onSelect={(deal) => linkDeal.mutateAsync({ dealId: deal.id, accountId })}
-        renderItem={(deal) => (
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                {deal.title}
-              </p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                {formatCurrency((deal.value_cents ?? 0) / 100)}
-              </p>
-            </div>
-          </div>
-        )}
-        getKey={(deal) => deal.id}
-      />
-
-      <EntityLinkModal<TicketType>
-        open={showTicketModal}
-        onClose={() => setShowTicketModal(false)}
-        title="Link Ticket"
-        placeholder="Search tickets by subject…"
-        search={async (q) => {
-          const result = await ticketsApi.list({ search: q, per_page: 10 })
-          return result.data ?? []
-        }}
-        onSelect={(ticket) => linkTicket.mutateAsync({ ticketId: ticket.id, accountId })}
-        renderItem={(ticket) => (
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-              {ticket.subject}
-            </p>
-            <span className="text-xs" style={{ color: 'var(--text-label)' }}>
-              {ticket.status}
-            </span>
-          </div>
-        )}
-        getKey={(ticket) => ticket.id}
-      />
+      {renderActiveLinkModal()}
     </div>
   )
 }
