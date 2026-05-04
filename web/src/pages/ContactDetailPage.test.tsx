@@ -162,7 +162,8 @@ describe('ContactDetailPage optimistic association flows', () => {
 
     await user.click(screen.getAllByRole('button', { name: /link existing/i })[0])
     await user.type(screen.getByPlaceholderText('Search deals by title…'), 'renewal')
-    await user.click(await screen.findByRole('button', { name: /enterprise renewal/i }))
+    const dealResult = await screen.findByText(/enterprise renewal/i)
+    await user.click(dealResult.closest('button') as HTMLElement)
 
     expect(await screen.findByText('Enterprise Renewal')).toBeInTheDocument()
     expect(await screen.findByText('Could not link deal')).toBeInTheDocument()

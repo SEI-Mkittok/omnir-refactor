@@ -20,7 +20,6 @@ import {
   Briefcase,
   FileText,
   Plus,
-  Search,
   Ticket,
   X,
   Zap,
@@ -54,6 +53,7 @@ import type { Account, Activity, ActivityType, Contact, Deal, EmailSequence, Enr
 import { AccountForm } from '@/components/omnir/AccountForm'
 import { ComposeEmailModal } from '@/components/omnir/ComposeEmailModal'
 import { DealForm } from '@/components/omnir/DealForm'
+import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
 import {
   RelationshipEditor,
   type RelationshipRow,
@@ -400,152 +400,6 @@ function LinkedPanelEmpty({
       <Link to={ctaHref} className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
         {ctaLabel}
       </Link>
-    </div>
-  )
-}
-
-interface LinkModalProps<T> {
-  open: boolean
-  onClose: () => void
-  title: string
-  placeholder: string
-  onSearch: (q: string) => Promise<T[]>
-  onSelect: (item: T) => Promise<unknown>
-  renderItem: (item: T) => React.ReactNode
-  getKey: (item: T) => string
-}
-
-function LinkModal<T>({
-  open,
-  onClose,
-  title,
-  placeholder,
-  onSearch,
-  onSelect,
-  renderItem,
-  getKey,
-}: LinkModalProps<T>) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<T[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isPending, setIsPending] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (open) {
-      setQuery('')
-      setResults([])
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-    setIsSearching(true)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        setResults(await onSearch(query))
-      } finally {
-        setIsSearching(false)
-      }
-    }, 300)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [query, onSearch])
-
-  if (!open) return null
-
-  const handleSelect = async (item: T) => {
-    setIsPending(true)
-    try {
-      await onSelect(item)
-      onClose()
-    } catch {
-      // Mutation-level handlers surface the error state; keep the modal open for retry.
-    } finally {
-      setIsPending(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className="w-full max-w-sm rounded-xl border shadow-xl"
-        style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-      >
-        <div
-          className="flex items-center justify-between border-b px-4 py-3"
-          style={{ borderColor: 'var(--border-default)' }}
-        >
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="rounded p-0.5 transition-colors hover:bg-[var(--surface-app)]"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
-          </button>
-        </div>
-
-        <div className="px-4 py-3">
-          <div className="relative">
-            <Search
-              className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2"
-              style={{ color: 'var(--text-label)' }}
-            />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={placeholder}
-              className="w-full rounded-lg border py-2 pl-8 pr-3 text-sm focus:outline-none"
-              style={{
-                borderColor: 'var(--border-default)',
-                color: 'var(--text-primary)',
-                background: 'var(--surface-app)',
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="max-h-64 overflow-y-auto px-4 pb-4">
-          {isSearching ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--text-label)' }} />
-            </div>
-          ) : !query.trim() ? (
-            <p className="py-6 text-center text-sm" style={{ color: 'var(--text-label)' }}>
-              Start typing to search.
-            </p>
-          ) : results.length === 0 ? (
-            <p className="py-6 text-center text-sm" style={{ color: 'var(--text-label)' }}>
-              No matches found.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {results.map((item) => (
-                <button
-                  key={getKey(item)}
-                  onClick={() => void handleSelect(item)}
-                  disabled={isPending}
-                  className="w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-[var(--surface-app)]"
-                  style={{ borderColor: 'var(--border-subtle)' }}
-                >
-                  {renderItem(item)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
@@ -1158,12 +1012,12 @@ function LinkedEntitiesSection({
 
       {renderActivePanel()}
 
-      <LinkModal<Account>
+      <EntityLinkModal<Account>
         open={showAccountLinkModal}
         onClose={() => setShowAccountLinkModal(false)}
         title="Link Account"
         placeholder="Search accounts by name…"
-        onSearch={accountsApi.search}
+        search={accountsApi.search}
         onSelect={(account) => accountMutation.mutateAsync({ accountId: account.id, account })}
         renderItem={(account) => (
           <div className="min-w-0">
@@ -1178,12 +1032,12 @@ function LinkedEntitiesSection({
         getKey={(account) => account.id}
       />
 
-      <LinkModal<Deal>
+      <EntityLinkModal<Deal>
         open={showDealLinkModal}
         onClose={() => setShowDealLinkModal(false)}
         title="Link Deal"
         placeholder="Search deals by title…"
-        onSearch={dealsApi.search}
+        search={dealsApi.search}
         onSelect={(deal) => dealMutation.mutateAsync({ dealId: deal.id, shouldLink: true, deal: { ...deal, contact_id: contactId, contact } })}
         renderItem={(deal) => (
           <div className="min-w-0">
@@ -1198,12 +1052,12 @@ function LinkedEntitiesSection({
         getKey={(deal) => deal.id}
       />
 
-      <LinkModal<TicketType>
+      <EntityLinkModal<TicketType>
         open={showTicketLinkModal}
         onClose={() => setShowTicketLinkModal(false)}
         title="Link Ticket"
         placeholder="Search tickets by subject…"
-        onSearch={async (q) => {
+        search={async (q) => {
           const response = await ticketsApi.list({ search: q, per_page: 10 })
           return response.data ?? []
         }}
