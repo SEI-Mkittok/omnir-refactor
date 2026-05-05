@@ -5,7 +5,7 @@ import * as RadixSelect from '@radix-ui/react-select'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
-import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
+import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { SidePanel } from '@/components/ui/SidePanel'
@@ -286,7 +286,12 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
           }}
         />
 
-        <ActivityTimeline dealId={deal.id} />
+        <UnifiedTimeline
+          entityType="deal"
+          entityId={deal.id}
+          contactId={deal.contact?.id}
+          accountId={deal.account?.id}
+        />
         <DealQuotesSection dealId={deal.id} />
         <AttachmentsPanel entityType="deal" entityId={deal.id} />
       </div>
