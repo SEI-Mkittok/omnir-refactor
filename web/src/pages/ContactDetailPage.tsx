@@ -646,28 +646,42 @@ function LinkedEntitiesSection({
     return (
       <>
         <ul className="space-y-2">
-          {quotesPageItems.map((quote) => (
-            <li key={quote.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {quote.title}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
-                    {quote.deal?.title ?? 'No linked deal'}
-                  </p>
+          {quotesPageItems.map((quote) => {
+            const quoteDeal = dealsQuery.data?.data?.find((deal) => deal.id === quote.deal_id)
+            const quoteAccountName = quote.account?.name ?? quoteDeal?.account?.name ?? contact.account?.name
+            return (
+              <li key={quote.id} className="rounded-lg px-3 py-2" style={{ background: 'var(--surface-app)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {quote.title}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {quoteAccountName && (
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                        >
+                          {quoteAccountName}
+                        </span>
+                      )}
+                      <span className="text-xs" style={{ color: 'var(--text-label)' }}>
+                        {quote.deal?.title ?? quoteDeal?.title ?? 'No linked deal'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                      {formatCurrency(quote.total_cents / 100, quote.currency)}
+                    </p>
+                    <p className="text-xs uppercase" style={{ color: 'var(--text-label)' }}>
+                      {quote.status}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
-                    {formatCurrency(quote.total_cents / 100, quote.currency)}
-                  </p>
-                  <p className="text-xs uppercase" style={{ color: 'var(--text-label)' }}>
-                    {quote.status}
-                  </p>
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
         <PaginationControls page={pages.quotes} totalPages={totalPages('quotes')} onPageChange={(page) => setPageFor('quotes', page)} />
       </>

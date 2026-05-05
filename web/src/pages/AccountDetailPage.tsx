@@ -530,9 +530,17 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
                   <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                     {quote.title}
                   </p>
-                  <p className="text-xs" style={{ color: 'var(--text-label)' }}>
-                    {quote.deal?.title ?? 'No linked deal'}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+                    >
+                      {accountName}
+                    </span>
+                    <span className="text-xs" style={{ color: 'var(--text-label)' }}>
+                      {quote.deal?.title ?? 'No linked deal'}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>

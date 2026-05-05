@@ -1203,6 +1203,7 @@ export interface Quote {
   id: string
   org_id: string
   deal_id?: string
+  account_id?: string
   contact_id?: string
   title: string
   status: QuoteStatus
@@ -1217,6 +1218,7 @@ export interface Quote {
   total_cents: number
   created_at: string
   updated_at: string
+  account?: Account
   contact?: Contact
   deal?: Deal
 }
@@ -1224,6 +1226,7 @@ export interface Quote {
 export interface CreateQuoteRequest {
   title: string
   deal_id?: string
+  account_id?: string
   contact_id?: string
   currency?: string
   valid_until?: string
@@ -1237,6 +1240,7 @@ export interface UpdateQuoteRequest {
   currency?: string
   valid_until?: string
   notes?: string
+  account_id?: string
   contact_id?: string
   deal_id?: string
   line_items?: QuoteLineItemInput[]
