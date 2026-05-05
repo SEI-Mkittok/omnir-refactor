@@ -47,6 +47,7 @@ import {
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
+import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
 import type { Contact, Deal, EmailSequence, InboxThread, Note, Ticket as TicketType } from '@/api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1078,6 +1079,8 @@ export function AccountDetailPage() {
           emptyMessage="No contact relationships yet."
           addLabel="Add contact role"
         />
+
+        <UnifiedTimeline entityType="account" entityId={account.id} />
 
         <LinkedEntitiesSection accountId={account.id} accountName={account.name} />
 

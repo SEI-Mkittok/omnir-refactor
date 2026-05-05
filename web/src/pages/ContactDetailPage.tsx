@@ -26,7 +26,6 @@ import {
 } from 'lucide-react'
 import { useContact, useDeleteContact, useUpdateContact, useContactNotes, useAddContactNote, useEnrichContact, contactKeys } from '@/hooks/useContacts'
 import { accountKeys } from '@/hooks/useAccounts'
-import { useContactActivities } from '@/hooks/useActivities'
 import { dealKeys } from '@/hooks/useDeals'
 import { ticketKeys } from '@/hooks/useTickets'
 import { quoteKeys } from '@/hooks/useQuotes'
@@ -49,11 +48,12 @@ import { inboxApi } from '@/api/inbox'
 import { quotesApi } from '@/api/quotes'
 import { sequencesApi } from '@/api/sequences'
 import { ticketsApi } from '@/api/tickets'
-import type { Account, Activity, ActivityType, Contact, Deal, EmailSequence, EnrichmentResult, PaginatedResponse, Ticket as TicketType, Quote } from '@/api/types'
+import type { Account, Contact, Deal, EmailSequence, EnrichmentResult, PaginatedResponse, Ticket as TicketType, Quote } from '@/api/types'
 import { AccountForm } from '@/components/omnir/AccountForm'
 import { ComposeEmailModal } from '@/components/omnir/ComposeEmailModal'
 import { DealForm } from '@/components/omnir/DealForm'
 import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
+import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
 import {
   RelationshipEditor,
   type RelationshipRow,
@@ -101,194 +101,6 @@ function createContactRelationshipRows(linkedAccounts: ContactLinkedAccount[]): 
         isPrimary: index === 0,
       })
     )
-  )
-}
-
-// ── Activity Timeline ─────────────────────────────────────────────────────────
-
-type ActivityTab = 'all' | 'call' | 'email' | 'meeting'
-
-const TABS: { id: ActivityTab; label: string; icon: React.ReactNode; apiType?: ActivityType }[] = [
-  { id: 'all', label: 'All', icon: null },
-  { id: 'call', label: 'Call', icon: <Phone className="h-3.5 w-3.5" />, apiType: 'call' },
-  { id: 'email', label: 'Email', icon: <Mail className="h-3.5 w-3.5" />, apiType: 'email' },
-  { id: 'meeting', label: 'Meeting', icon: <Calendar className="h-3.5 w-3.5" />, apiType: 'meeting' },
-]
-
-const ACTIVITY_ICON_STYLES: Record<string, { bg: string; color: string }> = {
-  call:    { bg: '#F0FDF4', color: '#16A34A' },
-  email:   { bg: '#EFF6FF', color: '#2563EB' },
-  meeting: { bg: '#FAF5FF', color: '#7C3AED' },
-  task:    { bg: '#FFF7ED', color: '#C2410C' },
-  note:    { bg: 'var(--color-primary-light)', color: 'var(--color-primary)' },
-}
-
-function ActivityIconCircle({ type }: { type: ActivityType }) {
-  const style = ACTIVITY_ICON_STYLES[type] ?? ACTIVITY_ICON_STYLES.note
-  const Icon = type === 'call' ? Phone : type === 'email' ? Mail : Calendar
-  return (
-    <div
-      className="h-8 w-8 shrink-0 flex items-center justify-center rounded-full"
-      style={{ background: style.bg }}
-    >
-      <Icon className="h-4 w-4" style={{ color: style.color }} />
-    </div>
-  )
-}
-
-function ActivityEntry({ activity }: { activity: Activity }) {
-  return (
-    <article
-      className="flex gap-3 py-3 border-b last:border-0"
-      style={{ borderColor: 'var(--border-subtle)' }}
-      aria-label={`${activity.type} — ${activity.subject}`}
-    >
-      <ActivityIconCircle type={activity.type} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            {activity.subject}
-          </p>
-          <time
-            className="shrink-0 text-xs"
-            style={{ color: 'var(--text-label)' }}
-            title={formatDate(activity.created_at)}
-          >
-            {formatRelativeTime(activity.created_at)}
-          </time>
-        </div>
-        {activity.description && (
-          <p
-            className="mt-0.5 text-xs line-clamp-2"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {activity.description}
-          </p>
-        )}
-        {activity.owner && (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <div
-              className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold"
-              style={{
-                background: 'var(--color-primary-light)',
-                color: 'var(--color-primary)',
-              }}
-            >
-              {getInitials(activity.owner.name)}
-            </div>
-            <span className="text-xs" style={{ color: 'var(--text-label)' }}>
-              {activity.owner.name}
-            </span>
-          </div>
-        )}
-      </div>
-    </article>
-  )
-}
-
-interface ActivityTimelineProps {
-  contactId: string
-}
-
-function ActivityTimeline({ contactId }: ActivityTimelineProps) {
-  const [activeTab, setActiveTab] = useState<ActivityTab>('all')
-  const [visibleCount, setVisibleCount] = useState(20)
-  const { data, isLoading } = useContactActivities(contactId)
-
-  const activities = data?.data ?? []
-  const filtered =
-    activeTab === 'all'
-      ? activities
-      : activities.filter((a) => a.type === activeTab)
-  const visible = filtered.slice(0, visibleCount)
-
-  return (
-    <div
-      className="rounded-xl border p-5"
-      style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
-    >
-      <p
-        className="mb-3 text-[11px] font-semibold uppercase tracking-widest"
-        style={{ color: 'var(--text-label)', letterSpacing: 'var(--letter-spacing-label)' }}
-      >
-        Activity
-      </p>
-
-      {/* Tabs */}
-      <div
-        role="tablist"
-        aria-label="Filter activity by type"
-        className="flex gap-1 mb-4 pb-3 border-b overflow-x-auto"
-        style={{ borderColor: 'var(--border-subtle)' }}
-      >
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => { setActiveTab(tab.id); setVisibleCount(20) }}
-            className="flex items-center gap-1.5 px-3 rounded transition-colors shrink-0"
-            style={{
-              height: 32,
-              fontSize: 13,
-              fontWeight: activeTab === tab.id ? 600 : 500,
-              color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--text-secondary)',
-              background: activeTab === tab.id ? 'var(--color-primary-light)' : 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Entries */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex gap-3 py-3">
-              <div className="h-8 w-8 rounded-full bg-slate-100 animate-pulse shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-3 bg-slate-100 animate-pulse rounded w-3/4" />
-                <div className="h-3 bg-slate-100 animate-pulse rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : visible.length === 0 ? (
-        <div
-          className="flex flex-col items-center justify-center py-10 text-center"
-          style={{ minHeight: 160 }}
-        >
-          <ActivityIcon className="h-10 w-10 mb-3" style={{ color: 'var(--text-label)' }} />
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-            No activity yet.
-          </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Log a call, send an email, or schedule a meeting.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div>
-            {visible.map((a) => (
-              <ActivityEntry key={a.id} activity={a} />
-            ))}
-          </div>
-          {filtered.length > visibleCount && (
-            <button
-              className="mt-3 text-sm font-medium"
-              style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
-              onClick={() => setVisibleCount((c) => c + 20)}
-            >
-              Load more
-            </button>
-          )}
-        </>
-      )}
-    </div>
   )
 }
 
@@ -1818,7 +1630,7 @@ export function ContactDetailPage() {
 
         {/* Left — Timeline */}
         <div className="flex-1 min-w-0">
-          <ActivityTimeline contactId={id!} />
+          <UnifiedTimeline entityType="contact" entityId={id!} />
         </div>
 
         {/* Right — Desktop only */}
@@ -1924,3 +1736,4 @@ export function ContactDetailPage() {
     </div>
   )
 }
+
