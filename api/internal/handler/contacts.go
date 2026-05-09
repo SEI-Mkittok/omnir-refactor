@@ -231,10 +231,12 @@ func (h *ContactHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var patch domain.ContactPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	raw, err := decodeJSONPatch(r, &patch)
+	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	patch.ClearAccountID = patchFieldIsNull(raw, "account_id")
 	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
 		et := domain.CustomFieldEntityContact
 		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})

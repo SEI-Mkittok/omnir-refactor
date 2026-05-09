@@ -71,16 +71,18 @@ type Ticket struct {
 
 // TicketPatch holds optional fields for partial ticket updates.
 type TicketPatch struct {
-	Subject      *string         `json:"subject,omitempty"`
-	Description  *string         `json:"description,omitempty"`
-	Status       *TicketStatus   `json:"status,omitempty"`
-	Priority     *TicketPriority `json:"priority,omitempty"`
-	AssigneeID   *uuid.UUID      `json:"assignee_id,omitempty"`
-	ContactID    *uuid.UUID      `json:"contact_id,omitempty"`
-	AccountID    *uuid.UUID      `json:"account_id,omitempty"`
-	Source       *string         `json:"source,omitempty"`
-	Tags         []string        `json:"tags,omitempty"`
-	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
+	Subject        *string         `json:"subject,omitempty"`
+	Description    *string         `json:"description,omitempty"`
+	Status         *TicketStatus   `json:"status,omitempty"`
+	Priority       *TicketPriority `json:"priority,omitempty"`
+	AssigneeID     *uuid.UUID      `json:"assignee_id,omitempty"`
+	ContactID      *uuid.UUID      `json:"contact_id,omitempty"`
+	AccountID      *uuid.UUID      `json:"account_id,omitempty"`
+	ClearContactID bool            `json:"-"`
+	ClearAccountID bool            `json:"-"`
+	Source         *string         `json:"source,omitempty"`
+	Tags           []string        `json:"tags,omitempty"`
+	CustomFields   json.RawMessage `json:"custom_fields,omitempty"`
 }
 
 // TicketFilter holds query parameters for listing tickets.

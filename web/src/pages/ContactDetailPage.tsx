@@ -384,7 +384,7 @@ function LinkedEntitiesSection({
 
   const accountMutation = useMutation({
     mutationFn: async ({ accountId }: { accountId: string | null; account?: Account }) =>
-      contactsApi.update(contactId, { account_id: accountId ?? undefined }),
+      contactsApi.update(contactId, { account_id: accountId }),
     onMutate: async ({ accountId, account }) => {
       await queryClient.cancelQueries({ queryKey: contactKeys.detail(contactId) })
       const previousContact = queryClient.getQueryData<ContactRecord>(contactKeys.detail(contactId))
@@ -429,7 +429,7 @@ function LinkedEntitiesSection({
 
   const dealMutation = useMutation({
     mutationFn: async ({ dealId, shouldLink }: { dealId: string; shouldLink: boolean; deal: Deal }) =>
-      dealsApi.update(dealId, { contact_id: shouldLink ? contactId : undefined }),
+      dealsApi.update(dealId, { contact_id: shouldLink ? contactId : null }),
     onMutate: async ({ shouldLink, deal }) => {
       await queryClient.cancelQueries({ queryKey: dealKeys.list(dealsParams) })
       const previousDeals = queryClient.getQueryData<PaginatedResponse<Deal>>(dealKeys.list(dealsParams))

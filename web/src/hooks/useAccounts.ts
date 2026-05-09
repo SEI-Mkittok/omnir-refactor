@@ -127,7 +127,7 @@ export function useLinkContactToAccount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ contactId, accountId }: { contactId: string; accountId: string | null }) =>
-      contactsApi.update(contactId, { account_id: accountId ?? undefined }),
+      contactsApi.update(contactId, { account_id: accountId }),
     onSuccess: (_, { accountId }) => {
       if (accountId) qc.invalidateQueries({ queryKey: accountKeys.contacts(accountId) })
     },
@@ -138,7 +138,7 @@ export function useLinkDealToAccount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ dealId, accountId }: { dealId: string; accountId: string | null }) =>
-      dealsApi.update(dealId, { account_id: accountId ?? undefined }),
+      dealsApi.update(dealId, { account_id: accountId }),
     onSuccess: (_, { accountId }) => {
       if (accountId) qc.invalidateQueries({ queryKey: accountKeys.deals(accountId) })
     },

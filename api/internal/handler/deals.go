@@ -233,16 +233,19 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var patch domain.DealPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	raw, err := decodeJSONPatch(r, &patch)
+	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	patch.ClearContactID = patchFieldIsNull(raw, "contact_id")
+	patch.ClearAccountID = patchFieldIsNull(raw, "account_id")
 	if patch.Stage != nil && !patch.Stage.IsValid() {
 		writeError(w, http.StatusUnprocessableEntity,
 			`invalid stage: must be one of [lead, qualified, proposal, negotiation, closed_won, closed_lost]`)
 		return
 	}
-	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil) {
+	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil || patch.ClearContactID || patch.ClearAccountID) {
 		current, err := h.repo.GetByID(r.Context(), id)
 		if err != nil {
 			handleDomainErr(w, err)
@@ -255,6 +258,12 @@ func (h *DealHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		if patch.AccountID != nil {
 			accountID = patch.AccountID
+		}
+		if patch.ClearContactID {
+			contactID = nil
+		}
+		if patch.ClearAccountID {
+			accountID = nil
 		}
 		if err := validateContactAccountPair(r.Context(), h.contacts, contactID, accountID); err != nil {
 			handleDomainErr(w, err)

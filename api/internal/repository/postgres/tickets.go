@@ -232,9 +232,13 @@ func (r *TicketRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Tick
 	}
 	if patch.ContactID != nil {
 		addArg("contact_id", *patch.ContactID)
+	} else if patch.ClearContactID {
+		addArg("contact_id", nil)
 	}
 	if patch.AccountID != nil {
 		addArg("account_id", *patch.AccountID)
+	} else if patch.ClearAccountID {
+		addArg("account_id", nil)
 	}
 	if patch.Source != nil {
 		addArg("source", *patch.Source)

@@ -239,11 +239,14 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var patch domain.TicketPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	raw, err := decodeJSONPatch(r, &patch)
+	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
-	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil) {
+	patch.ClearContactID = patchFieldIsNull(raw, "contact_id")
+	patch.ClearAccountID = patchFieldIsNull(raw, "account_id")
+	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil || patch.ClearContactID || patch.ClearAccountID) {
 		current, err := h.tickets.GetByID(r.Context(), id)
 		if err != nil {
 			handleDomainErr(w, err)
@@ -256,6 +259,12 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		if patch.AccountID != nil {
 			accountID = patch.AccountID
+		}
+		if patch.ClearContactID {
+			contactID = nil
+		}
+		if patch.ClearAccountID {
+			accountID = nil
 		}
 		if err := validateContactAccountPair(r.Context(), h.contacts, contactID, accountID); err != nil {
 			handleDomainErr(w, err)

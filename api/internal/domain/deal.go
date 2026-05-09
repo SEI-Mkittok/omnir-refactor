@@ -88,6 +88,8 @@ type DealPatch struct {
 	ExpectedCloseDate *time.Time      `json:"expected_close_date,omitempty"`
 	ContactID         *uuid.UUID      `json:"contact_id,omitempty"`
 	AccountID         *uuid.UUID      `json:"account_id,omitempty"`
+	ClearContactID    bool            `json:"-"`
+	ClearAccountID    bool            `json:"-"`
 	OwnerID           *uuid.UUID      `json:"owner_id,omitempty"`
 	PipelineID        *uuid.UUID      `json:"pipeline_id,omitempty"`
 	CustomFields      json.RawMessage `json:"custom_fields,omitempty"`
