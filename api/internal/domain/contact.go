@@ -99,17 +99,18 @@ func isValidEmail(email string) bool {
 
 // ContactFilter holds query parameters for listing contacts.
 type ContactFilter struct {
-	OrgID    uuid.UUID
-	Q        string
-	OwnerID  *uuid.UUID
-	Stage    *ContactStage
-	Source   *string
-	ScoreMin *int
-	ScoreMax *int
-	Page     int
-	Limit    int
-	Sort     string
-	Order    string
+	OrgID     uuid.UUID
+	Q         string
+	OwnerID   *uuid.UUID
+	AccountID *uuid.UUID
+	Stage     *ContactStage
+	Source    *string
+	ScoreMin  *int
+	ScoreMax  *int
+	Page      int
+	Limit     int
+	Sort      string
+	Order     string
 }
 
 // LeadScorePatch updates a contact's lead score either by absolute value or delta.

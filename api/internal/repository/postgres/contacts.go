@@ -215,6 +215,9 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)
 	}
+	if f.AccountID != nil {
+		addWhere("account_id", *f.AccountID)
+	}
 	if f.Stage != nil {
 		addWhere("stage", *f.Stage)
 	}

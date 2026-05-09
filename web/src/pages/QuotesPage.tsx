@@ -7,10 +7,13 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
+import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useQuotes, useDeleteQuote } from '@/hooks/useQuotes'
+import { useUpdateView } from '@/hooks/useViews'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import type { Quote, QuoteStatus } from '@/api/types'
+import { cleanCurrentFilters, pickViewFilters, sortKeyFromFilters, stringFilter } from '@/lib/savedViewFilters'
+import type { Quote, QuoteStatus, SavedView } from '@/api/types'
 
 const STATUS_OPTIONS: { label: string; value: QuoteStatus | '' }[] = [
   { label: 'All statuses', value: '' },
@@ -20,6 +23,16 @@ const STATUS_OPTIONS: { label: string; value: QuoteStatus | '' }[] = [
   { label: 'Rejected', value: 'rejected' },
   { label: 'Expired', value: 'expired' },
 ]
+
+const SORT_OPTIONS = [
+  { label: 'Newest', value: 'created_at:desc' },
+  { label: 'Oldest', value: 'created_at:asc' },
+  { label: 'Title A-Z', value: 'title:asc' },
+  { label: 'Total High-Low', value: 'total_cents:desc' },
+  { label: 'Valid Until', value: 'valid_until:asc' },
+]
+
+const QUOTE_VIEW_FILTER_KEYS = ['q', 'search', 'status', 'account_id', 'contact_id', 'deal_id', 'sort_by', 'sort_dir'] as const
 
 function AccountChip({ name }: { name?: string }) {
   if (!name) return null
@@ -178,14 +191,58 @@ export function QuotesPage() {
   const contactName = searchParams.get('contact_name') ?? ''
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | ''>('')
   const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState('created_at:desc')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [activeView, setActiveView] = useState<SavedView | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const updateView = useUpdateView()
   const { data: accountsResult, isLoading: accountsLoading } = useAccounts({ per_page: 200 })
-  const accounts = accountsResult?.data ?? []
+  const accounts = useMemo(() => accountsResult?.data ?? [], [accountsResult?.data])
   const accountNameById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account.name])),
     [accounts]
   )
+
+  const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
+  const currentFilters = cleanCurrentFilters({
+    search: search || undefined,
+    q: search || undefined,
+    status: statusFilter || undefined,
+    account_id: accountId || undefined,
+    contact_id: contactId || undefined,
+    deal_id: dealId || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+  })
+  const markChanged = () => { if (activeView) setHasUnsavedChanges(true) }
+
+  const applyViewFilters = (view: SavedView) => {
+    const filters = pickViewFilters(view.filters, QUOTE_VIEW_FILTER_KEYS)
+    setActiveView(view)
+    setHasUnsavedChanges(false)
+    setSearch(stringFilter(filters, 'search') || stringFilter(filters, 'q'))
+    setStatusFilter(stringFilter(filters, 'status') as QuoteStatus | '')
+    setSortKey(sortKeyFromFilters(filters, 'created_at:desc'))
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      const nextAccountId = stringFilter(filters, 'account_id')
+      const nextContactId = stringFilter(filters, 'contact_id')
+      const nextDealId = stringFilter(filters, 'deal_id')
+      nextAccountId ? next.set('account_id', nextAccountId) : next.delete('account_id')
+      nextContactId ? next.set('contact_id', nextContactId) : next.delete('contact_id')
+      nextDealId ? next.set('deal_id', nextDealId) : next.delete('deal_id')
+      next.delete('account_name')
+      next.delete('contact_name')
+      next.delete('deal_name')
+      return next
+    })
+  }
+
+  const handleUpdateView = async (viewId: string) => {
+    await updateView.mutateAsync({ id: viewId, payload: { filters: currentFilters } })
+    setHasUnsavedChanges(false)
+  }
 
   const { data, isLoading } = useQuotes({
     q: search || undefined,
@@ -193,6 +250,8 @@ export function QuotesPage() {
     account_id: accountId || undefined,
     deal_id: dealId || undefined,
     contact_id: contactId || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
     limit: 50,
   })
 
@@ -264,6 +323,17 @@ export function QuotesPage() {
         </Button>
       </div>
 
+      <ViewPinBar
+        entityType="quotes"
+        activeViewId={activeView?.id ?? null}
+        hasUnsavedChanges={hasUnsavedChanges}
+        currentFilters={currentFilters}
+        onSelectView={applyViewFilters}
+        onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
+        onViewSaved={(view) => setActiveView(view)}
+        onUpdateView={handleUpdateView}
+      />
+
       {activeContextLabel && (
         <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
           <span className="font-medium text-slate-700">{activeContextLabel}</span>
@@ -295,13 +365,13 @@ export function QuotesPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); markChanged() }}
           placeholder="Search quotes…"
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-56 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         />
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as QuoteStatus | '')}
+          onChange={(e) => { setStatusFilter(e.target.value as QuoteStatus | ''); markChanged() }}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
         >
           {STATUS_OPTIONS.map((o) => (
@@ -323,6 +393,7 @@ export function QuotesPage() {
               }
               return next
             })
+            markChanged()
           }}
           disabled={accountsLoading}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
@@ -330,6 +401,15 @@ export function QuotesPage() {
           <option value="">All accounts</option>
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>{account.name}</option>
+          ))}
+        </select>
+        <select
+          value={sortKey}
+          onChange={(e) => { setSortKey(e.target.value); markChanged() }}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
       </div>

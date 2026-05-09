@@ -4,6 +4,7 @@ import { Plus, LayoutGrid, List, X, TrendingUp, Pencil, Check, Loader2, ChevronD
 import * as RadixSelect from '@radix-ui/react-select'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useDeals, useDeal, useDeleteDeal, useUpdateDeal } from '@/hooks/useDeals'
+import { useUpdateView } from '@/hooks/useViews'
 import { KanbanBoard } from '@/components/omnir/KanbanBoard'
 import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
@@ -16,10 +17,12 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Table, type Column } from '@/components/ui/Table'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { DealForm } from '@/components/omnir/DealForm'
+import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
 import { useDealQuotes } from '@/hooks/useQuotes'
 import { formatDate, formatCurrency, cn } from '@/lib/utils'
-import type { Deal, DealStage, CustomFieldValues } from '@/api/types'
+import { cleanCurrentFilters, pickViewFilters, sortKeyFromFilters, stringFilter } from '@/lib/savedViewFilters'
+import type { Deal, DealStage, CustomFieldValues, SavedView } from '@/api/types'
 import { FileText } from 'lucide-react'
 
 // ---- Constants ----
@@ -52,6 +55,13 @@ const stageLabel: Record<DealStage, string> = {
 }
 
 const EMPTY_DEALS: Deal[] = []
+const DEAL_VIEW_FILTER_KEYS = ['search', 'stage', 'account_id', 'contact_id', 'relationship_role', 'sort_by', 'sort_dir'] as const
+const RELATIONSHIP_ROLE_OPTIONS = [
+  { label: 'Primary', value: 'primary' },
+  { label: 'Decision Maker', value: 'decision_maker' },
+  { label: 'Influencer', value: 'influencer' },
+  { label: 'Linked', value: 'linked' },
+]
 
 // ---- Active filter chips ----
 
@@ -422,13 +432,55 @@ export function DealsPage() {
   const contactName = searchParams.get('contact_name') ?? ''
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState('')
+  const [relationshipRole, setRelationshipRole] = useState('')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [sortKey, setSortKey] = useState('created_at:desc')
+  const [activeView, setActiveView] = useState<SavedView | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
+  const updateView = useUpdateView()
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
+
+  const currentFilters = cleanCurrentFilters({
+    search: debouncedSearch || undefined,
+    stage: stage || undefined,
+    account_id: accountId || undefined,
+    contact_id: contactId || undefined,
+    relationship_role: relationshipRole || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+  })
+
+  const markChanged = () => { if (activeView) setHasUnsavedChanges(true) }
+
+  const applyViewFilters = (view: SavedView) => {
+    const filters = pickViewFilters(view.filters, DEAL_VIEW_FILTER_KEYS)
+    setActiveView(view)
+    setHasUnsavedChanges(false)
+    setSearch(stringFilter(filters, 'search'))
+    setStage(stringFilter(filters, 'stage'))
+    setRelationshipRole(stringFilter(filters, 'relationship_role'))
+    setSortKey(sortKeyFromFilters(filters, 'created_at:desc'))
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      const nextAccountId = stringFilter(filters, 'account_id')
+      const nextContactId = stringFilter(filters, 'contact_id')
+      nextAccountId ? next.set('account_id', nextAccountId) : next.delete('account_id')
+      nextContactId ? next.set('contact_id', nextContactId) : next.delete('contact_id')
+      next.delete('account_name')
+      next.delete('contact_name')
+      return next
+    })
+    setPage(1)
+  }
+
+  const handleUpdateView = async (viewId: string) => {
+    await updateView.mutateAsync({ id: viewId, payload: { filters: currentFilters } })
+    setHasUnsavedChanges(false)
+  }
 
   function setViewMode(mode: ViewMode) {
     setSearchParams((prev) => {
@@ -445,12 +497,14 @@ export function DealsPage() {
     if (stage) chips.push({ key: 'stage', label: STAGE_OPTIONS.find((o) => o.value === stage)?.label ?? stage })
     if (accountId) chips.push({ key: 'account_id', label: accountName ? `Account: ${accountName}` : 'Account filter' })
     if (contactId) chips.push({ key: 'contact_id', label: contactName ? `Contact: ${contactName}` : 'Contact filter' })
+    if (relationshipRole) chips.push({ key: 'relationship_role', label: `Role: ${relationshipRole}` })
     return chips
-  }, [accountId, accountName, contactId, contactName, debouncedSearch, stage])
+  }, [accountId, accountName, contactId, contactName, debouncedSearch, relationshipRole, stage])
 
   function removeChip(key: string) {
     if (key === 'search') setSearch('')
     if (key === 'stage') setStage('')
+    if (key === 'relationship_role') setRelationshipRole('')
     if (key === 'account_id') {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
@@ -473,6 +527,7 @@ export function DealsPage() {
   function clearAll() {
     setSearch('')
     setStage('')
+    setRelationshipRole('')
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       next.delete('account_id')
@@ -649,12 +704,23 @@ export function DealsPage() {
         </div>
       </div>
 
+      <ViewPinBar
+        entityType="deals"
+        activeViewId={activeView?.id ?? null}
+        hasUnsavedChanges={hasUnsavedChanges}
+        currentFilters={currentFilters}
+        onSelectView={applyViewFilters}
+        onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
+        onViewSaved={(view) => setActiveView(view)}
+        onUpdateView={handleUpdateView}
+      />
+
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); markChanged() }}
           placeholder="Search pipeline…"
           aria-label="Search pipeline"
           className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-sm text-[#1A1D23] placeholder:text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#1B3A4B] w-48"
@@ -662,12 +728,24 @@ export function DealsPage() {
 
         <select
           value={stage}
-          onChange={(e) => { setStage(e.target.value); setPage(1) }}
+          onChange={(e) => { setStage(e.target.value); setPage(1); markChanged() }}
           aria-label="Filter by stage"
           className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-sm text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#1B3A4B]"
         >
           <option value="">All Stages</option>
           {STAGE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={relationshipRole}
+          onChange={(e) => { setRelationshipRole(e.target.value); setPage(1); markChanged() }}
+          aria-label="Filter by relationship role"
+          className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-sm text-[#6B7280] focus:outline-none focus:ring-2 focus:ring-[#1B3A4B]"
+        >
+          <option value="">All Roles</option>
+          {RELATIONSHIP_ROLE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>

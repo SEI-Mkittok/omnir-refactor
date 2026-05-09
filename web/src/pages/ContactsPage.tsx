@@ -15,6 +15,7 @@ import { ContactForm } from '@/components/omnir/ContactForm'
 import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { ImportModal } from '@/components/omnir/ImportModal'
 import { downloadExportCsv } from '@/api/importExport'
+import { cleanCurrentFilters, pickViewFilters, sortKeyFromFilters, stringFilter } from '@/lib/savedViewFilters'
 import type { Contact, ContactStage, SavedView } from '@/api/types'
 
 const STAGE_OPTIONS = [
@@ -31,6 +32,20 @@ const SORT_OPTIONS = [
   { label: 'Oldest', value: 'created_at:asc' },
 ]
 
+const LINKED_ENTITY_OPTIONS = [
+  { label: 'Accounts', value: 'account' },
+  { label: 'Deals', value: 'deal' },
+]
+
+const RELATIONSHIP_ROLE_OPTIONS = [
+  { label: 'Primary', value: 'primary' },
+  { label: 'Billing', value: 'billing' },
+  { label: 'Decision Maker', value: 'decision_maker' },
+  { label: 'Influencer', value: 'influencer' },
+]
+
+const CONTACT_VIEW_FILTER_KEYS = ['search', 'stage', 'account_id', 'linked_entity_type', 'relationship_role', 'sort_by', 'sort_dir'] as const
+
 // ---- Main page ----
 
 export function ContactsPage() {
@@ -38,6 +53,9 @@ export function ContactsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [stage, setStage] = useState('')
+  const [accountId, setAccountId] = useState(searchParams.get('account_id') ?? '')
+  const [linkedEntityType, setLinkedEntityType] = useState('')
+  const [relationshipRole, setRelationshipRole] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('openId'))
@@ -51,19 +69,26 @@ export function ContactsPage() {
 
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
-  const currentFilters = {
+  const currentFilters = cleanCurrentFilters({
     search: debouncedSearch || undefined,
     stage: stage || undefined,
+    account_id: accountId || undefined,
+    linked_entity_type: linkedEntityType || undefined,
+    relationship_role: relationshipRole || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
-  }
+  })
 
   const applyViewFilters = (view: SavedView) => {
+    const filters = pickViewFilters(view.filters, CONTACT_VIEW_FILTER_KEYS)
     setActiveView(view)
     setHasUnsavedChanges(false)
-    setSearch((view.filters.search as string) ?? '')
-    setStage((view.filters.stage as string) ?? '')
-    setSortKey(view.filters.sort_by ? `${view.filters.sort_by}:${view.filters.sort_dir ?? 'asc'}` : 'created_at:desc')
+    setSearch(stringFilter(filters, 'search'))
+    setStage(stringFilter(filters, 'stage'))
+    setAccountId(stringFilter(filters, 'account_id'))
+    setLinkedEntityType(stringFilter(filters, 'linked_entity_type'))
+    setRelationshipRole(stringFilter(filters, 'relationship_role'))
+    setSortKey(sortKeyFromFilters(filters, 'created_at:desc'))
     setPage(1)
   }
 
@@ -79,6 +104,7 @@ export function ContactsPage() {
     per_page: 20,
     search: debouncedSearch || undefined,
     stage: (stage as ContactStage) || undefined,
+    account_id: accountId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   })
@@ -170,6 +196,7 @@ export function ContactsPage() {
               downloadExportCsv('contacts', {
                 ...(debouncedSearch ? { q: debouncedSearch } : {}),
                 ...(stage ? { stage } : {}),
+                ...(accountId ? { account_id: accountId } : {}),
                 ...(sortBy ? { sort: sortBy, order: sortDir } : {}),
               })
             }
@@ -214,7 +241,28 @@ export function ContactsPage() {
             options: SORT_OPTIONS,
             onChange: (v) => { setSortKey(v); setPage(1); markChanged() },
           },
+          {
+            label: 'Linked Type',
+            value: linkedEntityType,
+            options: LINKED_ENTITY_OPTIONS,
+            onChange: (v) => { setLinkedEntityType(v); setPage(1); markChanged() },
+          },
+          {
+            label: 'Role',
+            value: relationshipRole,
+            options: RELATIONSHIP_ROLE_OPTIONS,
+            onChange: (v) => { setRelationshipRole(v); setPage(1); markChanged() },
+          },
         ]}
+        actions={
+          <input
+            type="search"
+            placeholder="Account ID"
+            value={accountId}
+            onChange={(e) => { setAccountId(e.target.value); setPage(1); markChanged() }}
+            className="h-9 w-44 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+          />
+        }
       />
 
       {/* Table */}

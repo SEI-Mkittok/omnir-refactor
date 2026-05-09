@@ -6,9 +6,12 @@ import * as RadixSelect from '@radix-ui/react-select'
 import { ChevronDown as ChevronDownIcon, Check } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useTickets } from '@/hooks/useTickets'
+import { useUpdateView } from '@/hooks/useViews'
 import { useTicketReport } from '@/hooks/useReports'
 import { useTicketFilterStore } from '@/stores/ticketFilters'
-import type { Ticket, TicketStatus, TicketPriority } from '@/api/types'
+import { ViewPinBar } from '@/components/omnir/ViewPinBar'
+import { cleanCurrentFilters, pickViewFilters, sortKeyFromFilters, stringFilter } from '@/lib/savedViewFilters'
+import type { Ticket, TicketStatus, TicketPriority, SavedView } from '@/api/types'
 import { cn } from '@/lib/utils'
 
 // ─── Design helpers ────────────────────────────────────────────────────────────
@@ -496,6 +499,8 @@ const PRIORITY_OPTIONS = [
   { label: 'Low', value: 'low' },
 ]
 
+const TICKET_VIEW_FILTER_KEYS = ['search', 'status', 'priority', 'account_id', 'contact_id', 'sort_by', 'sort_dir'] as const
+
 export function TicketsPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -507,12 +512,54 @@ export function TicketsPage() {
     useTicketFilterStore()
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [showNewTicket, setShowNewTicket] = useState(false)
+  const [activeView, setActiveView] = useState<SavedView | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
+  const updateView = useUpdateView()
   const debouncedSearch = useDebounce(search, 300)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
-  const hasActiveFilters = !!(status || priority || search)
+  const currentFilters = cleanCurrentFilters({
+    search: debouncedSearch || undefined,
+    status: status || undefined,
+    priority: priority || undefined,
+    account_id: accountId || undefined,
+    contact_id: contactId || undefined,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+  })
+
+  const hasActiveFilters = !!(status || priority || search || accountId || contactId)
+  const markChanged = useCallback(() => {
+    if (activeView) setHasUnsavedChanges(true)
+  }, [activeView])
+
+  const applyViewFilters = (view: SavedView) => {
+    const filters = pickViewFilters(view.filters, TICKET_VIEW_FILTER_KEYS)
+    setActiveView(view)
+    setHasUnsavedChanges(false)
+    setSearch(stringFilter(filters, 'search'))
+    setStatus(stringFilter(filters, 'status') as TicketStatus | '')
+    setPriority(stringFilter(filters, 'priority') as TicketPriority | '')
+    setSortKey(sortKeyFromFilters(filters, 'created_at:desc'))
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      const nextAccountId = stringFilter(filters, 'account_id')
+      const nextContactId = stringFilter(filters, 'contact_id')
+      nextAccountId ? next.set('account_id', nextAccountId) : next.delete('account_id')
+      nextContactId ? next.set('contact_id', nextContactId) : next.delete('contact_id')
+      next.delete('account_name')
+      next.delete('contact_name')
+      return next
+    })
+    setPage(1)
+  }
+
+  const handleUpdateView = async (viewId: string) => {
+    await updateView.mutateAsync({ id: viewId, payload: { filters: currentFilters } })
+    setHasUnsavedChanges(false)
+  }
 
   const { data, isLoading, isError, refetch } = useTickets({
     page,
@@ -535,7 +582,8 @@ export function TicketsPage() {
       if (prevKey === key) return `${key}:${prevDir === 'asc' ? 'desc' : 'asc'}`
       return `${key}:asc`
     })
-  }, [])
+    markChanged()
+  }, [markChanged])
 
   return (
     <div className="space-y-5">
@@ -558,6 +606,17 @@ export function TicketsPage() {
 
       {/* Metrics row */}
       <MetricsRow />
+
+      <ViewPinBar
+        entityType="tickets"
+        activeViewId={activeView?.id ?? null}
+        hasUnsavedChanges={hasUnsavedChanges}
+        currentFilters={currentFilters}
+        onSelectView={applyViewFilters}
+        onClearView={() => { setActiveView(null); setHasUnsavedChanges(false) }}
+        onViewSaved={(view) => setActiveView(view)}
+        onUpdateView={handleUpdateView}
+      />
 
       {(accountId || contactId) && (
         <div className="flex items-center gap-3 rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3">
@@ -595,16 +654,16 @@ export function TicketsPage() {
           label="All Statuses"
           value={status}
           options={STATUS_OPTIONS}
-          onValueChange={(v) => setStatus(v as TicketStatus | '')}
-          onClear={() => setStatus('')}
+          onValueChange={(v) => { setStatus(v as TicketStatus | ''); markChanged() }}
+          onClear={() => { setStatus(''); markChanged() }}
         />
         <FilterSelect
           id="filter-priority"
           label="All Priorities"
           value={priority}
           options={PRIORITY_OPTIONS}
-          onValueChange={(v) => setPriority(v as TicketPriority | '')}
-          onClear={() => setPriority('')}
+          onValueChange={(v) => { setPriority(v as TicketPriority | ''); markChanged() }}
+          onClear={() => { setPriority(''); markChanged() }}
         />
 
         {/* Search */}
@@ -615,7 +674,7 @@ export function TicketsPage() {
             type="text"
             placeholder="Search…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); markChanged() }}
             aria-label="Search tickets"
             className="h-9 w-[220px] rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] pl-9 pr-8 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-label)] focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] transition-colors"
           />
@@ -632,7 +691,7 @@ export function TicketsPage() {
 
         {hasActiveFilters && (
           <button
-            onClick={() => { reset() }}
+            onClick={() => { reset(); markChanged() }}
             className="ml-1 text-[14px] text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded"
           >
             Clear filters
@@ -655,7 +714,7 @@ export function TicketsPage() {
         sortDir={sortDir}
         onSort={handleSort}
         hasActiveFilters={hasActiveFilters}
-        onClearFilters={() => reset()}
+        onClearFilters={() => { reset(); markChanged() }}
       />
 
       {showNewTicket && (

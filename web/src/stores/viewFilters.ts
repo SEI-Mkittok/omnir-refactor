@@ -24,6 +24,8 @@ const DEFAULT_FILTERS: Record<ViewEntityType, EntityFilters> = {
   accounts: {},
   deals: {},
   leads: {},
+  tickets: {},
+  quotes: {},
 }
 
 const DEFAULT_ACTIVE_VIEWS: Record<ViewEntityType, string | null> = {
@@ -31,6 +33,8 @@ const DEFAULT_ACTIVE_VIEWS: Record<ViewEntityType, string | null> = {
   accounts: null,
   deals: null,
   leads: null,
+  tickets: null,
+  quotes: null,
 }
 
 const DEFAULT_UNSAVED: Record<ViewEntityType, boolean> = {
@@ -38,6 +42,8 @@ const DEFAULT_UNSAVED: Record<ViewEntityType, boolean> = {
   accounts: false,
   deals: false,
   leads: false,
+  tickets: false,
+  quotes: false,
 }
 
 function filtersMatch(a: EntityFilters, b: ViewFilters): boolean {
