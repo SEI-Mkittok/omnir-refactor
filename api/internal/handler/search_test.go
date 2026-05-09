@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,9 @@ func TestSearchHandler_Search_Success(t *testing.T) {
 		Deals:   []domain.SearchDeal{},
 		Tickets: []domain.SearchTicket{},
 	}
-	repo.On("Search", mock.Anything, "acme", 20).Return(result, nil)
+	repo.On("Search", mock.Anything, mock.MatchedBy(func(filter domain.SearchFilter) bool {
+		return filter.Query == "acme" && filter.Limit == 20
+	})).Return(result, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=acme", nil)
 	w := httptest.NewRecorder()
@@ -99,7 +102,9 @@ func TestSearchHandler_Search_OrgIDScoping(t *testing.T) {
 	repo.On("Search", mock.MatchedBy(func(ctx context.Context) bool {
 		id, ok := domain.OrgIDFromContext(ctx)
 		return ok && id == orgID
-	}), "test", 20).Return(emptySearchResult(), nil)
+	}), mock.MatchedBy(func(filter domain.SearchFilter) bool {
+		return filter.Query == "test" && filter.Limit == 20
+	})).Return(emptySearchResult(), nil)
 
 	ctx := domain.WithOrgID(context.Background(), orgID)
 	ctx = middleware.WithClaims(ctx, &auth.Claims{OrgID: orgID, Role: "user"})
@@ -115,7 +120,9 @@ func TestSearchHandler_Search_OrgIDScoping(t *testing.T) {
 func TestSearchHandler_Search_EmptyResults(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	repo.On("Search", mock.Anything, "nomatch", 20).Return(emptySearchResult(), nil)
+	repo.On("Search", mock.Anything, mock.MatchedBy(func(filter domain.SearchFilter) bool {
+		return filter.Query == "nomatch" && filter.Limit == 20
+	})).Return(emptySearchResult(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=nomatch", nil)
 	w := httptest.NewRecorder()
@@ -134,9 +141,33 @@ func TestSearchHandler_Search_EmptyResults(t *testing.T) {
 func TestSearchHandler_Search_LimitParam(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	repo.On("Search", mock.Anything, "test", 10).Return(emptySearchResult(), nil)
+	repo.On("Search", mock.Anything, mock.MatchedBy(func(filter domain.SearchFilter) bool {
+		return filter.Query == "test" && filter.Limit == 10
+	})).Return(emptySearchResult(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=test&limit=10", nil)
+	w := httptest.NewRecorder()
+
+	h.Search(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	repo.AssertExpectations(t)
+}
+
+func TestSearchHandler_Search_FilterParams(t *testing.T) {
+	h, repo := newSearchHandler()
+	accountID := uuid.New()
+
+	repo.On("Search", mock.Anything, mock.MatchedBy(func(filter domain.SearchFilter) bool {
+		return filter.Query == "acme" &&
+			filter.Limit == 20 &&
+			filter.EntityType == domain.SearchEntityDeals &&
+			filter.AccountID != nil &&
+			*filter.AccountID == accountID &&
+			filter.RelationshipType == "partner"
+	})).Return(emptySearchResult(), nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/?q=acme&entity_type=deals&account_id="+accountID.String()+"&relationship_type=partner", nil)
 	w := httptest.NewRecorder()
 
 	h.Search(w, req)
@@ -148,7 +179,9 @@ func TestSearchHandler_Search_LimitParam(t *testing.T) {
 func TestSearchHandler_Search_RepoError(t *testing.T) {
 	h, repo := newSearchHandler()
 
-	repo.On("Search", mock.Anything, "test", 20).Return(nil, errors.New("db error"))
+	repo.On("Search", mock.Anything, mock.MatchedBy(func(filter domain.SearchFilter) bool {
+		return filter.Query == "test" && filter.Limit == 20
+	})).Return(nil, errors.New("db error"))
 
 	req := httptest.NewRequest(http.MethodGet, "/?q=test", nil)
 	w := httptest.NewRecorder()

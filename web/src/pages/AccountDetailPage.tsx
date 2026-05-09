@@ -17,6 +17,7 @@ import {
   FileText,
   Mail,
   Zap,
+  Search,
 } from 'lucide-react'
 import {
   useAccount,
@@ -997,6 +998,14 @@ export function AccountDetailPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/search?q=${encodeURIComponent(account.name)}&account_id=${account.id}&account_name=${encodeURIComponent(account.name)}`)}
+          >
+            <Search className="h-3.5 w-3.5" />
+            Search related
+          </Button>
           <Button
             variant="outline"
             size="sm"
