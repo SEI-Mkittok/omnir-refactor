@@ -194,10 +194,23 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "only admins can change roles")
 		return
 	}
-	if patch.Role != nil && *patch.Role == domain.UserRoleSuperAdmin &&
-		claims.Role != string(domain.UserRoleSuperAdmin) {
-		writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
-		return
+	if patch.Role != nil {
+		callerIsSuperAdmin := claims.Role == string(domain.UserRoleSuperAdmin)
+		if *patch.Role == domain.UserRoleSuperAdmin && !callerIsSuperAdmin {
+			writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
+			return
+		}
+		if !callerIsSuperAdmin {
+			current, err := h.repo.GetByID(r.Context(), id)
+			if err != nil {
+				handleDomainErr(w, err)
+				return
+			}
+			if current.Role == domain.UserRoleSuperAdmin {
+				writeError(w, http.StatusForbidden, "only super admins can change the super_admin role")
+				return
+			}
+		}
 	}
 
 	u, err := h.repo.Update(r.Context(), id, patch)

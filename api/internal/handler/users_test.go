@@ -471,11 +471,24 @@ func TestUserHandler_Update(t *testing.T) {
 			claims:   adminClaims(adminID),
 			body:     map[string]any{"role": "admin"},
 			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("GetByID", mock.Anything, otherID).
+					Return(&domain.User{ID: otherID, Role: domain.UserRoleAgent}, nil)
 				m.On("Update", mock.Anything, otherID, mock.MatchedBy(func(p domain.UserPatch) bool {
 					return p.Role != nil && *p.Role == adminRole
 				})).Return(&domain.User{ID: otherID, Role: domain.UserRoleAdmin}, nil)
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "admin cannot demote super admin",
+			targetID: otherID.String(),
+			claims:   adminClaims(adminID),
+			body:     map[string]any{"role": "admin"},
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("GetByID", mock.Anything, otherID).
+					Return(&domain.User{ID: otherID, Role: domain.UserRoleSuperAdmin}, nil)
+			},
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "non-admin cannot change role",
