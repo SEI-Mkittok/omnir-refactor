@@ -273,6 +273,7 @@ export interface PipelineStage {
 // ---- Activity ----
 
 export type ActivityType = 'call' | 'email' | 'meeting' | 'task' | 'note'
+export type CreatableActivityType = Exclude<ActivityType, 'note'>
 
 export interface Activity {
   id: string
@@ -495,8 +496,9 @@ export interface TicketComment {
 export interface TicketAttachment {
   id: string
   filename: string
+  content_type: string
   size_bytes?: number
-  url?: string
+  url: string
   created_at: string
 }
 

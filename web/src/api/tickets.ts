@@ -59,6 +59,13 @@ export const ticketsApi = {
     return data
   },
 
+  downloadAttachment: async (ticketId: string, attachmentId: string): Promise<Blob> => {
+    const { data } = await apiClient.get(`/tickets/${ticketId}/attachments/${attachmentId}`, {
+      responseType: 'blob',
+    })
+    return data
+  },
+
   patchContact: async (id: string, contactId: string | null): Promise<Ticket> => {
     const { data } = await apiClient.patch(`/tickets/${id}/contact`, { contact_id: contactId })
     return data

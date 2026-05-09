@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils'
 import { useActivities, useCreateActivity } from '@/hooks/useActivities'
 import type { CreateActivityRequest } from '@/api/activities'
-import type { ActivityType, Activity } from '@/api/types'
+import type { ActivityType, Activity, CreatableActivityType } from '@/api/types'
 import { apiClient } from '@/api/client'
 
 // ---- Calendar connection types ----
@@ -104,7 +104,7 @@ interface NewActivityDialogProps {
 function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
   const createActivity = useCreateActivity()
   const [form, setForm] = useState<{
-    type: ActivityType
+    type: CreatableActivityType
     subject: string
     description: string
     due_date: string
@@ -150,13 +150,12 @@ function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
             <select
               className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               value={form.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ActivityType }))}
+              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as CreatableActivityType }))}
             >
               <option value="task">Task</option>
               <option value="meeting">Meeting</option>
               <option value="call">Call</option>
               <option value="email">Email</option>
-              <option value="note">Note</option>
             </select>
           </div>
           <div>
