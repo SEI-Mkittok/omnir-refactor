@@ -13,8 +13,8 @@ type MockSearchRepository struct {
 	mock.Mock
 }
 
-func (m *MockSearchRepository) Search(ctx context.Context, q string, limit int) (*domain.SearchGroupedResult, error) {
-	args := m.Called(ctx, q, limit)
+func (m *MockSearchRepository) Search(ctx context.Context, filter domain.SearchFilter) (*domain.SearchGroupedResult, error) {
+	args := m.Called(ctx, filter)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

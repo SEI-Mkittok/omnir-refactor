@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
+	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
@@ -40,7 +42,36 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	results, err := h.repo.Search(r.Context(), q, limit)
+	filter := domain.SearchFilter{
+		Query:            q,
+		Limit:            limit,
+		RelationshipType: r.URL.Query().Get("relationship_type"),
+	}
+	if entityType := domain.SearchEntityType(r.URL.Query().Get("entity_type")); entityType != "" {
+		if !entityType.IsValid() {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "entity_type is invalid")
+			return
+		}
+		filter.EntityType = entityType
+	}
+	if raw := r.URL.Query().Get("account_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "account_id is invalid")
+			return
+		}
+		filter.AccountID = &id
+	}
+	if raw := r.URL.Query().Get("contact_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "contact_id is invalid")
+			return
+		}
+		filter.ContactID = &id
+	}
+
+	results, err := h.repo.Search(r.Context(), filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
