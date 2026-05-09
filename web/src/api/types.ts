@@ -46,7 +46,7 @@ export interface AuthTokens {
   expires_in: number
 }
 
-export type UserRole = 'super_admin' | 'admin' | 'agent' | 'client' | 'user' | 'viewer'
+export type UserRole = 'super_admin' | 'admin' | 'agent' | 'client'
 
 export interface User {
   id: string

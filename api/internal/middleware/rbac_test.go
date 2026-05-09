@@ -44,6 +44,30 @@ func TestRequireRole(t *testing.T) {
 			wantStatus:   http.StatusOK,
 		},
 		{
+			name:         "super admin allowed when admin required",
+			callerRole:   "super_admin",
+			allowedRoles: []domain.UserRole{domain.UserRoleAdmin},
+			wantStatus:   http.StatusOK,
+		},
+		{
+			name:         "super admin allowed when admin or agent required",
+			callerRole:   "super_admin",
+			allowedRoles: []domain.UserRole{domain.UserRoleAdmin, domain.UserRoleAgent},
+			wantStatus:   http.StatusOK,
+		},
+		{
+			name:         "super admin allowed when super admin required",
+			callerRole:   "super_admin",
+			allowedRoles: []domain.UserRole{domain.UserRoleSuperAdmin},
+			wantStatus:   http.StatusOK,
+		},
+		{
+			name:         "admin forbidden when super admin required",
+			callerRole:   "admin",
+			allowedRoles: []domain.UserRole{domain.UserRoleSuperAdmin},
+			wantStatus:   http.StatusForbidden,
+		},
+		{
 			name:         "agent allowed when admin or agent required",
 			callerRole:   "agent",
 			allowedRoles: []domain.UserRole{domain.UserRoleAdmin, domain.UserRoleAgent},

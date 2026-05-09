@@ -22,6 +22,10 @@ func adminClaims(userID uuid.UUID) *auth.Claims {
 	return &auth.Claims{UserID: userID, Role: string(domain.UserRoleAdmin)}
 }
 
+func superAdminClaims(userID uuid.UUID) *auth.Claims {
+	return &auth.Claims{UserID: userID, Role: string(domain.UserRoleSuperAdmin)}
+}
+
 func userClaims(userID uuid.UUID) *auth.Claims {
 	return &auth.Claims{UserID: userID, Role: string(domain.UserRoleAgent)}
 }
@@ -46,6 +50,17 @@ func TestUserHandler_List(t *testing.T) {
 			name:   "admin lists users with defaults",
 			query:  "",
 			claims: adminClaims(adminID),
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("List", mock.Anything, mock.AnythingOfType("domain.UserFilter")).
+					Return([]*domain.User{makeUser(userID)}, 1, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantTotal:  1,
+		},
+		{
+			name:   "super admin lists users with defaults",
+			query:  "",
+			claims: superAdminClaims(adminID),
 			setupMock: func(m *mocks.MockUserRepository) {
 				m.On("List", mock.Anything, mock.AnythingOfType("domain.UserFilter")).
 					Return([]*domain.User{makeUser(userID)}, 1, nil)
@@ -209,6 +224,18 @@ func TestUserHandler_Create(t *testing.T) {
 				"name":     "Alice",
 				"email":    "alice@example.com",
 				"password": "secret",
+			},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:   "admin cannot assign super admin",
+			claims: adminClaims(adminID),
+			body: map[string]any{
+				"name":     "Alice",
+				"email":    "alice@example.com",
+				"password": "secret123",
+				"role":     "super_admin",
 			},
 			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
@@ -406,6 +433,7 @@ func TestUserHandler_Update(t *testing.T) {
 	regularID := uuid.New()
 	otherID := uuid.New()
 	adminRole := domain.UserRoleAdmin
+	superAdminRole := domain.UserRoleSuperAdmin
 
 	tests := []struct {
 		name       string
@@ -456,6 +484,26 @@ func TestUserHandler_Update(t *testing.T) {
 			body:       map[string]any{"role": "admin"},
 			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "admin cannot assign super admin",
+			targetID:   otherID.String(),
+			claims:     adminClaims(adminID),
+			body:       map[string]any{"role": "super_admin"},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:     "super admin can assign super admin",
+			targetID: otherID.String(),
+			claims:   superAdminClaims(adminID),
+			body:     map[string]any{"role": "super_admin"},
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("Update", mock.Anything, otherID, mock.MatchedBy(func(p domain.UserPatch) bool {
+					return p.Role != nil && *p.Role == superAdminRole
+				})).Return(&domain.User{ID: otherID, Role: domain.UserRoleSuperAdmin}, nil)
+			},
+			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "user cannot update other user",

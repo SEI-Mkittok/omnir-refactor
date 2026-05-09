@@ -37,7 +37,7 @@ func (h *APIKeyHandler) Router() chi.Router {
 func (h *APIKeyHandler) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || claims.Role != string(domain.UserRoleAdmin) {
+		if !ok || !domain.IsAdminRole(claims.Role) {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}

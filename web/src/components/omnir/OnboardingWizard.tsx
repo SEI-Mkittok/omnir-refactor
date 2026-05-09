@@ -40,8 +40,8 @@ const DEFAULT_SLA: SlaConfig = {
 
 const ROLE_OPTIONS: { value: InviteRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
-  { value: 'member', label: 'Member' },
-  { value: 'viewer', label: 'Viewer' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'client', label: 'Client' },
 ]
 
 const PRIORITY_ROWS: {
@@ -255,7 +255,7 @@ function InviteStep({ rows, onChange }: InviteStepProps) {
 
   function addRow() {
     if (rows.length < 10) {
-      onChange([...rows, { email: '', role: 'member' }])
+      onChange([...rows, { email: '', role: 'agent' }])
     }
   }
 
@@ -732,7 +732,7 @@ export function OnboardingWizard({
   const [orgName, setOrgName] = useState('')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [, setLogoFile] = useState<File | null>(null)
-  const [inviteRows, setInviteRows] = useState<InviteRowData[]>([{ email: '', role: 'member' }])
+  const [inviteRows, setInviteRows] = useState<InviteRowData[]>([{ email: '', role: 'agent' }])
   const [emailConnected, setEmailConnected] = useState<EmailProvider>(null)
   const [sla, setSla] = useState<SlaConfig>(DEFAULT_SLA)
   const [completedSteps, setCompletedSteps] = useState<string[]>([])
