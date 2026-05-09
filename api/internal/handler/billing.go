@@ -38,10 +38,12 @@ func NewBillingHandler(billing repository.BillingRepository, stripeCfg config.St
 // Router returns the authenticated billing sub-router (mounted under /api/v1/billing).
 func (h *BillingHandler) Router() chi.Router {
 	r := chi.NewRouter()
+	r.Get("/plans", h.GetPlans)
 	r.Get("/usage", h.GetUsage)
 	r.Get("/subscription", h.GetSubscription)
 	r.Get("/invoices", h.ListInvoices)
 	r.Post("/checkout", h.CreateCheckout)
+	r.Post("/subscription/cancel", h.CancelSubscription)
 	r.Post("/portal", h.CreatePortal)
 	return r
 }
@@ -51,6 +53,49 @@ func (h *BillingHandler) WebhookRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/", h.HandleWebhook)
 	return r
+}
+
+// GetPlans returns the public plan catalog used by the billing UI.
+// GET /api/v1/billing/plans
+func (h *BillingHandler) GetPlans(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, []map[string]any{
+		{
+			"tier":             "free",
+			"name":             "Free",
+			"priceMonthly":     0,
+			"priceAnnual":      0,
+			"seats":            2,
+			"ticketsPerMonth":  100,
+			"apiCallsPerMonth": nil,
+			"features": map[string]bool{
+				"slaRules": false, "reports": false, "apiAccess": false, "customFields": false, "whiteLabel": false,
+			},
+		},
+		{
+			"tier":             "pro",
+			"name":             "Pro",
+			"priceMonthly":     49,
+			"priceAnnual":      44,
+			"seats":            25,
+			"ticketsPerMonth":  nil,
+			"apiCallsPerMonth": 10000,
+			"features": map[string]bool{
+				"slaRules": true, "reports": true, "apiAccess": true, "customFields": false, "whiteLabel": false,
+			},
+		},
+		{
+			"tier":             "enterprise",
+			"name":             "Enterprise",
+			"priceMonthly":     nil,
+			"priceAnnual":      nil,
+			"seats":            nil,
+			"ticketsPerMonth":  nil,
+			"apiCallsPerMonth": nil,
+			"features": map[string]bool{
+				"slaRules": true, "reports": true, "apiAccess": true, "customFields": true, "whiteLabel": true,
+			},
+		},
+	})
 }
 
 // GetUsage returns current usage stats for the authenticated org.
@@ -176,6 +221,7 @@ func (h *BillingHandler) ListInvoices(w http.ResponseWriter, r *http.Request) {
 
 type checkoutRequest struct {
 	Plan      string `json:"plan"`
+	Tier      string `json:"tier"`
 	ReturnURL string `json:"return_url"`
 }
 
@@ -199,7 +245,11 @@ func (h *BillingHandler) CreateCheckout(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	priceID := h.priceIDForPlan(req.Plan)
+	planName := req.Plan
+	if planName == "" {
+		planName = req.Tier
+	}
+	priceID := h.priceIDForPlan(planName)
 	if priceID == "" {
 		writeError(w, http.StatusBadRequest, "invalid plan: must be 'pro' or 'enterprise'")
 		return
@@ -239,6 +289,25 @@ func (h *BillingHandler) CreateCheckout(w http.ResponseWriter, r *http.Request) 
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"url": s.URL})
+}
+
+// CancelSubscription marks the org subscription as canceled locally.
+// POST /api/v1/billing/subscription/cancel
+func (h *BillingHandler) CancelSubscription(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "org context required")
+		return
+	}
+
+	status := domain.SubscriptionStatusCanceled
+	plan, err := h.billing.UpsertPlan(r.Context(), orgID, domain.OrgPlanPatch{Status: &status})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to cancel subscription")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, plan)
 }
 
 type portalRequest struct {

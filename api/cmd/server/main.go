@@ -311,6 +311,7 @@ func main() {
 	// Public deal portal — token IS the credential, no JWT required.
 	r.With(publicRateLimit).Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
 	r.Mount("/api/portal/help", kbHandler.PublicRouter())
+	r.Mount("/api/public", kbHandler.PublicCompatibilityRouter())
 	// Public sequence tracking — HMAC-signed tokens, no JWT required.
 	r.Mount("/track", sequenceTrackingHandler.TrackRouter())
 	r.Mount("/unsubscribe", sequenceTrackingHandler.UnsubscribeRouter())
@@ -362,7 +363,10 @@ func main() {
 		r.Mount("/export", exportHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
 		r.Mount("/api-keys", apiKeyHandler.Router())
-		r.Mount("/emails", emailHandler.Router())
+		r.Route("/emails", func(r chi.Router) {
+			r.Mount("/", emailHandler.Router())
+			emailInboxHandler.RegisterInboxRoutes(r)
+		})
 		r.Mount("/webhooks", outboundWebhookHandler.Router())
 		r.Mount("/sequences", sequenceHandler.Router())
 		r.Route("/contacts/{id}/attachments", func(r chi.Router) { r.Mount("/", contactAttachmentHandler.Router()) })
