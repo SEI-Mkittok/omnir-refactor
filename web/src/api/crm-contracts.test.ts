@@ -20,16 +20,24 @@ describe('CRM API contract mapping', () => {
   it('loads account related lists through existing filterable list endpoints', async () => {
     const accountId = 'account-1'
     const seenPaths: string[] = []
+    const seenContactPages: string[] = []
 
     server.use(
       http.get('/api/v1/contacts', ({ request }) => {
         const url = new URL(request.url)
         seenPaths.push(url.pathname)
+        seenContactPages.push(url.searchParams.get('page') ?? '')
         expect(url.searchParams.get('account_id')).toBe(accountId)
         expect(url.searchParams.get('limit')).toBe('200')
+        if (url.searchParams.get('page') === '2') {
+          return HttpResponse.json({
+            data: [{ id: 'contact-2', first_name: 'Grace', last_name: 'Hopper' }],
+            meta: { page: 2, per_page: 200, total: 201, total_pages: 2 },
+          })
+        }
         return HttpResponse.json({
-          data: [],
-          meta: { page: 1, per_page: 200, total: 0, total_pages: 0 },
+          data: [{ id: 'contact-1', first_name: 'Ada', last_name: 'Lovelace' }],
+          meta: { page: 1, per_page: 200, total: 201, total_pages: 2 },
         })
       }),
       http.get('/api/v1/deals', ({ request }) => {
@@ -37,6 +45,7 @@ describe('CRM API contract mapping', () => {
         seenPaths.push(url.pathname)
         expect(url.searchParams.get('account_id')).toBe(accountId)
         expect(url.searchParams.get('limit')).toBe('200')
+        expect(url.searchParams.get('page')).toBe('1')
         return HttpResponse.json({
           data: [],
           meta: { page: 1, per_page: 200, total: 0, total_pages: 0 },
@@ -47,6 +56,7 @@ describe('CRM API contract mapping', () => {
         seenPaths.push(url.pathname)
         expect(url.searchParams.get('account_id')).toBe(accountId)
         expect(url.searchParams.get('per_page')).toBe('200')
+        expect(url.searchParams.get('page')).toBe('1')
         return HttpResponse.json({
           data: [],
           meta: { page: 1, per_page: 200, total: 0, total_pages: 0 },
@@ -54,10 +64,14 @@ describe('CRM API contract mapping', () => {
       })
     )
 
-    await expect(accountsApi.getContacts(accountId)).resolves.toEqual([])
+    await expect(accountsApi.getContacts(accountId)).resolves.toEqual([
+      { id: 'contact-1', first_name: 'Ada', last_name: 'Lovelace' },
+      { id: 'contact-2', first_name: 'Grace', last_name: 'Hopper' },
+    ])
     await expect(accountsApi.getDeals(accountId)).resolves.toEqual([])
     await expect(accountsApi.getTickets(accountId)).resolves.toEqual([])
-    expect(seenPaths).toEqual(['/api/v1/contacts', '/api/v1/deals', '/api/v1/tickets'])
+    expect(seenContactPages).toEqual(['1', '2'])
+    expect(seenPaths).toEqual(['/api/v1/contacts', '/api/v1/contacts', '/api/v1/deals', '/api/v1/tickets'])
   })
 
   it('maps deal list params to backend query names', async () => {

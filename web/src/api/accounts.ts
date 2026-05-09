@@ -12,6 +12,33 @@ import type {
   Ticket,
 } from './types'
 
+const RELATED_LIST_PAGE_SIZE = 200
+
+async function getAllRelatedPages<T>(
+  path: string,
+  params: Record<string, string | number>
+): Promise<T[]> {
+  const results: T[] = []
+  let page = 1
+  let totalPages = 1
+
+  do {
+    const { data } = await apiClient.get<PaginatedResponse<T> | T[]>(path, {
+      params: { ...params, page },
+    })
+    const pageData = Array.isArray(data) ? data : data.data ?? []
+    results.push(...pageData)
+
+    if (Array.isArray(data)) break
+    totalPages = data.meta?.total_pages && data.meta.total_pages > 0
+      ? data.meta.total_pages
+      : page
+    page += 1
+  } while (page <= totalPages)
+
+  return results
+}
+
 export const accountsApi = {
   list: async (params?: AccountListParams): Promise<PaginatedResponse<Account>> => {
     const query = params
@@ -54,24 +81,24 @@ export const accountsApi = {
   },
 
   getContacts: async (id: string): Promise<Contact[]> => {
-    const { data } = await apiClient.get('/contacts', {
-      params: { account_id: id, limit: 200 },
+    return getAllRelatedPages<Contact>('/contacts', {
+      account_id: id,
+      limit: RELATED_LIST_PAGE_SIZE,
     })
-    return data.data ?? []
   },
 
   getDeals: async (id: string): Promise<Deal[]> => {
-    const { data } = await apiClient.get('/deals', {
-      params: { account_id: id, limit: 200 },
+    return getAllRelatedPages<Deal>('/deals', {
+      account_id: id,
+      limit: RELATED_LIST_PAGE_SIZE,
     })
-    return data.data ?? []
   },
 
   getTickets: async (id: string): Promise<Ticket[]> => {
-    const { data } = await apiClient.get('/tickets', {
-      params: { account_id: id, per_page: 200 },
+    return getAllRelatedPages<Ticket>('/tickets', {
+      account_id: id,
+      per_page: RELATED_LIST_PAGE_SIZE,
     })
-    return data.data ?? []
   },
 
   getNotes: async (id: string): Promise<Note[]> => {
