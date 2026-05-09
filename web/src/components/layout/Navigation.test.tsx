@@ -67,6 +67,8 @@ describe('app shell navigation', () => {
 
     const hrefs = linkHrefs()
     expect(hrefs).toContain('/settings/numbering')
+    expect(hrefs).toContain('/settings/company')
+    expect(hrefs).toContain('/settings/portal')
     expect(hrefs).toContain('/settings/integrations')
     expect(hrefs).toContain('/kb')
     for (const href of hrefs) {
@@ -93,6 +95,8 @@ describe('app shell navigation', () => {
 
     const hrefs = linkHrefs()
     expect(hrefs).toContain('/settings/numbering')
+    expect(hrefs).toContain('/settings/company')
+    expect(hrefs).toContain('/settings/portal')
     for (const href of hrefs) {
       expect(getBreadcrumb(href)).not.toBe('Omnir')
     }

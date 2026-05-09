@@ -33,6 +33,11 @@ import { OnboardingSettingsPage } from '@/pages/settings/OnboardingSettingsPage'
 import { SettingsHubPage } from '@/pages/settings/SettingsHubPage'
 import { AccountSettingsPage } from '@/pages/settings/AccountSettingsPage'
 import { DocumentNumberingPage } from '@/pages/settings/DocumentNumberingPage'
+import { CompanyProfileSettingsPage } from '@/pages/settings/CompanyProfileSettingsPage'
+import { PortalConfigurationPage } from '@/pages/settings/PortalConfigurationPage'
+import { OutgoingServerSettingsPage } from '@/pages/settings/OutgoingServerSettingsPage'
+import { ConfigurationEditorPage } from '@/pages/settings/ConfigurationEditorPage'
+import { MenuConfigurationPage } from '@/pages/settings/MenuConfigurationPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -176,6 +181,46 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <DocumentNumberingPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/company"
+          element={
+            <AdminRoute>
+              <CompanyProfileSettingsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/portal"
+          element={
+            <AdminRoute>
+              <PortalConfigurationPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/outgoing-server"
+          element={
+            <AdminRoute>
+              <OutgoingServerSettingsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/config-editor"
+          element={
+            <AdminRoute>
+              <ConfigurationEditorPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/menu"
+          element={
+            <AdminRoute>
+              <MenuConfigurationPage />
             </AdminRoute>
           }
         />

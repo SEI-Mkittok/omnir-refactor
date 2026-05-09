@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -24,14 +25,31 @@ func NewOrgSettingsRepo(db *pgxpool.Pool) *OrgSettingsRepo {
 
 const orgSettingsCols = `
 	id, org_id, quote_number_start, ticket_number_start, kb_article_number_start, invoice_number_start,
+	company_name, company_logo_url, company_website, company_email, company_phone,
+	company_address_line1, company_address_line2, company_city, company_state, company_postal_code, company_country,
+	portal_enabled, portal_display_name, portal_announcement, portal_default_assignee_id,
+	portal_menu, portal_shortcuts, portal_recent_widget_limit,
+	smtp_host, smtp_port, smtp_username, smtp_from_email, smtp_from_name, smtp_security, smtp_auth_type, smtp_password_enc,
+	config_support_email, config_upload_max_mb, config_default_page_size, config_list_preview_chars,
+	menu_config,
 	created_at, updated_at
 `
 
 func scanOrgSettings(row pgx.Row) (*domain.OrgSettings, error) {
 	var s domain.OrgSettings
+	var portalMenuRaw []byte
+	var portalShortcutsRaw []byte
+	var menuConfigRaw []byte
 	err := row.Scan(
 		&s.ID, &s.OrgID,
 		&s.QuoteNumberStart, &s.TicketNumberStart, &s.KBArticleNumberStart, &s.InvoiceNumberStart,
+		&s.CompanyName, &s.CompanyLogoURL, &s.CompanyWebsite, &s.CompanyEmail, &s.CompanyPhone,
+		&s.CompanyAddressLine1, &s.CompanyAddressLine2, &s.CompanyCity, &s.CompanyState, &s.CompanyPostalCode, &s.CompanyCountry,
+		&s.PortalEnabled, &s.PortalDisplayName, &s.PortalAnnouncement, &s.PortalDefaultAssigneeID,
+		&portalMenuRaw, &portalShortcutsRaw, &s.PortalRecentWidgetLimit,
+		&s.SMTPHost, &s.SMTPPort, &s.SMTPUsername, &s.SMTPFromEmail, &s.SMTPFromName, &s.SMTPSecurity, &s.SMTPAuthType, &s.SMTPPasswordEnc,
+		&s.ConfigSupportEmail, &s.ConfigUploadMaxMB, &s.ConfigDefaultPageSize, &s.ConfigListPreviewChars,
+		&menuConfigRaw,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
@@ -40,6 +58,35 @@ func scanOrgSettings(row pgx.Row) (*domain.OrgSettings, error) {
 		}
 		return nil, err
 	}
+
+	if len(portalMenuRaw) > 0 {
+		if err := json.Unmarshal(portalMenuRaw, &s.PortalMenu); err != nil {
+			return nil, err
+		}
+	}
+	if s.PortalMenu == nil {
+		s.PortalMenu = []string{}
+	}
+
+	if len(portalShortcutsRaw) > 0 {
+		if err := json.Unmarshal(portalShortcutsRaw, &s.PortalShortcuts); err != nil {
+			return nil, err
+		}
+	}
+	if s.PortalShortcuts == nil {
+		s.PortalShortcuts = []string{}
+	}
+
+	if len(menuConfigRaw) > 0 {
+		if err := json.Unmarshal(menuConfigRaw, &s.MenuConfig); err != nil {
+			return nil, err
+		}
+	}
+	if s.MenuConfig == nil {
+		s.MenuConfig = map[string]bool{}
+	}
+
+	s.SMTPPasswordSet = s.SMTPPasswordEnc != nil && *s.SMTPPasswordEnc != ""
 	return &s, nil
 }
 
@@ -77,6 +124,173 @@ func (r *OrgSettingsRepo) Update(ctx context.Context, orgID uuid.UUID, patch dom
 	if patch.InvoiceNumberStart != nil {
 		setClauses = append(setClauses, fmt.Sprintf("invoice_number_start = $%d", argN))
 		args = append(args, *patch.InvoiceNumberStart)
+		argN++
+	}
+	if patch.CompanyName != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_name = $%d", argN))
+		args = append(args, *patch.CompanyName)
+		argN++
+	}
+	if patch.CompanyLogoURL != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_logo_url = $%d", argN))
+		args = append(args, *patch.CompanyLogoURL)
+		argN++
+	}
+	if patch.CompanyWebsite != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_website = $%d", argN))
+		args = append(args, *patch.CompanyWebsite)
+		argN++
+	}
+	if patch.CompanyEmail != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_email = $%d", argN))
+		args = append(args, *patch.CompanyEmail)
+		argN++
+	}
+	if patch.CompanyPhone != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_phone = $%d", argN))
+		args = append(args, *patch.CompanyPhone)
+		argN++
+	}
+	if patch.CompanyAddressLine1 != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_address_line1 = $%d", argN))
+		args = append(args, *patch.CompanyAddressLine1)
+		argN++
+	}
+	if patch.CompanyAddressLine2 != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_address_line2 = $%d", argN))
+		args = append(args, *patch.CompanyAddressLine2)
+		argN++
+	}
+	if patch.CompanyCity != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_city = $%d", argN))
+		args = append(args, *patch.CompanyCity)
+		argN++
+	}
+	if patch.CompanyState != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_state = $%d", argN))
+		args = append(args, *patch.CompanyState)
+		argN++
+	}
+	if patch.CompanyPostalCode != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_postal_code = $%d", argN))
+		args = append(args, *patch.CompanyPostalCode)
+		argN++
+	}
+	if patch.CompanyCountry != nil {
+		setClauses = append(setClauses, fmt.Sprintf("company_country = $%d", argN))
+		args = append(args, *patch.CompanyCountry)
+		argN++
+	}
+	if patch.PortalEnabled != nil {
+		setClauses = append(setClauses, fmt.Sprintf("portal_enabled = $%d", argN))
+		args = append(args, *patch.PortalEnabled)
+		argN++
+	}
+	if patch.PortalDisplayName != nil {
+		setClauses = append(setClauses, fmt.Sprintf("portal_display_name = $%d", argN))
+		args = append(args, *patch.PortalDisplayName)
+		argN++
+	}
+	if patch.PortalAnnouncement != nil {
+		setClauses = append(setClauses, fmt.Sprintf("portal_announcement = $%d", argN))
+		args = append(args, *patch.PortalAnnouncement)
+		argN++
+	}
+	if patch.PortalDefaultAssigneeID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("portal_default_assignee_id = $%d", argN))
+		args = append(args, *patch.PortalDefaultAssigneeID)
+		argN++
+	}
+	if patch.PortalMenu != nil {
+		raw, err := json.Marshal(*patch.PortalMenu)
+		if err != nil {
+			return nil, err
+		}
+		setClauses = append(setClauses, fmt.Sprintf("portal_menu = $%d::jsonb", argN))
+		args = append(args, string(raw))
+		argN++
+	}
+	if patch.PortalShortcuts != nil {
+		raw, err := json.Marshal(*patch.PortalShortcuts)
+		if err != nil {
+			return nil, err
+		}
+		setClauses = append(setClauses, fmt.Sprintf("portal_shortcuts = $%d::jsonb", argN))
+		args = append(args, string(raw))
+		argN++
+	}
+	if patch.PortalRecentWidgetLimit != nil {
+		setClauses = append(setClauses, fmt.Sprintf("portal_recent_widget_limit = $%d", argN))
+		args = append(args, *patch.PortalRecentWidgetLimit)
+		argN++
+	}
+	if patch.SMTPHost != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_host = $%d", argN))
+		args = append(args, *patch.SMTPHost)
+		argN++
+	}
+	if patch.SMTPPort != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_port = $%d", argN))
+		args = append(args, *patch.SMTPPort)
+		argN++
+	}
+	if patch.SMTPUsername != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_username = $%d", argN))
+		args = append(args, *patch.SMTPUsername)
+		argN++
+	}
+	if patch.SMTPFromEmail != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_from_email = $%d", argN))
+		args = append(args, *patch.SMTPFromEmail)
+		argN++
+	}
+	if patch.SMTPFromName != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_from_name = $%d", argN))
+		args = append(args, *patch.SMTPFromName)
+		argN++
+	}
+	if patch.SMTPSecurity != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_security = $%d", argN))
+		args = append(args, *patch.SMTPSecurity)
+		argN++
+	}
+	if patch.SMTPAuthType != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_auth_type = $%d", argN))
+		args = append(args, *patch.SMTPAuthType)
+		argN++
+	}
+	if patch.SMTPPasswordEnc != nil {
+		setClauses = append(setClauses, fmt.Sprintf("smtp_password_enc = $%d", argN))
+		args = append(args, *patch.SMTPPasswordEnc)
+		argN++
+	}
+	if patch.ConfigSupportEmail != nil {
+		setClauses = append(setClauses, fmt.Sprintf("config_support_email = $%d", argN))
+		args = append(args, *patch.ConfigSupportEmail)
+		argN++
+	}
+	if patch.ConfigUploadMaxMB != nil {
+		setClauses = append(setClauses, fmt.Sprintf("config_upload_max_mb = $%d", argN))
+		args = append(args, *patch.ConfigUploadMaxMB)
+		argN++
+	}
+	if patch.ConfigDefaultPageSize != nil {
+		setClauses = append(setClauses, fmt.Sprintf("config_default_page_size = $%d", argN))
+		args = append(args, *patch.ConfigDefaultPageSize)
+		argN++
+	}
+	if patch.ConfigListPreviewChars != nil {
+		setClauses = append(setClauses, fmt.Sprintf("config_list_preview_chars = $%d", argN))
+		args = append(args, *patch.ConfigListPreviewChars)
+		argN++
+	}
+	if patch.MenuConfig != nil {
+		raw, err := json.Marshal(*patch.MenuConfig)
+		if err != nil {
+			return nil, err
+		}
+		setClauses = append(setClauses, fmt.Sprintf("menu_config = $%d::jsonb", argN))
+		args = append(args, string(raw))
 		argN++
 	}
 	if len(setClauses) == 0 {

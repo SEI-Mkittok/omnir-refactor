@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw'
 
 import { accountsApi } from './accounts'
 import type { CreateActivityRequest } from './activities'
+import { adminSettingsApi } from './adminSettings'
 import { billingApi } from './billing'
 import { calendarApi } from './calendar'
 import { dealsApi } from './deals'
@@ -346,6 +347,52 @@ describe('CRM API contract mapping', () => {
       'GET /api/v1/calendar/connections',
       'DELETE /api/v1/calendar/connections/cal-1',
       'POST /api/v1/calendar/sync',
+    ])
+  })
+
+  it('uses org admin settings routes for bundle-2 configuration surfaces', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.get('/api/v1/settings/company', () => {
+        seen.push('GET /api/v1/settings/company')
+        return HttpResponse.json({ company_name: 'Acme CRM' })
+      }),
+      http.patch('/api/v1/settings/company', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/company')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.company_name).toBe('Acme Labs')
+        expect(body.companyName).toBeUndefined()
+        return HttpResponse.json(body)
+      }),
+      http.patch('/api/v1/settings/outgoing-server', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/outgoing-server')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.smtp_host).toBe('smtp.acme.test')
+        expect(body.smtp_password).toBe('rotated-secret')
+        return HttpResponse.json({ smtp_password_set: true })
+      }),
+      http.patch('/api/v1/settings/menu', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/menu')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.menu_config).toEqual({ dashboard: true, deals: false })
+        return HttpResponse.json(body)
+      })
+    )
+
+    await adminSettingsApi.getCompany()
+    await adminSettingsApi.updateCompany({ company_name: 'Acme Labs' })
+    await adminSettingsApi.updateOutgoingServer({
+      smtp_host: 'smtp.acme.test',
+      smtp_password: 'rotated-secret',
+    })
+    await adminSettingsApi.updateMenuConfig({ menu_config: { dashboard: true, deals: false } })
+
+    expect(seen).toEqual([
+      'GET /api/v1/settings/company',
+      'PATCH /api/v1/settings/company',
+      'PATCH /api/v1/settings/outgoing-server',
+      'PATCH /api/v1/settings/menu',
     ])
   })
 })
