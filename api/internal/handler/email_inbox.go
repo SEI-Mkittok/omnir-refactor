@@ -90,13 +90,19 @@ func (h *EmailInboxHandler) OAuthRouter() chi.Router {
 // InboxRouter returns routes to be mounted under /api/v1/emails for inbox features.
 func (h *EmailInboxHandler) InboxRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Use(middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent))
-	r.Get("/threads", h.ListThreads)
-	r.Get("/threads/{threadId}", h.GetThread)
-	r.Get("/", h.ListInbox)
-	r.Post("/send", h.SendViaConnection)
-	r.Patch("/{threadId}/read", h.MarkThreadRead)
+	h.RegisterInboxRoutes(r)
 	return r
+}
+
+// RegisterInboxRoutes adds inbox routes to an existing /emails-style router.
+func (h *EmailInboxHandler) RegisterInboxRoutes(r chi.Router) {
+	agentOnly := middleware.RequireRole(domain.UserRoleAdmin, domain.UserRoleAgent)
+
+	r.With(agentOnly).Get("/threads", h.ListThreads)
+	r.With(agentOnly).Get("/threads/{threadId}", h.GetThread)
+	r.With(agentOnly).Get("/", h.ListInbox)
+	r.With(agentOnly).Post("/send", h.SendViaConnection)
+	r.With(agentOnly).Patch("/{threadId}/read", h.MarkThreadRead)
 }
 
 // ─── OAuth state helpers ──────────────────────────────────────────────────────

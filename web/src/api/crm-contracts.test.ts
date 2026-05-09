@@ -3,8 +3,11 @@ import { http, HttpResponse } from 'msw'
 
 import { accountsApi } from './accounts'
 import type { CreateActivityRequest } from './activities'
+import { billingApi } from './billing'
 import { dealsApi } from './deals'
 import { inboxApi } from './inbox'
+import { kbApi } from './kb'
+import { slaApi } from './sla'
 import { server } from '@/test/mocks/server'
 
 describe('CRM API contract mapping', () => {
@@ -190,5 +193,44 @@ describe('CRM API contract mapping', () => {
       snippet: 'Hello',
       has_attachments: false,
     })
+  })
+
+  it('uses backend-supported routes for SLA, KB suggestions, and billing compatibility', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.patch('/api/v1/sla-policies/policy-1', async ({ request }) => {
+        seen.push('PATCH /api/v1/sla-policies/policy-1')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.name).toBe('Priority SLA')
+        return HttpResponse.json({ id: 'policy-1', name: 'Priority SLA' })
+      }),
+      http.get('/api/v1/kb/articles/suggest', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push('GET /api/v1/kb/articles/suggest')
+        expect(url.searchParams.get('q')).toBe('password reset')
+        return HttpResponse.json([{ id: 'kb-1', title: 'Reset password', slug: 'reset-password' }])
+      }),
+      http.get('/api/v1/billing/plans', () => {
+        seen.push('GET /api/v1/billing/plans')
+        return HttpResponse.json([])
+      }),
+      http.post('/api/v1/billing/subscription/cancel', () => {
+        seen.push('POST /api/v1/billing/subscription/cancel')
+        return HttpResponse.json({ id: 'sub-1', planTier: 'pro', status: 'cancelled' })
+      })
+    )
+
+    await slaApi.update('policy-1', { name: 'Priority SLA' })
+    await kbApi.suggestArticles('password reset')
+    await billingApi.getPlans()
+    await billingApi.cancelSubscription()
+
+    expect(seen).toEqual([
+      'PATCH /api/v1/sla-policies/policy-1',
+      'GET /api/v1/kb/articles/suggest',
+      'GET /api/v1/billing/plans',
+      'POST /api/v1/billing/subscription/cancel',
+    ])
   })
 })
