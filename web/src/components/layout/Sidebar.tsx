@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
-  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X,
+  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X, Hash,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -64,6 +64,7 @@ const ADMIN_GROUP = {
   items: [
     { to: '/users', icon: UserCog, label: 'Users' },
     { to: '/settings/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
+    { to: '/settings/numbering', icon: Hash, label: 'Numbering' },
     { to: '/api-keys', icon: KeyRound, label: 'API Keys' },
     { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
     { to: '/admin/audit', icon: ShieldCheck, label: 'Audit Log' },
@@ -97,7 +98,7 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const isOpen = mobileOpen ?? open
   const handleClose = onMobileClose ?? onClose
 
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
   const groups = isAdmin ? [...NAV_GROUPS, ADMIN_GROUP] : NAV_GROUPS
 
   function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {

@@ -6,6 +6,7 @@ import type { CreateActivityRequest } from './activities'
 import { billingApi } from './billing'
 import { dealsApi } from './deals'
 import { inboxApi } from './inbox'
+import { integrationsApi } from './integrations'
 import { kbApi } from './kb'
 import { slaApi } from './sla'
 import { server } from '@/test/mocks/server'
@@ -232,5 +233,63 @@ describe('CRM API contract mapping', () => {
       'GET /api/v1/billing/plans',
       'POST /api/v1/billing/subscription/cancel',
     ])
+  })
+
+  it('normalizes integration status from backend snake_case fields', async () => {
+    server.use(
+      http.get('/api/v1/integrations', () =>
+        HttpResponse.json([
+          {
+            provider: 'gmail',
+            status: 'connected',
+            email_address: 'ops@acme.test',
+            last_synced_at: '2026-05-09T12:00:00Z',
+            has_custom_creds: true,
+          },
+          {
+            provider: 'microsoft_teams',
+            status: 'coming_soon',
+            has_custom_creds: false,
+          },
+        ])
+      )
+    )
+
+    await expect(integrationsApi.list()).resolves.toEqual([
+      {
+        provider: 'gmail',
+        status: 'connected',
+        emailAddress: 'ops@acme.test',
+        lastSyncedAt: '2026-05-09T12:00:00Z',
+        hasCustomCreds: true,
+      },
+      {
+        provider: 'microsoft_teams',
+        status: 'coming_soon',
+        emailAddress: undefined,
+        lastSyncedAt: undefined,
+        hasCustomCreds: false,
+      },
+    ])
+  })
+
+  it('sends integration credentials with backend snake_case keys', async () => {
+    server.use(
+      http.put('/api/v1/integrations/gmail/credentials', async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body).toEqual({
+          client_id: 'client-1',
+          client_secret: 'secret-1',
+        })
+        expect(body.clientId).toBeUndefined()
+        expect(body.clientSecret).toBeUndefined()
+        return HttpResponse.json({ ok: true })
+      })
+    )
+
+    await integrationsApi.saveCredentials('gmail', {
+      clientId: 'client-1',
+      clientSecret: 'secret-1',
+    })
   })
 })
