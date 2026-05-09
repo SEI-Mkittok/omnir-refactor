@@ -46,6 +46,7 @@ import {
   normalizeRelationshipRows,
 } from '@/components/omnir/RelationshipEditor'
 import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
+import { mapCrmLinkError } from '@/lib/crmLinkErrors'
 import { Spinner } from '@/components/ui/Spinner'
 import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
 import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
@@ -786,6 +787,34 @@ function LinkedEntitiesSection({ accountId, accountName }: { accountId: string; 
               return result.data ?? []
             }}
             onSelect={(ticket) => linkTicket.mutateAsync({ ticketId: ticket.id, accountId })}
+            mapError={(error, ticket) => {
+              const mapped = mapCrmLinkError(error)
+              if (mapped.kind !== 'account_contact_mismatch') return null
+
+              const ticketContactId = ticket.contact?.id
+              const ticketContactName = ticket.contact?.name ?? 'current contact'
+              return {
+                message: `This ticket is linked to ${ticketContactName}, whose account does not match this account.`,
+                actions: [
+                  ...(ticketContactId
+                    ? [{
+                        label: 'Relink contact to account',
+                        action: async () => {
+                          await contactsApi.update(ticketContactId, { account_id: accountId })
+                          await linkTicket.mutateAsync({ ticketId: ticket.id, accountId })
+                        },
+                      }]
+                    : []),
+                  {
+                    label: 'Keep ticket account and detach contact',
+                    action: async () => {
+                      await ticketsApi.patchContact(ticket.id, null)
+                      await linkTicket.mutateAsync({ ticketId: ticket.id, accountId })
+                    },
+                  },
+                ],
+              }
+            }}
             renderItem={(ticket) => (
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
