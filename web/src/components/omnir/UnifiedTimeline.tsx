@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Activity, FileText, Mail, Paperclip, Quote, Ticket, Workflow } from 'lucide-react'
+import { Activity, FileText, Mail, Paperclip, Quote, SlidersHorizontal, Ticket, Workflow } from 'lucide-react'
 import { useActivities, useContactActivities, useDealActivities } from '@/hooks/useActivities'
 import { useContactNotes } from '@/hooks/useContacts'
 import { useContactEmails } from '@/hooks/useEmails'
@@ -14,6 +14,13 @@ import { useDealNotes } from '@/hooks/useDeals'
 import { sequencesApi } from '@/api/sequences'
 import { inboxApi } from '@/api/inbox'
 import { Spinner } from '@/components/ui/Spinner'
+import { Button } from '@/components/ui/Button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import type {
   EntityAttachment,
@@ -62,8 +69,35 @@ function readCsvParam(params: URLSearchParams, key: string): string[] {
   return value.split(',').map((v) => v.trim()).filter(Boolean)
 }
 
+export function getTimelineActiveFilterCount({
+  typeParam,
+  fromDate,
+  toDate,
+  userFilter,
+  linkedEntityFilter,
+}: {
+  typeParam: string
+  fromDate: string
+  toDate: string
+  userFilter: string
+  linkedEntityFilter: string
+}) {
+  let count = 0
+  const typeValues = typeParam
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value): value is TimelineEventType => ALL_EVENT_TYPES.includes(value as TimelineEventType))
+  if (typeValues.length > 0 && typeValues.length < ALL_EVENT_TYPES.length) count += 1
+  if (fromDate) count += 1
+  if (toDate) count += 1
+  if (userFilter) count += 1
+  if (linkedEntityFilter) count += 1
+  return count
+}
+
 export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: UnifiedTimelineProps) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const parentRef = useRef<HTMLDivElement>(null)
 
   const selectedTypes = useMemo(() => {
@@ -77,6 +111,13 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
   const toDate = searchParams.get('tl_to') ?? ''
   const userFilter = searchParams.get('tl_user') ?? ''
   const linkedEntityFilter = searchParams.get('tl_entity') ?? ''
+  const activeFilterCount = getTimelineActiveFilterCount({
+    typeParam: searchParams.get('tl_types') ?? '',
+    fromDate,
+    toDate,
+    userFilter,
+    linkedEntityFilter,
+  })
 
   const resolvedContactId = entityType === 'contact' ? entityId : contactId
   const resolvedAccountId = entityType === 'account' ? entityId : accountId
@@ -366,6 +407,16 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
     setSearchParams(next, { replace: true })
   }
 
+  const clearFilters = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('tl_types')
+    next.delete('tl_from')
+    next.delete('tl_to')
+    next.delete('tl_user')
+    next.delete('tl_entity')
+    setSearchParams(next, { replace: true })
+  }
+
   const toggleType = (type: TimelineEventType) => {
     const current = readCsvParam(searchParams, 'tl_types').filter((v): v is TimelineEventType =>
       ALL_EVENT_TYPES.includes(v as TimelineEventType)
@@ -384,6 +435,88 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
     updateParam('tl_types', Array.from(nextSet).join(','))
   }
 
+  const renderFilterControls = (mode: 'desktop' | 'mobile') => (
+    <>
+      <div className={cn(
+        mode === 'mobile'
+          ? '-mx-1 flex gap-2 overflow-x-auto px-1 pb-2'
+          : 'mb-3 flex flex-wrap gap-2'
+      )}>
+        {ALL_EVENT_TYPES.map((type) => {
+          const meta = EVENT_META[type]
+          const isActive = selectedTypes.includes(type)
+          return (
+            <button
+              key={type}
+              type="button"
+              onClick={() => toggleType(type)}
+              className={cn(
+                'rounded-full border font-medium transition-colors',
+                mode === 'mobile'
+                  ? 'min-h-11 shrink-0 px-4 py-2 text-sm'
+                  : 'px-2.5 py-1 text-xs',
+                isActive ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-200 bg-white text-slate-600'
+              )}
+            >
+              {meta.label}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className={cn(
+        mode === 'mobile'
+          ? 'grid grid-cols-1 gap-3'
+          : 'mb-4 grid grid-cols-1 gap-2 md:grid-cols-4'
+      )}>
+        <input
+          type="date"
+          value={fromDate}
+          onChange={(e) => updateParam('tl_from', e.target.value)}
+          className={cn(
+            'rounded-md border border-slate-200 bg-white px-2.5 text-sm',
+            mode === 'mobile' ? 'h-11' : 'py-1.5'
+          )}
+          aria-label="From date"
+        />
+        <input
+          type="date"
+          value={toDate}
+          onChange={(e) => updateParam('tl_to', e.target.value)}
+          className={cn(
+            'rounded-md border border-slate-200 bg-white px-2.5 text-sm',
+            mode === 'mobile' ? 'h-11' : 'py-1.5'
+          )}
+          aria-label="To date"
+        />
+        <select
+          value={userFilter}
+          onChange={(e) => updateParam('tl_user', e.target.value)}
+          className={cn(
+            'rounded-md border border-slate-200 bg-white px-2.5 text-sm',
+            mode === 'mobile' ? 'h-11' : 'py-1.5'
+          )}
+          aria-label="Filter by user"
+        >
+          <option value="">All users</option>
+          {users.map((user) => <option key={user} value={user}>{user}</option>)}
+        </select>
+        <select
+          value={linkedEntityFilter}
+          onChange={(e) => updateParam('tl_entity', e.target.value)}
+          className={cn(
+            'rounded-md border border-slate-200 bg-white px-2.5 text-sm',
+            mode === 'mobile' ? 'h-11' : 'py-1.5'
+          )}
+          aria-label="Filter by linked entity"
+        >
+          <option value="">All linked entities</option>
+          {linkedEntities.map((entity) => <option key={entity} value={entity}>{entity}</option>)}
+        </select>
+      </div>
+    </>
+  )
+
   return (
     <div className="rounded-xl border p-5" style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}>
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -395,44 +528,57 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
         </span>
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {ALL_EVENT_TYPES.map((type) => {
-          const meta = EVENT_META[type]
-          const isActive = selectedTypes.includes(type)
-          return (
-            <button
-              key={type}
-              onClick={() => toggleType(type)}
-              className={cn(
-                'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                isActive ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-200 bg-white text-slate-600'
-              )}
-            >
-              {meta.label}
-            </button>
-          )
-        })}
+      <div className="mb-4 sm:hidden">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full justify-between"
+          onClick={() => setMobileFiltersOpen(true)}
+        >
+          <span className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+          </span>
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-4">
-        <input type="date" value={fromDate} onChange={(e) => updateParam('tl_from', e.target.value)} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm" aria-label="From date" />
-        <input type="date" value={toDate} onChange={(e) => updateParam('tl_to', e.target.value)} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm" aria-label="To date" />
-        <select value={userFilter} onChange={(e) => updateParam('tl_user', e.target.value)} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm" aria-label="Filter by user">
-          <option value="">All users</option>
-          {users.map((user) => <option key={user} value={user}>{user}</option>)}
-        </select>
-        <select value={linkedEntityFilter} onChange={(e) => updateParam('tl_entity', e.target.value)} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm" aria-label="Filter by linked entity">
-          <option value="">All linked entities</option>
-          {linkedEntities.map((entity) => <option key={entity} value={entity}>{entity}</option>)}
-        </select>
+      <div className="hidden sm:block">
+        {renderFilterControls('desktop')}
       </div>
+
+      <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+        <DialogContent
+          className="bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 top-auto flex max-h-[calc(100dvh-6rem)] w-full translate-x-0 translate-y-0 flex-col gap-0 rounded-b-none rounded-t-2xl border p-0 shadow-xl data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:hidden"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="border-b border-slate-200 px-4 py-4 pr-14">
+            <DialogTitle className="text-sm font-semibold">Timeline Filters</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            {renderFilterControls('mobile')}
+          </div>
+          <div className="sticky bottom-0 flex gap-2 border-t border-slate-200 bg-white px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            <Button type="button" variant="outline" className="h-11 flex-1" onClick={clearFilters}>
+              Clear
+            </Button>
+            <Button type="button" className="h-11 flex-1" onClick={() => setMobileFiltersOpen(false)}>
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="flex justify-center py-8"><Spinner /></div>
       ) : filteredEvents.length === 0 ? (
         <p className="py-8 text-sm text-slate-500">No timeline events match your filters.</p>
       ) : (
-        <div ref={parentRef} className="max-h-[640px] overflow-auto rounded-lg border border-slate-100">
+        <div ref={parentRef} className="max-h-[calc(100dvh-16rem)] overflow-auto rounded-lg border border-slate-100 sm:max-h-[640px]">
           <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const event = filteredEvents[virtualRow.index]

@@ -26,7 +26,7 @@ describe('RelationshipEditor', () => {
 
     expect(screen.getByText('No contact relationships yet.')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /add contact role/i }))
+    await user.click(screen.getAllByRole('button', { name: /add contact role/i })[0])
 
     expect(screen.getByLabelText('Contact')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /is primary/i })).toBeInTheDocument()
