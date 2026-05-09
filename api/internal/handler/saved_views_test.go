@@ -48,7 +48,16 @@ func TestSavedViewHandler_List(t *testing.T) {
 	}{
 		{
 			name:       "returns views for valid entity type",
-			entityType: "contacts",
+			entityType: "entityType=contacts",
+			setupMock: func(m *mocks.MockSavedViewRepository) {
+				m.On("List", mock.Anything, mock.AnythingOfType("domain.SavedViewFilter")).
+					Return(views, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "accepts snake case entity_type",
+			entityType: "entity_type=quotes",
 			setupMock: func(m *mocks.MockSavedViewRepository) {
 				m.On("List", mock.Anything, mock.AnythingOfType("domain.SavedViewFilter")).
 					Return(views, nil)
@@ -57,7 +66,7 @@ func TestSavedViewHandler_List(t *testing.T) {
 		},
 		{
 			name:       "returns 400 for invalid entity type",
-			entityType: "invalid",
+			entityType: "entity_type=invalid",
 			setupMock:  func(_ *mocks.MockSavedViewRepository) {},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -76,7 +85,11 @@ func TestSavedViewHandler_List(t *testing.T) {
 
 			h := handler.NewSavedViewHandler(mockRepo)
 
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/views?entityType="+tt.entityType, nil)
+			url := "/api/v1/views"
+			if tt.entityType != "" {
+				url += "?" + tt.entityType
+			}
+			req := httptest.NewRequest(http.MethodGet, url, nil)
 			req = withClaims(req, userClaims(ownerID))
 			w := httptest.NewRecorder()
 
@@ -104,11 +117,25 @@ func TestSavedViewHandler_Create(t *testing.T) {
 			body: map[string]any{
 				"entity_type": "contacts",
 				"name":        "High-value leads",
-				"filters":     []any{},
+				"filters":     map[string]any{"account_id": uuid.New().String(), "unknown_filter": "kept"},
 			},
 			setupMock: func(m *mocks.MockSavedViewRepository) {
 				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.SavedView")).
 					Return(newSavedView(ownerID), nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "normalizes legacy array filters",
+			body: map[string]any{
+				"entity_type": "tickets",
+				"name":        "Ticket queue",
+				"filters":     []any{},
+			},
+			setupMock: func(m *mocks.MockSavedViewRepository) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(v *domain.SavedView) bool {
+					return string(v.Filters) == "{}"
+				})).Return(newSavedView(ownerID), nil)
 			},
 			wantStatus: http.StatusCreated,
 		},

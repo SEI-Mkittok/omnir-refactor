@@ -119,6 +119,11 @@ func (h *ContactHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.OwnerID = &id
 		}
 	}
+	if v := q.Get("account_id"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			filter.AccountID = &id
+		}
+	}
 	if v := q.Get("stage"); v != "" {
 		s := domain.ContactStage(v)
 		filter.Stage = &s

@@ -41,6 +41,7 @@ func scanSavedView(row pgx.Row) (*domain.SavedView, error) {
 		}
 		return nil, err
 	}
+	v.Filters = domain.NormalizeSavedViewFilters(v.Filters)
 	return &v, nil
 }
 
@@ -54,9 +55,7 @@ func (r *SavedViewRepo) Create(ctx context.Context, v *domain.SavedView) (*domai
 	now := time.Now().UTC()
 	v.CreatedAt = now
 	v.UpdatedAt = now
-	if v.Filters == nil {
-		v.Filters = []byte("[]")
-	}
+	v.Filters = domain.NormalizeSavedViewFilters(v.Filters)
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO saved_views
@@ -98,7 +97,7 @@ func (r *SavedViewRepo) Update(ctx context.Context, id uuid.UUID, patch domain.S
 		addArg("name", *patch.Name)
 	}
 	if patch.Filters != nil {
-		addArg("filters", patch.Filters)
+		addArg("filters", domain.NormalizeSavedViewFilters(patch.Filters))
 	}
 	if patch.SortBy != nil {
 		addArg("sort_by", *patch.SortBy)

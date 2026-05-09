@@ -6,26 +6,27 @@ import type {
   PinViewRequest,
   ViewListParams,
 } from './types'
+import { normalizeSavedView } from '@/lib/savedViewFilters'
 
 export const viewsApi = {
   list: async (params?: ViewListParams): Promise<SavedView[]> => {
     const { data } = await apiClient.get('/views', { params })
-    return data
+    return Array.isArray(data) ? data.map(normalizeSavedView) : []
   },
 
   get: async (id: string): Promise<SavedView> => {
     const { data } = await apiClient.get(`/views/${id}`)
-    return data
+    return normalizeSavedView(data)
   },
 
   create: async (payload: CreateViewRequest): Promise<SavedView> => {
     const { data } = await apiClient.post('/views', payload)
-    return data
+    return normalizeSavedView(data)
   },
 
   update: async (id: string, payload: UpdateViewRequest): Promise<SavedView> => {
     const { data } = await apiClient.patch(`/views/${id}`, payload)
-    return data
+    return normalizeSavedView(data)
   },
 
   delete: async (id: string): Promise<void> => {
@@ -34,6 +35,6 @@ export const viewsApi = {
 
   pin: async (id: string, payload: PinViewRequest): Promise<SavedView> => {
     const { data } = await apiClient.post(`/views/${id}/pin`, payload)
-    return data
+    return normalizeSavedView(data)
   },
 }

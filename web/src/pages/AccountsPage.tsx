@@ -9,6 +9,7 @@ import { AccountForm } from '@/components/omnir/AccountForm'
 import { ImportModal } from '@/components/omnir/ImportModal'
 import { downloadExportCsv } from '@/api/importExport'
 import { formatDate, formatRelativeTime } from '@/lib/utils'
+import { cleanCurrentFilters, pickViewFilters, sortKeyFromFilters, stringFilter } from '@/lib/savedViewFilters'
 import type { Account, SavedView } from '@/api/types'
 
 // ── Industry Badge ────────────────────────────────────────────────────────────
@@ -153,12 +154,28 @@ const STATUS_OPTIONS = [
   { label: 'Archived', value: 'archived' },
 ]
 
+const LINKED_ENTITY_OPTIONS = [
+  { label: 'Contacts', value: 'contact' },
+  { label: 'Deals', value: 'deal' },
+]
+
+const RELATIONSHIP_ROLE_OPTIONS = [
+  { label: 'Primary', value: 'primary' },
+  { label: 'Billing', value: 'billing' },
+  { label: 'Member', value: 'member' },
+  { label: 'Linked', value: 'linked' },
+]
+
 const TABLE_HEADERS = ['Account', 'Industry', 'Website', 'Contacts', 'Status', 'Created']
+const ACCOUNT_VIEW_FILTER_KEYS = ['search', 'industry', 'owner_id', 'linked_entity_type', 'relationship_role', 'sort_by', 'sort_dir'] as const
 
 export function AccountsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [industry, setIndustry] = useState('')
+  const [ownerId, setOwnerId] = useState('')
+  const [linkedEntityType, setLinkedEntityType] = useState('')
+  const [relationshipRole, setRelationshipRole] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [page, setPage] = useState(1)
@@ -171,19 +188,26 @@ export function AccountsPage() {
   const debouncedSearch = useDebounce(search, 200)
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
 
-  const currentFilters = {
+  const currentFilters = cleanCurrentFilters({
     search: debouncedSearch || undefined,
     industry: industry || undefined,
+    owner_id: ownerId || undefined,
+    linked_entity_type: linkedEntityType || undefined,
+    relationship_role: relationshipRole || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
-  }
+  })
 
   const applyViewFilters = (view: SavedView) => {
+    const filters = pickViewFilters(view.filters, ACCOUNT_VIEW_FILTER_KEYS)
     setActiveView(view)
     setHasUnsavedChanges(false)
-    setSearch((view.filters.search as string) ?? '')
-    setIndustry((view.filters.industry as string) ?? '')
-    setSortKey(view.filters.sort_by ? `${view.filters.sort_by}:${view.filters.sort_dir ?? 'asc'}` : 'created_at:desc')
+    setSearch(stringFilter(filters, 'search'))
+    setIndustry(stringFilter(filters, 'industry'))
+    setOwnerId(stringFilter(filters, 'owner_id'))
+    setLinkedEntityType(stringFilter(filters, 'linked_entity_type'))
+    setRelationshipRole(stringFilter(filters, 'relationship_role'))
+    setSortKey(sortKeyFromFilters(filters, 'created_at:desc'))
     setPage(1)
   }
 
@@ -199,6 +223,7 @@ export function AccountsPage() {
     per_page: 20,
     search: debouncedSearch || undefined,
     industry: industry || undefined,
+    owner_id: ownerId || undefined,
     sort_by: sortBy,
     sort_dir: sortDir,
   })
@@ -210,7 +235,7 @@ export function AccountsPage() {
     : allAccounts
   const meta = data?.meta
 
-  const hasFilters = !!(search || industry || statusFilter)
+  const hasFilters = !!(search || industry || ownerId || linkedEntityType || relationshipRole || statusFilter)
 
   return (
     <div className="p-6" style={{ maxWidth: 'var(--content-max-width, 1280px)' }}>
@@ -228,6 +253,7 @@ export function AccountsPage() {
               downloadExportCsv('accounts', {
                 ...(debouncedSearch ? { q: debouncedSearch } : {}),
                 ...(industry ? { industry } : {}),
+                ...(ownerId ? { owner_id: ownerId } : {}),
                 ...(sortBy ? { sort: sortBy, order: sortDir } : {}),
               })
             }
@@ -284,6 +310,18 @@ export function AccountsPage() {
           placeholder="All Industries"
         />
         <FilterSelect
+          value={linkedEntityType}
+          onChange={(v) => { setLinkedEntityType(v); setPage(1); markChanged() }}
+          options={LINKED_ENTITY_OPTIONS}
+          placeholder="All Linked Types"
+        />
+        <FilterSelect
+          value={relationshipRole}
+          onChange={(v) => { setRelationshipRole(v); setPage(1); markChanged() }}
+          options={RELATIONSHIP_ROLE_OPTIONS}
+          placeholder="All Roles"
+        />
+        <FilterSelect
           value={statusFilter}
           onChange={(v) => { setStatusFilter(v); setPage(1) }}
           options={STATUS_OPTIONS}
@@ -293,7 +331,7 @@ export function AccountsPage() {
           <button
             className="text-sm"
             style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
-            onClick={() => { setSearch(''); setIndustry(''); setStatusFilter(''); setPage(1) }}
+            onClick={() => { setSearch(''); setIndustry(''); setOwnerId(''); setLinkedEntityType(''); setRelationshipRole(''); setStatusFilter(''); setPage(1); markChanged() }}
           >
             Clear filters
           </button>
@@ -314,6 +352,20 @@ export function AccountsPage() {
             }}
             onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--border-focus)' }}
             onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-default)' }}
+          />
+          <input
+            type="search"
+            placeholder="Owner ID"
+            value={ownerId}
+            onChange={(e) => { setOwnerId(e.target.value); setPage(1); markChanged() }}
+            className="ml-2 rounded-full border text-sm px-4 transition-colors focus:outline-none"
+            style={{
+              height: 36,
+              width: 180,
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-primary)',
+              background: 'var(--surface-card)',
+            }}
           />
         </div>
       </div>
@@ -380,7 +432,7 @@ export function AccountsPage() {
                       <button
                         className="text-sm font-medium"
                         style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
-                        onClick={() => { setSearch(''); setIndustry(''); setStatusFilter(''); setPage(1) }}
+                        onClick={() => { setSearch(''); setIndustry(''); setOwnerId(''); setLinkedEntityType(''); setRelationshipRole(''); setStatusFilter(''); setPage(1); markChanged() }}
                       >
                         Clear filters
                       </button>

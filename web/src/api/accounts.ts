@@ -14,7 +14,18 @@ import type {
 
 export const accountsApi = {
   list: async (params?: AccountListParams): Promise<PaginatedResponse<Account>> => {
-    const { data } = await apiClient.get('/accounts', { params })
+    const query = params
+      ? {
+          page: params.page,
+          limit: params.per_page,
+          q: params.search,
+          industry: params.industry,
+          owner_id: params.owner_id,
+          sort: params.sort_by,
+          order: params.sort_dir,
+        }
+      : undefined
+    const { data } = await apiClient.get('/accounts', { params: query })
     return data
   },
 
