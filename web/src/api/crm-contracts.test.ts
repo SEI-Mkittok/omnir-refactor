@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { accountsApi } from './accounts'
 import type { CreateActivityRequest } from './activities'
 import { billingApi } from './billing'
+import { calendarApi } from './calendar'
 import { dealsApi } from './deals'
 import { inboxApi } from './inbox'
 import { integrationsApi } from './integrations'
@@ -291,5 +292,60 @@ describe('CRM API contract mapping', () => {
       clientId: 'client-1',
       clientSecret: 'secret-1',
     })
+  })
+
+  it('uses backend disconnect/clear routes for integration actions', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.delete('/api/v1/integrations/outlook/connection', () => {
+        seen.push('DELETE /api/v1/integrations/outlook/connection')
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.delete('/api/v1/integrations/gmail/credentials', () => {
+        seen.push('DELETE /api/v1/integrations/gmail/credentials')
+        return new HttpResponse(null, { status: 204 })
+      })
+    )
+
+    await integrationsApi.disconnect('outlook')
+    await integrationsApi.clearCredentials('gmail')
+
+    expect(seen).toEqual([
+      'DELETE /api/v1/integrations/outlook/connection',
+      'DELETE /api/v1/integrations/gmail/credentials',
+    ])
+  })
+
+  it('uses calendar integration routes for connection status and sync actions', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.get('/api/v1/calendar/connections', () => {
+        seen.push('GET /api/v1/calendar/connections')
+        return HttpResponse.json({
+          data: [{ id: 'cal-1', provider: 'google', token_expiry: '2026-05-10T00:00:00Z' }],
+        })
+      }),
+      http.delete('/api/v1/calendar/connections/cal-1', () => {
+        seen.push('DELETE /api/v1/calendar/connections/cal-1')
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.post('/api/v1/calendar/sync', () => {
+        seen.push('POST /api/v1/calendar/sync')
+        return HttpResponse.json({ status: 'sync queued' }, { status: 202 })
+      })
+    )
+
+    const connections = await calendarApi.listConnections()
+    expect(connections).toHaveLength(1)
+    await calendarApi.disconnect('cal-1')
+    await calendarApi.triggerSync()
+
+    expect(seen).toEqual([
+      'GET /api/v1/calendar/connections',
+      'DELETE /api/v1/calendar/connections/cal-1',
+      'POST /api/v1/calendar/sync',
+    ])
   })
 })
