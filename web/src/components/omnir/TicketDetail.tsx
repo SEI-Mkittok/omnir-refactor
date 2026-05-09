@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { Trash2, Paperclip, Clock } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  File as FileIcon,
+  FileText,
+  Image,
+  Paperclip,
+  Trash2,
+  Clock,
+} from 'lucide-react'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -15,8 +26,16 @@ import {
   useTicketAttachments,
   useUploadTicketAttachment,
 } from '@/hooks/useTickets'
+import { ticketsApi } from '@/api/tickets'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
-import type { TicketStatus, TicketPriority, CustomFieldValues, TicketSLA, SLATrackingStatus } from '@/api/types'
+import type {
+  TicketAttachment,
+  TicketStatus,
+  TicketPriority,
+  CustomFieldValues,
+  TicketSLA,
+  SLATrackingStatus,
+} from '@/api/types'
 import { cn } from '@/lib/utils'
 
 // ---- SLA helpers ----
@@ -132,6 +151,140 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function formatBytes(bytes?: number): string {
+  if (bytes == null) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function isTextPreviewType(contentType: string, filename: string) {
+  const lowerName = filename.toLowerCase()
+  return (
+    contentType.startsWith('text/') ||
+    contentType === 'application/json' ||
+    lowerName.endsWith('.md') ||
+    lowerName.endsWith('.txt')
+  )
+}
+
+function TicketAttachmentIcon({ contentType }: { contentType: string }) {
+  if (contentType.startsWith('image/')) return <Image className="h-4 w-4 text-[var(--color-primary)]" />
+  if (contentType === 'application/pdf') return <FileText className="h-4 w-4 text-red-500" />
+  return <FileIcon className="h-4 w-4 text-slate-400" />
+}
+
+async function readTextPreviewPayload(payload: unknown): Promise<string> {
+  if (payload instanceof Blob) return payload.text()
+  if (typeof payload === 'string') return payload
+  if (payload instanceof ArrayBuffer) return new TextDecoder().decode(payload)
+  if (ArrayBuffer.isView(payload)) {
+    return new TextDecoder().decode(payload)
+  }
+  return ''
+}
+
+function TicketAttachmentRow({ ticketId, attachment }: { ticketId: string; attachment: TicketAttachment }) {
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [textPreview, setTextPreview] = useState<string | null>(null)
+  const [isLoadingText, setIsLoadingText] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  const isImage = attachment.content_type.startsWith('image/')
+  const isPdf = attachment.content_type === 'application/pdf'
+  const isText = isTextPreviewType(attachment.content_type, attachment.filename)
+  const canPreview = isImage || isPdf || isText
+  const previewUrl = `${attachment.url}${attachment.url.includes('?') ? '&' : '?'}preview=1`
+
+  const openPreview = async () => {
+    const nextOpen = !previewOpen
+    setPreviewOpen(nextOpen)
+    if (!nextOpen || !isText || textPreview !== null || isLoadingText) return
+
+    setPreviewError(null)
+    setIsLoadingText(true)
+    try {
+      const payload = await ticketsApi.downloadAttachment(ticketId, attachment.id)
+      const text = await readTextPreviewPayload(payload)
+      setTextPreview(text.slice(0, 12000))
+    } catch {
+      setPreviewError('Preview unavailable.')
+    } finally {
+      setIsLoadingText(false)
+    }
+  }
+
+  return (
+    <li className="rounded-md border border-slate-200 bg-slate-50">
+      <div className="flex items-center gap-2 px-3 py-2">
+        <TicketAttachmentIcon contentType={attachment.content_type} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-slate-700">{attachment.filename}</p>
+          <p className="text-xs text-slate-400">
+            {formatBytes(attachment.size_bytes)}
+          </p>
+        </div>
+        {canPreview && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            title={`Toggle preview for ${attachment.filename}`}
+            onClick={openPreview}
+          >
+            {previewOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </Button>
+        )}
+        <a
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={attachment.filename}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+          title="Download"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </a>
+        {!canPreview && (
+          <a
+            href={attachment.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-700"
+            title="Open"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+
+      {previewOpen && canPreview && (
+        <div className="border-t border-slate-200 bg-white px-3 py-3">
+          {isImage && (
+            <img
+              src={previewUrl}
+              alt={attachment.filename}
+              className="max-h-72 max-w-full rounded object-contain"
+            />
+          )}
+          {isPdf && (
+            <iframe
+              src={previewUrl}
+              title={attachment.filename}
+              className="h-72 w-full rounded border border-slate-200"
+            />
+          )}
+          {isText && (
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+              {isLoadingText ? 'Loading preview...' : previewError ?? textPreview}
+            </pre>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
 function AttachmentsSection({ ticketId }: { ticketId: string }) {
   const { data: attachmentsData } = useTicketAttachments(ticketId)
   const { mutateAsync: upload, isPending } = useUploadTicketAttachment()
@@ -168,18 +321,7 @@ function AttachmentsSection({ ticketId }: { ticketId: string }) {
       {attachments.length > 0 && (
         <ul className="space-y-1">
           {attachments.map((a) => (
-            <li
-              key={a.id}
-              className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
-            >
-              <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <span className="truncate text-sm text-slate-700">{a.filename}</span>
-              {a.size_bytes != null && (
-                <span className="ml-auto shrink-0 text-xs text-slate-400">
-                  {(a.size_bytes / 1024).toFixed(0)} KB
-                </span>
-              )}
-            </li>
+            <TicketAttachmentRow key={a.id} ticketId={ticketId} attachment={a} />
           ))}
         </ul>
       )}

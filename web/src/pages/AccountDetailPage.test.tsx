@@ -56,9 +56,6 @@ function renderPage() {
 function installBaseHandlers() {
   server.use(
     http.get('/api/v1/accounts/:id', () => HttpResponse.json(account)),
-    http.get('/api/v1/accounts/:id/contacts', () => HttpResponse.json([])),
-    http.get('/api/v1/accounts/:id/deals', () => HttpResponse.json([])),
-    http.get('/api/v1/accounts/:id/tickets', () => HttpResponse.json([])),
     http.get('/api/v1/accounts/:id/notes', () => HttpResponse.json({ data: [] })),
     http.get('/api/v1/accounts/:id/attachments', () => HttpResponse.json([])),
     http.get('/api/v1/activities', () => HttpResponse.json(paginated([]))),
@@ -68,6 +65,8 @@ function installBaseHandlers() {
     http.get('/api/v1/contacts', ({ request }) => {
       const url = new URL(request.url)
       const q = url.searchParams.get('q')
+      const scopedAccountId = url.searchParams.get('account_id')
+      if (scopedAccountId) return HttpResponse.json(paginated([]))
       if (!q) return HttpResponse.json(paginated([]))
 
       return HttpResponse.json(
@@ -87,6 +86,8 @@ function installBaseHandlers() {
     http.get('/api/v1/deals', ({ request }) => {
       const url = new URL(request.url)
       const q = url.searchParams.get('q')
+      const scopedAccountId = url.searchParams.get('account_id')
+      if (scopedAccountId) return HttpResponse.json(paginated([]))
       if (!q) return HttpResponse.json(paginated([]))
 
       return HttpResponse.json(
@@ -106,6 +107,8 @@ function installBaseHandlers() {
     http.get('/api/v1/tickets', ({ request }) => {
       const url = new URL(request.url)
       const search = url.searchParams.get('search')
+      const scopedAccountId = url.searchParams.get('account_id')
+      if (scopedAccountId) return HttpResponse.json(paginated([]))
       if (!search) return HttpResponse.json(paginated([]))
 
       return HttpResponse.json(
@@ -212,7 +215,13 @@ describe('AccountDetailPage link modals', () => {
   it('keeps linked contact visible when unlink mutation fails', async () => {
     installBaseHandlers()
     server.use(
-      http.get('/api/v1/accounts/:id/contacts', () => HttpResponse.json([linkedContact])),
+      http.get('/api/v1/contacts', ({ request }) => {
+        const url = new URL(request.url)
+        if (url.searchParams.get('account_id') === accountId) {
+          return HttpResponse.json(paginated([linkedContact]))
+        }
+        return HttpResponse.json(paginated([]))
+      }),
       http.patch('/api/v1/contacts/:id', async () => {
         await delay(100)
         return HttpResponse.json({ error: 'failed' }, { status: 500 })
@@ -293,8 +302,12 @@ describe('AccountDetailPage link modals', () => {
   it('seeds relationship rows from linked contacts', async () => {
     installBaseHandlers()
     server.use(
-      http.get('/api/v1/accounts/:id/contacts', () =>
-        HttpResponse.json([
+      http.get('/api/v1/contacts', ({ request }) => {
+        const url = new URL(request.url)
+        if (url.searchParams.get('account_id') !== accountId) {
+          return HttpResponse.json(paginated([]))
+        }
+        return HttpResponse.json(paginated([
           {
             id: contactId,
             first_name: 'Ada',
@@ -315,8 +328,8 @@ describe('AccountDetailPage link modals', () => {
             created_at: '2026-04-20T00:00:00Z',
             updated_at: '2026-04-20T00:00:00Z',
           },
-        ])
-      )
+        ]))
+      })
     )
 
     renderPage()

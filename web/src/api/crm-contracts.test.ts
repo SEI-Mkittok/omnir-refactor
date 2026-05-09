@@ -1,11 +1,65 @@
 import { describe, expect, it } from 'vitest'
 import { http, HttpResponse } from 'msw'
 
+import { accountsApi } from './accounts'
+import type { CreateActivityRequest } from './activities'
 import { dealsApi } from './deals'
 import { inboxApi } from './inbox'
 import { server } from '@/test/mocks/server'
 
 describe('CRM API contract mapping', () => {
+  it('keeps activity creation restricted to backend-supported types', () => {
+    const valid: CreateActivityRequest = { type: 'task', subject: 'Follow up' }
+    expect(valid.type).toBe('task')
+
+    // @ts-expect-error note entries are notes, not createable activities.
+    const invalid: CreateActivityRequest = { type: 'note', subject: 'Call note' }
+    expect(invalid.type).toBe('note')
+  })
+
+  it('loads account related lists through existing filterable list endpoints', async () => {
+    const accountId = 'account-1'
+    const seenPaths: string[] = []
+
+    server.use(
+      http.get('/api/v1/contacts', ({ request }) => {
+        const url = new URL(request.url)
+        seenPaths.push(url.pathname)
+        expect(url.searchParams.get('account_id')).toBe(accountId)
+        expect(url.searchParams.get('limit')).toBe('200')
+        return HttpResponse.json({
+          data: [],
+          meta: { page: 1, per_page: 200, total: 0, total_pages: 0 },
+        })
+      }),
+      http.get('/api/v1/deals', ({ request }) => {
+        const url = new URL(request.url)
+        seenPaths.push(url.pathname)
+        expect(url.searchParams.get('account_id')).toBe(accountId)
+        expect(url.searchParams.get('limit')).toBe('200')
+        return HttpResponse.json({
+          data: [],
+          meta: { page: 1, per_page: 200, total: 0, total_pages: 0 },
+        })
+      }),
+      http.get('/api/v1/tickets', ({ request }) => {
+        const url = new URL(request.url)
+        seenPaths.push(url.pathname)
+        expect(url.searchParams.get('account_id')).toBe(accountId)
+        expect(url.searchParams.get('per_page')).toBe('200')
+        return HttpResponse.json({
+          data: [],
+          meta: { page: 1, per_page: 200, total: 0, total_pages: 0 },
+        })
+      })
+    )
+
+    await expect(accountsApi.getContacts(accountId)).resolves.toEqual([])
+    await expect(accountsApi.getDeals(accountId)).resolves.toEqual([])
+    await expect(accountsApi.getTickets(accountId)).resolves.toEqual([])
+    expect(seenPaths).toEqual(['/api/v1/contacts', '/api/v1/deals', '/api/v1/tickets'])
+  })
+
   it('maps deal list params to backend query names', async () => {
     server.use(
       http.get('/api/v1/deals', ({ request }) => {

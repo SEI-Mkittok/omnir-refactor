@@ -2,6 +2,7 @@ import apiClient from './client'
 import type {
   Activity,
   ActivityType,
+  CreatableActivityType,
   PaginatedResponse,
 } from './types'
 
@@ -18,7 +19,7 @@ export interface ActivityListParams {
 }
 
 export interface CreateActivityRequest {
-  type: ActivityType
+  type: CreatableActivityType
   subject: string
   description?: string
   due_date?: string
@@ -29,7 +30,10 @@ export interface CreateActivityRequest {
   owner_id?: string
 }
 
-export interface UpdateActivityRequest extends Partial<CreateActivityRequest> {}
+export interface UpdateActivityRequest extends Partial<Omit<CreateActivityRequest, 'type'>> {
+  type?: CreatableActivityType
+  completed?: boolean
+}
 
 export const activitiesApi = {
   list: async (params?: ActivityListParams): Promise<PaginatedResponse<Activity>> => {

@@ -7,7 +7,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -547,12 +549,24 @@ func (h *TicketHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	w.Header().Set("Content-Type", a.ContentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, a.Filename))
+	disposition := "attachment"
+	if r.URL.Query().Get("preview") == "1" && ticketAttachmentCanPreviewInline(a.ContentType) {
+		disposition = "inline"
+	}
+	encodedName := url.PathEscape(a.Filename)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename*=UTF-8''%s`, disposition, encodedName))
 	if a.SizeBytes != nil {
 		w.Header().Set("Content-Length", strconv.FormatInt(*a.SizeBytes, 10))
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, rc)
+}
+
+func ticketAttachmentCanPreviewInline(contentType string) bool {
+	if strings.HasPrefix(contentType, "image/") && !strings.HasPrefix(contentType, "image/svg+xml") {
+		return true
+	}
+	return contentType == "application/pdf" || strings.HasPrefix(contentType, "text/")
 }
 
 func (h *TicketHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {

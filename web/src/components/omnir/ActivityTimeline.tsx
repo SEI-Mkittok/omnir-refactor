@@ -17,7 +17,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Input } from '@/components/ui/Input'
 import { cn, formatRelativeTime, formatDate } from '@/lib/utils'
 import { useContactActivities, useDealActivities, useCreateActivity, useUpdateActivity } from '@/hooks/useActivities'
-import type { Activity, ActivityType } from '@/api/types'
+import type { Activity, ActivityType, CreatableActivityType } from '@/api/types'
 
 // ── Activity type config ─────────────────────────────────────────────────────
 
@@ -32,7 +32,8 @@ const typeConfig: Record<
   note: { label: 'Note', Icon: FileText, color: 'text-slate-500', badgeVariant: 'gray' },
 }
 
-const ALL_TYPES: ActivityType[] = ['call', 'email', 'meeting', 'task', 'note']
+const CREATABLE_TYPES: CreatableActivityType[] = ['call', 'email', 'meeting', 'task']
+const FILTER_TYPES: ActivityType[] = ['call', 'email', 'meeting', 'task']
 
 // ── Quick-add form ───────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ interface QuickAddFormProps {
 
 function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
   const [open, setOpen] = useState(false)
-  const [type, setType] = useState<ActivityType>('call')
+  const [type, setType] = useState<CreatableActivityType>('call')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -84,7 +85,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
     >
       {/* Type selector */}
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
-        {ALL_TYPES.map((t) => {
+        {CREATABLE_TYPES.map((t) => {
           const { label, Icon } = typeConfig[t]
           return (
             <button
@@ -317,7 +318,7 @@ export function ActivityTimeline({ contactId, dealId }: ActivityTimelineProps) {
         >
           All
         </button>
-        {ALL_TYPES.map((t) => {
+        {FILTER_TYPES.map((t) => {
           const { label, Icon } = typeConfig[t]
           return (
             <button

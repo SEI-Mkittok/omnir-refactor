@@ -19,6 +19,7 @@ import (
 )
 
 func TestTicketHandler_List(t *testing.T) {
+	accountID := uuid.New()
 	ticket1 := &domain.Ticket{
 		ID:      uuid.New(),
 		Subject: "Test ticket 1",
@@ -76,6 +77,17 @@ func TestTicketHandler_List(t *testing.T) {
 			setupMock: func(m *mocks.MockTicketRepository) {
 				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketFilter) bool {
 					return f.AssigneeID != nil
+				})).Return([]*domain.Ticket{ticket1}, 1, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantTotal:  1,
+		},
+		{
+			name:  "respects account filter",
+			query: "?account_id=" + accountID.String(),
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketFilter) bool {
+					return f.AccountID != nil && *f.AccountID == accountID
 				})).Return([]*domain.Ticket{ticket1}, 1, nil)
 			},
 			wantStatus: http.StatusOK,

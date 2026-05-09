@@ -54,18 +54,24 @@ export const accountsApi = {
   },
 
   getContacts: async (id: string): Promise<Contact[]> => {
-    const { data } = await apiClient.get(`/accounts/${id}/contacts`)
-    return data
+    const { data } = await apiClient.get('/contacts', {
+      params: { account_id: id, limit: 200 },
+    })
+    return data.data ?? []
   },
 
   getDeals: async (id: string): Promise<Deal[]> => {
-    const { data } = await apiClient.get(`/accounts/${id}/deals`)
-    return data
+    const { data } = await apiClient.get('/deals', {
+      params: { account_id: id, limit: 200 },
+    })
+    return data.data ?? []
   },
 
   getTickets: async (id: string): Promise<Ticket[]> => {
-    const { data } = await apiClient.get(`/accounts/${id}/tickets`)
-    return data.data ?? data
+    const { data } = await apiClient.get('/tickets', {
+      params: { account_id: id, per_page: 200 },
+    })
+    return data.data ?? []
   },
 
   getNotes: async (id: string): Promise<Note[]> => {
