@@ -977,7 +977,10 @@ function LinkedEntitiesSection({
                 : []),
               {
                 label: 'Keep ticket account and detach contact',
-                action: () => ticketsApi.patchContact(ticket.id, null),
+                action: async () => {
+                  await ticketsApi.patchContact(ticket.id, null)
+                  await ticketMutation.mutateAsync({ ticketId: ticket.id, shouldLink: true, ticket })
+                },
               },
             ],
           }

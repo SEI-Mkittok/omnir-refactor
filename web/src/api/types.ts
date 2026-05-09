@@ -134,6 +134,8 @@ export interface ContactListParams {
   stage?: ContactStage
   account_id?: string
   owner_id?: string
+  linked_entity_type?: string
+  relationship_role?: string
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
 }
@@ -180,6 +182,8 @@ export interface AccountListParams {
   search?: string
   industry?: string
   owner_id?: string
+  linked_entity_type?: string
+  relationship_role?: string
   sort_by?: string
   sort_dir?: 'asc' | 'desc'
 }
@@ -242,6 +246,7 @@ export interface DealListParams {
   stage?: DealStage
   account_id?: string
   contact_id?: string
+  relationship_role?: string
   pipeline_id?: string
   owner_id?: string
   sort_by?: string
@@ -872,7 +877,7 @@ export interface NotificationListParams {
 
 // ---- Saved Views ----
 
-export type ViewEntityType = 'contacts' | 'accounts' | 'deals' | 'leads'
+export type ViewEntityType = 'contacts' | 'accounts' | 'deals' | 'leads' | 'tickets' | 'quotes'
 
 export interface ViewFilters {
   search?: string
@@ -891,6 +896,7 @@ export interface SavedView {
   is_shared: boolean
   is_pinned: boolean
   pin_order: number
+  pinned_order?: number
   created_at: string
   updated_at: string
 }
@@ -1282,10 +1288,13 @@ export interface QuoteListParams {
   page?: number
   limit?: number
   q?: string
+  search?: string
   status?: QuoteStatus
   account_id?: string
   deal_id?: string
   contact_id?: string
+  sort_by?: string
+  sort_dir?: 'asc' | 'desc'
 }
 
 export interface SendQuoteRequest {

@@ -16,14 +16,35 @@ const (
 	SavedViewEntityAccounts SavedViewEntityType = "accounts"
 	SavedViewEntityDeals    SavedViewEntityType = "deals"
 	SavedViewEntityLeads    SavedViewEntityType = "leads"
+	SavedViewEntityTickets  SavedViewEntityType = "tickets"
+	SavedViewEntityQuotes   SavedViewEntityType = "quotes"
 )
 
 func (e SavedViewEntityType) IsValid() bool {
 	switch e {
-	case SavedViewEntityContacts, SavedViewEntityAccounts, SavedViewEntityDeals, SavedViewEntityLeads:
+	case SavedViewEntityContacts, SavedViewEntityAccounts, SavedViewEntityDeals, SavedViewEntityLeads,
+		SavedViewEntityTickets, SavedViewEntityQuotes:
 		return true
 	}
 	return false
+}
+
+// NormalizeSavedViewFilters keeps saved view filters backward-compatible with
+// legacy rows that stored [] while preserving arbitrary object keys for future
+// filter rollout.
+func NormalizeSavedViewFilters(filters json.RawMessage) json.RawMessage {
+	if len(filters) == 0 || !json.Valid(filters) {
+		return json.RawMessage(`{}`)
+	}
+
+	var value any
+	if err := json.Unmarshal(filters, &value); err != nil {
+		return json.RawMessage(`{}`)
+	}
+	if _, ok := value.(map[string]any); !ok {
+		return json.RawMessage(`{}`)
+	}
+	return filters
 }
 
 // SavedView represents a named, saved filter set for a CRM entity list.
@@ -70,6 +91,7 @@ func (v *SavedView) Validate() error {
 	if !v.EntityType.IsValid() {
 		return fmt.Errorf("%w: invalid entity_type %q", ErrValidation, v.EntityType)
 	}
+	v.Filters = NormalizeSavedViewFilters(v.Filters)
 	if v.SortDir != nil && *v.SortDir != "asc" && *v.SortDir != "desc" {
 		return fmt.Errorf("%w: sort_dir must be asc or desc", ErrValidation)
 	}

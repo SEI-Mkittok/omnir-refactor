@@ -38,9 +38,13 @@ func (h *SavedViewHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entityType := domain.SavedViewEntityType(r.URL.Query().Get("entityType"))
+	entityTypeParam := r.URL.Query().Get("entity_type")
+	if entityTypeParam == "" {
+		entityTypeParam = r.URL.Query().Get("entityType")
+	}
+	entityType := domain.SavedViewEntityType(entityTypeParam)
 	if !entityType.IsValid() {
-		writeError(w, http.StatusBadRequest, "entityType must be one of: contacts, accounts, deals, leads")
+		writeError(w, http.StatusBadRequest, "entity_type must be one of: contacts, accounts, deals, leads, tickets, quotes")
 		return
 	}
 
@@ -144,6 +148,9 @@ func (h *SavedViewHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if patch.SortDir != nil && *patch.SortDir != "asc" && *patch.SortDir != "desc" {
 		writeError(w, http.StatusUnprocessableEntity, "sort_dir must be asc or desc")
 		return
+	}
+	if patch.Filters != nil {
+		patch.Filters = domain.NormalizeSavedViewFilters(patch.Filters)
 	}
 
 	updated, err := h.repo.Update(r.Context(), id, patch)

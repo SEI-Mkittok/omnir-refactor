@@ -12,7 +12,19 @@ import type {
 
 export const contactsApi = {
   list: async (params?: ContactListParams): Promise<PaginatedResponse<Contact>> => {
-    const { data } = await apiClient.get('/contacts', { params })
+    const query = params
+      ? {
+          page: params.page,
+          limit: params.per_page,
+          q: params.search,
+          stage: params.stage,
+          account_id: params.account_id,
+          owner_id: params.owner_id,
+          sort: params.sort_by,
+          order: params.sort_dir,
+        }
+      : undefined
+    const { data } = await apiClient.get('/contacts', { params: query })
     return data
   },
 

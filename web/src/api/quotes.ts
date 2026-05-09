@@ -10,7 +10,20 @@ import type {
 
 export const quotesApi = {
   list: async (params?: QuoteListParams): Promise<PaginatedResponse<Quote>> => {
-    const { data } = await apiClient.get('/quotes', { params })
+    const query = params
+      ? {
+          page: params.page,
+          limit: params.limit,
+          q: params.q ?? params.search,
+          status: params.status,
+          account_id: params.account_id,
+          deal_id: params.deal_id,
+          contact_id: params.contact_id,
+          sort: params.sort_by,
+          order: params.sort_dir,
+        }
+      : undefined
+    const { data } = await apiClient.get('/quotes', { params: query })
     const page = params?.page ?? 1
     const limit = params?.limit ?? 50
     const total = typeof data.total === 'number' ? data.total : data.meta?.total ?? 0
