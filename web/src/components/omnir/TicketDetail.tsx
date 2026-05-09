@@ -168,6 +168,10 @@ function isTextPreviewType(contentType: string, filename: string) {
   )
 }
 
+function isImagePreviewType(contentType: string) {
+  return contentType.startsWith('image/') && !contentType.startsWith('image/svg+xml')
+}
+
 function TicketAttachmentIcon({ contentType }: { contentType: string }) {
   if (contentType.startsWith('image/')) return <Image className="h-4 w-4 text-[var(--color-primary)]" />
   if (contentType === 'application/pdf') return <FileText className="h-4 w-4 text-red-500" />
@@ -190,7 +194,7 @@ function TicketAttachmentRow({ ticketId, attachment }: { ticketId: string; attac
   const [isLoadingText, setIsLoadingText] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
 
-  const isImage = attachment.content_type.startsWith('image/')
+  const isImage = isImagePreviewType(attachment.content_type)
   const isPdf = attachment.content_type === 'application/pdf'
   const isText = isTextPreviewType(attachment.content_type, attachment.filename)
   const canPreview = isImage || isPdf || isText
