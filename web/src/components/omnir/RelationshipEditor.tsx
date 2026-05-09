@@ -132,7 +132,7 @@ export function RelationshipEditor({
 
   return (
     <section
-      className="rounded-xl border p-5"
+      className="rounded-xl border p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] sm:p-5"
       style={{ background: 'var(--surface-card)', borderColor: 'var(--border-default)' }}
       aria-label={title}
     >
@@ -143,7 +143,7 @@ export function RelationshipEditor({
         >
           {title}
         </p>
-        <Button variant="ghost" size="sm" className="ml-auto h-8 px-2 text-xs" onClick={handleAdd}>
+        <Button variant="ghost" size="sm" className="ml-auto hidden h-8 px-2 text-xs sm:inline-flex" onClick={handleAdd}>
           <Plus className="h-3.5 w-3.5" />
           {addLabel ?? `Add ${entityLabel}`}
         </Button>
@@ -158,10 +158,10 @@ export function RelationshipEditor({
           {rows.map((row, index) => (
             <div
               key={row.id}
-              className="rounded-xl border p-3"
+              className="rounded-xl border p-3 sm:p-3"
               style={{ borderColor: row.isPrimary ? 'var(--color-primary)' : 'var(--border-default)' }}
             >
-              <div className="flex flex-wrap items-start gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
                     <label
@@ -176,7 +176,7 @@ export function RelationshipEditor({
                       value={row.label}
                       onChange={(event) => handleUpdate(row.id, { label: event.target.value })}
                       placeholder={`Enter ${entityLabel.toLowerCase()} name`}
-                      className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
+                      className="h-11 w-full rounded-md border px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] sm:h-auto sm:text-sm"
                       style={{
                         borderColor: 'var(--border-default)',
                         background: 'var(--surface-app)',
@@ -199,7 +199,7 @@ export function RelationshipEditor({
                         value={row.meta ?? ''}
                         onChange={(event) => handleUpdate(row.id, { meta: event.target.value })}
                         placeholder="Title, email, or context"
-                        className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
+                        className="h-11 w-full rounded-md border px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] sm:h-auto sm:text-sm"
                         style={{
                           borderColor: 'var(--border-default)',
                           background: 'var(--surface-app)',
@@ -225,7 +225,7 @@ export function RelationshipEditor({
                             isPrimary: event.target.value === 'primary',
                           })
                         }
-                        className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)]"
+                        className="h-11 w-full rounded-md border px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] sm:h-auto sm:text-sm"
                         style={{
                           borderColor: 'var(--border-default)',
                           background: 'var(--surface-app)',
@@ -242,11 +242,11 @@ export function RelationshipEditor({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
                   <button
                     type="button"
                     onClick={() => handlePrimaryChange(row.id)}
-                    className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-md border px-3 py-2 text-sm font-semibold transition-colors sm:min-h-0 sm:w-auto sm:rounded-full sm:py-1.5 sm:text-xs"
                     style={{
                       borderColor: row.isPrimary ? 'var(--color-primary)' : 'var(--border-default)',
                       background: row.isPrimary ? 'var(--color-primary-light)' : 'transparent',
@@ -261,10 +261,11 @@ export function RelationshipEditor({
                   <button
                     type="button"
                     onClick={() => handleRemove(row.id)}
-                    className="rounded-md p-2 transition-colors hover:bg-[var(--surface-app)]"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md p-2 text-sm font-medium transition-colors hover:bg-[var(--surface-app)] sm:h-9 sm:min-h-0 sm:w-9"
                     aria-label={`Remove ${entityLabel.toLowerCase()} relationship ${index + 1}`}
                   >
                     <Trash2 className="h-4 w-4" style={{ color: 'var(--text-label)' }} />
+                    <span className="sm:sr-only">Remove</span>
                   </button>
                 </div>
               </div>
@@ -272,6 +273,20 @@ export function RelationshipEditor({
           ))}
         </div>
       )}
+
+      <div
+        className="sticky z-10 -mx-4 mt-4 border-t px-4 py-3 sm:hidden"
+        style={{
+          bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+          background: 'var(--surface-card)',
+          borderColor: 'var(--border-default)',
+        }}
+      >
+        <Button type="button" className="h-11 w-full" onClick={handleAdd}>
+          <Plus className="h-4 w-4" />
+          {addLabel ?? `Add ${entityLabel}`}
+        </Button>
+      </div>
     </section>
   )
 }
