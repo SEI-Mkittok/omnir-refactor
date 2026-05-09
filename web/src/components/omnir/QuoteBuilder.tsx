@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react'
-import { Plus, Trash2, Send, Save, X } from 'lucide-react'
+import { Building2, Plus, Trash2, Send, Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { useAccounts } from '@/hooks/useAccounts'
 import { useProducts } from '@/hooks/useProducts'
 import { useCreateQuote, useUpdateQuote, useSendQuote } from '@/hooks/useQuotes'
 import { formatCurrency } from '@/lib/utils'
@@ -12,6 +13,9 @@ interface LineItemRow extends QuoteLineItemInput {
 }
 
 interface QuoteBuilderProps {
+  accountId?: string
+  accountName?: string
+  lockAccount?: boolean
   dealId?: string
   contactId?: string
   contactEmail?: string
@@ -41,10 +45,21 @@ function quoteTotal(items: QuoteLineItemInput[]): number {
 
 let keyCounter = 0
 
-export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, onSaved }: QuoteBuilderProps) {
+export function QuoteBuilder({
+  accountId,
+  accountName,
+  lockAccount = false,
+  dealId,
+  contactId,
+  contactEmail,
+  quote,
+  onClose,
+  onSaved,
+}: QuoteBuilderProps) {
   const isEdit = !!quote
 
   const [title, setTitle] = useState(quote?.title ?? '')
+  const [selectedAccountId, setSelectedAccountId] = useState(quote?.account_id ?? accountId ?? '')
   const [currency, setCurrency] = useState(quote?.currency ?? 'USD')
   const [validUntil, setValidUntil] = useState(quote?.valid_until?.slice(0, 10) ?? '')
   const [notes, setNotes] = useState(quote?.notes ?? '')
@@ -73,7 +88,13 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
   const [apiError, setApiError] = useState<string | null>(null)
 
   const { data: productsResult } = useProducts({ active: true, limit: 200 })
+  const { data: accountsResult, isLoading: accountsLoading } = useAccounts({ per_page: 200 })
   const products = productsResult?.data ?? []
+  const accounts = accountsResult?.data ?? []
+  const selectedAccountName =
+    quote?.account?.name ??
+    accounts.find((account) => account.id === selectedAccountId)?.name ??
+    (selectedAccountId === accountId ? accountName : undefined)
 
   const createQuote = useCreateQuote()
   const updateQuote = useUpdateQuote()
@@ -115,6 +136,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
   function validate(): boolean {
     const errs: Record<string, string> = {}
     if (!title.trim()) errs.title = 'Required'
+    if (lockAccount && !selectedAccountId) errs.account = 'Account is required'
     if (lineItems.length === 0) errs.lines = 'Add at least one line item'
     lineItems.forEach((li, i) => {
       if (!li.product_name.trim()) errs[`line_${i}_name`] = 'Product name required'
@@ -129,6 +151,7 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
       currency,
       ...(validUntil ? { valid_until: validUntil } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(selectedAccountId ? { account_id: selectedAccountId } : {}),
       ...(dealId ? { deal_id: dealId } : {}),
       ...(contactId ? { contact_id: contactId } : {}),
       line_items: lineItems.map((li, idx) => ({
@@ -222,6 +245,29 @@ export function QuoteBuilder({ dealId, contactId, contactEmail, quote, onClose, 
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
               {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">Account</label>
+              {lockAccount ? (
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <Building2 className="h-4 w-4 text-slate-400" />
+                  <span className="font-medium">{selectedAccountName ?? 'Account context'}</span>
+                </div>
+              ) : (
+                <select
+                  value={selectedAccountId}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  disabled={accountsLoading}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+                >
+                  <option value="">No account</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>{account.name}</option>
+                  ))}
+                </select>
+              )}
+              {errors.account && <p className="text-xs text-red-600">{errors.account}</p>}
             </div>
 
             <div className="space-y-1">

@@ -292,14 +292,26 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
           contactId={deal.contact?.id}
           accountId={deal.account?.id}
         />
-        <DealQuotesSection dealId={deal.id} />
+        <DealQuotesSection
+          dealId={deal.id}
+          accountId={deal.account_id ?? deal.account?.id}
+          accountName={deal.account?.name}
+        />
         <AttachmentsPanel entityType="deal" entityId={deal.id} />
       </div>
     </SidePanel>
   )
 }
 
-function DealQuotesSection({ dealId }: { dealId: string }) {
+function DealQuotesSection({
+  dealId,
+  accountId,
+  accountName,
+}: {
+  dealId: string
+  accountId?: string
+  accountName?: string
+}) {
   const { data, isLoading } = useDealQuotes(dealId)
   const quotes = data?.data ?? []
   const [showCreate, setShowCreate] = useState(false)
@@ -335,7 +347,15 @@ function DealQuotesSection({ dealId }: { dealId: string }) {
           ))}
         </div>
       )}
-      {showCreate && <QuoteBuilder dealId={dealId} onClose={() => setShowCreate(false)} />}
+      {showCreate && (
+        <QuoteBuilder
+          dealId={dealId}
+          accountId={accountId}
+          accountName={accountName}
+          lockAccount={!!accountId}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
     </div>
   )
 }

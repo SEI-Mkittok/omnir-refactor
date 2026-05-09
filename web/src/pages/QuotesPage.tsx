@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Plus, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
+import { useAccounts } from '@/hooks/useAccounts'
 import { useQuotes, useDeleteQuote } from '@/hooks/useQuotes'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Quote, QuoteStatus } from '@/api/types'
@@ -19,9 +21,27 @@ const STATUS_OPTIONS: { label: string; value: QuoteStatus | '' }[] = [
   { label: 'Expired', value: 'expired' },
 ]
 
-function QuoteDetail({ quote, onClose }: { quote: Quote; onClose: () => void }) {
+function AccountChip({ name }: { name?: string }) {
+  if (!name) return null
+  return <Badge variant="indigo" className="gap-1">{name}</Badge>
+}
+
+function QuoteDetail({
+  quote,
+  accountName,
+  lockedAccountId,
+  lockedAccountName,
+  onClose,
+}: {
+  quote: Quote
+  accountName?: string
+  lockedAccountId?: string
+  lockedAccountName?: string
+  onClose: () => void
+}) {
   const deleteQuote = useDeleteQuote()
   const [showEdit, setShowEdit] = useState(false)
+  const displayAccountName = quote.account?.name ?? accountName
 
   return (
     <>
@@ -45,8 +65,9 @@ function QuoteDetail({ quote, onClose }: { quote: Quote; onClose: () => void }) 
         }
       >
         <div className="space-y-5">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <QuoteStatusBadge status={quote.status} />
+            <AccountChip name={displayAccountName} />
             <span className="text-2xl font-bold text-[var(--color-primary)]">
               {formatCurrency(quote.total_cents / 100, quote.currency)}
             </span>
@@ -55,6 +76,13 @@ function QuoteDetail({ quote, onClose }: { quote: Quote; onClose: () => void }) 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <dt className="font-medium text-slate-500">Currency</dt>
             <dd className="text-slate-900">{quote.currency}</dd>
+
+            {displayAccountName && (
+              <>
+                <dt className="font-medium text-slate-500">Account</dt>
+                <dd className="text-slate-900">{displayAccountName}</dd>
+              </>
+            )}
 
             {quote.valid_until && (
               <>
@@ -130,6 +158,9 @@ function QuoteDetail({ quote, onClose }: { quote: Quote; onClose: () => void }) 
       {showEdit && (
         <QuoteBuilder
           quote={quote}
+          accountId={lockedAccountId}
+          accountName={lockedAccountName}
+          lockAccount={!!lockedAccountId}
           onClose={() => setShowEdit(false)}
         />
       )}
@@ -141,38 +172,56 @@ export function QuotesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const accountId = searchParams.get('account_id') ?? ''
   const accountName = searchParams.get('account_name') ?? ''
+  const dealId = searchParams.get('deal_id') ?? ''
+  const dealName = searchParams.get('deal_name') ?? ''
   const contactId = searchParams.get('contact_id') ?? ''
   const contactName = searchParams.get('contact_name') ?? ''
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | ''>('')
   const [search, setSearch] = useState('')
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const { data: accountsResult, isLoading: accountsLoading } = useAccounts({ per_page: 200 })
+  const accounts = accountsResult?.data ?? []
+  const accountNameById = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account.name])),
+    [accounts]
+  )
 
   const { data, isLoading } = useQuotes({
     q: search || undefined,
     status: statusFilter || undefined,
     account_id: accountId || undefined,
+    deal_id: dealId || undefined,
     contact_id: contactId || undefined,
     limit: 50,
   })
 
   const quotes = data?.data ?? []
   const activeContextLabel = useMemo(() => {
+    if (dealId) return dealName ? `Deal: ${dealName}` : 'Deal filter active'
     if (contactId) return contactName ? `Contact: ${contactName}` : 'Contact filter active'
     if (accountId) return accountName ? `Account: ${accountName}` : 'Account filter active'
     return null
-  }, [accountId, accountName, contactId, contactName])
+  }, [accountId, accountName, contactId, contactName, dealId, dealName])
 
   const selectedQuote = selectedQuoteId ? quotes.find((q) => q.id === selectedQuoteId) : null
+  const selectedAccountName = accountId ? (accountNameById.get(accountId) ?? accountName) : ''
+  const getQuoteAccountName = (quote: Quote) =>
+    quote.account?.name ??
+    (quote.account_id ? accountNameById.get(quote.account_id) : undefined) ??
+    (quote.account_id === accountId ? accountName : undefined)
 
   const columns: Column<Quote>[] = [
     {
       key: 'title',
       header: 'Quote',
       render: (q) => (
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-slate-400 shrink-0" />
-          <span className="font-medium text-slate-900">{q.title}</span>
+        <div className="flex items-start gap-2">
+          <FileText className="mt-0.5 h-4 w-4 text-slate-400 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            <span className="block truncate font-medium text-slate-900">{q.title}</span>
+            <AccountChip name={getQuoteAccountName(q)} />
+          </div>
         </div>
       ),
     },
@@ -224,6 +273,8 @@ export function QuotesPage() {
                 const next = new URLSearchParams(prev)
                 next.delete('account_id')
                 next.delete('account_name')
+                next.delete('deal_id')
+                next.delete('deal_name')
                 next.delete('contact_id')
                 next.delete('contact_name')
                 return next
@@ -257,6 +308,30 @@ export function QuotesPage() {
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        <select
+          value={accountId}
+          onChange={(e) => {
+            const nextAccountId = e.target.value
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev)
+              if (nextAccountId) {
+                next.set('account_id', nextAccountId)
+                next.set('account_name', accountNameById.get(nextAccountId) ?? '')
+              } else {
+                next.delete('account_id')
+                next.delete('account_name')
+              }
+              return next
+            })
+          }}
+          disabled={accountsLoading}
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+        >
+          <option value="">All accounts</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>{account.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Table */}
@@ -277,12 +352,25 @@ export function QuotesPage() {
 
       {/* Detail panel */}
       {selectedQuote && (
-        <QuoteDetail quote={selectedQuote} onClose={() => setSelectedQuoteId(null)} />
+        <QuoteDetail
+          quote={selectedQuote}
+          accountName={getQuoteAccountName(selectedQuote)}
+          lockedAccountId={accountId || undefined}
+          lockedAccountName={selectedAccountName || undefined}
+          onClose={() => setSelectedQuoteId(null)}
+        />
       )}
 
       {/* Create quote modal */}
       {showCreate && (
-        <QuoteBuilder onClose={() => setShowCreate(false)} />
+        <QuoteBuilder
+          accountId={accountId || undefined}
+          accountName={selectedAccountName || undefined}
+          lockAccount={!!accountId}
+          dealId={dealId || undefined}
+          contactId={contactId || undefined}
+          onClose={() => setShowCreate(false)}
+        />
       )}
     </div>
   )
