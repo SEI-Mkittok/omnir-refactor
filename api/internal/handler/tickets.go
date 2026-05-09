@@ -549,6 +549,7 @@ func (h *TicketHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	defer rc.Close()
 
 	w.Header().Set("Content-Type", a.ContentType)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	disposition := "attachment"
 	if r.URL.Query().Get("preview") == "1" && ticketAttachmentCanPreviewInline(a.ContentType) {
 		disposition = "inline"
@@ -563,10 +564,20 @@ func (h *TicketHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 }
 
 func ticketAttachmentCanPreviewInline(contentType string) bool {
-	if strings.HasPrefix(contentType, "image/") && !strings.HasPrefix(contentType, "image/svg+xml") {
+	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
+	if strings.HasPrefix(mediaType, "image/") && !strings.HasPrefix(mediaType, "image/svg+xml") {
 		return true
 	}
-	return contentType == "application/pdf" || strings.HasPrefix(contentType, "text/")
+	switch mediaType {
+	case "application/pdf",
+		"text/plain",
+		"text/markdown",
+		"text/csv",
+		"text/tab-separated-values":
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *TicketHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
