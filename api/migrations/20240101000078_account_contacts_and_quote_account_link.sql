@@ -23,6 +23,7 @@ ALTER TABLE account_contacts
     ALTER COLUMN id SET NOT NULL,
     ALTER COLUMN org_id SET NOT NULL;
 
+-- +goose StatementBegin
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -35,6 +36,7 @@ BEGIN
             FOREIGN KEY (org_id) REFERENCES orgs(id) ON DELETE CASCADE;
     END IF;
 END $$;
+-- +goose StatementEnd
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_account_contacts_id
     ON account_contacts (id);
