@@ -49,6 +49,14 @@ function installHandlers() {
           created_at: '2026-05-01T00:00:00Z',
         },
         {
+          id: 'large-text-1',
+          filename: 'export.log',
+          content_type: 'text/plain',
+          size_bytes: 1024 * 1024,
+          url: `/api/v1/tickets/${ticketId}/attachments/large-text-1`,
+          created_at: '2026-05-01T00:00:00Z',
+        },
+        {
           id: 'svg-1',
           filename: 'diagram.svg',
           content_type: 'image/svg+xml',
@@ -81,12 +89,14 @@ describe('TicketDetail attachment previews', () => {
     expect(await screen.findByText('screenshot.png')).toBeInTheDocument()
     expect(screen.getByText('proposal.pdf')).toBeInTheDocument()
     expect(screen.getByText('notes.md')).toBeInTheDocument()
+    expect(screen.getByText('export.log')).toBeInTheDocument()
     expect(screen.getByText('diagram.svg')).toBeInTheDocument()
     expect(screen.getByText('brief.docx')).toBeInTheDocument()
 
     const previewButtons = screen.getAllByTitle(/^Toggle preview for /)
     expect(previewButtons).toHaveLength(3)
-    expect(screen.getAllByTitle('Download')).toHaveLength(5)
+    expect(screen.getAllByTitle('Download')).toHaveLength(6)
+    expect(screen.queryByTitle('Toggle preview for export.log')).not.toBeInTheDocument()
     expect(screen.queryByTitle('Toggle preview for diagram.svg')).not.toBeInTheDocument()
 
     await user.click(screen.getByTitle('Toggle preview for screenshot.png'))

@@ -158,6 +158,8 @@ function formatBytes(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+const MAX_TEXT_PREVIEW_BYTES = 256 * 1024
+
 function isTextPreviewType(contentType: string, filename: string) {
   const lowerName = filename.toLowerCase()
   return (
@@ -166,6 +168,10 @@ function isTextPreviewType(contentType: string, filename: string) {
     lowerName.endsWith('.md') ||
     lowerName.endsWith('.txt')
   )
+}
+
+function isTextPreviewSizeAllowed(bytes?: number) {
+  return typeof bytes === 'number' && bytes <= MAX_TEXT_PREVIEW_BYTES
 }
 
 function isImagePreviewType(contentType: string) {
@@ -196,7 +202,9 @@ function TicketAttachmentRow({ ticketId, attachment }: { ticketId: string; attac
 
   const isImage = isImagePreviewType(attachment.content_type)
   const isPdf = attachment.content_type === 'application/pdf'
-  const isText = isTextPreviewType(attachment.content_type, attachment.filename)
+  const isText =
+    isTextPreviewType(attachment.content_type, attachment.filename) &&
+    isTextPreviewSizeAllowed(attachment.size_bytes)
   const canPreview = isImage || isPdf || isText
   const previewUrl = `${attachment.url}${attachment.url.includes('?') ? '&' : '?'}preview=1`
 
