@@ -11,9 +11,11 @@ interface TestItem {
 function TestHarness({
   search,
   onSelect,
+  mapError,
 }: {
   search: (query: string) => Promise<TestItem[]>
   onSelect?: (item: TestItem) => Promise<unknown>
+  mapError?: Parameters<typeof EntityLinkModal<TestItem>>[0]['mapError']
 }) {
   const [open, setOpen] = useState(true)
 
@@ -27,6 +29,7 @@ function TestHarness({
       onSelect={onSelect ?? (async () => undefined)}
       getKey={(item) => item.id}
       renderItem={(item) => <span>{item.label}</span>}
+      mapError={mapError}
     />
   )
 }
@@ -109,6 +112,95 @@ describe('EntityLinkModal', () => {
     render(<TestHarness search={search} />)
     const reopenedInput = screen.getByRole('combobox', { name: 'Search things…' })
     fireEvent.keyDown(reopenedInput, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('traps tab focus and supports option focus keyboard handoff', async () => {
+    const search = vi.fn(async () => [
+      { id: '1', label: 'Ada Lovelace' },
+      { id: '2', label: 'Grace Hopper' },
+    ])
+
+    render(<TestHarness search={search} />)
+
+    const input = screen.getByRole('combobox', { name: 'Search things…' })
+    fireEvent.change(input, { target: { value: 'a' } })
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('option')).toHaveLength(2)
+    })
+
+    const options = screen.getAllByRole('option')
+    fireEvent.keyDown(input, { key: 'Tab' })
+    expect(options[0]).toHaveFocus()
+
+    fireEvent.keyDown(options[0], { key: 'End' })
+    await waitFor(() => {
+      expect(options[1]).toHaveFocus()
+    })
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(options[1], { key: 'Home' })
+    await waitFor(() => {
+      expect(options[0]).toHaveFocus()
+    })
+    expect(options[0]).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.keyDown(options[0], { key: 'Tab', shiftKey: true })
+    expect([input, screen.getByRole('button', { name: 'Close' }), ...options]).toContain(document.activeElement)
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus()
+    })
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Close' }), { key: 'Tab' })
+    expect([input, screen.getByRole('button', { name: 'Close' }), ...options]).toContain(document.activeElement)
+  })
+
+  it('disables options while pending and keeps mapped error actions retryable', async () => {
+    let rejectSelection: ((error: Error) => void) | undefined
+    const onSelect = vi.fn(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSelection = reject
+        })
+    )
+    const retryAction = vi.fn(async () => undefined)
+    const search = vi.fn(async () => [{ id: '1', label: 'Ada Lovelace' }])
+
+    render(
+      <TestHarness
+        search={search}
+        onSelect={onSelect}
+        mapError={() => ({
+          message: 'This item belongs somewhere else.',
+          actions: [{ label: 'Relink item', action: retryAction }],
+        })}
+      />
+    )
+
+    const input = screen.getByRole('combobox', { name: 'Search things…' })
+    fireEvent.change(input, { target: { value: 'ada' } })
+
+    const option = await screen.findByRole('option', { name: 'Ada Lovelace' })
+    fireEvent.mouseDown(option)
+
+    await waitFor(() => {
+      expect(option).toBeDisabled()
+    })
+
+    rejectSelection?.(new Error('mismatch'))
+
+    expect(await screen.findByText('This item belongs somewhere else.')).toBeInTheDocument()
+    const retryButton = screen.getByRole('button', { name: 'Relink item' })
+    fireEvent.click(retryButton)
+
+    await waitFor(() => {
+      expect(retryAction).toHaveBeenCalledTimes(1)
+    })
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })

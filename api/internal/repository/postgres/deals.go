@@ -177,9 +177,13 @@ func (r *DealRepo) Update(ctx context.Context, id uuid.UUID, patch domain.DealPa
 	}
 	if patch.ContactID != nil {
 		addArg("contact_id", *patch.ContactID)
+	} else if patch.ClearContactID {
+		addArg("contact_id", nil)
 	}
 	if patch.AccountID != nil {
 		addArg("account_id", *patch.AccountID)
+	} else if patch.ClearAccountID {
+		addArg("account_id", nil)
 	}
 	if patch.OwnerID != nil {
 		addArg("owner_id", *patch.OwnerID)

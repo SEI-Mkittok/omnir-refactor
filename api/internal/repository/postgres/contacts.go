@@ -131,6 +131,8 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 	}
 	if patch.AccountID != nil {
 		addArg("account_id", *patch.AccountID)
+	} else if patch.ClearAccountID {
+		addArg("account_id", nil)
 	}
 	if patch.OwnerID != nil {
 		addArg("owner_id", *patch.OwnerID)

@@ -118,7 +118,7 @@ export interface CreateContactRequest {
   title?: string
   department?: string
   stage?: ContactStage
-  account_id?: string
+  account_id?: string | null
   owner_id?: string
   tags?: string[]
 }
@@ -228,8 +228,8 @@ export interface CreateDealRequest {
   stage?: DealStage
   probability?: number
   expected_close_date?: string
-  account_id?: string
-  contact_id?: string
+  account_id?: string | null
+  contact_id?: string | null
   pipeline_id?: string
   owner_id?: string
   tags?: string[]
