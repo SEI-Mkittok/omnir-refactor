@@ -70,7 +70,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
 
   if (!open) {
     return (
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="sm" variant="outline" className="min-h-11 px-3 sm:min-h-0" onClick={() => setOpen(true)}>
         <Plus className="h-3.5 w-3.5" />
         Log Activity
       </Button>
@@ -83,7 +83,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
       className="rounded-lg border border-[var(--color-primary-light)] bg-[var(--color-primary-light)] p-3 space-y-3"
     >
       {/* Type selector */}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
         {ALL_TYPES.map((t) => {
           const { label, Icon } = typeConfig[t]
           return (
@@ -92,7 +92,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
               type="button"
               onClick={() => setType(t)}
               className={cn(
-                'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                'flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 py-2 text-sm font-medium transition-colors sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-xs',
                 type === t
                   ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -144,7 +144,7 @@ function QuickAddForm({ contactId, dealId, onSuccess }: QuickAddFormProps) {
         >
           Cancel
         </button>
-        <Button type="submit" size="sm" disabled={!subject.trim() || createActivity.isPending}>
+        <Button type="submit" size="sm" className="min-h-11 px-4 sm:min-h-0" disabled={!subject.trim() || createActivity.isPending}>
           {createActivity.isPending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
@@ -305,11 +305,11 @@ export function ActivityTimeline({ contactId, dealId }: ActivityTimelineProps) {
       </div>
 
       {/* Type filter pills */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
         <button
           onClick={() => setTypeFilter('')}
           className={cn(
-            'rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+            'min-h-11 shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs',
             typeFilter === ''
               ? 'border-slate-700 bg-slate-700 text-white'
               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
@@ -324,7 +324,7 @@ export function ActivityTimeline({ contactId, dealId }: ActivityTimelineProps) {
               key={t}
               onClick={() => setTypeFilter(typeFilter === t ? '' : t)}
               className={cn(
-                'flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                'flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors sm:min-h-0 sm:px-2.5 sm:py-0.5 sm:text-xs',
                 typeFilter === t
                   ? 'border-slate-700 bg-slate-700 text-white'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
