@@ -31,6 +31,7 @@ func (h *SLAPolicyHandler) Router() chi.Router {
 	r.With(adminOnly).Post("/", h.Create)
 	r.With(agentOnly).Get("/{id}", h.GetByID)
 	r.With(adminOnly).Put("/{id}", h.Update)
+	r.With(adminOnly).Patch("/{id}", h.Update)
 	r.With(adminOnly).Delete("/{id}", h.Delete)
 
 	return r

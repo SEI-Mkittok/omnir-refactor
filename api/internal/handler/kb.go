@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -17,11 +19,18 @@ import (
 type KBHandler struct {
 	articles   repository.KBArticleRepository
 	categories repository.KBCategoryRepository
+	orgs       repository.OrgRepository
 }
 
 // NewKBHandler constructs a KBHandler.
 func NewKBHandler(articles repository.KBArticleRepository, categories repository.KBCategoryRepository) *KBHandler {
 	return &KBHandler{articles: articles, categories: categories}
+}
+
+// WithOrgs enables public slug routes to resolve tenant slugs before querying KB data.
+func (h *KBHandler) WithOrgs(orgs repository.OrgRepository) *KBHandler {
+	h.orgs = orgs
+	return h
 }
 
 // Router returns the authenticated sub-router (mounted under /api/v1/kb).
@@ -39,6 +48,7 @@ func (h *KBHandler) Router() chi.Router {
 
 	// Articles
 	r.Get("/articles", h.ListArticles)
+	r.Get("/articles/suggest", h.SuggestByQuery)
 	r.Get("/articles/{articleID}", h.GetArticle)
 	r.Get("/search", h.Search)
 	r.Group(func(r chi.Router) {
@@ -55,8 +65,19 @@ func (h *KBHandler) Router() chi.Router {
 // PublicRouter returns the unauthenticated help-portal router (mounted under /api/portal/help).
 func (h *KBHandler) PublicRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Get("/categories", h.PublicListCategories)
 	r.Get("/articles", h.PublicListArticles)
+	r.Get("/articles/{slug}", h.PublicGetArticle)
 	r.Get("/search", h.PublicSearch)
+	return r
+}
+
+// PublicCompatibilityRouter supports the help-center client paths under /api/public.
+func (h *KBHandler) PublicCompatibilityRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/kb/{orgSlug}/categories", h.PublicListCategories)
+	r.Get("/kb/{orgSlug}/articles", h.PublicListArticlesFlat)
+	r.Get("/kb/{orgSlug}/articles/{slug}", h.PublicGetArticle)
 	return r
 }
 
@@ -251,6 +272,40 @@ func (h *KBHandler) Suggest(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "suggest failed")
 		return
 	}
+	results, err = h.hydrateKBSuggestSlugs(domain.WithOrgID(r.Context(), article.OrgID), results)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "suggest failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, results)
+}
+
+func (h *KBHandler) SuggestByQuery(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "org context required")
+		return
+	}
+
+	q := r.URL.Query().Get("q")
+	if q == "" {
+		q = r.URL.Query().Get("subject")
+	}
+	if q == "" {
+		writeError(w, http.StatusBadRequest, "q parameter is required")
+		return
+	}
+
+	results, err := h.articles.Suggest(r.Context(), orgID, q, 5)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "suggest failed")
+		return
+	}
+	results, err = h.hydrateKBSuggestSlugs(domain.WithOrgID(r.Context(), orgID), results)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "suggest failed")
+		return
+	}
 	writeJSON(w, http.StatusOK, results)
 }
 
@@ -259,12 +314,15 @@ func (h *KBHandler) Suggest(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 func (h *KBHandler) PublicListArticles(w http.ResponseWriter, r *http.Request) {
-	// Public always returns only published articles; no org context from JWT.
-	// Org must be derivable from host header or query param in multi-tenant setups;
-	// for now we use a "published only" filter with no org restriction (single-org mode).
+	orgID, ok := h.publicOrgID(w, r)
+	if !ok {
+		return
+	}
+
 	published := domain.KBArticleStatusPublished
 	filter := domain.KBArticleFilter{
 		Status: &published,
+		OrgID:  orgID,
 		Page:   1,
 		Limit:  50,
 	}
@@ -281,7 +339,107 @@ func (h *KBHandler) PublicListArticles(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, paginated(articles, total, filter.Page, filter.Limit))
 }
 
+func (h *KBHandler) PublicListArticlesFlat(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := h.publicOrgID(w, r)
+	if !ok {
+		return
+	}
+
+	published := domain.KBArticleStatusPublished
+	filter := domain.KBArticleFilter{
+		Status: &published,
+		OrgID:  orgID,
+		Page:   1,
+		Limit:  50,
+	}
+	if q := r.URL.Query().Get("q"); q != "" {
+		filter.Query = q
+	}
+	articles, _, err := h.articles.List(r.Context(), filter)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list articles")
+		return
+	}
+	writeJSON(w, http.StatusOK, publicKBArticleSummaries(articles))
+}
+
+func (h *KBHandler) PublicListCategories(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := h.publicOrgID(w, r)
+	if !ok {
+		return
+	}
+	ctx := domain.WithOrgID(r.Context(), orgID)
+
+	cats, _, err := h.categories.List(ctx, domain.KBCategoryFilter{OrgID: orgID, Page: 1, Limit: 100})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list categories")
+		return
+	}
+	counts, err := h.publicKBArticleCountsByCategory(ctx, orgID, cats)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list categories")
+		return
+	}
+	resp := make([]map[string]any, 0, len(cats))
+	for _, cat := range cats {
+		resp = append(resp, map[string]any{
+			"id":            cat.ID,
+			"org_id":        cat.OrgID,
+			"name":          cat.Name,
+			"slug":          cat.Slug,
+			"position":      cat.SortOrder,
+			"sort_order":    cat.SortOrder,
+			"article_count": counts[cat.ID],
+			"created_at":    cat.CreatedAt,
+			"updated_at":    cat.UpdatedAt,
+		})
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *KBHandler) PublicGetArticle(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := h.publicOrgID(w, r)
+	if !ok {
+		return
+	}
+	ctx := domain.WithOrgID(r.Context(), orgID)
+
+	slug := chi.URLParam(r, "slug")
+	if id, err := uuid.Parse(slug); err == nil {
+		article, err := h.articles.GetByID(ctx, id)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if article.OrgID != orgID || article.Status != domain.KBArticleStatusPublished {
+			handleDomainErr(w, domain.ErrNotFound)
+			return
+		}
+		writeJSON(w, http.StatusOK, article)
+		return
+	}
+
+	published := domain.KBArticleStatusPublished
+	articles, _, err := h.articles.List(r.Context(), domain.KBArticleFilter{OrgID: orgID, Status: &published, Page: 1, Limit: 200})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load article")
+		return
+	}
+	for _, article := range articles {
+		if articleSlug(article) == slug {
+			writeJSON(w, http.StatusOK, article)
+			return
+		}
+	}
+	handleDomainErr(w, domain.ErrNotFound)
+}
+
 func (h *KBHandler) PublicSearch(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := h.publicOrgID(w, r)
+	if !ok {
+		return
+	}
+
 	q := r.URL.Query().Get("q")
 	if q == "" {
 		writeError(w, http.StatusBadRequest, "q parameter is required")
@@ -290,6 +448,7 @@ func (h *KBHandler) PublicSearch(w http.ResponseWriter, r *http.Request) {
 	published := domain.KBArticleStatusPublished
 	filter := domain.KBArticleFilter{
 		Status: &published,
+		OrgID:  orgID,
 		Query:  q,
 		Page:   1,
 		Limit:  50,
@@ -335,4 +494,94 @@ func (h *KBHandler) parseArticleFilter(r *http.Request, defaultStatus *domain.KB
 		}
 	}
 	return f
+}
+
+func (h *KBHandler) publicOrgID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	slug := chi.URLParam(r, "orgSlug")
+	if slug == "" {
+		return domain.DefaultOrgID, true
+	}
+	if h.orgs == nil {
+		writeError(w, http.StatusInternalServerError, "organization lookup unavailable")
+		return uuid.Nil, false
+	}
+
+	org, err := h.orgs.GetBySlug(r.Context(), slug)
+	if err != nil {
+		handleDomainErr(w, err)
+		return uuid.Nil, false
+	}
+	return org.ID, true
+}
+
+func articleSlug(article *domain.KBArticle) string {
+	if article.Number != nil {
+		return strings.ToLower(article.NumberPrefix) + "-" + strconv.FormatInt(*article.Number, 10)
+	}
+	slug := strings.ToLower(article.Title)
+	var b strings.Builder
+	lastDash := false
+	for _, r := range slug {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func publicKBArticleSummaries(articles []*domain.KBArticle) []map[string]any {
+	resp := make([]map[string]any, 0, len(articles))
+	for _, article := range articles {
+		resp = append(resp, map[string]any{
+			"id":          article.ID,
+			"category_id": article.CategoryID,
+			"title":       article.Title,
+			"slug":        articleSlug(article),
+			"status":      article.Status,
+			"view_count":  article.ViewCount,
+			"created_at":  article.CreatedAt,
+			"updated_at":  article.UpdatedAt,
+		})
+	}
+	return resp
+}
+
+func (h *KBHandler) publicKBArticleCountsByCategory(ctx context.Context, orgID uuid.UUID, cats []*domain.KBCategory) (map[uuid.UUID]int, error) {
+	counts := make(map[uuid.UUID]int, len(cats))
+	published := domain.KBArticleStatusPublished
+	for _, cat := range cats {
+		categoryID := cat.ID
+		_, total, err := h.articles.List(ctx, domain.KBArticleFilter{
+			OrgID:      orgID,
+			CategoryID: &categoryID,
+			Status:     &published,
+			Page:       1,
+			Limit:      1,
+		})
+		if err != nil {
+			return nil, err
+		}
+		counts[cat.ID] = total
+	}
+	return counts, nil
+}
+
+func (h *KBHandler) hydrateKBSuggestSlugs(ctx context.Context, results []*domain.KBSuggestResult) ([]*domain.KBSuggestResult, error) {
+	for _, result := range results {
+		if result.Slug != "" {
+			continue
+		}
+		article, err := h.articles.GetByID(ctx, result.ID)
+		if err != nil {
+			return nil, err
+		}
+		result.Slug = articleSlug(article)
+	}
+	return results, nil
 }
