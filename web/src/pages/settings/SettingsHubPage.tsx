@@ -119,7 +119,7 @@ function Card({ icon: Icon, title, description, href, badge }: SettingsCard) {
 
 export function SettingsHubPage() {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
 
   return (
     <div className="space-y-8">

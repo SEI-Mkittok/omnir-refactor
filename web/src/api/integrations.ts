@@ -5,19 +5,32 @@ import apiClient from './client'
 export type IntegrationProvider =
   | 'gmail'
   | 'outlook'
+  | 'google_calendar'
+  | 'outlook_calendar'
   | 'slack'
-  | 'teams'
+  | 'microsoft_teams'
   | 'confluence'
   | 'stripe'
+  | 'sendgrid'
+  | 'twilio'
+  | 'zapier'
 
-export type IntegrationStatus = 'connected' | 'disconnected' | 'error'
+export type IntegrationStatus = 'connected' | 'disconnected' | 'coming_soon'
+
+interface BackendIntegration {
+  provider: IntegrationProvider
+  status: IntegrationStatus
+  email_address?: string
+  last_synced_at?: string
+  has_custom_creds?: boolean
+}
 
 export interface Integration {
   provider: IntegrationProvider
   status: IntegrationStatus
-  connectedEmail?: string
-  lastSyncedAt?: string // ISO date
-  errorMessage?: string
+  emailAddress?: string
+  lastSyncedAt?: string
+  hasCustomCreds: boolean
 }
 
 export interface IntegrationCredentials {
@@ -25,11 +38,23 @@ export interface IntegrationCredentials {
   clientSecret: string
 }
 
+function normalizeIntegration(integration: BackendIntegration): Integration {
+  return {
+    provider: integration.provider,
+    status: integration.status,
+    emailAddress: integration.email_address,
+    lastSyncedAt: integration.last_synced_at,
+    hasCustomCreds: integration.has_custom_creds ?? false,
+  }
+}
+
 // ── API ────────────────────────────────────────────────────────────────────
 
 export const integrationsApi = {
   list(): Promise<Integration[]> {
-    return apiClient.get('/integrations').then((r) => r.data)
+    return apiClient.get<BackendIntegration[]>('/integrations').then((r) =>
+      r.data.map(normalizeIntegration)
+    )
   },
 
   disconnect(provider: IntegrationProvider): Promise<void> {
@@ -37,7 +62,10 @@ export const integrationsApi = {
   },
 
   saveCredentials(provider: IntegrationProvider, creds: IntegrationCredentials): Promise<void> {
-    return apiClient.put(`/integrations/${provider}/credentials`, creds).then(() => undefined)
+    return apiClient.put(`/integrations/${provider}/credentials`, {
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+    }).then(() => undefined)
   },
 
   clearCredentials(provider: IntegrationProvider): Promise<void> {

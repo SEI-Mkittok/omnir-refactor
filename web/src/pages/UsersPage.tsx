@@ -21,9 +21,16 @@ import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from '@/api
 
 const ROLE_OPTIONS = [
   { label: 'All Roles', value: '' },
+  { label: 'Super Admin', value: 'super_admin' },
   { label: 'Admin', value: 'admin' },
-  { label: 'User', value: 'user' },
-  { label: 'Viewer', value: 'viewer' },
+  { label: 'Agent', value: 'agent' },
+  { label: 'Client', value: 'client' },
+]
+
+const ASSIGNABLE_ROLE_OPTIONS: Array<{ label: string; value: UserRole }> = [
+  { label: 'Admin', value: 'admin' },
+  { label: 'Agent', value: 'agent' },
+  { label: 'Client', value: 'client' },
 ]
 
 const SORT_OPTIONS = [
@@ -38,8 +45,6 @@ const roleBadgeVariant: Record<UserRole, 'default' | 'blue' | 'yellow' | 'green'
   admin: 'red',
   agent: 'indigo',
   client: 'green',
-  user: 'blue',
-  viewer: 'gray',
 }
 
 const roleLabel: Record<UserRole, string> = {
@@ -47,8 +52,10 @@ const roleLabel: Record<UserRole, string> = {
   admin: 'Admin',
   agent: 'Agent',
   client: 'Client',
-  user: 'User',
-  viewer: 'Viewer',
+}
+
+function isWorkspaceAdmin(role: UserRole | undefined) {
+  return role === 'admin' || role === 'super_admin'
 }
 
 // ---- Create User Dialog ----
@@ -64,7 +71,7 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
     name: '',
     email: '',
     password: '',
-    role: 'user',
+    role: 'agent',
   })
   const [error, setError] = useState('')
 
@@ -77,7 +84,7 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
     }
     createUser(form, {
       onSuccess: () => {
-        setForm({ name: '', email: '', password: '', role: 'user' })
+        setForm({ name: '', email: '', password: '', role: 'agent' })
         onClose()
       },
       onError: () => setError('Failed to create user. Email may already be in use.'),
@@ -125,9 +132,11 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
             >
-              <option value="user">User</option>
-              <option value="viewer">Viewer</option>
-              <option value="admin">Admin</option>
+              {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -159,7 +168,7 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
   const [form, setForm] = useState<UpdateUserRequest>({})
   const [error, setError] = useState('')
 
-  const isAdmin = currentUserRole === 'admin'
+  const isAdmin = isWorkspaceAdmin(currentUserRole)
   const isSelf = user?.id === currentUserId
 
   // Populate form when user changes
@@ -213,12 +222,19 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
               <label className="text-sm font-medium text-slate-700">Role</label>
               <select
                 className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
-                value={form.role ?? 'user'}
+                value={form.role ?? 'agent'}
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
               >
-                <option value="user">User</option>
-                <option value="viewer">Viewer</option>
-                <option value="admin">Admin</option>
+                {form.role === 'super_admin' && (
+                  <option value="super_admin" disabled>
+                    Super Admin
+                  </option>
+                )}
+                {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           )}
@@ -241,7 +257,7 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
 
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user)
-  const isAdmin = currentUser?.role === 'admin'
+  const isAdmin = isWorkspaceAdmin(currentUser?.role)
 
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
@@ -426,7 +442,7 @@ export function UsersPage() {
       )}
       <EditUserDialog
         user={editUser}
-        currentUserRole={(currentUser?.role as UserRole) ?? 'user'}
+        currentUserRole={currentUser?.role ?? 'agent'}
         currentUserId={currentUser?.id ?? ''}
         onClose={() => setEditUser(null)}
       />

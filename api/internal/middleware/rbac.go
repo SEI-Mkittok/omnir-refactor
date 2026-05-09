@@ -21,7 +21,11 @@ func RequireRole(roles ...domain.UserRole) func(http.Handler) http.Handler {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
-			if _, permitted := allowed[claims.Role]; !permitted {
+			_, permitted := allowed[claims.Role]
+			if !permitted && claims.Role == string(domain.UserRoleSuperAdmin) {
+				_, permitted = allowed[string(domain.UserRoleAdmin)]
+			}
+			if !permitted {
 				http.Error(w, `{"error":"forbidden","code":"forbidden"}`, http.StatusForbidden)
 				return
 			}

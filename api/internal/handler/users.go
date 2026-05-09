@@ -37,7 +37,7 @@ func (h *UserHandler) Router() chi.Router {
 func (h *UserHandler) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || claims.Role != string(domain.UserRoleAdmin) {
+		if !ok || !domain.IsAdminRole(claims.Role) {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}
@@ -120,6 +120,7 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFromContext(r)
 	var req struct {
 		Name     string          `json:"name"`
 		Email    string          `json:"email"`
@@ -136,6 +137,10 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Role == "" {
 		req.Role = domain.UserRoleAgent
+	}
+	if req.Role == domain.UserRoleSuperAdmin && claims.Role != string(domain.UserRoleSuperAdmin) {
+		writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
+		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -177,7 +182,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isAdmin := claims.Role == string(domain.UserRoleAdmin)
+	isAdmin := domain.IsAdminRole(claims.Role)
 	isSelf := claims.UserID == id
 
 	if !isAdmin && !isSelf {
@@ -187,6 +192,11 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Non-admins cannot change role.
 	if !isAdmin && patch.Role != nil {
 		writeError(w, http.StatusForbidden, "only admins can change roles")
+		return
+	}
+	if patch.Role != nil && *patch.Role == domain.UserRoleSuperAdmin &&
+		claims.Role != string(domain.UserRoleSuperAdmin) {
+		writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
 		return
 	}
 
@@ -224,5 +234,5 @@ func (h *UserHandler) isAdminOrSelf(r *http.Request, targetID uuid.UUID) bool {
 	if !ok {
 		return false
 	}
-	return claims.Role == string(domain.UserRoleAdmin) || claims.UserID == targetID
+	return domain.IsAdminRole(claims.Role) || claims.UserID == targetID
 }

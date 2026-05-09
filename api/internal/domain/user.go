@@ -15,6 +15,13 @@ const (
 	UserRoleClient     UserRole = "client"
 )
 
+// IsAdminRole reports whether a role has workspace-admin privileges inside
+// the active tenant. It intentionally does not make admin equivalent to
+// super_admin for cross-org operations.
+func IsAdminRole(role string) bool {
+	return role == string(UserRoleAdmin) || role == string(UserRoleSuperAdmin)
+}
+
 type User struct {
 	ID        uuid.UUID  `json:"id"`
 	OrgID     uuid.UUID  `json:"org_id"`

@@ -108,7 +108,7 @@ func (h *SavedViewHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	// Access: own view, shared view, or admin
 	claims, _ := middleware.ClaimsFromContext(r)
-	if !v.IsShared && v.CreatedBy != claims.UserID && claims.Role != string(domain.UserRoleAdmin) {
+	if !v.IsShared && v.CreatedBy != claims.UserID && !domain.IsAdminRole(claims.Role) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -134,7 +134,7 @@ func (h *SavedViewHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-	if existing.CreatedBy != claims.UserID && claims.Role != string(domain.UserRoleAdmin) {
+	if existing.CreatedBy != claims.UserID && !domain.IsAdminRole(claims.Role) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -179,7 +179,7 @@ func (h *SavedViewHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-	if existing.CreatedBy != claims.UserID && claims.Role != string(domain.UserRoleAdmin) {
+	if existing.CreatedBy != claims.UserID && !domain.IsAdminRole(claims.Role) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
@@ -209,7 +209,7 @@ func (h *SavedViewHandler) Pin(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-	if existing.CreatedBy != claims.UserID && claims.Role != string(domain.UserRoleAdmin) {
+	if existing.CreatedBy != claims.UserID && !domain.IsAdminRole(claims.Role) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}

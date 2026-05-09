@@ -18,6 +18,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 export function AppShell() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const isInitializing = useAuthStore((s) => s.isInitializing)
+  const user = useAuthStore((s) => s.user)
   const setUser = useAuthStore((s) => s.setUser)
   const setActiveOrg = useAuthStore((s) => s.setActiveOrg)
   const activeOrg = useAuthStore((s) => s.activeOrg)
@@ -78,15 +79,18 @@ export function AppShell() {
       .finally(() => { setInitializing(false) })
   }, [setUser, setActiveOrg, logout, setOnboardingOpen, setOnboardingDismissed, setInitializing]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep browser tab title in sync with the org name.
-  useEffect(() => {
-    document.title = activeOrg?.name ? `${activeOrg.name} — Omnir` : 'Omnir'
-  }, [activeOrg?.name])
-  usePushNotifications()
-  useMutationQueue()
-
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const location = useLocation()
+  const breadcrumb = getBreadcrumb(location.pathname)
+
+  // Keep browser tab title in sync with the active route and org name.
+  useEffect(() => {
+    document.title = activeOrg?.name
+      ? `${breadcrumb} — ${activeOrg.name} — Omnir`
+      : `${breadcrumb} — Omnir`
+  }, [activeOrg?.name, breadcrumb])
+  usePushNotifications()
+  useMutationQueue()
 
   if (isInitializing) {
     return null
@@ -94,6 +98,10 @@ export function AppShell() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  if (user?.role === 'client') {
+    return <Navigate to="/portal/tickets" replace />
   }
 
   const sidebarWidth = sidebarCollapsed ? 60 : 210
@@ -140,7 +148,7 @@ export function AppShell() {
         {/* ── Top bar ── */}
         <TopBar
           onMenuClick={() => setMobileDrawerOpen(true)}
-          breadcrumb={getBreadcrumb(location.pathname)}
+          breadcrumb={breadcrumb}
         />
 
         {/* ── Resume onboarding banner (shown after mid-wizard dismiss) ── */}
@@ -202,7 +210,7 @@ export function AppShell() {
   )
 }
 
-function getBreadcrumb(pathname: string): string {
+export function getBreadcrumb(pathname: string): string {
   const map: Record<string, string> = {
     '/dashboard':          'Dashboard',
     '/contacts':           'Contacts',
@@ -210,6 +218,7 @@ function getBreadcrumb(pathname: string): string {
     '/accounts':           'Accounts',
     '/deals':              'Pipeline',
     '/tickets':            'Tickets',
+    '/kb':                 'Knowledge Base',
     '/reports':            'Reports',
     '/dashboards':         'Dashboards',
     '/sequences':          'Sequences',
@@ -226,12 +235,15 @@ function getBreadcrumb(pathname: string): string {
     '/settings/security':  'Security',
     '/settings/security/2fa/enroll': '2FA Enroll',
     '/settings/custom-fields': 'Custom Fields',
+    '/settings/numbering': 'Document Numbering',
     '/settings/sla':       'SLA Policies',
     '/settings/webhooks':  'Webhooks',
     '/settings/billing':       'Billing',
     '/settings/billing/plans': 'Billing — Plans',
+    '/settings/integrations': 'Integrations',
     '/settings/onboarding': 'Getting Started',
     '/admin/audit':        'Audit Log',
+    '/orgs/new':           'New Organization',
   }
   return map[pathname] ?? 'Omnir'
 }

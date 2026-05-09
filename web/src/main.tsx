@@ -32,6 +32,7 @@ import { AuditLogPage } from '@/pages/AuditLogPage'
 import { OnboardingSettingsPage } from '@/pages/settings/OnboardingSettingsPage'
 import { SettingsHubPage } from '@/pages/settings/SettingsHubPage'
 import { AccountSettingsPage } from '@/pages/settings/AccountSettingsPage'
+import { DocumentNumberingPage } from '@/pages/settings/DocumentNumberingPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -62,9 +63,13 @@ const queryClient = new QueryClient({
   },
 })
 
+function isWorkspaceAdmin(role: string | undefined) {
+  return role === 'admin' || role === 'super_admin'
+}
+
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
-  if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />
+  if (!isWorkspaceAdmin(user?.role)) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -163,6 +168,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <APIKeysPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/numbering"
+          element={
+            <AdminRoute>
+              <DocumentNumberingPage />
             </AdminRoute>
           }
         />

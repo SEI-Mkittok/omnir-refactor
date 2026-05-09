@@ -1,6 +1,6 @@
 import apiClient from './client'
 
-export type InviteRole = 'admin' | 'member' | 'viewer'
+export type InviteRole = 'admin' | 'agent' | 'client'
 
 export interface OnboardingState {
   id: string
