@@ -31,7 +31,7 @@ func (h *OrgSettingsHandler) Router() chi.Router {
 func (h *OrgSettingsHandler) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || claims.Role != string(domain.UserRoleAdmin) {
+		if !ok || !domain.IsAdminRole(claims.Role) {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}

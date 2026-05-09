@@ -31,11 +31,9 @@ export function AccountSettingsPage() {
   }
 
   const roleLabel: Record<string, string> = {
+    super_admin: 'Super Admin',
     admin: 'Admin',
     agent: 'Agent',
-    user: 'User',
-    viewer: 'Viewer',
-    super_admin: 'Super Admin',
     client: 'Client',
   }
 

@@ -97,7 +97,7 @@ func parseReportFilter(r *http.Request) (domain.ReportFilter, error) {
 	// org_id is admin-only; silently ignored for non-admin callers.
 	if v := q.Get("org_id"); v != "" {
 		claims, ok := middleware.ClaimsFromContext(r)
-		if ok && claims.Role == string(domain.UserRoleAdmin) {
+		if ok && domain.IsAdminRole(claims.Role) {
 			if id, err := uuid.Parse(v); err == nil {
 				f.OrgID = &id
 			}
