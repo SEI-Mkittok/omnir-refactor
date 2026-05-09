@@ -20,6 +20,16 @@ interface EntityLinkModalProps<T> {
   emptyStateText?: string
   noResultsText?: string
   loadingText?: string
+  mapError?: (
+    error: unknown,
+    item: T
+  ) => {
+    message: string
+    actions?: Array<{
+      label: string
+      action: () => Promise<unknown>
+    }>
+  } | null
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -36,12 +46,17 @@ export function EntityLinkModal<T>({
   emptyStateText = 'Start typing to search.',
   noResultsText = 'No matches found.',
   loadingText = 'Searching…',
+  mapError,
 }: EntityLinkModalProps<T>) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<T[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [inlineError, setInlineError] = useState<{
+    message: string
+    actions: Array<{ label: string; action: () => Promise<unknown> }>
+  } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
@@ -57,6 +72,7 @@ export function EntityLinkModal<T>({
     setIsSearching(false)
     setIsPending(false)
     setHighlightedIndex(-1)
+    setInlineError(null)
     requestIdRef.current += 1
     optionRefs.current = []
   }, [open])
@@ -69,6 +85,7 @@ export function EntityLinkModal<T>({
       setResults([])
       setIsSearching(false)
       setHighlightedIndex(-1)
+      setInlineError(null)
       requestIdRef.current += 1
       return
     }
@@ -76,6 +93,7 @@ export function EntityLinkModal<T>({
     const currentRequestId = requestIdRef.current + 1
     requestIdRef.current = currentRequestId
     setIsSearching(true)
+    setInlineError(null)
 
     const timeoutId = window.setTimeout(async () => {
       try {
@@ -119,11 +137,23 @@ export function EntityLinkModal<T>({
 
   const selectItem = async (item: T) => {
     setIsPending(true)
+    setInlineError(null)
     try {
       await onSelect(item)
       onClose()
-    } catch {
-      // Leave the modal open so mutation-level UI can surface errors and allow retry.
+    } catch (error) {
+      const mapped = mapError?.(error, item)
+      if (mapped) {
+        setInlineError({
+          message: mapped.message,
+          actions: mapped.actions ?? [],
+        })
+      } else {
+        setInlineError({
+          message: 'Could not complete this action. Please try again.',
+          actions: [],
+        })
+      }
     } finally {
       setIsPending(false)
     }
@@ -271,6 +301,36 @@ export function EntityLinkModal<T>({
               />
             )}
           </div>
+          {inlineError && (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-900">{inlineError.message}</p>
+              {inlineError.actions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {inlineError.actions.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      disabled={isPending}
+                      className="rounded-md border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-50"
+                      onClick={async () => {
+                        setIsPending(true)
+                        try {
+                          await item.action()
+                          onClose()
+                        } catch {
+                          // Keep message visible for retry.
+                        } finally {
+                          setIsPending(false)
+                        }
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="max-h-64 overflow-y-auto px-4 pb-4">

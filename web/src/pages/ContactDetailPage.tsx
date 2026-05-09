@@ -42,6 +42,7 @@ import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { useToast } from '@/components/ui/Toast'
 import { formatDate, formatRelativeTime, formatCurrency, getInitials } from '@/lib/utils'
+import { mapCrmLinkError } from '@/lib/crmLinkErrors'
 import { accountsApi } from '@/api/accounts'
 import { contactsApi } from '@/api/contacts'
 import { dealsApi } from '@/api/deals'
@@ -507,6 +508,8 @@ function LinkedEntitiesSection({
       if (context?.previousTickets) {
         queryClient.setQueryData(ticketKeys.list(ticketsParams), context.previousTickets)
       }
+      const mappedError = mapCrmLinkError(_error)
+      if (mappedError.kind === 'account_contact_mismatch') return
       toast({
         title: variables.shouldLink ? 'Could not link ticket' : 'Could not unlink ticket',
         description: 'Your changes were rolled back.',
@@ -954,6 +957,31 @@ function LinkedEntitiesSection({
           return response.data ?? []
         }}
         onSelect={(ticket) => ticketMutation.mutateAsync({ ticketId: ticket.id, shouldLink: true, ticket })}
+        mapError={(error, ticket) => {
+          const mapped = mapCrmLinkError(error)
+          if (mapped.kind !== 'account_contact_mismatch') return null
+
+          const ticketAccountId = ticket.account?.id
+          const ticketAccountName = ticket.account?.name ?? 'this ticket account'
+          return {
+            message: `This ticket is scoped to ${ticketAccountName}, but this contact is linked to a different account.`,
+            actions: [
+              ...(ticketAccountId
+                ? [{
+                    label: 'Relink contact to account',
+                    action: async () => {
+                      await contactsApi.update(contactId, { account_id: ticketAccountId })
+                      await ticketMutation.mutateAsync({ ticketId: ticket.id, shouldLink: true, ticket })
+                    },
+                  }]
+                : []),
+              {
+                label: 'Keep ticket account and detach contact',
+                action: () => ticketsApi.patchContact(ticket.id, null),
+              },
+            ],
+          }
+        }}
         renderItem={(ticket) => (
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
