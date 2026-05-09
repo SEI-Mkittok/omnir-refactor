@@ -405,11 +405,43 @@ export interface ActivitySummaryReport {
 
 // ---- Search ----
 
+export type SearchEntityType = 'contacts' | 'accounts' | 'deals' | 'tickets'
+
+export interface SearchRelationship {
+  entity_type: 'account' | 'contact'
+  id: string
+  name: string
+}
+
+export interface SearchFilters {
+  q: string
+  entity_type?: SearchEntityType
+  account_id?: string
+  contact_id?: string
+  relationship_type?: string
+  limit?: number
+}
+
 export interface SearchResult {
-  contacts?: Contact[]
-  accounts?: Account[]
-  deals?: Deal[]
-  tickets?: Ticket[]
+  contacts?: Array<Contact & {
+    related_account?: SearchRelationship
+    relationship_type?: string
+  }>
+  accounts?: Array<Account & {
+    related_account?: SearchRelationship
+    related_contact?: SearchRelationship
+    relationship_type?: string
+  }>
+  deals?: Array<Deal & {
+    related_account?: SearchRelationship
+    related_contact?: SearchRelationship
+    relationship_type?: string
+  }>
+  tickets?: Array<Ticket & {
+    related_account?: SearchRelationship
+    related_contact?: SearchRelationship
+    relationship_type?: string
+  }>
 }
 
 // ---- Ticket (Help Desk) ----

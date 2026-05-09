@@ -23,6 +23,7 @@ import {
   Ticket,
   X,
   Zap,
+  Search,
 } from 'lucide-react'
 import { useContact, useDeleteContact, useUpdateContact, useContactNotes, useAddContactNote, useEnrichContact, contactKeys } from '@/hooks/useContacts'
 import { accountKeys } from '@/hooks/useAccounts'
@@ -1589,6 +1590,22 @@ export function ContactDetailPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => navigate(`/search?q=${encodeURIComponent(fullName)}&contact_id=${contact.id}&contact_name=${encodeURIComponent(fullName)}`)}
+            className="flex items-center gap-1.5 px-4 rounded-md text-sm font-medium transition-colors"
+            style={{
+              height: 36,
+              border: '1px solid var(--border-default)',
+              background: 'var(--surface-card)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-app)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-card)' }}
+          >
+            <Search className="h-3.5 w-3.5" />
+            Search related
+          </button>
           <button
             onClick={() => setShowEdit(true)}
             className="flex items-center gap-1.5 px-4 rounded-md text-sm font-medium transition-colors"

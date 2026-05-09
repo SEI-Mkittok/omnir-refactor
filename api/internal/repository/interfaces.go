@@ -221,7 +221,7 @@ type NotificationPrefRepository interface {
 type SearchRepository interface {
 	// Search returns results grouped by entity type (contacts, accounts, deals,
 	// tickets), scoped to the org in context, up to limit per entity type.
-	Search(ctx context.Context, q string, limit int) (*domain.SearchGroupedResult, error)
+	Search(ctx context.Context, filter domain.SearchFilter) (*domain.SearchGroupedResult, error)
 }
 
 // TimelineRepository provides read-optimized event timeline queries.
