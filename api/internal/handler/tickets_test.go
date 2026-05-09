@@ -3,6 +3,7 @@ package handler_test
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,6 +20,7 @@ import (
 )
 
 func TestTicketHandler_List(t *testing.T) {
+	accountID := uuid.New()
 	ticket1 := &domain.Ticket{
 		ID:      uuid.New(),
 		Subject: "Test ticket 1",
@@ -76,6 +78,17 @@ func TestTicketHandler_List(t *testing.T) {
 			setupMock: func(m *mocks.MockTicketRepository) {
 				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketFilter) bool {
 					return f.AssigneeID != nil
+				})).Return([]*domain.Ticket{ticket1}, 1, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantTotal:  1,
+		},
+		{
+			name:  "respects account filter",
+			query: "?account_id=" + accountID.String(),
+			setupMock: func(m *mocks.MockTicketRepository) {
+				m.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketFilter) bool {
+					return f.AccountID != nil && *f.AccountID == accountID
 				})).Return([]*domain.Ticket{ticket1}, 1, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -762,6 +775,76 @@ func TestTicketHandler_ListAttachments_NormalizesNilSlice(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.JSONEq(t, "[]", w.Body.String())
 	mockAttachments.AssertExpectations(t)
+}
+
+func TestTicketHandler_GetAttachment_InlinePreviewAllowlist(t *testing.T) {
+	ticketID := uuid.New()
+	attachmentID := uuid.New()
+	size := int64(32)
+
+	tests := []struct {
+		name        string
+		contentType string
+		wantPrefix  string
+	}{
+		{
+			name:        "keeps html attachments downloadable",
+			contentType: "text/html",
+			wantPrefix:  "attachment",
+		},
+		{
+			name:        "allows inert text previews",
+			contentType: "text/plain; charset=utf-8",
+			wantPrefix:  "inline",
+		},
+		{
+			name:        "allows pdf previews",
+			contentType: "application/pdf",
+			wantPrefix:  "inline",
+		},
+		{
+			name:        "keeps svg attachments downloadable",
+			contentType: "image/svg+xml",
+			wantPrefix:  "attachment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockTickets := new(mocks.MockTicketRepository)
+			mockComments := new(mocks.MockTicketCommentRepository)
+			mockAttachments := new(mocks.MockTicketAttachmentRepository)
+			mockStorage := new(mocks.MockStorageBackend)
+
+			attachment := &domain.TicketAttachment{
+				ID:          attachmentID,
+				TicketID:    ticketID,
+				Filename:    "preview-test",
+				ContentType: tt.contentType,
+				SizeBytes:   &size,
+				StorageKey:  "tickets/preview-test",
+			}
+			mockAttachments.On("GetByID", mock.Anything, attachmentID, ticketID).Return(attachment, nil)
+			mockStorage.On("PresignURL", mock.Anything, attachment.StorageKey).Return("", nil)
+			mockStorage.On("Open", mock.Anything, attachment.StorageKey).
+				Return(io.NopCloser(bytes.NewBufferString("preview body")), nil)
+
+			h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mockStorage)
+
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+ticketID.String()+"/attachments/"+attachmentID.String()+"?preview=1", nil)
+			req = withURLParam(req, "id", ticketID.String())
+			req = withURLParam(req, "attachmentID", attachmentID.String())
+			w := httptest.NewRecorder()
+
+			h.GetAttachment(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
+			assert.Contains(t, w.Header().Get("Content-Disposition"), tt.wantPrefix)
+			mockAttachments.AssertExpectations(t)
+			mockStorage.AssertExpectations(t)
+		})
+	}
 }
 
 func TestTicketHandler_DeleteComment(t *testing.T) {
