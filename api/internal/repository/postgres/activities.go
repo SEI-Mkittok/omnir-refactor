@@ -24,7 +24,7 @@ func NewActivityRepo(db *pgxpool.Pool) *ActivityRepo {
 }
 
 const activityCols = `
-	id, org_id, type, subject, description, due_date, completed_at,
+	id, org_id, type, subject, description, due_date, start_at, end_at, completed_at,
 	contact_id, account_id, deal_id, owner_id, calendar_event_id,
 	created_at, updated_at, deleted_at
 `
@@ -32,7 +32,7 @@ const activityCols = `
 func scanActivity(row pgx.Row) (*domain.Activity, error) {
 	var a domain.Activity
 	err := row.Scan(
-		&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
+		&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.StartAt, &a.EndAt, &a.CompletedAt,
 		&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID, &a.CalendarEventID,
 		&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
@@ -58,12 +58,12 @@ func (r *ActivityRepo) Create(ctx context.Context, a *domain.Activity) (*domain.
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO activities
-			(id, org_id, type, subject, description, due_date, completed_at,
+			(id, org_id, type, subject, description, due_date, start_at, end_at, completed_at,
 			 contact_id, account_id, deal_id, owner_id, calendar_event_id,
 			 created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 		RETURNING `+activityCols,
-		a.ID, a.OrgID, a.Type, a.Subject, a.Description, a.DueDate, a.CompletedAt,
+		a.ID, a.OrgID, a.Type, a.Subject, a.Description, a.DueDate, a.StartAt, a.EndAt, a.CompletedAt,
 		a.ContactID, a.AccountID, a.DealID, a.OwnerID, a.CalendarEventID,
 		a.CreatedAt, a.UpdatedAt,
 	)
@@ -106,8 +106,18 @@ func (r *ActivityRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Ac
 	if patch.DueDate != nil {
 		addArg("due_date", *patch.DueDate)
 	}
+	if patch.StartAt != nil {
+		addArg("start_at", *patch.StartAt)
+	}
+	if patch.EndAt != nil {
+		addArg("end_at", *patch.EndAt)
+	}
 	if patch.CompletedAt != nil {
-		addArg("completed_at", *patch.CompletedAt)
+		if patch.CompletedAt.IsZero() {
+			addArg("completed_at", nil)
+		} else {
+			addArg("completed_at", *patch.CompletedAt)
+		}
 	}
 	if patch.ContactID != nil {
 		addArg("contact_id", *patch.ContactID)
@@ -249,7 +259,7 @@ func (r *ActivityRepo) List(ctx context.Context, f domain.ActivityFilter) ([]*do
 	for rows.Next() {
 		var a domain.Activity
 		if err := rows.Scan(
-			&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.CompletedAt,
+			&a.ID, &a.OrgID, &a.Type, &a.Subject, &a.Description, &a.DueDate, &a.StartAt, &a.EndAt, &a.CompletedAt,
 			&a.ContactID, &a.AccountID, &a.DealID, &a.OwnerID, &a.CalendarEventID,
 			&a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 		); err != nil {

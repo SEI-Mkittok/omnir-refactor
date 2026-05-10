@@ -2,11 +2,13 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/omnir/crm-api/internal/domain"
@@ -138,6 +140,10 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if req.Role == "" {
 		req.Role = domain.UserRoleAgent
 	}
+	if !domain.IsValidUserRole(req.Role) {
+		writeError(w, http.StatusUnprocessableEntity, "invalid role")
+		return
+	}
 	if req.Role == domain.UserRoleSuperAdmin && claims.Role != string(domain.UserRoleSuperAdmin) {
 		writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
 		return
@@ -156,6 +162,9 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := h.repo.Create(r.Context(), u, string(hash))
 	if err != nil {
+		if h.handleUserMutationErr(w, err) {
+			return
+		}
 		handleDomainErr(w, err)
 		return
 	}
@@ -179,6 +188,10 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var patch domain.UserPatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if patch.Role != nil && !domain.IsValidUserRole(*patch.Role) {
+		writeError(w, http.StatusUnprocessableEntity, "invalid role")
 		return
 	}
 
@@ -215,6 +228,9 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	u, err := h.repo.Update(r.Context(), id, patch)
 	if err != nil {
+		if h.handleUserMutationErr(w, err) {
+			return
+		}
 		handleDomainErr(w, err)
 		return
 	}
@@ -248,4 +264,27 @@ func (h *UserHandler) isAdminOrSelf(r *http.Request, targetID uuid.UUID) bool {
 		return false
 	}
 	return domain.IsAdminRole(claims.Role) || claims.UserID == targetID
+}
+
+// handleUserMutationErr maps low-level Postgres constraint/type errors to
+// stable API-level 4xx responses so user profile edits never surface as 500s.
+func (h *UserHandler) handleUserMutationErr(w http.ResponseWriter, err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+
+	switch pgErr.Code {
+	case "23505": // unique_violation
+		writeError(w, http.StatusConflict, "email already exists")
+		return true
+	case "23502": // not_null_violation
+		writeError(w, http.StatusUnprocessableEntity, "name and email are required")
+		return true
+	case "23514", "22P02": // check_violation / invalid_text_representation
+		writeError(w, http.StatusUnprocessableEntity, "invalid role")
+		return true
+	default:
+		return false
+	}
 }

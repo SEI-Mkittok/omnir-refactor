@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -70,14 +72,94 @@ func TestEmailInboxRoutesMountUnderEmails(t *testing.T) {
 	require.Equal(t, 25, repo.filter.Limit)
 }
 
-type fakeEmailInboxRepo struct {
-	filter  domain.EmailInboxFilter
-	threads []*domain.EmailInboxThreadSummary
-	total   int
+func TestEmailInboxSendViaConnection_AllowsLegacyMockPlaintextToken(t *testing.T) {
+	orgID := uuid.New()
+	connectionID := uuid.New()
+
+	inboxRepo := &fakeEmailInboxRepo{}
+	connRepo := &fakeEmailConnectionRepo{
+		byID: map[uuid.UUID]*domain.EmailConnection{
+			connectionID: {
+				ID:           connectionID,
+				OrgID:        orgID,
+				UserID:       uuid.New(),
+				Provider:     domain.EmailProviderGmail,
+				EmailAddress: "admin@omnir.test",
+				AccessToken:  "mock-access-token-qa",
+				TokenExpiry:  time.Now().Add(1 * time.Hour),
+			},
+		},
+	}
+	h := NewEmailInboxHandler(connRepo, inboxRepo, config.EmailInboxConfig{EncryptionKey: "test-key"})
+
+	body, err := json.Marshal(map[string]any{
+		"connection_id": connectionID,
+		"to":            []string{"buyer@example.com"},
+		"subject":       "Re: Pricing",
+		"body_html":     "<p>Hello</p>",
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/emails/send", bytes.NewReader(body))
+	req = req.WithContext(domain.WithOrgID(req.Context(), orgID))
+	rr := httptest.NewRecorder()
+
+	h.SendViaConnection(rr, req)
+
+	require.Equal(t, http.StatusCreated, rr.Code)
+	require.NotNil(t, inboxRepo.upserted)
+	require.Equal(t, domain.EmailDirectionOutbound, inboxRepo.upserted.Direction)
+	require.Equal(t, []string{"buyer@example.com"}, inboxRepo.upserted.ToAddrs)
 }
 
-func (r *fakeEmailInboxRepo) Upsert(context.Context, *domain.EmailInboxMessage) (*domain.EmailInboxMessage, error) {
-	return nil, nil
+func TestEmailInboxSendViaConnection_InvalidOpaqueTokenReturns422(t *testing.T) {
+	orgID := uuid.New()
+	connectionID := uuid.New()
+
+	inboxRepo := &fakeEmailInboxRepo{}
+	connRepo := &fakeEmailConnectionRepo{
+		byID: map[uuid.UUID]*domain.EmailConnection{
+			connectionID: {
+				ID:           connectionID,
+				OrgID:        orgID,
+				UserID:       uuid.New(),
+				Provider:     domain.EmailProviderGmail,
+				EmailAddress: "admin@omnir.test",
+				AccessToken:  "not-a-valid-ciphertext-or-plaintext-token",
+				TokenExpiry:  time.Now().Add(1 * time.Hour),
+			},
+		},
+	}
+	h := NewEmailInboxHandler(connRepo, inboxRepo, config.EmailInboxConfig{EncryptionKey: "test-key"})
+
+	body, err := json.Marshal(map[string]any{
+		"connection_id": connectionID,
+		"to":            []string{"buyer@example.com"},
+		"subject":       "Re: Pricing",
+		"body_html":     "<p>Hello</p>",
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/emails/send", bytes.NewReader(body))
+	req = req.WithContext(domain.WithOrgID(req.Context(), orgID))
+	rr := httptest.NewRecorder()
+
+	h.SendViaConnection(rr, req)
+
+	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+	require.Nil(t, inboxRepo.upserted)
+}
+
+type fakeEmailInboxRepo struct {
+	filter   domain.EmailInboxFilter
+	threads  []*domain.EmailInboxThreadSummary
+	total    int
+	upserted *domain.EmailInboxMessage
+}
+
+func (r *fakeEmailInboxRepo) Upsert(_ context.Context, msg *domain.EmailInboxMessage) (*domain.EmailInboxMessage, error) {
+	r.upserted = msg
+	return msg, nil
 }
 
 func (r *fakeEmailInboxRepo) List(context.Context, domain.EmailInboxFilter) ([]*domain.EmailInboxMessage, int, error) {
@@ -99,4 +181,41 @@ func (r *fakeEmailInboxRepo) LinkContact(context.Context, uuid.UUID, string, uui
 
 func (r *fakeEmailInboxRepo) MarkThreadRead(context.Context, uuid.UUID, string) error {
 	return nil
+}
+
+type fakeEmailConnectionRepo struct {
+	byID map[uuid.UUID]*domain.EmailConnection
+}
+
+func (r *fakeEmailConnectionRepo) Upsert(_ context.Context, c *domain.EmailConnection) (*domain.EmailConnection, error) {
+	r.byID[c.ID] = c
+	return c, nil
+}
+
+func (r *fakeEmailConnectionRepo) GetByID(_ context.Context, id uuid.UUID) (*domain.EmailConnection, error) {
+	c, ok := r.byID[id]
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	return c, nil
+}
+
+func (r *fakeEmailConnectionRepo) GetByUserAndProvider(context.Context, uuid.UUID, uuid.UUID, domain.EmailProvider) (*domain.EmailConnection, error) {
+	return nil, domain.ErrNotFound
+}
+
+func (r *fakeEmailConnectionRepo) List(context.Context, domain.EmailConnectionFilter) ([]*domain.EmailConnection, error) {
+	return nil, nil
+}
+
+func (r *fakeEmailConnectionRepo) Update(context.Context, uuid.UUID, domain.EmailConnectionPatch) (*domain.EmailConnection, error) {
+	return nil, nil
+}
+
+func (r *fakeEmailConnectionRepo) Delete(context.Context, uuid.UUID) error {
+	return nil
+}
+
+func (r *fakeEmailConnectionRepo) ListAllActive(context.Context) ([]*domain.EmailConnection, error) {
+	return nil, nil
 }

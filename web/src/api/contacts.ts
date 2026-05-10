@@ -28,8 +28,14 @@ export const contactsApi = {
     return data
   },
 
-  search: async (q: string): Promise<Contact[]> => {
-    const { data } = await apiClient.get('/contacts', { params: { q, limit: 10 } })
+  search: async (q: string, opts?: { account_id?: string }): Promise<Contact[]> => {
+    const { data } = await apiClient.get('/contacts', {
+      params: {
+        q,
+        limit: 10,
+        account_id: opts?.account_id,
+      },
+    })
     return data.data ?? []
   },
 

@@ -161,6 +161,11 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if c.OwnerID == uuid.Nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			c.OwnerID = claims.UserID
+		}
+	}
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
 	}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -577,24 +578,25 @@ func (h *EmailInboxHandler) SendViaConnection(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Decrypt access token.
-	accessToken, err := auth.Decrypt(h.cfg.EncryptionKey, conn.AccessToken)
+	accessToken, mockToken, err := h.resolveConnectionAccessToken(r.Context(), conn)
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "Internal Error", "failed to decrypt token")
+		writeError(w, http.StatusUnprocessableEntity, "email connection token is invalid or expired; reconnect this inbox account")
 		return
 	}
 
 	var sendErr error
 	bodyText := htmlStripper.ReplaceAllString(req.BodyHTML, "")
 	toCSV := strings.Join(req.To, ", ")
-	switch conn.Provider {
-	case domain.EmailProviderGmail:
-		sendErr = h.sendViaGmail(accessToken, conn.EmailAddress, req.To, req.CC, req.BCC, req.Subject, bodyText, req.ThreadID)
-	case domain.EmailProviderOutlook:
-		sendErr = h.sendViaOutlook(accessToken, req.To, req.CC, req.BCC, req.Subject, req.BodyHTML)
-	default:
-		writeProblem(w, http.StatusBadRequest, "Bad Request", "unsupported provider")
-		return
+	if !mockToken {
+		switch conn.Provider {
+		case domain.EmailProviderGmail:
+			sendErr = h.sendViaGmail(accessToken, conn.EmailAddress, req.To, req.CC, req.BCC, req.Subject, bodyText, req.ThreadID)
+		case domain.EmailProviderOutlook:
+			sendErr = h.sendViaOutlook(accessToken, req.To, req.CC, req.BCC, req.Subject, req.BodyHTML)
+		default:
+			writeProblem(w, http.StatusBadRequest, "Bad Request", "unsupported provider")
+			return
+		}
 	}
 
 	if sendErr != nil {
@@ -633,6 +635,36 @@ func (h *EmailInboxHandler) SendViaConnection(w http.ResponseWriter, r *http.Req
 		saved.ToAddrs = req.To
 	}
 	writeJSON(w, http.StatusCreated, saved)
+}
+
+func (h *EmailInboxHandler) resolveConnectionAccessToken(ctx context.Context, conn *domain.EmailConnection) (string, bool, error) {
+	accessToken, err := auth.Decrypt(h.cfg.EncryptionKey, conn.AccessToken)
+	if err == nil {
+		return accessToken, strings.HasPrefix(accessToken, "mock-"), nil
+	}
+
+	// Backward-compatibility path:
+	// older/staging records may still hold plaintext tokens (including mock seed
+	// tokens). Accept them and opportunistically re-encrypt.
+	if !looksLikeLegacyPlaintextToken(conn.AccessToken) {
+		return "", false, err
+	}
+	legacyToken := strings.TrimSpace(conn.AccessToken)
+	if enc, encErr := auth.Encrypt(h.cfg.EncryptionKey, legacyToken); encErr == nil {
+		_, _ = h.connections.Update(ctx, conn.ID, domain.EmailConnectionPatch{AccessToken: &enc})
+	}
+	return legacyToken, strings.HasPrefix(legacyToken, "mock-"), nil
+}
+
+func looksLikeLegacyPlaintextToken(token string) bool {
+	t := strings.TrimSpace(token)
+	if t == "" {
+		return false
+	}
+	return strings.HasPrefix(t, "mock-") ||
+		strings.HasPrefix(t, "ya29.") || // Google OAuth token prefix
+		strings.HasPrefix(t, "eyJ") || // JWT style token
+		strings.Count(t, ".") >= 2 // generic JWT shape
 }
 
 // ─── Provider send helpers ────────────────────────────────────────────────────

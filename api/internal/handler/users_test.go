@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -171,6 +172,33 @@ func TestUserHandler_Create(t *testing.T) {
 					Return(makeUser(uuid.New()), nil)
 			},
 			wantStatus: http.StatusCreated,
+		},
+		{
+			name:   "returns 422 for invalid role",
+			claims: adminClaims(adminID),
+			body: map[string]any{
+				"name":     "Alice",
+				"email":    "alice@example.com",
+				"password": "secret123",
+				"role":     "owner",
+			},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:   "returns 409 for duplicate email from repo",
+			claims: adminClaims(adminID),
+			body: map[string]any{
+				"name":     "Alice",
+				"email":    "alice@example.com",
+				"password": "secret123",
+				"role":     "agent",
+			},
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("Create", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("string")).
+					Return(nil, &pgconn.PgError{Code: "23505"})
+			},
+			wantStatus: http.StatusConflict,
 		},
 		{
 			name:   "does not hardcode DefaultOrgID — leaves org_id unset for repo to populate from context",
@@ -517,6 +545,25 @@ func TestUserHandler_Update(t *testing.T) {
 				})).Return(&domain.User{ID: otherID, Role: domain.UserRoleSuperAdmin}, nil)
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 422 for invalid role",
+			targetID:   otherID.String(),
+			claims:     adminClaims(adminID),
+			body:       map[string]any{"role": "owner"},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "returns 422 for role constraint violations from repo",
+			targetID: otherID.String(),
+			claims:   superAdminClaims(adminID),
+			body:     map[string]any{"role": "admin"},
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("Update", mock.Anything, otherID, mock.AnythingOfType("domain.UserPatch")).
+					Return(nil, &pgconn.PgError{Code: "23514", ConstraintName: "users_role_check"})
+			},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "user cannot update other user",

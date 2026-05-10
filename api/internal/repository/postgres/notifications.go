@@ -138,10 +138,10 @@ func (r *NotificationRepo) GenerateReminders(ctx context.Context) error {
 			SELECT a.org_id, a.owner_id, 'activity_reminder', 'activity', a.id,
 			       'Upcoming activity in `+ut.label+`'
 			FROM activities a
-			WHERE a.due_date IS NOT NULL
+			WHERE COALESCE(a.start_at, a.due_date) IS NOT NULL
 			  AND a.completed_at IS NULL
 			  AND a.deleted_at IS NULL
-			  AND a.due_date BETWEEN NOW() AND NOW() + $1::interval
+			  AND COALESCE(a.start_at, a.due_date) BETWEEN NOW() AND NOW() + $1::interval
 			  AND NOT EXISTS (
 			    SELECT 1 FROM notifications n2
 			    WHERE n2.entity_id = a.id
@@ -159,10 +159,10 @@ func (r *NotificationRepo) GenerateReminders(ctx context.Context) error {
 		INSERT INTO notifications (org_id, user_id, kind, entity_type, entity_id, title)
 		SELECT a.org_id, a.owner_id, 'activity_reminder', 'activity', a.id, 'Overdue activity'
 		FROM activities a
-		WHERE a.due_date IS NOT NULL
+		WHERE COALESCE(a.start_at, a.due_date) IS NOT NULL
 		  AND a.completed_at IS NULL
 		  AND a.deleted_at IS NULL
-		  AND a.due_date < NOW()
+		  AND COALESCE(a.start_at, a.due_date) < NOW()
 		  AND NOT EXISTS (
 		    SELECT 1 FROM notifications n2
 		    WHERE n2.entity_id = a.id
