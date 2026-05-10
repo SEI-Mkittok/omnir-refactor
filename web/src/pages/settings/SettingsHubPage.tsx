@@ -1,10 +1,21 @@
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   User, Shield, Users, SlidersHorizontal, KeyRound, Clock,
   ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook, Building2,
   Send, PanelTopOpen, MenuSquare,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
+import { usersApi } from '@/api/users'
+import { automationsApi } from '@/api/automations'
+import {
+  adminSettingsApi,
+  type CompanySettings,
+  type ConfigEditorSettings,
+  type MenuConfigSettings,
+  type OutgoingServerSettings,
+  type PortalSettings,
+} from '@/api/adminSettings'
 
 interface SettingsCard {
   icon: React.ElementType
@@ -12,6 +23,16 @@ interface SettingsCard {
   description: string
   href: string
   badge?: string
+}
+
+type SummaryCardStatus = 'loading' | 'ready' | 'error'
+
+interface SummaryCardModel {
+  key: string
+  title: string
+  value: string
+  description: string
+  status: SummaryCardStatus
 }
 
 const ACCOUNT_CARDS: SettingsCard[] = [
@@ -123,6 +144,101 @@ const ADMIN_CARDS: SettingsCard[] = [
   },
 ]
 
+const MODULE_MENU_KEYS = [
+  'dashboard',
+  'deals',
+  'contacts',
+  'accounts',
+  'leads',
+  'quotes',
+  'sequences',
+  'inbox',
+  'tickets',
+  'kb',
+  'reports',
+  'dashboards',
+  'automations',
+  'calendar',
+] as const
+
+const CORE_SETTINGS_SURFACES_TOTAL = 5
+
+function hasText(value?: string): boolean {
+  return Boolean(value?.trim())
+}
+
+function isCompanyConfigured(settings?: CompanySettings): boolean {
+  if (!settings) return false
+  return (
+    hasText(settings.company_name)
+    || hasText(settings.company_logo_url)
+    || hasText(settings.company_website)
+    || hasText(settings.company_email)
+    || hasText(settings.company_phone)
+    || hasText(settings.company_address_line1)
+    || hasText(settings.company_address_line2)
+    || hasText(settings.company_city)
+    || hasText(settings.company_state)
+    || hasText(settings.company_postal_code)
+    || hasText(settings.company_country)
+  )
+}
+
+function isPortalConfigured(settings?: PortalSettings): boolean {
+  if (!settings) return false
+  return (
+    settings.portal_enabled
+    || hasText(settings.portal_display_name)
+    || hasText(settings.portal_announcement)
+    || Boolean(settings.portal_default_assignee_id)
+    || settings.portal_menu.length > 0
+    || settings.portal_shortcuts.length > 0
+  )
+}
+
+function isOutgoingServerConfigured(settings?: OutgoingServerSettings): boolean {
+  if (!settings) return false
+  return (
+    hasText(settings.smtp_host)
+    || hasText(settings.smtp_username)
+    || hasText(settings.smtp_from_email)
+    || hasText(settings.smtp_from_name)
+    || settings.smtp_password_set
+  )
+}
+
+function isConfigEditorConfigured(settings?: ConfigEditorSettings): boolean {
+  if (!settings) return false
+  return (
+    hasText(settings.config_support_email)
+    || Boolean(settings.config_upload_max_mb)
+    || Boolean(settings.config_default_page_size)
+    || Boolean(settings.config_list_preview_chars)
+  )
+}
+
+function isMenuConfigConfigured(settings?: MenuConfigSettings): boolean {
+  if (!settings) return false
+  return Object.keys(settings.menu_config).length > 0
+}
+
+function SummaryCard({ title, value, description, status }: SummaryCardModel) {
+  return (
+    <div
+      data-testid={`summary-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
+      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#7C8DB0]">{title}</p>
+      <p className="mt-1 text-xl font-bold text-[#1A1D23]">
+        {status === 'loading' ? 'Loading…' : value}
+      </p>
+      <p className={status === 'error' ? 'mt-1 text-xs text-red-600' : 'mt-1 text-xs text-[#6B7280]'}>
+        {description}
+      </p>
+    </div>
+  )
+}
+
 function Card({ icon: Icon, title, description, href, badge }: SettingsCard) {
   return (
     <Link
@@ -152,6 +268,121 @@ export function SettingsHubPage() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
 
+  const usersSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'users'],
+    queryFn: () => usersApi.list({ page: 1, limit: 1 }),
+    enabled: isAdmin,
+  })
+  const automationsSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'automations', 'all'],
+    queryFn: () => automationsApi.list({ page: 1, limit: 1 }),
+    enabled: isAdmin,
+  })
+  const activeAutomationsSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'automations', 'active'],
+    queryFn: () => automationsApi.list({ page: 1, limit: 1, status: 'active' }),
+    enabled: isAdmin,
+  })
+  const menuConfigSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'menu'],
+    queryFn: adminSettingsApi.getMenuConfig,
+    enabled: isAdmin,
+  })
+  const companySummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'company'],
+    queryFn: adminSettingsApi.getCompany,
+    enabled: isAdmin,
+  })
+  const portalSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'portal'],
+    queryFn: adminSettingsApi.getPortal,
+    enabled: isAdmin,
+  })
+  const outgoingServerSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'outgoing-server'],
+    queryFn: adminSettingsApi.getOutgoingServer,
+    enabled: isAdmin,
+  })
+  const configEditorSummary = useQuery({
+    queryKey: ['settings-hub', 'summary', 'config-editor'],
+    queryFn: adminSettingsApi.getConfigEditor,
+    enabled: isAdmin,
+  })
+
+  const totalUsers = usersSummary.data?.meta.total ?? 0
+  const totalAutomations = automationsSummary.data?.total ?? 0
+  const activeAutomations = activeAutomationsSummary.data?.total ?? 0
+  const menuConfig = menuConfigSummary.data?.menu_config ?? {}
+  const enabledModules = MODULE_MENU_KEYS.filter((key) => menuConfig[key] ?? true).length
+  const configuredSurfaces = [
+    isCompanyConfigured(companySummary.data),
+    isPortalConfigured(portalSummary.data),
+    isOutgoingServerConfigured(outgoingServerSummary.data),
+    isConfigEditorConfigured(configEditorSummary.data),
+    isMenuConfigConfigured(menuConfigSummary.data),
+  ].filter(Boolean).length
+
+  const summaryCards: SummaryCardModel[] = [
+    {
+      key: 'users',
+      title: 'Users',
+      value: String(totalUsers),
+      description: usersSummary.isError ? 'Unable to load users.' : 'Total workspace users',
+      status: usersSummary.isError ? 'error' : usersSummary.isLoading ? 'loading' : 'ready',
+    },
+    {
+      key: 'automations',
+      title: 'Automations',
+      value: `${activeAutomations}/${totalAutomations}`,
+      description: (automationsSummary.isError || activeAutomationsSummary.isError)
+        ? 'Unable to load automation counts.'
+        : 'Active / total automation workflows',
+      status: (automationsSummary.isError || activeAutomationsSummary.isError)
+        ? 'error'
+        : (automationsSummary.isLoading || activeAutomationsSummary.isLoading) ? 'loading' : 'ready',
+    },
+    {
+      key: 'modules',
+      title: 'Module Visibility',
+      value: `${enabledModules}/${MODULE_MENU_KEYS.length}`,
+      description: menuConfigSummary.isError
+        ? 'Unable to load module visibility.'
+        : 'Enabled modules in the organisation menu',
+      status: menuConfigSummary.isError ? 'error' : menuConfigSummary.isLoading ? 'loading' : 'ready',
+    },
+    {
+      key: 'config',
+      title: 'Configuration Coverage',
+      value: `${configuredSurfaces}/${CORE_SETTINGS_SURFACES_TOTAL}`,
+      description: (
+        companySummary.isError
+        || portalSummary.isError
+        || outgoingServerSummary.isError
+        || configEditorSummary.isError
+        || menuConfigSummary.isError
+      )
+        ? 'Some settings surfaces failed to load.'
+        : 'Configured core admin settings surfaces',
+      status: (
+        companySummary.isError
+        || portalSummary.isError
+        || outgoingServerSummary.isError
+        || configEditorSummary.isError
+        || menuConfigSummary.isError
+      )
+        ? 'error'
+        : (
+            companySummary.isLoading
+            || portalSummary.isLoading
+            || outgoingServerSummary.isLoading
+            || configEditorSummary.isLoading
+            || menuConfigSummary.isLoading
+          )
+          ? 'loading'
+          : 'ready',
+    },
+  ]
+
   return (
     <div className="space-y-8">
       <div>
@@ -162,6 +393,19 @@ export function SettingsHubPage() {
             : 'Manage your account and personal preferences.'}
         </p>
       </div>
+
+      {isAdmin && (
+        <section>
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-[#7C8DB0]">
+            Settings Overview
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {summaryCards.map(({ key, ...card }) => (
+              <SummaryCard key={key} {...card} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* My Account & Security — visible to all roles */}
       <section>
