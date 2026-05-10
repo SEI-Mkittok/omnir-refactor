@@ -253,7 +253,7 @@ func main() {
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	emailInboxHandler := handler.NewEmailInboxHandler(emailConnectionRepo, emailInboxRepo, cfg.EmailInbox)
 	integrationsHandler := handler.NewIntegrationsHandler(integrationCredRepo, emailConnectionRepo, cfg.IntegrationCredentialsEncKey)
-	orgSettingsHandler := handler.NewOrgSettingsHandler(orgSettingsRepo)
+	orgSettingsHandler := handler.NewOrgSettingsHandler(orgSettingsRepo, cfg.IntegrationCredentialsEncKey).WithAuditLog(auditLogRepo)
 	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL).
 		WithAPICallbackURL(cfg.SSOAPICallbackURL)
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
@@ -298,6 +298,10 @@ func main() {
 	r.Mount("/auth/sso", ssoHandler.Router())
 	// API-style SSO: POST /api/auth/sso/microsoft|google, GET /api/auth/sso/callback
 	r.Mount("/api/auth/sso", ssoHandler.APIRouter())
+	// Calendar OAuth callbacks must be public because cross-site provider redirects
+	// may not include SameSite-strict session cookies.
+	r.Get("/api/v1/calendar/auth/google/callback", calendarHandler.CallbackGoogle)
+	r.Get("/api/v1/calendar/auth/microsoft/callback", calendarHandler.CallbackMicrosoft)
 	// Rate-limit public/unauthenticated endpoints to mitigate brute-force and DoS (OMN-615).
 	publicRateLimit := httprate.LimitByIP(120, time.Minute)
 	r.With(publicRateLimit).Mount("/webhooks/email", inboundWebhookHandler.Router())
@@ -391,6 +395,11 @@ func main() {
 		r.Mount("/integrations/email/inbox", emailInboxHandler.InboxRouter())
 		r.Mount("/integrations", integrationsHandler.Router())
 		r.Mount("/settings/numbering", orgSettingsHandler.Router())
+		r.Mount("/settings/company", orgSettingsHandler.CompanyRouter())
+		r.Mount("/settings/portal", orgSettingsHandler.PortalRouter())
+		r.Mount("/settings/outgoing-server", orgSettingsHandler.OutgoingServerRouter())
+		r.Mount("/settings/config-editor", orgSettingsHandler.ConfigEditorRouter())
+		r.Mount("/settings/menu", orgSettingsHandler.MenuConfigRouter())
 		r.Mount("/billing", billingHandler.Router())
 		r.Mount("/ops-finance", opsFinanceHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())

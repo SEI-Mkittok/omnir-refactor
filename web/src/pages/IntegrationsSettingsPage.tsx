@@ -15,7 +15,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { integrationsApi, type Integration, type IntegrationProvider } from '@/api/integrations'
+import { integrationsApi, type Integration, type IntegrationProvider, type IntegrationStatus } from '@/api/integrations'
+import { calendarApi, type CalendarConnection } from '@/api/calendar'
 
 // ── Provider metadata ──────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ interface ProviderMeta {
   provider: IntegrationProvider
   name: string
   description: string
-  comingSoon?: boolean
+  category: 'email' | 'calendar' | 'coming_soon'
   oauthPath?: string
 }
 
@@ -32,73 +33,77 @@ const PROVIDERS: ProviderMeta[] = [
     provider: 'gmail',
     name: 'Gmail',
     description: 'Sync emails and send messages directly from Omnir.',
+    category: 'email',
     oauthPath: '/api/integrations/email/auth/google',
   },
   {
     provider: 'outlook',
     name: 'Outlook',
     description: 'Connect Microsoft Outlook to manage email and calendar.',
+    category: 'email',
     oauthPath: '/api/integrations/email/auth/microsoft',
   },
   {
     provider: 'google_calendar',
     name: 'Google Calendar',
     description: 'Sync meetings and event reminders with Google Calendar.',
-    comingSoon: true,
+    category: 'calendar',
+    oauthPath: '/api/v1/calendar/auth/google',
   },
   {
     provider: 'outlook_calendar',
     name: 'Outlook Calendar',
     description: 'Sync Microsoft calendar events with CRM activity.',
-    comingSoon: true,
+    category: 'calendar',
+    oauthPath: '/api/v1/calendar/auth/microsoft',
   },
   {
     provider: 'slack',
     name: 'Slack',
     description: 'Get deal and ticket notifications in Slack channels.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
   {
     provider: 'microsoft_teams',
     name: 'Microsoft Teams',
     description: 'Collaborate and receive alerts in Teams.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
   {
     provider: 'confluence',
     name: 'Confluence',
     description: 'Sync knowledge base articles with Confluence spaces.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
   {
     provider: 'stripe',
     name: 'Stripe',
     description: 'Link deals to Stripe invoices and subscriptions.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
   {
     provider: 'sendgrid',
     name: 'SendGrid',
     description: 'Route transactional email through SendGrid.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
   {
     provider: 'twilio',
     name: 'Twilio',
     description: 'Send SMS and voice notifications from CRM workflows.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
   {
     provider: 'zapier',
     name: 'Zapier',
     description: 'Connect Omnir events to Zapier automations.',
-    comingSoon: true,
+    category: 'coming_soon',
   },
 ]
 
 // ── Status badge ──────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: Integration['status'] }) {
+function StatusBadge({ status }: { status: IntegrationStatus }) {
   if (status === 'coming_soon') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#6B7280]">
@@ -361,22 +366,32 @@ function CredentialsModal({
 function IntegrationCard({
   meta,
   integration,
+  calendarConnection,
 }: {
   meta: ProviderMeta
   integration: Integration | undefined
+  calendarConnection?: CalendarConnection
 }) {
   const queryClient = useQueryClient()
   const [disconnectOpen, setDisconnectOpen] = useState(false)
   const [credentialsOpen, setCredentialsOpen] = useState(false)
 
-  const status = meta.comingSoon
+  const status: IntegrationStatus = meta.category === 'coming_soon'
     ? 'coming_soon'
-    : integration?.status ?? 'disconnected'
+    : meta.category === 'calendar'
+      ? (calendarConnection ? 'connected' : 'disconnected')
+      : (integration?.status ?? 'disconnected')
 
   const disconnectMutation = useMutation({
-    mutationFn: () => integrationsApi.disconnect(meta.provider),
+    mutationFn: () => {
+      if (meta.category === 'calendar' && calendarConnection) {
+        return calendarApi.disconnect(calendarConnection.id)
+      }
+      return integrationsApi.disconnect(meta.provider)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar-connections'] })
       setDisconnectOpen(false)
     },
   })
@@ -395,7 +410,7 @@ function IntegrationCard({
           </div>
           <p className="mt-0.5 text-xs text-[#6B7280]">{meta.description}</p>
 
-          {isConnected && integration && (
+          {isConnected && meta.category === 'email' && integration && (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B7280]">
               {integration.emailAddress && (
                 <span className="truncate">
@@ -418,11 +433,43 @@ function IntegrationCard({
             </div>
           )}
 
+          {isConnected && meta.category === 'calendar' && (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B7280]">
+              <span className="font-medium text-[#1B3A4B]">Automatic sync every ~5 minutes</span>
+              {calendarConnection?.token_expiry && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Token expires{' '}
+                  {new Date(calendarConnection.token_expiry).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </span>
+              )}
+            </div>
+          )}
+
         </div>
 
-        {!meta.comingSoon && (
+        {meta.category !== 'coming_soon' && (
           <div className="flex shrink-0 items-center gap-2">
-            {isConnected ? (
+            {meta.category === 'calendar' && isConnected ? (
+              <button
+                onClick={() => setDisconnectOpen(true)}
+                className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <Unplug className="h-3.5 w-3.5" />
+                Disconnect
+              </button>
+            ) : meta.category === 'calendar' ? (
+              <a
+                href={meta.oauthPath}
+                className="inline-flex items-center gap-1 rounded-lg bg-[#1B3A4B] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1B3A4B]/90 transition-colors"
+              >
+                <Plug className="h-3.5 w-3.5" />
+                Connect
+              </a>
+            ) : isConnected ? (
               <>
                 <button
                   onClick={() => setCredentialsOpen(true)}
@@ -490,12 +537,26 @@ export function IntegrationsSettingsPage() {
     queryKey: ['integrations'],
     queryFn: integrationsApi.list,
   })
+  const {
+    data: calendarConnections = [],
+    isLoading: isCalendarLoading,
+    isError: isCalendarError,
+  } = useQuery({
+    queryKey: ['calendar-connections'],
+    queryFn: calendarApi.listConnections,
+  })
 
-  const activeProviders = PROVIDERS.filter((p) => !p.comingSoon)
-  const comingSoonProviders = PROVIDERS.filter((p) => p.comingSoon)
+  const activeProviders = PROVIDERS.filter((p) => p.category !== 'coming_soon')
+  const comingSoonProviders = PROVIDERS.filter((p) => p.category === 'coming_soon')
 
   function getIntegration(provider: IntegrationProvider): Integration | undefined {
     return integrations?.find((i) => i.provider === provider)
+  }
+
+  function getCalendarConnection(provider: IntegrationProvider): CalendarConnection | undefined {
+    if (provider === 'google_calendar') return calendarConnections.find((c) => c.provider === 'google')
+    if (provider === 'outlook_calendar') return calendarConnections.find((c) => c.provider === 'microsoft')
+    return undefined
   }
 
   return (
@@ -513,7 +574,7 @@ export function IntegrationsSettingsPage() {
         </p>
       </div>
 
-      {isError && (
+      {(isError || isCalendarError) && (
         <div
           role="alert"
           className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700"
@@ -531,7 +592,7 @@ export function IntegrationsSettingsPage() {
           Connected apps
         </h2>
 
-        {isLoading ? (
+        {isLoading || isCalendarLoading ? (
           <div className="space-y-3">
             {[1, 2].map((i) => (
               <div
@@ -547,6 +608,7 @@ export function IntegrationsSettingsPage() {
                 key={meta.provider}
                 meta={meta}
                 integration={getIntegration(meta.provider)}
+                calendarConnection={getCalendarConnection(meta.provider)}
               />
             ))}
           </div>

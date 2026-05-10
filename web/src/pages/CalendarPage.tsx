@@ -25,28 +25,7 @@ import { cn } from '@/lib/utils'
 import { useActivities, useCreateActivity } from '@/hooks/useActivities'
 import type { CreateActivityRequest } from '@/api/activities'
 import type { ActivityType, Activity, CreatableActivityType } from '@/api/types'
-import { apiClient } from '@/api/client'
-
-// ---- Calendar connection types ----
-
-interface CalendarConnection {
-  id: string
-  provider: 'google' | 'microsoft'
-  token_expiry?: string | null
-}
-
-const calendarApi = {
-  listConnections: async (): Promise<CalendarConnection[]> => {
-    const { data } = await apiClient.get<{ data: CalendarConnection[] }>('/calendar/connections')
-    return data.data
-  },
-  disconnect: async (id: string): Promise<void> => {
-    await apiClient.delete(`/calendar/connections/${id}`)
-  },
-  triggerSync: async (): Promise<void> => {
-    await apiClient.post('/calendar/sync')
-  },
-}
+import { calendarApi } from '@/api/calendar'
 
 // ---- Helpers ----
 
