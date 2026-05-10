@@ -38,6 +38,10 @@ import { PortalConfigurationPage } from '@/pages/settings/PortalConfigurationPag
 import { OutgoingServerSettingsPage } from '@/pages/settings/OutgoingServerSettingsPage'
 import { ConfigurationEditorPage } from '@/pages/settings/ConfigurationEditorPage'
 import { MenuConfigurationPage } from '@/pages/settings/MenuConfigurationPage'
+import { CurrenciesPage } from '@/pages/settings/CurrenciesPage'
+import { PicklistsPage } from '@/pages/settings/PicklistsPage'
+import { PicklistDependenciesPage } from '@/pages/settings/PicklistDependenciesPage'
+import { LeadConversionMappingPage } from '@/pages/settings/LeadConversionMappingPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -221,6 +225,38 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <MenuConfigurationPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/currencies"
+          element={
+            <AdminRoute>
+              <CurrenciesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/picklists"
+          element={
+            <AdminRoute>
+              <PicklistsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/picklist-dependencies"
+          element={
+            <AdminRoute>
+              <PicklistDependenciesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/lead-conversion-mapping"
+          element={
+            <AdminRoute>
+              <LeadConversionMappingPage />
             </AdminRoute>
           }
         />

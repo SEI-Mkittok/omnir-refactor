@@ -47,7 +47,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const createContact = useCreateContact()
-  const { data: customFields = [] } = useCustomFieldDefinitions('contact')
+  const { data: customFields = [] } = useCustomFieldDefinitions('contact', { activeOptionsOnly: true })
   const { data: enrichment, isFetching: enrichFetching } = useDomainLookup(lookupDomain)
   const { data: accountsData, isLoading: accountsLoading } = useAccounts({ per_page: 50 })
   const accounts = accountsData?.data || []

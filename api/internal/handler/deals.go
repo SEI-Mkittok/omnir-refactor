@@ -183,9 +183,6 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if d.Stage == "" {
 		d.Stage = domain.DealStageLead
 	}
-	if d.Currency == "" {
-		d.Currency = "USD"
-	}
 	if err := d.Validate(); err != nil {
 		handleDomainErr(w, err)
 		return

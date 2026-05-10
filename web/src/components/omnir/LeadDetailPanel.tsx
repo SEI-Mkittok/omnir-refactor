@@ -296,8 +296,8 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
   const { data: lead, isLoading } = useLead(leadId)
   const updateLead = useUpdateLead()
   const deleteLead = useDeleteLead()
-  const { data: customFields = [] } = useCustomFieldDefinitions('lead')
   const { toast } = useToast()
+  const { data: customFields = [] } = useCustomFieldDefinitions('lead', { activeOptionsOnly: true })
   const [showConvert, setShowConvert] = useState(false)
 
   const patch = useCallback(

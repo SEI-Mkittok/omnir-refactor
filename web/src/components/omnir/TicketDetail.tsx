@@ -352,7 +352,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
   const { data: ticket, isLoading } = useTicket(ticketId)
   const { mutateAsync: updateTicket } = useUpdateTicket()
   const { mutateAsync: deleteTicket } = useDeleteTicket()
-  const { data: customFields = [] } = useCustomFieldDefinitions('ticket')
+  const { data: customFields = [] } = useCustomFieldDefinitions('ticket', { activeOptionsOnly: true })
 
   const [confirmDelete, setConfirmDelete] = useState(false)
 

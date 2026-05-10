@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,7 +32,11 @@ func (r *OperationsFinanceRepo) CreateServiceContract(ctx context.Context, v *do
 		v.ID = uuid.New()
 	}
 	if v.Currency == "" {
-		v.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, v.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		v.Currency = cur
 	}
 	if v.Status == "" {
 		v.Status = domain.ServiceContractStatusDraft
@@ -66,7 +71,11 @@ func (r *OperationsFinanceRepo) CreateProject(ctx context.Context, v *domain.Pro
 		v.ID = uuid.New()
 	}
 	if v.Currency == "" {
-		v.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, v.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		v.Currency = cur
 	}
 	if v.Status == "" {
 		v.Status = domain.ProjectStatusPlanned
@@ -101,7 +110,11 @@ func (r *OperationsFinanceRepo) CreateTimeEntry(ctx context.Context, v *domain.T
 		v.ID = uuid.New()
 	}
 	if v.Currency == "" {
-		v.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, v.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		v.Currency = cur
 	}
 	if v.Status == "" {
 		v.Status = domain.TimeEntryStatusDraft
@@ -120,7 +133,11 @@ func (r *OperationsFinanceRepo) CreateExpense(ctx context.Context, v *domain.Exp
 		v.ID = uuid.New()
 	}
 	if v.Currency == "" {
-		v.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, v.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		v.Currency = cur
 	}
 	if v.Status == "" {
 		v.Status = domain.ExpenseStatusDraft
@@ -139,10 +156,25 @@ func (r *OperationsFinanceRepo) CreateInvoice(ctx context.Context, v *domain.Ops
 		v.ID = uuid.New()
 	}
 	if v.Currency == "" {
-		v.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, v.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		v.Currency = cur
 	}
 	if v.Status == "" {
 		v.Status = domain.OpsInvoiceStatusDraft
+	}
+	if strings.TrimSpace(v.InvoiceNumber) == "" {
+		nextNum, err := getNextDocNumber(ctx, r.db, v.OrgID, domain.DocTypeInvoice)
+		if err != nil {
+			return nil, err
+		}
+		prefix, err := getDocPrefix(ctx, r.db, v.OrgID, domain.DocTypeInvoice)
+		if err != nil {
+			return nil, err
+		}
+		v.InvoiceNumber = domain.FormattedDocNumber(prefix, nextNum)
 	}
 	row := r.db.QueryRow(ctx, `INSERT INTO ops_invoices (id, org_id, account_id, contact_id, contract_id, owner_id, created_by, updated_by, status, invoice_number, issue_date, due_date, currency, subtotal_cents, tax_cents, total_cents, paid_cents, outstanding_cents, billing_context)
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
@@ -171,7 +203,11 @@ func (r *OperationsFinanceRepo) CreatePayment(ctx context.Context, v *domain.Pay
 		v.ID = uuid.New()
 	}
 	if v.Currency == "" {
-		v.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, v.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		v.Currency = cur
 	}
 	if v.Status == "" {
 		v.Status = domain.PaymentStatusPending
@@ -352,7 +388,35 @@ func (r *OperationsFinanceRepo) BuildInvoiceAssembly(ctx context.Context, orgID 
 			items = append(items, &domain.InvoiceLineItem{ID: uuid.New(), OrgID: orgID, AccountID: accountID, ContactID: contactID, OwnershipFields: domain.OwnershipFields{OwnerID: ownerID, CreatedBy: createdBy}, SourceType: "service_contract", SourceID: contractID, Description: fmt.Sprintf("Contract fee: %s", name), Quantity: 1, UnitPriceCents: rate, AmountCents: rate})
 		}
 	}
-	inv := &domain.OpsInvoice{ID: uuid.New(), OrgID: orgID, AccountID: accountID, ContactID: contactID, ContractID: contractID, OwnershipFields: domain.OwnershipFields{OwnerID: ownerID, CreatedBy: createdBy}, Status: domain.OpsInvoiceStatusDraft, InvoiceNumber: fmt.Sprintf("INV-%d", time.Now().Unix()), IssueDate: time.Now().UTC(), Currency: "USD", SubtotalCents: subtotal, TaxCents: 0, TotalCents: subtotal, OutstandingCents: subtotal, BillingContext: "direct_account_billing"}
+	nextNum, err := getNextDocNumber(ctx, r.db, orgID, domain.DocTypeInvoice)
+	if err != nil {
+		return nil, err
+	}
+	prefix, err := getDocPrefix(ctx, r.db, orgID, domain.DocTypeInvoice)
+	if err != nil {
+		return nil, err
+	}
+	defaultCurrency, err := getOrgDefaultCurrency(ctx, r.db, orgID)
+	if err != nil {
+		return nil, err
+	}
+	inv := &domain.OpsInvoice{
+		ID:              uuid.New(),
+		OrgID:           orgID,
+		AccountID:       accountID,
+		ContactID:       contactID,
+		ContractID:      contractID,
+		OwnershipFields: domain.OwnershipFields{OwnerID: ownerID, CreatedBy: createdBy},
+		Status:          domain.OpsInvoiceStatusDraft,
+		InvoiceNumber:   domain.FormattedDocNumber(prefix, nextNum),
+		IssueDate:       time.Now().UTC(),
+		Currency:        defaultCurrency,
+		SubtotalCents:   subtotal,
+		TaxCents:        0,
+		TotalCents:      subtotal,
+		OutstandingCents: subtotal,
+		BillingContext:  "direct_account_billing",
+	}
 	asm := &domain.InvoiceAssembly{Invoice: inv, LineItems: items}
 	return asm, asm.Validate()
 }

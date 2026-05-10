@@ -25,6 +25,7 @@ func NewOrgSettingsRepo(db *pgxpool.Pool) *OrgSettingsRepo {
 
 const orgSettingsCols = `
 	id, org_id, quote_number_start, ticket_number_start, kb_article_number_start, invoice_number_start,
+	quote_number_prefix, ticket_number_prefix, kb_article_number_prefix, invoice_number_prefix,
 	company_name, company_logo_url, company_website, company_email, company_phone,
 	company_address_line1, company_address_line2, company_city, company_state, company_postal_code, company_country,
 	portal_enabled, portal_display_name, portal_announcement, portal_default_assignee_id,
@@ -43,6 +44,7 @@ func scanOrgSettings(row pgx.Row) (*domain.OrgSettings, error) {
 	err := row.Scan(
 		&s.ID, &s.OrgID,
 		&s.QuoteNumberStart, &s.TicketNumberStart, &s.KBArticleNumberStart, &s.InvoiceNumberStart,
+		&s.QuoteNumberPrefix, &s.TicketNumberPrefix, &s.KBArticleNumberPrefix, &s.InvoiceNumberPrefix,
 		&s.CompanyName, &s.CompanyLogoURL, &s.CompanyWebsite, &s.CompanyEmail, &s.CompanyPhone,
 		&s.CompanyAddressLine1, &s.CompanyAddressLine2, &s.CompanyCity, &s.CompanyState, &s.CompanyPostalCode, &s.CompanyCountry,
 		&s.PortalEnabled, &s.PortalDisplayName, &s.PortalAnnouncement, &s.PortalDefaultAssigneeID,
@@ -124,6 +126,26 @@ func (r *OrgSettingsRepo) Update(ctx context.Context, orgID uuid.UUID, patch dom
 	if patch.InvoiceNumberStart != nil {
 		setClauses = append(setClauses, fmt.Sprintf("invoice_number_start = $%d", argN))
 		args = append(args, *patch.InvoiceNumberStart)
+		argN++
+	}
+	if patch.QuoteNumberPrefix != nil {
+		setClauses = append(setClauses, fmt.Sprintf("quote_number_prefix = $%d", argN))
+		args = append(args, *patch.QuoteNumberPrefix)
+		argN++
+	}
+	if patch.TicketNumberPrefix != nil {
+		setClauses = append(setClauses, fmt.Sprintf("ticket_number_prefix = $%d", argN))
+		args = append(args, *patch.TicketNumberPrefix)
+		argN++
+	}
+	if patch.KBArticleNumberPrefix != nil {
+		setClauses = append(setClauses, fmt.Sprintf("kb_article_number_prefix = $%d", argN))
+		args = append(args, *patch.KBArticleNumberPrefix)
+		argN++
+	}
+	if patch.InvoiceNumberPrefix != nil {
+		setClauses = append(setClauses, fmt.Sprintf("invoice_number_prefix = $%d", argN))
+		args = append(args, *patch.InvoiceNumberPrefix)
 		argN++
 	}
 	if patch.CompanyName != nil {
@@ -345,4 +367,59 @@ func getNextDocNumber(ctx context.Context, db *pgxpool.Pool, orgID uuid.UUID, do
 		RETURNING next_number - 1
 	`, orgID, string(docType)).Scan(&num)
 	return num, err
+}
+
+// GetCurrentDocNumbers returns current sequence numbers for known document types.
+// If a sequence does not exist yet, the current value is start-1.
+func (r *OrgSettingsRepo) GetCurrentDocNumbers(ctx context.Context, orgID uuid.UUID) (map[domain.DocType]int64, error) {
+	s, err := r.GetOrCreate(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	current := map[domain.DocType]int64{
+		domain.DocTypeQuote:     s.QuoteNumberStart - 1,
+		domain.DocTypeTicket:    s.TicketNumberStart - 1,
+		domain.DocTypeKBArticle: s.KBArticleNumberStart - 1,
+		domain.DocTypeInvoice:   s.InvoiceNumberStart - 1,
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT doc_type, next_number - 1
+		FROM document_sequences
+		WHERE org_id = $1
+	`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var docType string
+		var num int64
+		if err := rows.Scan(&docType, &num); err != nil {
+			return nil, err
+		}
+		current[domain.DocType(docType)] = num
+	}
+	return current, rows.Err()
+}
+
+func (r *OrgSettingsRepo) SetCurrentDocNumbers(ctx context.Context, orgID uuid.UUID, values map[domain.DocType]int64) error {
+	for docType, current := range values {
+		if current < 0 {
+			current = 0
+		}
+		_, err := r.db.Exec(ctx, `
+			INSERT INTO document_sequences (org_id, doc_type, next_number, updated_at)
+			VALUES ($1, $2, $3, NOW())
+			ON CONFLICT (org_id, doc_type) DO UPDATE SET
+				next_number = EXCLUDED.next_number,
+				updated_at = NOW()
+		`, orgID, string(docType), current+1)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

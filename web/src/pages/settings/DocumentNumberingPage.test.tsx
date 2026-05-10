@@ -5,14 +5,19 @@ import { DocumentNumberingPage } from './DocumentNumberingPage'
 import { server } from '@/test/mocks/server'
 
 const settings = {
-  id: 'settings-1',
   org_id: 'org-1',
   quote_number_start: 100,
   ticket_number_start: 200,
   kb_article_number_start: 300,
   invoice_number_start: 400,
-  created_at: '2026-05-09T12:00:00Z',
-  updated_at: '2026-05-09T12:00:00Z',
+  quote_number_prefix: 'QUO',
+  ticket_number_prefix: 'TCK',
+  kb_article_number_prefix: 'KB',
+  invoice_number_prefix: 'INV',
+  quote_number_current: 99,
+  ticket_number_current: 199,
+  kb_article_number_current: 299,
+  invoice_number_current: 399,
 }
 
 describe('DocumentNumberingPage', () => {
@@ -42,6 +47,14 @@ describe('DocumentNumberingPage', () => {
         ticket_number_start: 200,
         kb_article_number_start: 300,
         invoice_number_start: 400,
+        quote_number_prefix: 'QUO',
+        ticket_number_prefix: 'TCK',
+        kb_article_number_prefix: 'KB',
+        invoice_number_prefix: 'INV',
+        quote_number_current: 99,
+        ticket_number_current: 199,
+        kb_article_number_current: 299,
+        invoice_number_current: 399,
       })
     })
     expect(await screen.findByText('Document numbering saved.')).toBeInTheDocument()

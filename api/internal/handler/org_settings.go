@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -74,9 +75,8 @@ func (h *OrgSettingsHandler) ConfigEditorRouter() chi.Router {
 
 func (h *OrgSettingsHandler) MenuConfigRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Use(h.requireAdmin)
 	r.Get("/", h.GetMenuConfig)
-	r.Patch("/", h.UpdateMenuConfig)
+	r.With(h.requireAdmin).Patch("/", h.UpdateMenuConfig)
 	return r
 }
 
@@ -91,33 +91,117 @@ func (h *OrgSettingsHandler) requireAdmin(next http.Handler) http.Handler {
 	})
 }
 
+type numberingSequenceAccessor interface {
+	GetCurrentDocNumbers(ctx context.Context, orgID uuid.UUID) (map[domain.DocType]int64, error)
+	SetCurrentDocNumbers(ctx context.Context, orgID uuid.UUID, values map[domain.DocType]int64) error
+}
+
+type numberingSettingsPayload struct {
+	QuoteNumberStart      *int64  `json:"quote_number_start,omitempty"`
+	TicketNumberStart     *int64  `json:"ticket_number_start,omitempty"`
+	KBArticleNumberStart  *int64  `json:"kb_article_number_start,omitempty"`
+	InvoiceNumberStart    *int64  `json:"invoice_number_start,omitempty"`
+	QuoteNumberPrefix     *string `json:"quote_number_prefix,omitempty"`
+	TicketNumberPrefix    *string `json:"ticket_number_prefix,omitempty"`
+	KBArticleNumberPrefix *string `json:"kb_article_number_prefix,omitempty"`
+	InvoiceNumberPrefix   *string `json:"invoice_number_prefix,omitempty"`
+	QuoteNumberCurrent    *int64  `json:"quote_number_current,omitempty"`
+	TicketNumberCurrent   *int64  `json:"ticket_number_current,omitempty"`
+	KBArticleNumberCurrent *int64 `json:"kb_article_number_current,omitempty"`
+	InvoiceNumberCurrent  *int64  `json:"invoice_number_current,omitempty"`
+}
+
+type numberingSettingsResponse struct {
+	OrgID                  uuid.UUID `json:"org_id"`
+	QuoteNumberStart       int64  `json:"quote_number_start"`
+	TicketNumberStart      int64  `json:"ticket_number_start"`
+	KBArticleNumberStart   int64  `json:"kb_article_number_start"`
+	InvoiceNumberStart     int64  `json:"invoice_number_start"`
+	QuoteNumberPrefix      string `json:"quote_number_prefix"`
+	TicketNumberPrefix     string `json:"ticket_number_prefix"`
+	KBArticleNumberPrefix  string `json:"kb_article_number_prefix"`
+	InvoiceNumberPrefix    string `json:"invoice_number_prefix"`
+	QuoteNumberCurrent     int64  `json:"quote_number_current"`
+	TicketNumberCurrent    int64  `json:"ticket_number_current"`
+	KBArticleNumberCurrent int64  `json:"kb_article_number_current"`
+	InvoiceNumberCurrent   int64  `json:"invoice_number_current"`
+}
+
 // Get returns current org settings (including numbering start values).
 // GET /api/v1/settings/numbering
 func (h *OrgSettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
-	_, s, ok := h.loadSettings(w, r)
+	claims, s, ok := h.loadSettings(w, r)
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, s)
+
+	currents := map[domain.DocType]int64{
+		domain.DocTypeQuote:     s.QuoteNumberStart - 1,
+		domain.DocTypeTicket:    s.TicketNumberStart - 1,
+		domain.DocTypeKBArticle: s.KBArticleNumberStart - 1,
+		domain.DocTypeInvoice:   s.InvoiceNumberStart - 1,
+	}
+	if seqRepo, ok := h.settings.(numberingSequenceAccessor); ok {
+		loaded, err := seqRepo.GetCurrentDocNumbers(r.Context(), claims.OrgID)
+		if err == nil {
+			for k, v := range loaded {
+				currents[k] = v
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, numberingSettingsResponse{
+		OrgID:                  claims.OrgID,
+		QuoteNumberStart:       s.QuoteNumberStart,
+		TicketNumberStart:      s.TicketNumberStart,
+		KBArticleNumberStart:   s.KBArticleNumberStart,
+		InvoiceNumberStart:     s.InvoiceNumberStart,
+		QuoteNumberPrefix:      s.QuoteNumberPrefix,
+		TicketNumberPrefix:     s.TicketNumberPrefix,
+		KBArticleNumberPrefix:  s.KBArticleNumberPrefix,
+		InvoiceNumberPrefix:    s.InvoiceNumberPrefix,
+		QuoteNumberCurrent:     currents[domain.DocTypeQuote],
+		TicketNumberCurrent:    currents[domain.DocTypeTicket],
+		KBArticleNumberCurrent: currents[domain.DocTypeKBArticle],
+		InvoiceNumberCurrent:   currents[domain.DocTypeInvoice],
+	})
 }
 
 // Update patches org settings numbering fields.
 // PATCH /api/v1/settings/numbering
 func (h *OrgSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var patch domain.OrgSettingsPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	var req numberingSettingsPayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	for _, v := range []*int64{
-		patch.QuoteNumberStart, patch.TicketNumberStart,
-		patch.KBArticleNumberStart, patch.InvoiceNumberStart,
+		req.QuoteNumberStart, req.TicketNumberStart,
+		req.KBArticleNumberStart, req.InvoiceNumberStart,
 	} {
 		if v != nil && *v < 1 {
 			writeError(w, http.StatusUnprocessableEntity, "starting numbers must be >= 1")
 			return
 		}
+	}
+	for _, v := range []*int64{
+		req.QuoteNumberCurrent, req.TicketNumberCurrent, req.KBArticleNumberCurrent, req.InvoiceNumberCurrent,
+	} {
+		if v != nil && *v < 0 {
+			writeError(w, http.StatusUnprocessableEntity, "current numbers must be >= 0")
+			return
+		}
+	}
+
+	patch := domain.OrgSettingsPatch{
+		QuoteNumberStart:      req.QuoteNumberStart,
+		TicketNumberStart:     req.TicketNumberStart,
+		KBArticleNumberStart:  req.KBArticleNumberStart,
+		InvoiceNumberStart:    req.InvoiceNumberStart,
+		QuoteNumberPrefix:     req.QuoteNumberPrefix,
+		TicketNumberPrefix:    req.TicketNumberPrefix,
+		KBArticleNumberPrefix: req.KBArticleNumberPrefix,
+		InvoiceNumberPrefix:   req.InvoiceNumberPrefix,
 	}
 
 	claims, before, updated, ok := h.applyPatch(w, r, patch)
@@ -125,14 +209,40 @@ func (h *OrgSettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if seqRepo, ok := h.settings.(numberingSequenceAccessor); ok {
+		next := map[domain.DocType]int64{}
+		if req.QuoteNumberCurrent != nil {
+			next[domain.DocTypeQuote] = *req.QuoteNumberCurrent
+		}
+		if req.TicketNumberCurrent != nil {
+			next[domain.DocTypeTicket] = *req.TicketNumberCurrent
+		}
+		if req.KBArticleNumberCurrent != nil {
+			next[domain.DocTypeKBArticle] = *req.KBArticleNumberCurrent
+		}
+		if req.InvoiceNumberCurrent != nil {
+			next[domain.DocTypeInvoice] = *req.InvoiceNumberCurrent
+		}
+		if len(next) > 0 {
+			if err := seqRepo.SetCurrentDocNumbers(r.Context(), claims.OrgID, next); err != nil {
+				writeError(w, http.StatusInternalServerError, "internal server error")
+				return
+			}
+		}
+	}
+
 	h.logSettingsMutation(r, claims, "settings.numbering", auditChanges(
 		auditField("quote_number_start", before.QuoteNumberStart, updated.QuoteNumberStart),
 		auditField("ticket_number_start", before.TicketNumberStart, updated.TicketNumberStart),
 		auditField("kb_article_number_start", before.KBArticleNumberStart, updated.KBArticleNumberStart),
 		auditField("invoice_number_start", before.InvoiceNumberStart, updated.InvoiceNumberStart),
+		auditField("quote_number_prefix", before.QuoteNumberPrefix, updated.QuoteNumberPrefix),
+		auditField("ticket_number_prefix", before.TicketNumberPrefix, updated.TicketNumberPrefix),
+		auditField("kb_article_number_prefix", before.KBArticleNumberPrefix, updated.KBArticleNumberPrefix),
+		auditField("invoice_number_prefix", before.InvoiceNumberPrefix, updated.InvoiceNumberPrefix),
 	))
 
-	writeJSON(w, http.StatusOK, updated)
+	h.Get(w, r)
 }
 
 type companySettingsPayload struct {

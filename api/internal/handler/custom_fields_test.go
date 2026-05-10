@@ -63,6 +63,18 @@ func (m *cfdMock) List(ctx context.Context, filter domain.CustomFieldDefinitionF
 	return args.Get(0).([]*domain.CustomFieldDefinition), args.Error(1)
 }
 
+type picklistReaderMock struct {
+	mock.Mock
+}
+
+func (m *picklistReaderMock) ListValues(ctx context.Context, orgID, customFieldID uuid.UUID) ([]*domain.PicklistValue, error) {
+	args := m.Called(ctx, orgID, customFieldID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.PicklistValue), args.Error(1)
+}
+
 func cfdAdminReq(t *testing.T, method, path string, body any) *http.Request {
 	t.Helper()
 	var buf bytes.Buffer
@@ -225,6 +237,40 @@ func TestCustomFieldHandler_List(t *testing.T) {
 	var got []*domain.CustomFieldDefinition
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 	assert.Len(t, got, 1)
+}
+
+func TestCustomFieldHandler_List_ActiveOptionsOnly(t *testing.T) {
+	repo := &cfdMock{}
+	picklists := &picklistReaderMock{}
+	h := handler.NewCustomFieldHandler(repo).WithPicklistValueReader(picklists)
+
+	orgID := uuid.New()
+	fieldID := uuid.New()
+	repo.On("List", mock.Anything, mock.Anything).Return([]*domain.CustomFieldDefinition{
+		{
+			ID:         fieldID,
+			OrgID:      orgID,
+			EntityType: domain.CustomFieldEntityContact,
+			Name:       "region",
+			Label:      "Region",
+			FieldType:  domain.CustomFieldTypeSelect,
+			Options:    []string{"EMEA", "Legacy"},
+		},
+	}, nil)
+	picklists.On("ListValues", mock.Anything, orgID, fieldID).Return([]*domain.PicklistValue{
+		{Value: "EMEA", IsActive: true},
+		{Value: "Legacy", IsActive: false},
+	}, nil)
+
+	req := cfdAdminReq(t, http.MethodGet, "/custom-fields?entity_type=contact&active_options_only=true", nil)
+	w := httptest.NewRecorder()
+	cfdRouter(h).ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var got []*domain.CustomFieldDefinition
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Len(t, got, 1)
+	assert.Equal(t, []string{"EMEA"}, got[0].Options)
 }
 
 func TestCustomFieldHandler_GetByID(t *testing.T) {

@@ -7,6 +7,7 @@ import {
   Settings2,
   KeyRound,
   Webhook,
+  Link2,
   CheckCircle2,
   XCircle,
   Clock,
@@ -27,6 +28,8 @@ interface ProviderMeta {
   category: 'email' | 'calendar' | 'coming_soon'
   oauthPath?: string
 }
+
+type GoogleWorkspaceStatus = 'connected' | 'partial' | 'disconnected'
 
 const PROVIDERS: ProviderMeta[] = [
   {
@@ -100,6 +103,15 @@ const PROVIDERS: ProviderMeta[] = [
     category: 'coming_soon',
   },
 ]
+
+function getGoogleWorkspaceStatus(
+  gmailConnected: boolean,
+  calendarConnected: boolean
+): GoogleWorkspaceStatus {
+  if (gmailConnected && calendarConnected) return 'connected'
+  if (gmailConnected || calendarConnected) return 'partial'
+  return 'disconnected'
+}
 
 // ── Status badge ──────────────────────────────────────────────────────────
 
@@ -533,6 +545,9 @@ function IntegrationCard({
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export function IntegrationsSettingsPage() {
+  const queryClient = useQueryClient()
+  const [workspaceActionError, setWorkspaceActionError] = useState<string | null>(null)
+
   const { data: integrations, isLoading, isError } = useQuery({
     queryKey: ['integrations'],
     queryFn: integrationsApi.list,
@@ -544,6 +559,28 @@ export function IntegrationsSettingsPage() {
   } = useQuery({
     queryKey: ['calendar-connections'],
     queryFn: calendarApi.listConnections,
+  })
+
+  const disconnectGmailMutation = useMutation({
+    mutationFn: () => integrationsApi.disconnect('gmail'),
+    onSuccess: () => {
+      setWorkspaceActionError(null)
+      queryClient.invalidateQueries({ queryKey: ['integrations'] })
+    },
+    onError: () => {
+      setWorkspaceActionError('Failed to disconnect Gmail. Please try again.')
+    },
+  })
+
+  const disconnectGoogleCalendarMutation = useMutation({
+    mutationFn: (id: string) => calendarApi.disconnect(id),
+    onSuccess: () => {
+      setWorkspaceActionError(null)
+      queryClient.invalidateQueries({ queryKey: ['calendar-connections'] })
+    },
+    onError: () => {
+      setWorkspaceActionError('Failed to disconnect Google Calendar. Please try again.')
+    },
   })
 
   const activeProviders = PROVIDERS.filter((p) => p.category !== 'coming_soon')
@@ -558,6 +595,32 @@ export function IntegrationsSettingsPage() {
     if (provider === 'outlook_calendar') return calendarConnections.find((c) => c.provider === 'microsoft')
     return undefined
   }
+
+  const gmailIntegration = getIntegration('gmail')
+  const googleCalendarConnection = getCalendarConnection('google_calendar')
+  const gmailConnected = gmailIntegration?.status === 'connected'
+  const googleCalendarConnected = Boolean(googleCalendarConnection)
+  const googleWorkspaceStatus = getGoogleWorkspaceStatus(gmailConnected, googleCalendarConnected)
+
+  const statusLabel = googleWorkspaceStatus === 'connected'
+    ? 'Connected'
+    : googleWorkspaceStatus === 'partial'
+      ? 'Partially connected'
+      : 'Disconnected'
+
+  const statusStyle = googleWorkspaceStatus === 'connected'
+    ? 'bg-green-50 text-green-700'
+    : googleWorkspaceStatus === 'partial'
+      ? 'bg-amber-50 text-amber-700'
+      : 'bg-[#F3F4F6] text-[#6B7280]'
+
+  const loadErrorMessage = isError && isCalendarError
+    ? 'Failed to load email and calendar integration status.'
+    : isError
+      ? 'Failed to load email integration status.'
+      : isCalendarError
+        ? 'Failed to load calendar integration status.'
+        : null
 
   return (
     <div className="space-y-8">
@@ -574,14 +637,91 @@ export function IntegrationsSettingsPage() {
         </p>
       </div>
 
-      {(isError || isCalendarError) && (
+      {loadErrorMessage && (
         <div
           role="alert"
           className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700"
         >
-          Failed to load integrations. Please refresh and try again.
+          {loadErrorMessage} Please refresh and try again.
         </div>
       )}
+
+      {/* Google workspace summary */}
+      <section
+        aria-labelledby="google-workspace-title"
+        className="rounded-xl border border-[#E5E7EB] bg-white p-5"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 id="google-workspace-title" className="text-sm font-bold text-[#1A1D23]">
+              Google Workspace
+            </h2>
+            <p className="mt-0.5 text-xs text-[#6B7280]">
+              Unified status for Gmail inbox and Google Calendar sync.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle}`}>
+                {statusLabel}
+              </span>
+              <span className="text-xs text-[#6B7280]">
+                Gmail: {gmailConnected ? 'Connected' : 'Disconnected'}
+              </span>
+              <span className="text-xs text-[#6B7280]">
+                Calendar: {googleCalendarConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {gmailConnected ? (
+              <button
+                onClick={() => disconnectGmailMutation.mutate()}
+                className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                disabled={disconnectGmailMutation.isPending}
+              >
+                <Unplug className="h-3.5 w-3.5" />
+                {disconnectGmailMutation.isPending ? 'Disconnecting Gmail…' : 'Disconnect Gmail'}
+              </button>
+            ) : (
+              <a
+                href="/api/integrations/email/auth/google"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#1B3A4B] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1B3A4B]/90 transition-colors"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Connect Gmail
+              </a>
+            )}
+            {googleCalendarConnected ? (
+              <button
+                onClick={() => disconnectGoogleCalendarMutation.mutate(googleCalendarConnection!.id)}
+                className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                disabled={disconnectGoogleCalendarMutation.isPending}
+              >
+                <Unplug className="h-3.5 w-3.5" />
+                {disconnectGoogleCalendarMutation.isPending ? 'Disconnecting Calendar…' : 'Disconnect Calendar'}
+              </button>
+            ) : (
+              <a
+                href="/api/v1/calendar/auth/google"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#1B3A4B] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1B3A4B]/90 transition-colors"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Connect Calendar
+              </a>
+            )}
+          </div>
+        </div>
+
+        {workspaceActionError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {workspaceActionError}
+          </div>
+        )}
+        {(isError || isCalendarError) && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            One or more integration status sources are unavailable. Actions remain available.
+          </div>
+        )}
+      </section>
 
       {/* Connected apps */}
       <section aria-labelledby="connected-apps-title">
