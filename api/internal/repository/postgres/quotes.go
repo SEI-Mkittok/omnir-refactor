@@ -56,7 +56,11 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 		q.Status = domain.QuoteStatusDraft
 	}
 	if q.Currency == "" {
-		q.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, q.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		q.Currency = cur
 	}
 	if err := r.validateDealAccountContext(ctx, q.DealID, q.AccountID, q.OrgID); err != nil {
 		return nil, err
@@ -65,7 +69,10 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 	if err != nil {
 		return nil, err
 	}
-	const prefix = "QUO"
+	prefix, err := getDocPrefix(ctx, r.db, q.OrgID, domain.DocTypeQuote)
+	if err != nil {
+		return nil, err
+	}
 	row := r.db.QueryRow(ctx,
 		`INSERT INTO quotes
 		 (id, org_id, deal_id, account_id, contact_id, title, status, currency, valid_until, notes, created_by, number, number_prefix)

@@ -71,6 +71,12 @@ const ADMIN_CARDS: SettingsCard[] = [
     badge: 'Admin',
   },
   {
+    icon: SlidersHorizontal,
+    title: 'Currencies',
+    description: 'Manage enabled currencies and define the organisation default currency.',
+    href: '/settings/currencies',
+  },
+  {
     icon: Building2,
     title: 'Company Profile',
     description: 'Manage company identity, contact information, and tenant profile details.',

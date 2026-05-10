@@ -66,7 +66,10 @@ func (r *KBArticleRepo) Create(ctx context.Context, a *domain.KBArticle) (*domai
 	if err != nil {
 		return nil, err
 	}
-	const prefix = "KB"
+	prefix, err := getDocPrefix(ctx, r.db, a.OrgID, domain.DocTypeKBArticle)
+	if err != nil {
+		return nil, err
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO articles (id, org_id, title, body, category_id, tags, status, author_id, number, number_prefix, created_at, updated_at)

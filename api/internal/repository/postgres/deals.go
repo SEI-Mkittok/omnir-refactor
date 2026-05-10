@@ -58,7 +58,11 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) (*domain.Deal, er
 	d.UpdatedAt = now
 
 	if d.Currency == "" {
-		d.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, d.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		d.Currency = cur
 	}
 
 	row := r.db.QueryRow(ctx, `

@@ -38,6 +38,7 @@ import { PortalConfigurationPage } from '@/pages/settings/PortalConfigurationPag
 import { OutgoingServerSettingsPage } from '@/pages/settings/OutgoingServerSettingsPage'
 import { ConfigurationEditorPage } from '@/pages/settings/ConfigurationEditorPage'
 import { MenuConfigurationPage } from '@/pages/settings/MenuConfigurationPage'
+import { CurrenciesPage } from '@/pages/settings/CurrenciesPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -221,6 +222,14 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <MenuConfigurationPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/currencies"
+          element={
+            <AdminRoute>
+              <CurrenciesPage />
             </AdminRoute>
           }
         />
