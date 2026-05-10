@@ -232,7 +232,7 @@ func main() {
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
 	exportHandler := handler.NewExportHandler(contactRepo, accountRepo, dealRepo, reportsRepo).WithAuditLog(auditLogRepo)
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo, accountRepo, dealRepo, leadConversionMappingRepo, customFieldRepo)
-	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo)
+	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo).WithPicklistValueReader(picklistRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
 	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, contactRepo, dealRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)

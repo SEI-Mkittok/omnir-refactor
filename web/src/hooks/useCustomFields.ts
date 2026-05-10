@@ -9,14 +9,19 @@ import type {
 export const customFieldKeys = {
   all: ['custom-field-definitions'] as const,
   lists: () => [...customFieldKeys.all, 'list'] as const,
-  list: (entity_type?: CustomFieldEntityType) => [...customFieldKeys.lists(), entity_type] as const,
+  list: (entity_type?: CustomFieldEntityType, activeOptionsOnly?: boolean) =>
+    [...customFieldKeys.lists(), entity_type ?? null, Boolean(activeOptionsOnly)] as const,
   detail: (id: string) => [...customFieldKeys.all, 'detail', id] as const,
 }
 
-export function useCustomFieldDefinitions(entity_type?: CustomFieldEntityType) {
+export function useCustomFieldDefinitions(
+  entity_type?: CustomFieldEntityType,
+  options?: { activeOptionsOnly?: boolean },
+) {
+  const activeOptionsOnly = options?.activeOptionsOnly ?? false
   return useQuery({
-    queryKey: customFieldKeys.list(entity_type),
-    queryFn: () => customFieldsApi.list(entity_type),
+    queryKey: customFieldKeys.list(entity_type, activeOptionsOnly),
+    queryFn: () => customFieldsApi.list(entity_type, { activeOptionsOnly }),
     staleTime: 60_000,
   })
 }

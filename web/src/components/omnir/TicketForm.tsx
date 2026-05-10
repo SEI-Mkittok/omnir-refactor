@@ -31,7 +31,7 @@ const PRIORITY_OPTIONS: { label: string; value: TicketPriority }[] = [
 
 export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProps) {
   const { mutateAsync: createTicket, isPending } = useCreateTicket()
-  const { data: customFields = [] } = useCustomFieldDefinitions('ticket')
+  const { data: customFields = [] } = useCustomFieldDefinitions('ticket', { activeOptionsOnly: true })
   const activeOrg = useAuthStore((s) => s.activeOrg)
   const user = useAuthStore((s) => s.user)
   const orgSlug = activeOrg?.slug ?? user?.email?.split('@')[1] ?? ''

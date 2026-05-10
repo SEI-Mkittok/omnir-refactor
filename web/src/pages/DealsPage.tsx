@@ -193,7 +193,7 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
   const { data: deal, isLoading } = useDeal(dealId)
   const deleteDeal = useDeleteDeal()
   const updateDeal = useUpdateDeal()
-  const { data: customFields = [] } = useCustomFieldDefinitions('deal')
+  const { data: customFields = [] } = useCustomFieldDefinitions('deal', { activeOptionsOnly: true })
 
   if (isLoading) {
     return (
