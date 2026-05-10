@@ -298,6 +298,10 @@ func main() {
 	r.Mount("/auth/sso", ssoHandler.Router())
 	// API-style SSO: POST /api/auth/sso/microsoft|google, GET /api/auth/sso/callback
 	r.Mount("/api/auth/sso", ssoHandler.APIRouter())
+	// Calendar OAuth callbacks must be public because cross-site provider redirects
+	// may not include SameSite-strict session cookies.
+	r.Get("/api/v1/calendar/auth/google/callback", calendarHandler.CallbackGoogle)
+	r.Get("/api/v1/calendar/auth/microsoft/callback", calendarHandler.CallbackMicrosoft)
 	// Rate-limit public/unauthenticated endpoints to mitigate brute-force and DoS (OMN-615).
 	publicRateLimit := httprate.LimitByIP(120, time.Minute)
 	r.With(publicRateLimit).Mount("/webhooks/email", inboundWebhookHandler.Router())

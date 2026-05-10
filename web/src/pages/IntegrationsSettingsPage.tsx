@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  RefreshCw,
   Eye,
   EyeOff,
 } from 'lucide-react'
@@ -397,10 +396,6 @@ function IntegrationCard({
     },
   })
 
-  const syncMutation = useMutation({
-    mutationFn: () => calendarApi.triggerSync(),
-  })
-
   const isConnected = status === 'connected'
 
   return (
@@ -440,6 +435,7 @@ function IntegrationCard({
 
           {isConnected && meta.category === 'calendar' && (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B7280]">
+              <span className="font-medium text-[#1B3A4B]">Automatic sync every ~5 minutes</span>
               {calendarConnection?.token_expiry && (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
@@ -458,23 +454,13 @@ function IntegrationCard({
         {meta.category !== 'coming_soon' && (
           <div className="flex shrink-0 items-center gap-2">
             {meta.category === 'calendar' && isConnected ? (
-              <>
-                <button
-                  onClick={() => syncMutation.mutate()}
-                  className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 text-xs font-semibold text-[#1B3A4B] hover:bg-[#E8EDF2] transition-colors"
-                  disabled={syncMutation.isPending}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  {syncMutation.isPending ? 'Syncing…' : 'Sync now'}
-                </button>
-                <button
-                  onClick={() => setDisconnectOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <Unplug className="h-3.5 w-3.5" />
-                  Disconnect
-                </button>
-              </>
+              <button
+                onClick={() => setDisconnectOpen(true)}
+                className="inline-flex items-center gap-1 rounded-lg border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <Unplug className="h-3.5 w-3.5" />
+                Disconnect
+              </button>
             ) : meta.category === 'calendar' ? (
               <a
                 href={meta.oauthPath}

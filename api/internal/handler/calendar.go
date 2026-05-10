@@ -61,10 +61,6 @@ func (h *CalendarHandler) Router() chi.Router {
 	r.Get("/auth/google", h.InitiateGoogle)
 	r.Get("/auth/microsoft", h.InitiateMicrosoft)
 
-	// OAuth callbacks (provider redirects back here)
-	r.Get("/auth/google/callback", h.CallbackGoogle)
-	r.Get("/auth/microsoft/callback", h.CallbackMicrosoft)
-
 	// Connection management
 	r.Get("/connections", h.ListConnections)
 	r.Delete("/connections/{id}", h.Disconnect)
@@ -72,6 +68,16 @@ func (h *CalendarHandler) Router() chi.Router {
 	// Manual sync trigger
 	r.Post("/sync", h.TriggerSync)
 
+	return r
+}
+
+// CallbackRouter mounts only OAuth callback routes.
+// This router should be mounted outside auth middleware because cross-site
+// provider redirects may not include SameSite-strict session cookies.
+func (h *CalendarHandler) CallbackRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/auth/google/callback", h.CallbackGoogle)
+	r.Get("/auth/microsoft/callback", h.CallbackMicrosoft)
 	return r
 }
 
