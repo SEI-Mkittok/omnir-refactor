@@ -315,10 +315,13 @@ func (r *PicklistRepo) usageCount(ctx context.Context, tx pgx.Tx, entityType dom
 		WHERE deleted_at IS NULL
 		  AND (
 			custom_fields ->> $1 = $2
-			OR EXISTS (
+			OR (
+				jsonb_typeof(custom_fields -> $1) = 'array'
+				AND EXISTS (
 				SELECT 1
-				FROM jsonb_array_elements_text(COALESCE(custom_fields -> $1, '[]'::jsonb)) AS elem
+				FROM jsonb_array_elements_text(custom_fields -> $1) AS elem
 				WHERE elem = $2
+			)
 			)
 		  )
 	`, table)
@@ -392,10 +395,13 @@ func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, table, fie
 		WHERE deleted_at IS NULL
 		  AND (
 			custom_fields ->> $1 = $2
-			OR EXISTS (
+			OR (
+				jsonb_typeof(custom_fields -> $1) = 'array'
+				AND EXISTS (
 				SELECT 1
-				FROM jsonb_array_elements_text(COALESCE(custom_fields -> $1, '[]'::jsonb)) AS elem
+				FROM jsonb_array_elements_text(custom_fields -> $1) AS elem
 				WHERE elem = $2
+			)
 			)
 		  )
 	`, table)
@@ -585,4 +591,3 @@ func (r *PicklistRepo) DeleteDependency(ctx context.Context, orgID, dependencyID
 	}
 	return nil
 }
-
