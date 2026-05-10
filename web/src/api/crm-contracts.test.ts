@@ -6,10 +6,15 @@ import type { CreateActivityRequest } from './activities'
 import { adminSettingsApi } from './adminSettings'
 import { billingApi } from './billing'
 import { calendarApi } from './calendar'
+import { currenciesApi } from './currencies'
 import { dealsApi } from './deals'
 import { inboxApi } from './inbox'
 import { integrationsApi } from './integrations'
 import { kbApi } from './kb'
+import { leadConversionMappingApi } from './leadConversionMapping'
+import { numberingApi } from './numbering'
+import { picklistsApi } from './picklists'
+import { preferencesApi } from './preferences'
 import { slaApi } from './sla'
 import { server } from '@/test/mocks/server'
 
@@ -393,6 +398,154 @@ describe('CRM API contract mapping', () => {
       'PATCH /api/v1/settings/company',
       'PATCH /api/v1/settings/outgoing-server',
       'PATCH /api/v1/settings/menu',
+    ])
+  })
+
+  it('uses bundle-3 settings routes and snake_case payload contracts', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.get('/api/v1/settings/numbering', () => {
+        seen.push('GET /api/v1/settings/numbering')
+        return HttpResponse.json({
+          org_id: 'org-1',
+          quote_number_start: 100,
+          ticket_number_start: 200,
+          kb_article_number_start: 300,
+          invoice_number_start: 400,
+          quote_number_prefix: 'QUO',
+          ticket_number_prefix: 'TCK',
+          kb_article_number_prefix: 'KB',
+          invoice_number_prefix: 'INV',
+          quote_number_current: 100,
+          ticket_number_current: 200,
+          kb_article_number_current: 300,
+          invoice_number_current: 400,
+        })
+      }),
+      http.patch('/api/v1/settings/numbering', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/numbering')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.quote_number_prefix).toBe('QTE')
+        expect(body.quote_number_current).toBe(515)
+        return HttpResponse.json(body)
+      }),
+      http.get('/api/v1/settings/preferences', () => {
+        seen.push('GET /api/v1/settings/preferences')
+        return HttpResponse.json({ default_currency: 'USD', landing_page: '/dashboard' })
+      }),
+      http.patch('/api/v1/settings/preferences', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/preferences')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.default_currency).toBe('EUR')
+        expect(body.defaultCurrency).toBeUndefined()
+        return HttpResponse.json(body)
+      }),
+      http.get('/api/v1/settings/calendar-preferences', () => {
+        seen.push('GET /api/v1/settings/calendar-preferences')
+        return HttpResponse.json({ calendar_default_view: 'week', calendar_show_completed_events: false })
+      }),
+      http.get('/api/v1/settings/currencies', () => {
+        seen.push('GET /api/v1/settings/currencies')
+        return HttpResponse.json({
+          default_code: 'USD',
+          currencies: [{ code: 'USD', display_name: 'US Dollar', symbol: '$', decimal_places: 2, is_active: true, is_default: true }],
+        })
+      }),
+      http.patch('/api/v1/settings/currencies', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/currencies')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.default_code).toBe('EUR')
+        return HttpResponse.json({
+          default_code: 'EUR',
+          currencies: body.currencies,
+        })
+      }),
+      http.get('/api/v1/settings/picklists', () => {
+        seen.push('GET /api/v1/settings/picklists')
+        return HttpResponse.json({ data: [] })
+      }),
+      http.put('/api/v1/settings/picklists/field-1/values', async ({ request }) => {
+        seen.push('PUT /api/v1/settings/picklists/field-1/values')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(Array.isArray(body.values)).toBe(true)
+        return HttpResponse.json({ values: body.values })
+      }),
+      http.post('/api/v1/settings/picklists/field-1/remap-delete', async ({ request }) => {
+        seen.push('POST /api/v1/settings/picklists/field-1/remap-delete')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.from_value).toBe('legacy')
+        return HttpResponse.json({ values: [] })
+      }),
+      http.get('/api/v1/settings/picklist-dependencies', () => {
+        seen.push('GET /api/v1/settings/picklist-dependencies')
+        return HttpResponse.json({ data: [] })
+      }),
+      http.put('/api/v1/settings/picklist-dependencies', async ({ request }) => {
+        seen.push('PUT /api/v1/settings/picklist-dependencies')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.source_field_id).toBe('source-1')
+        return HttpResponse.json(body)
+      }),
+      http.delete('/api/v1/settings/picklist-dependencies/dependency-1', () => {
+        seen.push('DELETE /api/v1/settings/picklist-dependencies/dependency-1')
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.get('/api/v1/settings/lead-conversion-mapping', () => {
+        seen.push('GET /api/v1/settings/lead-conversion-mapping')
+        return HttpResponse.json({ data: [] })
+      }),
+      http.put('/api/v1/settings/lead-conversion-mapping', async ({ request }) => {
+        seen.push('PUT /api/v1/settings/lead-conversion-mapping')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(Array.isArray(body.mappings)).toBe(true)
+        return HttpResponse.json({ data: body.mappings })
+      })
+    )
+
+    await numberingApi.get()
+    await numberingApi.update({ quote_number_prefix: 'QTE', quote_number_current: 515 })
+    await preferencesApi.get()
+    await preferencesApi.update({ default_currency: 'EUR' })
+    await preferencesApi.getCalendar()
+    await currenciesApi.get()
+    await currenciesApi.update({
+      default_code: 'EUR',
+      currencies: [{ code: 'EUR', display_name: 'Euro', symbol: 'EUR', decimal_places: 2, is_active: true }],
+    })
+    await picklistsApi.listFields()
+    await picklistsApi.upsertValues('field-1', [{ value: 'a', display_label: 'A', order_idx: 0, is_active: true }])
+    await picklistsApi.remapDelete('field-1', 'legacy')
+    await picklistsApi.listDependencies()
+    await picklistsApi.upsertDependency({
+      entity_type: 'lead',
+      source_field_id: 'source-1',
+      target_field_id: 'target-1',
+      mapping: { qualified: ['hot'] },
+      is_active: true,
+    })
+    await picklistsApi.deleteDependency('dependency-1')
+    await leadConversionMappingApi.list()
+    await leadConversionMappingApi.replace([
+      { lead_field: 'company', target_entity: 'account', target_field: 'name', is_active: true },
+    ])
+
+    expect(seen).toEqual([
+      'GET /api/v1/settings/numbering',
+      'PATCH /api/v1/settings/numbering',
+      'GET /api/v1/settings/preferences',
+      'PATCH /api/v1/settings/preferences',
+      'GET /api/v1/settings/calendar-preferences',
+      'GET /api/v1/settings/currencies',
+      'PATCH /api/v1/settings/currencies',
+      'GET /api/v1/settings/picklists',
+      'PUT /api/v1/settings/picklists/field-1/values',
+      'POST /api/v1/settings/picklists/field-1/remap-delete',
+      'GET /api/v1/settings/picklist-dependencies',
+      'PUT /api/v1/settings/picklist-dependencies',
+      'DELETE /api/v1/settings/picklist-dependencies/dependency-1',
+      'GET /api/v1/settings/lead-conversion-mapping',
+      'PUT /api/v1/settings/lead-conversion-mapping',
     ])
   })
 })

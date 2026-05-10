@@ -641,6 +641,8 @@ export interface ConvertLeadRequest {
 
 export interface ConvertLeadResponse {
   contact: Contact
+  account: Account
+  deal: Deal
   lead: Lead
 }
 
