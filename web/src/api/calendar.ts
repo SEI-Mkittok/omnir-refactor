@@ -10,8 +10,8 @@ export interface CalendarConnection {
 
 export const calendarApi = {
   listConnections: async (): Promise<CalendarConnection[]> => {
-    const { data } = await apiClient.get<{ data: CalendarConnection[] }>('/calendar/connections')
-    return data.data
+    const { data } = await apiClient.get<{ data?: CalendarConnection[] | null }>('/calendar/connections')
+    return Array.isArray(data?.data) ? data.data : []
   },
   disconnect: async (id: string): Promise<void> => {
     await apiClient.delete(`/calendar/connections/${id}`)
@@ -20,4 +20,3 @@ export const calendarApi = {
     await apiClient.post('/calendar/sync')
   },
 }
-

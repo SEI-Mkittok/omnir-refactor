@@ -6,14 +6,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
@@ -24,6 +27,7 @@ func TestActivityHandler_Create(t *testing.T) {
 		name       string
 		body       map[string]any
 		setupMock  func(*mocks.MockActivityRepository)
+		claims     *auth.Claims
 		wantStatus int
 	}{
 		{
@@ -45,6 +49,28 @@ func TestActivityHandler_Create(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
+			name: "defaults owner_id from auth claims when omitted",
+			body: map[string]any{
+				"type":    "meeting",
+				"subject": "Demo prep",
+			},
+			setupMock: func(m *mocks.MockActivityRepository) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Activity) bool {
+					return a.Type == domain.ActivityTypeMeeting && a.OwnerID != uuid.Nil
+				})).Return(&domain.Activity{
+					ID:      uuid.New(),
+					Type:    domain.ActivityTypeMeeting,
+					Subject: "Demo prep",
+					OwnerID: ownerID,
+				}, nil)
+			},
+			claims: &auth.Claims{
+				UserID: ownerID,
+				Role:   string(domain.UserRoleAgent),
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
 			name: "creates task type successfully",
 			body: map[string]any{
 				"type":     "task",
@@ -62,6 +88,38 @@ func TestActivityHandler_Create(t *testing.T) {
 				}, nil)
 			},
 			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "accepts date-only due_date payload",
+			body: map[string]any{
+				"type":     "task",
+				"subject":  "Date only",
+				"owner_id": ownerID.String(),
+				"due_date": "2026-05-10",
+			},
+			setupMock: func(m *mocks.MockActivityRepository) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(a *domain.Activity) bool {
+					return a.DueDate != nil && a.DueDate.UTC().Format("2006-01-02") == "2026-05-10"
+				})).Return(&domain.Activity{
+					ID:      uuid.New(),
+					Type:    domain.ActivityTypeTask,
+					Subject: "Date only",
+					OwnerID: ownerID,
+				}, nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "returns 422 when end_at is before start_at",
+			body: map[string]any{
+				"type":     "meeting",
+				"subject":  "Broken schedule",
+				"owner_id": ownerID.String(),
+				"start_at": "2026-05-10T12:00:00Z",
+				"end_at":   "2026-05-10T11:30:00Z",
+			},
+			setupMock:  func(_ *mocks.MockActivityRepository) {},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name: "returns 422 for missing subject",
@@ -105,6 +163,9 @@ func TestActivityHandler_Create(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/activities", bytes.NewReader(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
+			if tt.claims != nil {
+				req = req.WithContext(middleware.WithClaims(req.Context(), tt.claims))
+			}
 			w := httptest.NewRecorder()
 
 			h.Create(w, req)
@@ -218,6 +279,67 @@ func TestActivityHandler_Delete(t *testing.T) {
 			mockRepo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestActivityHandler_Update_CompletedFalseClearsCompletedAt(t *testing.T) {
+	activityID := uuid.New()
+	mockRepo := new(mocks.MockActivityRepository)
+	mockRepo.On("Update", mock.Anything, activityID, mock.MatchedBy(func(p domain.ActivityPatch) bool {
+		return p.CompletedAt != nil && p.CompletedAt.IsZero()
+	})).Return(&domain.Activity{
+		ID:      activityID,
+		Type:    domain.ActivityTypeTask,
+		Subject: "Follow up",
+	}, nil)
+
+	h := handler.NewActivityHandler(mockRepo)
+
+	body, err := json.Marshal(map[string]any{
+		"completed": false,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/activities/"+activityID.String(), bytes.NewReader(body))
+	req = withURLParam(req, "id", activityID.String())
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestActivityHandler_Update_RejectsEndBeforeStart(t *testing.T) {
+	activityID := uuid.New()
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	mockRepo := new(mocks.MockActivityRepository)
+	mockRepo.On("GetByID", mock.Anything, activityID).Return(&domain.Activity{
+		ID:      activityID,
+		Type:    domain.ActivityTypeMeeting,
+		Subject: "Demo",
+		DueDate: &now,
+		OwnerID: uuid.New(),
+	}, nil)
+
+	h := handler.NewActivityHandler(mockRepo)
+
+	body, err := json.Marshal(map[string]any{
+		"start_at": "2026-05-10T12:00:00Z",
+		"end_at":   "2026-05-10T11:00:00Z",
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/activities/"+activityID.String(), bytes.NewReader(body))
+	req = withURLParam(req, "id", activityID.String())
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	mockRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
 }
 
 func TestActivityHandler_Create_RejectsUnrelatedContactAccountPair(t *testing.T) {

@@ -153,6 +153,8 @@ func (w *CalendarSyncWorker) upsertActivity(ctx context.Context, conn *domain.Ca
 		OwnerID:         conn.UserID,
 		CalendarEventID: &evt.ExternalID,
 		DueDate:         &evt.StartAt,
+		StartAt:         &evt.StartAt,
+		EndAt:           &evt.EndAt,
 	}
 	if evt.Description != "" {
 		activity.Description = &evt.Description

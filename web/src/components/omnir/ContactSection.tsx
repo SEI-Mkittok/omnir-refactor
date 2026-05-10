@@ -16,6 +16,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { cn } from '@/lib/utils'
 import { contactsApi } from '@/api/contacts'
 import { useUpdateTicketContact } from '@/hooks/useTickets'
+import { mapCrmLinkError } from '@/lib/crmLinkErrors'
 import type { Contact, TicketContactSummary, TicketStatus } from '@/api/types'
 
 // ── Initials avatar ──────────────────────────────────────────────────────────
@@ -42,11 +43,12 @@ function InitialsAvatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md
 // ── Contact search dropdown ──────────────────────────────────────────────────
 
 interface ContactSearchProps {
+  accountId?: string
   onSelect: (contact: Contact) => void
   onCancel: () => void
 }
 
-function ContactSearch({ onSelect, onCancel }: ContactSearchProps) {
+function ContactSearch({ accountId, onSelect, onCancel }: ContactSearchProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Contact[]>([])
   const [searching, setSearching] = useState(false)
@@ -71,7 +73,7 @@ function ContactSearch({ onSelect, onCancel }: ContactSearchProps) {
       setSearching(true)
       setError(null)
       try {
-        const data = await contactsApi.search(query.trim())
+        const data = await contactsApi.search(query.trim(), { account_id: accountId })
         setResults(data)
         setOpen(true)
         setHighlighted(-1)
@@ -86,7 +88,7 @@ function ContactSearch({ onSelect, onCancel }: ContactSearchProps) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [query])
+  }, [accountId, query])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -195,11 +197,12 @@ function ContactSearch({ onSelect, onCancel }: ContactSearchProps) {
 
 interface ContactSectionProps {
   ticketId: string
+  accountId?: string
   contact: Contact | TicketContactSummary | undefined
   ticketStatus: TicketStatus
 }
 
-export function ContactSection({ ticketId, contact, ticketStatus }: ContactSectionProps) {
+export function ContactSection({ ticketId, accountId, contact, ticketStatus }: ContactSectionProps) {
   const [mode, setMode] = useState<'view' | 'search'>('view')
   const [optimisticContact, setOptimisticContact] = useState<Contact | TicketContactSummary | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
@@ -238,9 +241,14 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
         if (liveRef.current) {
           liveRef.current.textContent = `${getFullName(selected)} linked to ticket`
         }
-      } catch {
+      } catch (err) {
         setOptimisticContact(previous ?? undefined)
-        showError('Failed to link contact. Try again.')
+        const mapped = mapCrmLinkError(err)
+        if (mapped.kind === 'account_contact_mismatch') {
+          showError('This contact is not related to the ticket account. Choose a contact from this account.')
+        } else {
+          showError('Failed to link contact. Try again.')
+        }
       } finally {
         setSaving(false)
         setTimeout(() => changeBtnRef.current?.focus(), 0)
@@ -288,7 +296,7 @@ export function ContactSection({ ticketId, contact, ticketStatus }: ContactSecti
       </div>
 
       {mode === 'search' ? (
-        <ContactSearch onSelect={handleSelect} onCancel={handleCancel} />
+        <ContactSearch accountId={accountId} onSelect={handleSelect} onCancel={handleCancel} />
       ) : displayed ? (
         <div
           className={cn(

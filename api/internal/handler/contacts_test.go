@@ -13,8 +13,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
@@ -24,6 +26,7 @@ func TestContactHandler_Create(t *testing.T) {
 		name       string
 		body       map[string]any
 		setupMock  func(*mocks.MockContactRepository)
+		claims     *auth.Claims
 		wantStatus int
 	}{
 		{
@@ -45,6 +48,32 @@ func TestContactHandler_Create(t *testing.T) {
 						Email:     &email,
 						OwnerID:   ownerID,
 					}, nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name: "defaults owner_id from auth claims when omitted",
+			body: map[string]any{
+				"first_name": "Ada",
+				"last_name":  "Lovelace",
+				"email":      "ada@example.com",
+				"stage":      "lead",
+			},
+			setupMock: func(m *mocks.MockContactRepository) {
+				email := "ada@example.com"
+				m.On("Create", mock.Anything, mock.MatchedBy(func(c *domain.Contact) bool {
+					return c.OwnerID == ownerID && c.FirstName == "Ada" && c.LastName == "Lovelace"
+				})).Return(&domain.Contact{
+					ID:        uuid.New(),
+					FirstName: "Ada",
+					LastName:  "Lovelace",
+					Email:     &email,
+					OwnerID:   ownerID,
+				}, nil)
+			},
+			claims: &auth.Claims{
+				UserID: ownerID,
+				Role:   string(domain.UserRoleAgent),
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -74,6 +103,9 @@ func TestContactHandler_Create(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/contacts", bytes.NewReader(bodyBytes))
 			req.Header.Set("Content-Type", "application/json")
+			if tt.claims != nil {
+				req = req.WithContext(middleware.WithClaims(req.Context(), tt.claims))
+			}
 			w := httptest.NewRecorder()
 
 			h.Create(w, req)

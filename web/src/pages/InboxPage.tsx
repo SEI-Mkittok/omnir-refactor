@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
+import axios from 'axios'
 import {
   Mail, Plus, Search, RefreshCw, Archive, MoreHorizontal,
   ChevronDown, Send, X, Paperclip as PaperclipIcon,
@@ -18,6 +19,7 @@ import {
 } from '@/hooks/useInbox'
 import { useAccountContacts } from '@/hooks/useAccounts'
 import { inboxApi } from '@/api/inbox'
+import { useToast } from '@/components/ui/Toast'
 import type { Contact, InboxThread, InboxMessage, EmailAccount, EmailTemplate } from '@/api/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,6 +44,15 @@ function initials(name?: string, addr?: string): string {
 
 function senderLabel(msg: InboxMessage): string {
   return msg.from_name || msg.from_addr
+}
+
+function inboxErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError(error)) return fallback
+  const payload = error.response?.data as { error?: unknown; message?: unknown } | undefined
+  if (typeof payload?.error === 'string' && payload.error.trim().length > 0) return payload.error
+  if (typeof payload?.message === 'string' && payload.message.trim().length > 0) return payload.message
+  if (typeof error.message === 'string' && error.message.trim().length > 0) return error.message
+  return fallback
 }
 
 // ── Empty state — no accounts connected ──────────────────────────────────────
@@ -233,6 +244,7 @@ interface ReplyComposerProps {
 }
 
 function ReplyComposer({ thread, accounts, onSend, onDiscard }: ReplyComposerProps) {
+  const { toast } = useToast()
   const [body, setBody] = useState('')
   const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id ?? '')
   const [cc, setCc] = useState('')
@@ -251,6 +263,12 @@ function ReplyComposer({ thread, accounts, onSend, onDiscard }: ReplyComposerPro
     try {
       await onSend(body, fromAccountId, showCc ? cc : undefined, showBcc ? bcc : undefined)
       setBody('')
+    } catch (error) {
+      toast({
+        title: 'Could not send reply',
+        description: inboxErrorMessage(error, 'Please check your inbox connection and try again.'),
+        variant: 'destructive',
+      })
     } finally {
       setSending(false)
     }
@@ -447,6 +465,7 @@ interface ComposeModalProps {
 }
 
 function ComposeModal({ accounts, onSend, onClose }: ComposeModalProps) {
+  const { toast } = useToast()
   const [fromAccountId, setFromAccountId] = useState(accounts[0]?.id ?? '')
   const [to, setTo] = useState('')
   const [cc, setCc] = useState('')
@@ -471,6 +490,12 @@ function ComposeModal({ accounts, onSend, onClose }: ComposeModalProps) {
         body,
       })
       onClose()
+    } catch (error) {
+      toast({
+        title: 'Could not send email',
+        description: inboxErrorMessage(error, 'Please check your inbox connection and try again.'),
+        variant: 'destructive',
+      })
     } finally {
       setSending(false)
     }

@@ -384,7 +384,7 @@ func (r *AutomationRepo) OverdueActivityIDs(ctx context.Context, cutoff time.Tim
 	rows, err := r.db.Query(ctx, `
 		SELECT a.id, a.org_id, a.owner_id
 		FROM activities a
-		WHERE a.due_date <= $1
+		WHERE COALESCE(a.start_at, a.due_date) <= $1
 		  AND a.completed_at IS NULL
 		  AND a.deleted_at IS NULL
 		  AND NOT EXISTS (
@@ -393,7 +393,7 @@ func (r *AutomationRepo) OverdueActivityIDs(ctx context.Context, cutoff time.Tim
 		        AND ar.entity_type = 'activity'
 		        AND ar.created_at >= NOW() - INTERVAL '24 hours'
 		  )
-		ORDER BY a.due_date ASC
+		ORDER BY COALESCE(a.start_at, a.due_date) ASC
 		LIMIT $2`,
 		cutoff, limit,
 	)

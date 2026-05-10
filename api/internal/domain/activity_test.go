@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -57,6 +58,49 @@ func TestActivity_Validate(t *testing.T) {
 				Type:    domain.ActivityTypeMeeting,
 				Subject: "Kick-off meeting",
 			},
+			wantErr: true,
+		},
+		{
+			name: "valid start/end window",
+			input: func() domain.Activity {
+				start := time.Now().UTC()
+				end := start.Add(30 * time.Minute)
+				return domain.Activity{
+					Type:    domain.ActivityTypeMeeting,
+					Subject: "Customer demo",
+					OwnerID: ownerID,
+					StartAt: &start,
+					EndAt:   &end,
+				}
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "end_at before start_at",
+			input: func() domain.Activity {
+				start := time.Now().UTC()
+				end := start.Add(-15 * time.Minute)
+				return domain.Activity{
+					Type:    domain.ActivityTypeMeeting,
+					Subject: "Broken schedule",
+					OwnerID: ownerID,
+					StartAt: &start,
+					EndAt:   &end,
+				}
+			}(),
+			wantErr: true,
+		},
+		{
+			name: "end_at requires start or due date",
+			input: func() domain.Activity {
+				end := time.Now().UTC().Add(30 * time.Minute)
+				return domain.Activity{
+					Type:    domain.ActivityTypeTask,
+					Subject: "Missing start",
+					OwnerID: ownerID,
+					EndAt:   &end,
+				}
+			}(),
 			wantErr: true,
 		},
 	}

@@ -531,7 +531,12 @@ function RightPanel({ ticketId }: RightPanelProps) {
     <aside className="w-full lg:w-[320px] lg:flex-shrink-0 space-y-3">
       {/* Contact card */}
       <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
-        <ContactSection ticketId={ticketId} contact={ticket.contact} ticketStatus={ticket.status} />
+        <ContactSection
+          ticketId={ticketId}
+          accountId={ticket.account?.id}
+          contact={ticket.contact}
+          ticketStatus={ticket.status}
+        />
       </div>
 
       {/* Ticket properties */}

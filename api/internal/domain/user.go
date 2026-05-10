@@ -22,6 +22,17 @@ func IsAdminRole(role string) bool {
 	return role == string(UserRoleAdmin) || role == string(UserRoleSuperAdmin)
 }
 
+// IsValidUserRole reports whether the provided role is one of the accepted
+// persisted user role values.
+func IsValidUserRole(role UserRole) bool {
+	switch role {
+	case UserRoleSuperAdmin, UserRoleAdmin, UserRoleAgent, UserRoleClient:
+		return true
+	default:
+		return false
+	}
+}
+
 type User struct {
 	ID        uuid.UUID  `json:"id"`
 	OrgID     uuid.UUID  `json:"org_id"`

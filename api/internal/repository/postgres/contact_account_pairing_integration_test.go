@@ -49,6 +49,28 @@ func TestContactRepo_IsRelatedToAccount_PrimaryAndMembership(t *testing.T) {
 	related, err = contactRepo.IsRelatedToAccount(ctx, unrelatedContact.ID, account.ID)
 	require.NoError(t, err)
 	require.False(t, related)
+
+	// Account-scoped contact lists include primary and explicit memberships.
+	accountFilter := domain.ContactFilter{
+		AccountID: &account.ID,
+		Page:      1,
+		Limit:     50,
+	}
+	list, total, err := contactRepo.List(ctx, accountFilter)
+	require.NoError(t, err)
+	require.Equal(t, 2, total)
+	require.Len(t, list, 2)
+
+	ids := map[uuid.UUID]struct{}{}
+	for _, c := range list {
+		ids[c.ID] = struct{}{}
+	}
+	_, hasPrimary := ids[primaryContact.ID]
+	_, hasMember := ids[memberContact.ID]
+	_, hasUnrelated := ids[unrelatedContact.ID]
+	require.True(t, hasPrimary)
+	require.True(t, hasMember)
+	require.False(t, hasUnrelated)
 }
 
 func TestContactAccountPairingTriggers_BlockInvalidPairs(t *testing.T) {

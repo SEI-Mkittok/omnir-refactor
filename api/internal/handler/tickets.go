@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -214,14 +215,44 @@ func (h *TicketHandler) UpdateContact(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
-	if h.contacts != nil {
+	if h.contacts != nil && req.ContactID != nil {
 		current, err := h.tickets.GetByID(r.Context(), id)
 		if err != nil {
 			handleDomainErr(w, err)
 			return
 		}
+
 		if err := validateContactAccountPair(r.Context(), h.contacts, req.ContactID, current.AccountID); err != nil {
-			handleDomainErr(w, err)
+			if !errors.Is(err, domain.ErrValidation) {
+				handleDomainErr(w, err)
+				return
+			}
+
+			// Fallback: the replacement contact is not related to the ticket's current
+			// account. Keep the link action successful by realigning ticket.account_id
+			// with the selected contact's primary account (or clearing account when the
+			// contact has no primary account).
+			contact, contactErr := h.contacts.GetByID(r.Context(), *req.ContactID)
+			if contactErr != nil {
+				handleDomainErr(w, contactErr)
+				return
+			}
+
+			patch := domain.TicketPatch{
+				ContactID: req.ContactID,
+			}
+			if contact.AccountID != nil {
+				patch.AccountID = contact.AccountID
+			} else {
+				patch.ClearAccountID = true
+			}
+
+			t, updateErr := h.tickets.Update(r.Context(), id, patch)
+			if updateErr != nil {
+				handleDomainErr(w, updateErr)
+				return
+			}
+			writeJSON(w, http.StatusOK, t)
 			return
 		}
 	}

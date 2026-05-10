@@ -483,9 +483,10 @@ func TestTicketHandler_UpdateContact(t *testing.T) {
 	}
 }
 
-func TestTicketHandler_UpdateContact_RejectsUnrelatedAccountContactPair(t *testing.T) {
+func TestTicketHandler_UpdateContact_RealignsTicketAccountToReplacementContact(t *testing.T) {
 	ticketID := uuid.New()
-	accountID := uuid.New()
+	currentAccountID := uuid.New()
+	replacementAccountID := uuid.New()
 	contactID := uuid.New()
 
 	mockTickets := new(mocks.MockTicketRepository)
@@ -494,9 +495,18 @@ func TestTicketHandler_UpdateContact_RejectsUnrelatedAccountContactPair(t *testi
 	mockContacts := new(mocks.MockContactRepository)
 
 	mockTickets.On("GetByID", mock.Anything, ticketID).
-		Return(&domain.Ticket{ID: ticketID, AccountID: &accountID}, nil)
-	mockContacts.On("IsRelatedToAccount", mock.Anything, contactID, accountID).
+		Return(&domain.Ticket{ID: ticketID, AccountID: &currentAccountID}, nil)
+	mockContacts.On("IsRelatedToAccount", mock.Anything, contactID, currentAccountID).
 		Return(false, nil)
+	mockContacts.On("GetByID", mock.Anything, contactID).
+		Return(&domain.Contact{ID: contactID, AccountID: &replacementAccountID}, nil)
+	mockTickets.On("Update", mock.Anything, ticketID, mock.MatchedBy(func(p domain.TicketPatch) bool {
+		return p.ContactID != nil &&
+			*p.ContactID == contactID &&
+			p.AccountID != nil &&
+			*p.AccountID == replacementAccountID &&
+			!p.ClearAccountID
+	})).Return(&domain.Ticket{ID: ticketID, ContactID: &contactID, AccountID: &replacementAccountID}, nil)
 
 	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{}).
 		WithContacts(mockContacts)
@@ -510,7 +520,48 @@ func TestTicketHandler_UpdateContact_RejectsUnrelatedAccountContactPair(t *testi
 
 	h.UpdateContact(w, req)
 
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+	mockTickets.AssertNotCalled(t, "UpdateContact", mock.Anything, mock.Anything, mock.Anything)
+	mockTickets.AssertExpectations(t)
+	mockContacts.AssertExpectations(t)
+}
+
+func TestTicketHandler_UpdateContact_ClearsTicketAccountWhenReplacementContactHasNoPrimaryAccount(t *testing.T) {
+	ticketID := uuid.New()
+	currentAccountID := uuid.New()
+	contactID := uuid.New()
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+	mockContacts := new(mocks.MockContactRepository)
+
+	mockTickets.On("GetByID", mock.Anything, ticketID).
+		Return(&domain.Ticket{ID: ticketID, AccountID: &currentAccountID}, nil)
+	mockContacts.On("IsRelatedToAccount", mock.Anything, contactID, currentAccountID).
+		Return(false, nil)
+	mockContacts.On("GetByID", mock.Anything, contactID).
+		Return(&domain.Contact{ID: contactID}, nil)
+	mockTickets.On("Update", mock.Anything, ticketID, mock.MatchedBy(func(p domain.TicketPatch) bool {
+		return p.ContactID != nil &&
+			*p.ContactID == contactID &&
+			p.AccountID == nil &&
+			p.ClearAccountID
+	})).Return(&domain.Ticket{ID: ticketID, ContactID: &contactID, AccountID: nil}, nil)
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{}).
+		WithContacts(mockContacts)
+
+	body, err := json.Marshal(map[string]any{"contact_id": contactID.String()})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/tickets/"+ticketID.String()+"/contact", bytes.NewReader(body))
+	req = withURLParam(req, "id", ticketID.String())
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.UpdateContact(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 	mockTickets.AssertNotCalled(t, "UpdateContact", mock.Anything, mock.Anything, mock.Anything)
 	mockTickets.AssertExpectations(t)
 	mockContacts.AssertExpectations(t)
