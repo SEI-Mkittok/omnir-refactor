@@ -288,6 +288,9 @@ func (h *CalendarHandler) ListConnections(w http.ResponseWriter, r *http.Request
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if conns == nil {
+		conns = []*domain.CalendarConnection{}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": conns})
 }
 

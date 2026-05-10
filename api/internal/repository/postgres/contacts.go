@@ -218,7 +218,16 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 		addWhere("owner_id", *f.OwnerID)
 	}
 	if f.AccountID != nil {
-		addWhere("account_id", *f.AccountID)
+		where = append(where, fmt.Sprintf(
+			`(account_id = $%d OR EXISTS (
+				SELECT 1
+				FROM account_contacts ac
+				WHERE ac.contact_id = contacts.id
+				  AND ac.account_id = $%d
+			))`, i, i,
+		))
+		args = append(args, *f.AccountID)
+		i++
 	}
 	if f.Stage != nil {
 		addWhere("stage", *f.Stage)

@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/Dialog'
 import { cn, formatDate, formatRelativeTime } from '@/lib/utils'
 import type {
+  Activity as CrmActivity,
+  ContactEmail,
   EntityAttachment,
   InboxThread,
   Note,
@@ -62,6 +64,10 @@ const EVENT_META: Record<TimelineEventType, { label: string; Icon: React.Element
 }
 
 const ALL_EVENT_TYPES = Object.keys(EVENT_META) as TimelineEventType[]
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : []
+}
 
 function readCsvParam(params: URLSearchParams, key: string): string[] {
   const value = params.get(key)
@@ -137,16 +143,17 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
   const contactEmailsQuery = useContactEmails(resolvedContactId ?? '')
 
   const accountContactsQuery = useAccountContacts(entityType === 'account' ? entityId : '')
+  const accountContacts = asArray<{ id: string }>(accountContactsQuery.data)
   const accountInboxThreadsQuery = useQuery({
-    queryKey: ['timeline', 'account-inbox', entityId, accountContactsQuery.data?.map((c) => c.id) ?? []],
-    enabled: entityType === 'account' && (accountContactsQuery.data?.length ?? 0) > 0,
+    queryKey: ['timeline', 'account-inbox', entityId, accountContacts.map((c) => c.id)],
+    enabled: entityType === 'account' && accountContacts.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
       const threadMap = new Map<string, InboxThread>()
       await Promise.all(
-        (accountContactsQuery.data ?? []).map(async (contact) => {
+        accountContacts.map(async (contact) => {
           const result = await inboxApi.listThreads({ contact_id: contact.id, page: 1, limit: 50 })
-          for (const thread of result.data ?? []) {
+          for (const thread of asArray<InboxThread>(result.data)) {
             const existing = threadMap.get(thread.thread_id)
             if (!existing || new Date(thread.last_message_at) > new Date(existing.last_message_at)) {
               threadMap.set(thread.thread_id, thread)
@@ -178,9 +185,9 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
   const sequenceContactIds = useMemo(() => {
     if (entityType === 'contact' && entityId) return [entityId]
     if (entityType === 'deal' && resolvedContactId) return [resolvedContactId]
-    if (entityType === 'account') return (accountContactsQuery.data ?? []).map((contact) => contact.id)
+    if (entityType === 'account') return accountContacts.map((contact) => contact.id)
     return []
-  }, [entityType, entityId, resolvedContactId, accountContactsQuery.data])
+  }, [entityType, entityId, resolvedContactId, accountContacts])
 
   const sequencesQuery = useQuery({
     queryKey: ['timeline', 'sequences', entityType, entityId, sequenceContactIds],
@@ -192,9 +199,9 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
       const matched: { sequenceName: string; enrollment: SequenceEnrollment }[] = []
 
       await Promise.all(
-        (sequences.data ?? []).map(async (sequence) => {
+        asArray<{ id: string; name: string }>(sequences.data).map(async (sequence) => {
           const enrollments = await sequencesApi.listEnrollments(sequence.id)
-          for (const enrollment of enrollments.data ?? []) {
+          for (const enrollment of asArray<SequenceEnrollment>(enrollments.data)) {
             if (contactIdSet.has(enrollment.contact_id)) {
               matched.push({ sequenceName: sequence.name, enrollment })
             }
@@ -211,10 +218,10 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
 
     const activityItems =
       entityType === 'contact'
-        ? contactActivitiesQuery.data?.data ?? []
+        ? asArray<CrmActivity>(contactActivitiesQuery.data?.data)
         : entityType === 'account'
-          ? accountActivitiesQuery.data?.data ?? []
-          : dealActivitiesQuery.data?.data ?? []
+          ? asArray<CrmActivity>(accountActivitiesQuery.data?.data)
+          : asArray<CrmActivity>(dealActivitiesQuery.data?.data)
 
     for (const activity of activityItems) {
       const entity = activity.deal?.title ?? activity.account?.name ?? 'Record'
@@ -231,10 +238,10 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
 
     const notes =
       entityType === 'contact'
-        ? (contactNotesQuery.data ?? [])
+        ? asArray(contactNotesQuery.data)
         : entityType === 'account'
-          ? (accountNotesQuery.data ?? [])
-          : (dealNotesQuery.data ?? [])
+          ? asArray(accountNotesQuery.data)
+          : asArray(dealNotesQuery.data)
 
     for (const note of notes as Note[]) {
       items.push({
@@ -249,7 +256,7 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
     }
 
     if (entityType === 'account') {
-      for (const thread of accountInboxThreadsQuery.data ?? []) {
+      for (const thread of asArray<InboxThread>(accountInboxThreadsQuery.data)) {
         items.push({
           id: `email-thread-${thread.thread_id}`,
           type: 'email',
@@ -261,7 +268,7 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
         })
       }
     } else {
-      for (const email of contactEmailsQuery.data?.data ?? []) {
+      for (const email of asArray<ContactEmail>(contactEmailsQuery.data?.data)) {
         const isOutbound = email.direction === 'outbound'
         items.push({
           id: `email-${email.id}`,
@@ -274,7 +281,7 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
       }
     }
 
-    for (const ticket of (ticketsQuery.data?.data ?? []) as TicketType[]) {
+    for (const ticket of asArray<TicketType>(ticketsQuery.data?.data)) {
       items.push({
         id: `ticket-${ticket.id}`,
         type: 'ticket',
@@ -289,10 +296,10 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
 
     const quotes =
       entityType === 'contact'
-        ? (contactQuotesQuery.data?.data ?? [])
+        ? asArray(contactQuotesQuery.data?.data)
         : entityType === 'account'
-          ? (accountQuotesQuery.data?.data ?? [])
-          : (dealQuotesQuery.data?.data ?? [])
+          ? asArray(accountQuotesQuery.data?.data)
+          : asArray(dealQuotesQuery.data?.data)
 
     for (const quote of quotes as QuoteType[]) {
       items.push({
@@ -311,7 +318,7 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
       })
     }
 
-    for (const attachment of (attachmentsQuery.data ?? []) as EntityAttachment[]) {
+    for (const attachment of asArray<EntityAttachment>(attachmentsQuery.data)) {
       items.push({
         id: `attachment-${attachment.id}`,
         type: 'attachment',
@@ -322,7 +329,7 @@ export function UnifiedTimeline({ entityType, entityId, contactId, accountId }: 
       })
     }
 
-    for (const sequenceEvent of sequencesQuery.data ?? []) {
+    for (const sequenceEvent of asArray<{ sequenceName: string; enrollment: SequenceEnrollment }>(sequencesQuery.data)) {
       items.push({
         id: `sequence-${sequenceEvent.enrollment.id}`,
         type: 'sequence',

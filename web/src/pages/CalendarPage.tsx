@@ -48,6 +48,18 @@ function toLocalDateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+function toLocalDateTimeValue(date: Date): string {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+function toISOOrUndefined(localDateTime: string): string | undefined {
+  if (!localDateTime) return undefined
+  const parsed = new Date(localDateTime)
+  if (Number.isNaN(parsed.getTime())) return undefined
+  return parsed.toISOString()
+}
+
 function isToday(date: Date): boolean {
   const today = new Date()
   return (
@@ -82,16 +94,22 @@ interface NewActivityDialogProps {
 
 function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
   const createActivity = useCreateActivity()
+  const defaultStart = defaultDate ? `${defaultDate}T09:00` : toLocalDateTimeValue(new Date())
+  const defaultEnd = defaultDate
+    ? `${defaultDate}T10:00`
+    : toLocalDateTimeValue(new Date(Date.now() + 60 * 60 * 1000))
   const [form, setForm] = useState<{
     type: CreatableActivityType
     subject: string
     description: string
-    due_date: string
+    start_at: string
+    end_at: string
   }>({
     type: 'task',
     subject: '',
     description: '',
-    due_date: defaultDate ?? '',
+    start_at: defaultStart,
+    end_at: defaultEnd,
   })
   const [error, setError] = useState('')
 
@@ -101,11 +119,23 @@ function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
       setError('Subject is required')
       return
     }
+    const startAt = toISOOrUndefined(form.start_at)
+    if (!startAt) {
+      setError('Start time is required')
+      return
+    }
+    const endAt = toISOOrUndefined(form.end_at)
+    if (endAt && new Date(endAt).getTime() < new Date(startAt).getTime()) {
+      setError('End time must be after start time')
+      return
+    }
     const payload: CreateActivityRequest = {
       type: form.type,
       subject: form.subject.trim(),
       description: form.description.trim() || undefined,
-      due_date: form.due_date || undefined,
+      due_date: startAt,
+      start_at: startAt,
+      end_at: endAt,
     }
     try {
       await createActivity.mutateAsync(payload)
@@ -147,11 +177,21 @@ function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-700">Due date</label>
+            <label className="mb-1 block text-xs font-medium text-slate-700">Start time</label>
             <Input
-              type="date"
-              value={form.due_date}
-              onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
+              type="datetime-local"
+              value={form.start_at}
+              onChange={(e) => setForm((f) => ({ ...f, start_at: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-700">
+              End time <span className="text-slate-400">(optional)</span>
+            </label>
+            <Input
+              type="datetime-local"
+              value={form.end_at}
+              onChange={(e) => setForm((f) => ({ ...f, end_at: e.target.value }))}
             />
           </div>
           <div>
@@ -338,10 +378,11 @@ function CalendarSettingsTab() {
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
 
-  const { data: connections = [], isLoading } = useQuery({
+  const { data: rawConnections, isLoading } = useQuery({
     queryKey: ['calendar-connections'],
     queryFn: calendarApi.listConnections,
   })
+  const connections = Array.isArray(rawConnections) ? rawConnections : []
 
   const disconnectMutation = useMutation({
     mutationFn: (id: string) => calendarApi.disconnect(id),
@@ -532,9 +573,10 @@ export function CalendarPage() {
   const activityMap = useMemo(() => {
     const map = new Map<string, Activity[]>()
     for (const a of activitiesData?.data ?? []) {
-      if (!a.due_date) continue
+      const anchorDate = a.start_at ?? a.due_date
+      if (!anchorDate) continue
       // Parse the ISO date string to a local date key
-      const d = new Date(a.due_date)
+      const d = new Date(anchorDate)
       const key = toLocalDateKey(d)
       const existing = map.get(key) ?? []
       existing.push(a)

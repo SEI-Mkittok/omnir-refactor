@@ -281,6 +281,8 @@ export interface Activity {
   subject: string
   description?: string
   due_date?: string
+  start_at?: string
+  end_at?: string
   completed: boolean
   contact_id?: string
   contact?: Contact

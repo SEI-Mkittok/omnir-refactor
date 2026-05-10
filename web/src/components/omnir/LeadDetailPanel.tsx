@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
+import axios from 'axios'
 import {
   User as UserIcon,
   Mail,
@@ -22,6 +23,7 @@ import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
 import { LeadScoreBadge } from '@/components/omnir/LeadScoreBadge'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useToast } from '@/components/ui/Toast'
 import type { LeadStatus, UpdateLeadRequest, CustomFieldValues, User } from '@/api/types'
 
 // ── Status badge helpers ─────────────────────────────────────────────────────
@@ -50,6 +52,15 @@ interface EditableFieldProps {
   onSave: (val: string) => Promise<void>
   placeholder?: string
   type?: string
+}
+
+function leadUpdateErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError(error)) return fallback
+  const payload = error.response?.data as { error?: unknown; message?: unknown } | undefined
+  if (typeof payload?.error === 'string' && payload.error.trim().length > 0) return payload.error
+  if (typeof payload?.message === 'string' && payload.message.trim().length > 0) return payload.message
+  if (typeof error.message === 'string' && error.message.trim().length > 0) return error.message
+  return fallback
 }
 
 function EditableField({ label, value, onSave, placeholder = '—', type = 'text' }: EditableFieldProps) {
@@ -149,6 +160,7 @@ interface ScoreStepperProps {
 
 function ScoreStepper({ score, onSave }: ScoreStepperProps) {
   const [pending, setPending] = useState<'dec' | 'inc' | null>(null)
+  const SCORE_STEP = 10
 
   const step = async (delta: number) => {
     const newScore = Math.max(0, Math.min(100, score + delta))
@@ -166,19 +178,19 @@ function ScoreStepper({ score, onSave }: ScoreStepperProps) {
       <LeadScoreBadge score={score} className="text-sm" />
       <div className="flex items-center rounded-md border border-slate-200 overflow-hidden">
         <button
-          onClick={() => step(-5)}
+          onClick={() => step(-SCORE_STEP)}
           disabled={score <= 0 || pending !== null}
           className="flex h-7 w-7 items-center justify-center bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-          title="Decrease score by 5"
+          title="Decrease score by 10"
         >
           {pending === 'dec' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Minus className="h-3.5 w-3.5" />}
         </button>
         <span className="w-px h-5 bg-slate-200" />
         <button
-          onClick={() => step(5)}
+          onClick={() => step(SCORE_STEP)}
           disabled={score >= 100 || pending !== null}
           className="flex h-7 w-7 items-center justify-center bg-white text-slate-500 hover:bg-slate-50 disabled:opacity-40 transition-colors"
-          title="Increase score by 5"
+          title="Increase score by 10"
         >
           {pending === 'inc' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
         </button>
@@ -189,16 +201,38 @@ function ScoreStepper({ score, onSave }: ScoreStepperProps) {
 
 // ── Owner selector ───────────────────────────────────────────────────────────
 
-function OwnerSelector({ current, onSave }: { current?: User; onSave: (ownerId: string | null) => Promise<void> }) {
+function OwnerSelector({
+  current,
+  currentOwnerId,
+  onSave,
+}: {
+  current?: User
+  currentOwnerId?: string
+  onSave: (ownerId: string | null) => Promise<void>
+}) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { data: usersResult } = useUsers({ limit: 100 })
   const users = usersResult?.data ?? []
+  const selectedUser = useMemo(
+    () => current ?? users.find((u) => u.id === currentOwnerId),
+    [current, users, currentOwnerId]
+  )
+  const selectedUserId = selectedUser?.id ?? currentOwnerId ?? null
 
   const select = async (userId: string | null) => {
-    if (userId === (current?.id ?? null)) { setOpen(false); return }
+    if (userId === selectedUserId) { setOpen(false); return }
+    setError(null)
     setSaving(true)
-    try { await onSave(userId) } finally { setSaving(false); setOpen(false) }
+    try {
+      await onSave(userId)
+      setOpen(false)
+    } catch (err) {
+      setError(leadUpdateErrorMessage(err, 'Could not assign this prospect.'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -208,13 +242,15 @@ function OwnerSelector({ current, onSave }: { current?: User; onSave: (ownerId: 
         disabled={saving}
         className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg px-2 py-1 transition-colors"
       >
-        {current ? (
+        {selectedUser ? (
           <>
             <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">
-              {current.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+              {selectedUser.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
             </div>
-            <span>{current.name}</span>
+            <span>{selectedUser.name}</span>
           </>
+        ) : currentOwnerId ? (
+          <span className="text-slate-500">Assigned</span>
         ) : (
           <span className="text-slate-400">Unassigned</span>
         )}
@@ -224,7 +260,7 @@ function OwnerSelector({ current, onSave }: { current?: User; onSave: (ownerId: 
         <div className="absolute left-0 top-full z-10 mt-1 min-w-[180px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           <button
             onClick={() => select(null)}
-            className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50', !current && 'bg-slate-50 font-semibold')}
+            className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50', !selectedUserId && 'bg-slate-50 font-semibold')}
           >
             <span className="text-slate-400">Unassigned</span>
           </button>
@@ -232,7 +268,7 @@ function OwnerSelector({ current, onSave }: { current?: User; onSave: (ownerId: 
             <button
               key={u.id}
               onClick={() => select(u.id)}
-              className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50', u.id === current?.id && 'bg-slate-50 font-semibold')}
+              className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50', u.id === selectedUserId && 'bg-slate-50 font-semibold')}
             >
               <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">
                 {u.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
@@ -241,6 +277,9 @@ function OwnerSelector({ current, onSave }: { current?: User; onSave: (ownerId: 
             </button>
           ))}
         </div>
+      )}
+      {error && (
+        <p className="mt-1 text-xs text-red-600">{error}</p>
       )}
     </div>
   )
@@ -258,6 +297,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
   const updateLead = useUpdateLead()
   const deleteLead = useDeleteLead()
   const { data: customFields = [] } = useCustomFieldDefinitions('lead')
+  const { toast } = useToast()
   const [showConvert, setShowConvert] = useState(false)
 
   const patch = useCallback(
@@ -397,7 +437,19 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
             </h3>
             <OwnerSelector
               current={lead.owner}
-              onSave={(ownerId) => patch({ owner_id: ownerId ?? undefined })}
+              currentOwnerId={lead.owner_id}
+              onSave={async (ownerId) => {
+                try {
+                  await patch({ owner_id: ownerId ?? undefined })
+                } catch (error) {
+                  toast({
+                    title: 'Could not assign prospect',
+                    description: leadUpdateErrorMessage(error, 'Please try again.'),
+                    variant: 'destructive',
+                  })
+                  throw error
+                }
+              }}
             />
           </div>
 

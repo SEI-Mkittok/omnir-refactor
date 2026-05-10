@@ -26,8 +26,9 @@ const publicClient = axios.create({
 export const kbApi = {
   // --- Admin: Categories ---
   listCategories: async (): Promise<KbCategory[]> => {
-    const { data } = await apiClient.get('/kb/categories')
-    return data
+    const { data } = await apiClient.get<{ data?: KbCategory[] | null } | KbCategory[] | null>('/kb/categories')
+    if (Array.isArray(data)) return data
+    return Array.isArray(data?.data) ? data.data : []
   },
 
   createCategory: async (payload: CreateKbCategoryRequest): Promise<KbCategory> => {
@@ -71,19 +72,29 @@ export const kbApi = {
 
   // --- Ticket deflection (authenticated) ---
   suggestArticles: async (q: string): Promise<KbArticleSuggest[]> => {
-    const { data } = await apiClient.get('/kb/articles/suggest', { params: { q } })
-    return data
+    const { data } = await apiClient.get<{ data?: KbArticleSuggest[] | null } | KbArticleSuggest[] | null>(
+      '/kb/articles/suggest',
+      { params: { q } }
+    )
+    if (Array.isArray(data)) return data
+    return Array.isArray(data?.data) ? data.data : []
   },
 
   // --- Public: Help Center ---
   publicListCategories: async (orgSlug: string): Promise<KbPublicCategoryWithCount[]> => {
-    const { data } = await publicClient.get(`/kb/${orgSlug}/categories`)
-    return data
+    const { data } = await publicClient.get<{ data?: KbPublicCategoryWithCount[] | null } | KbPublicCategoryWithCount[] | null>(
+      `/kb/${orgSlug}/categories`
+    )
+    if (Array.isArray(data)) return data
+    return Array.isArray(data?.data) ? data.data : []
   },
 
   publicListArticles: async (orgSlug: string, q?: string): Promise<KbArticleSummary[]> => {
-    const { data } = await publicClient.get(`/kb/${orgSlug}/articles`, { params: q ? { q } : undefined })
-    return data
+    const { data } = await publicClient.get<
+      { data?: KbArticleSummary[] | null } | KbArticleSummary[] | null
+    >(`/kb/${orgSlug}/articles`, { params: q ? { q } : undefined })
+    if (Array.isArray(data)) return data
+    return Array.isArray(data?.data) ? data.data : []
   },
 
   publicGetArticle: async (orgSlug: string, slug: string): Promise<KbPublicArticle> => {
