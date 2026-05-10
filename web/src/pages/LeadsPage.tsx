@@ -206,7 +206,7 @@ function LeadForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [errors, setErrors] = useState<Partial<Record<keyof CreateLeadRequest, string>>>({})
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const createLead = useCreateLead()
-  const { data: customFields = [] } = useCustomFieldDefinitions('lead')
+  const { data: customFields = [] } = useCustomFieldDefinitions('lead', { activeOptionsOnly: true })
 
   const set = (field: keyof CreateLeadRequest) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>

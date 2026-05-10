@@ -109,6 +109,10 @@ describe('SettingsHubPage', () => {
 
     const coverageCard = screen.getByTestId('summary-card-configuration-coverage')
     expect(within(coverageCard).getByText('4/5')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /currencies/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /picklists/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /picklist dependencies/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /lead conversion mapping/i })).toBeInTheDocument()
   })
 
   it('keeps summary failures non-blocking for settings shortcuts', async () => {

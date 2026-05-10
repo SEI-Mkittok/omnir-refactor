@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -18,15 +19,34 @@ import (
 type leadsStore interface {
 	repository.LeadRepository
 	ConvertToContact(ctx context.Context, leadID, contactID uuid.UUID) (*domain.Lead, error)
+	DefaultPipelineID(ctx context.Context, orgID uuid.UUID) (uuid.UUID, error)
 }
 
 type LeadHandler struct {
-	leads    leadsStore
-	contacts repository.ContactRepository
+	leads       leadsStore
+	contacts    repository.ContactRepository
+	accounts    repository.AccountRepository
+	deals       repository.DealRepository
+	mappingRepo repository.LeadConversionMappingRepository
+	cfDefs      repository.CustomFieldDefinitionRepository
 }
 
-func NewLeadHandler(leads leadsStore, contacts repository.ContactRepository) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts}
+func NewLeadHandler(
+	leads leadsStore,
+	contacts repository.ContactRepository,
+	accounts repository.AccountRepository,
+	deals repository.DealRepository,
+	mappingRepo repository.LeadConversionMappingRepository,
+	cfDefs repository.CustomFieldDefinitionRepository,
+) *LeadHandler {
+	return &LeadHandler{
+		leads:       leads,
+		contacts:    contacts,
+		accounts:    accounts,
+		deals:       deals,
+		mappingRepo: mappingRepo,
+		cfDefs:      cfDefs,
+	}
 }
 
 func (h *LeadHandler) Router() chi.Router {
@@ -227,6 +247,175 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 	} else if lead.OwnerID != nil {
 		ownerID = *lead.OwnerID
 	}
+	if ownerID == uuid.Nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "lead owner is required")
+		return
+	}
+
+	orgID, hasOrg := domain.OrgIDFromContext(r.Context())
+	if !hasOrg {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
+		return
+	}
+
+	mappings := []*domain.LeadConversionMapping{}
+	if h.mappingRepo != nil {
+		rows, err := h.mappingRepo.List(r.Context(), orgID)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		mappings = rows
+	}
+
+	leadCustom := map[string]any{}
+	if lead.CustomFields != nil && len(*lead.CustomFields) > 0 {
+		_ = json.Unmarshal(*lead.CustomFields, &leadCustom)
+	}
+
+	resolveLeadValue := func(field string) any {
+		if strings.HasPrefix(field, "custom:") {
+			return leadCustom[strings.TrimPrefix(field, "custom:")]
+		}
+		switch field {
+		case "first_name":
+			return lead.FirstName
+		case "last_name":
+			return lead.LastName
+		case "email":
+			if lead.Email != nil {
+				return *lead.Email
+			}
+			return nil
+		case "phone":
+			if lead.Phone != nil {
+				return *lead.Phone
+			}
+			return nil
+		case "company":
+			if lead.Company != nil {
+				return *lead.Company
+			}
+			return nil
+		case "lead_source":
+			if lead.LeadSource != nil {
+				return *lead.LeadSource
+			}
+			return nil
+		case "lead_score":
+			return lead.Score
+		case "status":
+			return string(lead.Status)
+		default:
+			if val, ok := leadCustom[field]; ok {
+				return val
+			}
+			return nil
+		}
+	}
+
+	contactCustom := map[string]any{}
+	accountCustom := map[string]any{}
+	dealCustom := map[string]any{}
+	var mappedAccountName *string
+	var mappedDealTitle *string
+	var mappedDealValueCents *int64
+	var mappedDealCurrency *string
+
+	for _, row := range mappings {
+		if row == nil || !row.IsActive {
+			continue
+		}
+		value := resolveLeadValue(row.LeadField)
+		if value == nil {
+			continue
+		}
+
+		target := strings.TrimSpace(row.TargetField)
+		switch row.TargetEntity {
+		case domain.LeadConversionTargetContact:
+			switch target {
+			case "first_name":
+				if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
+					lead.FirstName = strings.TrimSpace(v)
+				}
+			case "last_name":
+				if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
+					lead.LastName = strings.TrimSpace(v)
+				}
+			case "email":
+				if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
+					val := strings.TrimSpace(v)
+					lead.Email = &val
+				}
+			case "phone":
+				if v, ok := value.(string); ok {
+					val := strings.TrimSpace(v)
+					lead.Phone = &val
+				}
+			case "lead_source":
+				if v, ok := value.(string); ok {
+					val := strings.TrimSpace(v)
+					lead.LeadSource = &val
+				}
+			default:
+				customKey := strings.TrimSpace(strings.TrimPrefix(target, "custom:"))
+				if customKey != "" {
+					contactCustom[customKey] = value
+				}
+			}
+		case domain.LeadConversionTargetAccount:
+			switch target {
+			case "name":
+				if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
+					val := strings.TrimSpace(v)
+					mappedAccountName = &val
+				}
+			case "domain":
+				if v, ok := value.(string); ok {
+					trimmed := strings.TrimSpace(v)
+					if trimmed != "" {
+						accountCustom["domain"] = trimmed
+					}
+				}
+			default:
+				customKey := strings.TrimSpace(strings.TrimPrefix(target, "custom:"))
+				if customKey != "" {
+					accountCustom[customKey] = value
+				}
+			}
+		case domain.LeadConversionTargetDeal:
+			switch target {
+			case "title":
+				if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
+					val := strings.TrimSpace(v)
+					mappedDealTitle = &val
+				}
+			case "value_cents":
+				switch typed := value.(type) {
+				case float64:
+					val := int64(typed)
+					mappedDealValueCents = &val
+				case int:
+					val := int64(typed)
+					mappedDealValueCents = &val
+				case int64:
+					val := typed
+					mappedDealValueCents = &val
+				}
+			case "currency":
+				if v, ok := value.(string); ok && strings.TrimSpace(v) != "" {
+					val := strings.ToUpper(strings.TrimSpace(v))
+					mappedDealCurrency = &val
+				}
+			default:
+				customKey := strings.TrimSpace(strings.TrimPrefix(target, "custom:"))
+				if customKey != "" {
+					dealCustom[customKey] = value
+				}
+			}
+		}
+	}
 
 	contact := &domain.Contact{
 		FirstName:           lead.FirstName,
@@ -238,8 +427,79 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		LeadSource:          lead.LeadSource,
 		ConvertedFromLeadID: &leadID,
 	}
+	if len(contactCustom) > 0 {
+		if raw, err := json.Marshal(contactCustom); err == nil {
+			contact.CustomFields = raw
+		}
+	}
 
 	createdContact, err := h.contacts.Create(r.Context(), contact)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+
+	accountName := "Converted Lead"
+	if lead.Company != nil && strings.TrimSpace(*lead.Company) != "" {
+		accountName = strings.TrimSpace(*lead.Company)
+	}
+	if mappedAccountName != nil && strings.TrimSpace(*mappedAccountName) != "" {
+		accountName = strings.TrimSpace(*mappedAccountName)
+	}
+	account := &domain.Account{
+		Name:    accountName,
+		OwnerID: ownerID,
+	}
+	if domainValue, ok := accountCustom["domain"].(string); ok && domainValue != "" {
+		account.Domain = &domainValue
+		delete(accountCustom, "domain")
+	}
+	if len(accountCustom) > 0 {
+		if raw, err := json.Marshal(accountCustom); err == nil {
+			account.CustomFields = raw
+		}
+	}
+	createdAccount, err := h.accounts.Create(r.Context(), account)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+
+	pipelineID, err := h.leads.DefaultPipelineID(r.Context(), orgID)
+	if err != nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "no pipeline available for lead conversion")
+		return
+	}
+
+	dealTitle := "Converted Lead"
+	if mappedDealTitle != nil && strings.TrimSpace(*mappedDealTitle) != "" {
+		dealTitle = strings.TrimSpace(*mappedDealTitle)
+	} else if lead.Company != nil && strings.TrimSpace(*lead.Company) != "" {
+		dealTitle = strings.TrimSpace(*lead.Company) + " Opportunity"
+	} else if lead.Email != nil {
+		dealTitle = "Opportunity: " + strings.TrimSpace(*lead.Email)
+	}
+	deal := &domain.Deal{
+		Title:      dealTitle,
+		Stage:      domain.DealStageLead,
+		Probability: 0,
+		OwnerID:    ownerID,
+		PipelineID: pipelineID,
+		AccountID:  &createdAccount.ID,
+		ContactID:  &createdContact.ID,
+	}
+	if mappedDealCurrency != nil {
+		deal.Currency = *mappedDealCurrency
+	}
+	if mappedDealValueCents != nil {
+		deal.ValueCents = *mappedDealValueCents
+	}
+	if len(dealCustom) > 0 {
+		if raw, err := json.Marshal(dealCustom); err == nil {
+			deal.CustomFields = raw
+		}
+	}
+	createdDeal, err := h.deals.Create(r.Context(), deal)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
@@ -251,10 +511,11 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return shape: { contact, lead } — contact is the primary result,
-	// lead is included for callers that need to update their local state.
+	// Return shape includes all conversion outputs in one deterministic flow.
 	writeJSON(w, http.StatusOK, map[string]any{
 		"contact": createdContact,
+		"account": createdAccount,
+		"deal":    createdDeal,
 		"lead":    updatedLead,
 	})
 }

@@ -325,3 +325,18 @@ func (r *LeadRepo) ListSources(ctx context.Context) ([]string, error) {
 	}
 	return sources, rows.Err()
 }
+
+func (r *LeadRepo) DefaultPipelineID(ctx context.Context, orgID uuid.UUID) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := r.db.QueryRow(ctx, `
+		SELECT id
+		FROM pipelines
+		WHERE org_id = $1
+		ORDER BY created_at ASC
+		LIMIT 1
+	`, orgID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, domain.ErrNotFound
+	}
+	return id, err
+}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -41,20 +40,46 @@ func scanCurrency(row pgx.Row) (*domain.OrgCurrency, error) {
 func (r *CurrencyRepo) ensureDefault(ctx context.Context, orgID uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO org_currencies (org_id, code, display_name, symbol, decimal_places, is_active, is_default)
-		VALUES ($1, 'USD', 'US Dollar', '$', 2, TRUE, TRUE)
-		ON CONFLICT (org_id, code) DO UPDATE SET
-			is_active = TRUE,
-			display_name = EXCLUDED.display_name,
-			symbol = EXCLUDED.symbol,
-			decimal_places = EXCLUDED.decimal_places
+		SELECT
+			$1,
+			'USD',
+			'US Dollar',
+			'$',
+			2,
+			TRUE,
+			NOT EXISTS (
+				SELECT 1
+				FROM org_currencies
+				WHERE org_id = $1 AND is_default = TRUE
+			)
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM org_currencies
+			WHERE org_id = $1 AND code = 'USD'
+		)
 	`, orgID)
 	if err != nil {
 		return err
 	}
+
 	_, err = r.db.Exec(ctx, `
 		UPDATE org_currencies
-		SET is_default = (code = 'USD'), updated_at = NOW()
-		WHERE org_id = $1 AND is_default = TRUE AND code <> 'USD'
+		SET is_active = TRUE, updated_at = NOW()
+		WHERE org_id = $1 AND code = 'USD' AND is_active = FALSE
+	`, orgID)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.Exec(ctx, `
+		UPDATE org_currencies
+		SET is_default = TRUE, updated_at = NOW()
+		WHERE org_id = $1 AND code = 'USD'
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM org_currencies
+			WHERE org_id = $1 AND is_default = TRUE
+		  )
 	`, orgID)
 	return err
 }
@@ -195,9 +220,3 @@ func (r *CurrencyRepo) GetDefaultCode(ctx context.Context, orgID uuid.UUID) (str
 	}
 	return strings.ToUpper(strings.TrimSpace(code)), nil
 }
-
-func (r *CurrencyRepo) touchAll(ctx context.Context, orgID uuid.UUID) error {
-	_, err := r.db.Exec(ctx, `UPDATE org_currencies SET updated_at = $2 WHERE org_id = $1`, orgID, time.Now().UTC())
-	return err
-}
-
