@@ -25,6 +25,10 @@ type OrgSettings struct {
 	TicketNumberStart       int64           `json:"ticket_number_start"`
 	KBArticleNumberStart    int64           `json:"kb_article_number_start"`
 	InvoiceNumberStart      int64           `json:"invoice_number_start"`
+	QuoteNumberPrefix       string          `json:"quote_number_prefix"`
+	TicketNumberPrefix      string          `json:"ticket_number_prefix"`
+	KBArticleNumberPrefix   string          `json:"kb_article_number_prefix"`
+	InvoiceNumberPrefix     string          `json:"invoice_number_prefix"`
 	CompanyName             *string         `json:"company_name,omitempty"`
 	CompanyLogoURL          *string         `json:"company_logo_url,omitempty"`
 	CompanyWebsite          *string         `json:"company_website,omitempty"`
@@ -67,6 +71,10 @@ type OrgSettingsPatch struct {
 	TicketNumberStart       *int64           `json:"ticket_number_start"`
 	KBArticleNumberStart    *int64           `json:"kb_article_number_start"`
 	InvoiceNumberStart      *int64           `json:"invoice_number_start"`
+	QuoteNumberPrefix       *string          `json:"quote_number_prefix"`
+	TicketNumberPrefix      *string          `json:"ticket_number_prefix"`
+	KBArticleNumberPrefix   *string          `json:"kb_article_number_prefix"`
+	InvoiceNumberPrefix     *string          `json:"invoice_number_prefix"`
 	CompanyName             *string          `json:"company_name"`
 	CompanyLogoURL          *string          `json:"company_logo_url"`
 	CompanyWebsite          *string          `json:"company_website"`

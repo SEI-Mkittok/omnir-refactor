@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft,
@@ -26,6 +26,7 @@ import { useActivities, useCreateActivity } from '@/hooks/useActivities'
 import type { CreateActivityRequest } from '@/api/activities'
 import type { ActivityType, Activity, CreatableActivityType } from '@/api/types'
 import { calendarApi } from '@/api/calendar'
+import { preferencesApi } from '@/api/preferences'
 
 // ---- Helpers ----
 
@@ -77,10 +78,11 @@ function ActivityChip({ activity }: { activity: Activity }) {
 
 interface NewActivityDialogProps {
   defaultDate: string | null
+  defaultActivityType?: CreatableActivityType
   onClose: () => void
 }
 
-function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
+function NewActivityDialog({ defaultDate, defaultActivityType, onClose }: NewActivityDialogProps) {
   const createActivity = useCreateActivity()
   const [form, setForm] = useState<{
     type: CreatableActivityType
@@ -88,7 +90,7 @@ function NewActivityDialog({ defaultDate, onClose }: NewActivityDialogProps) {
     description: string
     due_date: string
   }>({
-    type: 'task',
+    type: defaultActivityType ?? 'task',
     subject: '',
     description: '',
     due_date: defaultDate ?? '',
@@ -337,10 +339,58 @@ function CalendarSettingsTab() {
   const queryClient = useQueryClient()
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
+  const [status, setStatus] = useState('')
+  const [prefForm, setPrefForm] = useState({
+    calendar_default_view: 'month' as 'month' | 'week',
+    calendar_default_activity_type: 'task' as CreatableActivityType,
+    calendar_day_start_hour: 8,
+    calendar_default_duration_minutes: 30,
+    calendar_show_completed_events: true,
+  })
 
   const { data: connections = [], isLoading } = useQuery({
     queryKey: ['calendar-connections'],
     queryFn: calendarApi.listConnections,
+  })
+  const preferencesQuery = useQuery({
+    queryKey: ['settings', 'calendar-preferences'],
+    queryFn: preferencesApi.getCalendar,
+  })
+
+  useEffect(() => {
+    if (!preferencesQuery.data) return
+    const pref = preferencesQuery.data
+    const view = pref.calendar_default_view === 'week' ? 'week' : 'month'
+    const activityType = pref.calendar_default_activity_type
+    const normalizedType: CreatableActivityType = (
+      activityType === 'task' || activityType === 'meeting' || activityType === 'call' || activityType === 'email'
+    )
+      ? activityType
+      : 'task'
+    setPrefForm({
+      calendar_default_view: view,
+      calendar_default_activity_type: normalizedType,
+      calendar_day_start_hour: pref.calendar_day_start_hour ?? 8,
+      calendar_default_duration_minutes: pref.calendar_default_duration_minutes ?? 30,
+      calendar_show_completed_events: pref.calendar_show_completed_events ?? true,
+    })
+    setStatus('')
+  }, [preferencesQuery.data])
+
+  const savePreferencesMutation = useMutation({
+    mutationFn: () =>
+      preferencesApi.updateCalendar({
+        calendar_default_view: prefForm.calendar_default_view,
+        calendar_default_activity_type: prefForm.calendar_default_activity_type,
+        calendar_day_start_hour: prefForm.calendar_day_start_hour,
+        calendar_default_duration_minutes: prefForm.calendar_default_duration_minutes,
+        calendar_show_completed_events: prefForm.calendar_show_completed_events,
+      }),
+    onSuccess: async () => {
+      setStatus('Calendar preferences saved.')
+      await queryClient.invalidateQueries({ queryKey: ['settings', 'calendar-preferences'] })
+    },
+    onError: () => setStatus('Unable to save calendar preferences.'),
   })
 
   const disconnectMutation = useMutation({
@@ -366,7 +416,107 @@ function CalendarSettingsTab() {
   }
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-3xl">
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-base font-semibold text-slate-900">Calendar Defaults</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          These defaults are applied when loading the calendar and creating activities.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Default view
+            </label>
+            <select
+              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+              value={prefForm.calendar_default_view}
+              onChange={(e) => {
+                setPrefForm((current) => ({ ...current, calendar_default_view: e.target.value as 'month' | 'week' }))
+                setStatus('')
+              }}
+              disabled={savePreferencesMutation.isPending}
+            >
+              <option value="month">Month</option>
+              <option value="week">Week</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Default activity type
+            </label>
+            <select
+              className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+              value={prefForm.calendar_default_activity_type}
+              onChange={(e) => {
+                setPrefForm((current) => ({ ...current, calendar_default_activity_type: e.target.value as CreatableActivityType }))
+                setStatus('')
+              }}
+              disabled={savePreferencesMutation.isPending}
+            >
+              <option value="task">Task</option>
+              <option value="meeting">Meeting</option>
+              <option value="call">Call</option>
+              <option value="email">Email</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Day start hour
+            </label>
+            <Input
+              type="number"
+              min={0}
+              max={23}
+              value={prefForm.calendar_day_start_hour}
+              onChange={(e) => {
+                setPrefForm((current) => ({ ...current, calendar_day_start_hour: Number(e.target.value || 8) }))
+                setStatus('')
+              }}
+              disabled={savePreferencesMutation.isPending}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Default duration (minutes)
+            </label>
+            <Input
+              type="number"
+              min={5}
+              max={480}
+              step={5}
+              value={prefForm.calendar_default_duration_minutes}
+              onChange={(e) => {
+                setPrefForm((current) => ({ ...current, calendar_default_duration_minutes: Number(e.target.value || 30) }))
+                setStatus('')
+              }}
+              disabled={savePreferencesMutation.isPending}
+            />
+          </div>
+        </div>
+        <label className="mt-3 inline-flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={prefForm.calendar_show_completed_events}
+            onChange={(e) => {
+              setPrefForm((current) => ({ ...current, calendar_show_completed_events: e.target.checked }))
+              setStatus('')
+            }}
+            disabled={savePreferencesMutation.isPending}
+          />
+          Show completed activities
+        </label>
+        <div className="mt-4 flex justify-end">
+          <Button type="button" onClick={() => savePreferencesMutation.mutate()} disabled={savePreferencesMutation.isPending}>
+            {savePreferencesMutation.isPending ? 'Saving...' : 'Save Calendar Preferences'}
+          </Button>
+        </div>
+        {status && (
+          <p className={status.toLowerCase().includes('unable') ? 'mt-2 text-sm text-red-600' : 'mt-2 text-sm text-green-700'}>
+            {status}
+          </p>
+        )}
+      </div>
+
       <div>
         <h2 className="text-base font-semibold text-slate-900">Connected Calendar Accounts</h2>
         <p className="mt-1 text-sm text-slate-500">
@@ -511,8 +661,36 @@ function CalendarSettingsTab() {
 export function CalendarPage() {
   const today = new Date()
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
+  const [didApplyDefaultView, setDidApplyDefaultView] = useState(false)
   const [currentDate, setCurrentDate] = useState(today)
   const [newActivityDate, setNewActivityDate] = useState<string | null>(null)
+
+  const calendarPreferencesQuery = useQuery({
+    queryKey: ['settings', 'calendar-preferences'],
+    queryFn: preferencesApi.getCalendar,
+  })
+  const showCompletedEvents = calendarPreferencesQuery.data?.calendar_show_completed_events ?? true
+  const defaultActivityType: CreatableActivityType = (
+    calendarPreferencesQuery.data?.calendar_default_activity_type === 'meeting'
+    || calendarPreferencesQuery.data?.calendar_default_activity_type === 'call'
+    || calendarPreferencesQuery.data?.calendar_default_activity_type === 'email'
+    || calendarPreferencesQuery.data?.calendar_default_activity_type === 'task'
+  )
+    ? calendarPreferencesQuery.data.calendar_default_activity_type
+    : 'task'
+
+  useEffect(() => {
+    if (didApplyDefaultView) return
+    const prefView = calendarPreferencesQuery.data?.calendar_default_view
+    if (prefView === 'week' || prefView === 'month') {
+      setViewMode(prefView)
+      setDidApplyDefaultView(true)
+      return
+    }
+    if (!calendarPreferencesQuery.isLoading) {
+      setDidApplyDefaultView(true)
+    }
+  }, [calendarPreferencesQuery.data?.calendar_default_view, calendarPreferencesQuery.isLoading, didApplyDefaultView])
 
   // For month view: derive year/month from currentDate
   const year = currentDate.getFullYear()
@@ -534,6 +712,7 @@ export function CalendarPage() {
     const map = new Map<string, Activity[]>()
     for (const a of activitiesData?.data ?? []) {
       if (!a.due_date) continue
+      if (!showCompletedEvents && a.completed) continue
       // Parse the ISO date string to a local date key
       const d = new Date(a.due_date)
       const key = toLocalDateKey(d)
@@ -542,7 +721,7 @@ export function CalendarPage() {
       map.set(key, existing)
     }
     return map
-  }, [activitiesData])
+  }, [activitiesData, showCompletedEvents])
 
   function navigatePrev() {
     if (viewMode === 'month') {
@@ -703,6 +882,7 @@ export function CalendarPage() {
       {newActivityDate !== null && (
         <NewActivityDialog
           defaultDate={newActivityDate}
+          defaultActivityType={defaultActivityType}
           onClose={() => setNewActivityDate(null)}
         />
       )}

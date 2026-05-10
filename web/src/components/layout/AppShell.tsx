@@ -241,6 +241,7 @@ export function getBreadcrumb(pathname: string): string {
     '/settings/outgoing-server': 'Outgoing Server',
     '/settings/config-editor': 'Configuration Editor',
     '/settings/menu': 'Main Menu Configuration',
+    '/settings/currencies': 'Currencies',
     '/settings/sla':       'SLA Policies',
     '/settings/webhooks':  'Webhooks',
     '/settings/billing':       'Billing',
