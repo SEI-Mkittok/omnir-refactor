@@ -5,14 +5,11 @@ import {
   ChevronRight,
   Pencil,
   Mail,
-  Phone,
-  Calendar,
   ExternalLink,
   Lock,
   Download,
   ClipboardList,
   Trash2,
-  Activity as ActivityIcon,
   Sparkles,
   Loader2,
   RefreshCw,
@@ -41,7 +38,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { useToast } from '@/components/ui/Toast'
-import { formatDate, formatRelativeTime, formatCurrency, getInitials } from '@/lib/utils'
+import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
 import { mapCrmLinkError } from '@/lib/crmLinkErrors'
 import { accountsApi } from '@/api/accounts'
 import { contactsApi } from '@/api/contacts'
@@ -63,7 +60,6 @@ import {
   normalizeRelationshipRows,
 } from '@/components/omnir/RelationshipEditor'
 import { TicketForm } from '@/components/omnir/TicketForm'
-// Note: 'Activity' from lucide-react aliased to ActivityIcon above to avoid collision
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

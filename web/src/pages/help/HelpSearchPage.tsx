@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, FileText, ChevronRight } from 'lucide-react'
 import { usePublicKbArticles } from '@/hooks/useKB'
