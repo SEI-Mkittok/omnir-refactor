@@ -748,6 +748,10 @@ function LeadRow({ lead, onClick }: { lead: Lead; onClick: () => void }) {
               {lead.owner.name}
             </span>
           </div>
+        ) : lead.owner_id ? (
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Assigned
+          </span>
         ) : (
           <span className="text-sm" style={{ color: 'var(--text-label)' }}>
             Unassigned

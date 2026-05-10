@@ -442,6 +442,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
           <hr className="border-slate-200" />
           <ContactSection
             ticketId={ticketId}
+            accountId={ticket.account?.id}
             contact={ticket.contact as import('@/api/types').Contact | undefined}
             ticketStatus={ticket.status}
           />

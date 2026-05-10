@@ -169,6 +169,7 @@ function ActivityItem({ activity, isLast }: ActivityItemProps) {
   const { Icon, color, badgeVariant, label } = typeConfig[activity.type]
   const updateActivity = useUpdateActivity()
   const [expanded, setExpanded] = useState(false)
+  const scheduledAt = activity.start_at ?? activity.due_date
 
   const toggleComplete = async () => {
     await updateActivity.mutateAsync({
@@ -202,10 +203,10 @@ function ActivityItem({ activity, isLast }: ActivityItemProps) {
               <Badge variant={badgeVariant} className="text-xs px-1.5 py-0">
                 {label}
               </Badge>
-              {activity.due_date && (
+              {scheduledAt && (
                 <span className="flex items-center gap-1 text-xs text-slate-400">
                   <Clock className="h-3 w-3" />
-                  {formatDate(activity.due_date)}
+                  {formatDate(scheduledAt)}
                 </span>
               )}
             </div>

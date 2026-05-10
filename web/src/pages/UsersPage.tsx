@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import axios from 'axios'
 import { Plus, UserCog } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useUsers'
@@ -58,6 +59,14 @@ function isWorkspaceAdmin(role: UserRole | undefined) {
   return role === 'admin' || role === 'super_admin'
 }
 
+function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (!axios.isAxiosError(err)) return fallback
+  const payload = err.response?.data as { error?: unknown; message?: unknown } | undefined
+  if (typeof payload?.error === 'string' && payload.error.trim()) return payload.error
+  if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message
+  return fallback
+}
+
 // ---- Create User Dialog ----
 
 interface CreateUserDialogProps {
@@ -87,7 +96,8 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
         setForm({ name: '', email: '', password: '', role: 'agent' })
         onClose()
       },
-      onError: () => setError('Failed to create user. Email may already be in use.'),
+      onError: (err) =>
+        setError(getApiErrorMessage(err, 'Failed to create user. Email may already be in use.')),
     })
   }
 
@@ -187,7 +197,7 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
       { id: user.id, payload: form },
       {
         onSuccess: onClose,
-        onError: () => setError('Failed to update user.'),
+        onError: (err) => setError(getApiErrorMessage(err, 'Failed to update user.')),
       }
     )
   }

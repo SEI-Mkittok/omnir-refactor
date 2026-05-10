@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Building2, Plus, Trash2, Send, Save, X } from 'lucide-react'
+import axios from 'axios'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAccounts } from '@/hooks/useAccounts'
@@ -41,6 +42,20 @@ function lineTotal(li: QuoteLineItemInput): number {
 
 function quoteTotal(items: QuoteLineItemInput[]): number {
   return items.reduce((sum, li) => sum + lineTotal(li), 0)
+}
+
+function dateInputToISO(value: string): string {
+  // HTML date inputs return YYYY-MM-DD. Backend expects RFC3339 timestamps.
+  return `${value}T00:00:00Z`
+}
+
+function quoteErrorMessage(err: unknown, fallback: string): string {
+  if (!axios.isAxiosError(err)) return fallback
+  const payload = err.response?.data as { error?: unknown; message?: unknown } | undefined
+  if (typeof payload?.error === 'string' && payload.error.trim().length > 0) return payload.error
+  if (typeof payload?.message === 'string' && payload.message.trim().length > 0) return payload.message
+  if (typeof err.message === 'string' && err.message.trim().length > 0) return err.message
+  return fallback
 }
 
 let keyCounter = 0
@@ -149,7 +164,7 @@ export function QuoteBuilder({
     return {
       title: title.trim(),
       currency,
-      ...(validUntil ? { valid_until: validUntil } : {}),
+      ...(validUntil ? { valid_until: dateInputToISO(validUntil) } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
       ...(selectedAccountId ? { account_id: selectedAccountId } : {}),
       ...(dealId ? { deal_id: dealId } : {}),
@@ -180,7 +195,7 @@ export function QuoteBuilder({
       onSaved?.(saved)
       onClose()
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Failed to save quote. Please try again.')
+      setApiError(quoteErrorMessage(err, 'Failed to save quote. Please try again.'))
     }
   }
 
@@ -208,7 +223,7 @@ export function QuoteBuilder({
       setShowSendModal(false)
       onClose()
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Failed to send quote. Please try again.')
+      setApiError(quoteErrorMessage(err, 'Failed to send quote. Please try again.'))
     }
   }
 

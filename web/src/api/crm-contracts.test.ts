@@ -242,6 +242,127 @@ describe('CRM API contract mapping', () => {
     ])
   })
 
+  it('normalizes KB category/suggest payloads when backend wraps arrays in data', async () => {
+    server.use(
+      http.get('/api/v1/kb/categories', () =>
+        HttpResponse.json({
+          data: [{ id: 'cat-1', name: 'General', slug: 'general', position: 0 }],
+        })
+      ),
+      http.get('/api/v1/kb/articles/suggest', () =>
+        HttpResponse.json({
+          data: [{ id: 'kb-1', title: 'Reset password', slug: 'reset-password' }],
+        })
+      )
+    )
+
+    await expect(kbApi.listCategories()).resolves.toEqual([
+      { id: 'cat-1', name: 'General', slug: 'general', position: 0 },
+    ])
+    await expect(kbApi.suggestArticles('reset')).resolves.toEqual([
+      { id: 'kb-1', title: 'Reset password', slug: 'reset-password' },
+    ])
+  })
+
+  it('normalizes legacy billing payloads for subscription, usage, and invoice pagination', async () => {
+    const seenPages: number[] = []
+
+    server.use(
+      http.get('/api/v1/billing/subscription', () =>
+        HttpResponse.json({
+          id: 'plan-1',
+          plan: 'pro',
+          status: 'canceled',
+          current_period_end: '2026-06-01T00:00:00Z',
+        })
+      ),
+      http.get('/api/v1/billing/usage', () =>
+        HttpResponse.json({
+          plan: 'pro',
+          usage: {
+            users: { used: 7, limit: 10 },
+            contacts: { used: 412, limit: 1000 },
+            storage_mb: { used: 128, limit: null },
+          },
+        })
+      ),
+      http.get('/api/v1/billing/invoices', ({ request }) => {
+        const url = new URL(request.url)
+        const page = Number(url.searchParams.get('page') ?? '1')
+        seenPages.push(page)
+
+        if (page === 2) {
+          return HttpResponse.json({
+            data: [
+              {
+                id: 'inv-2',
+                stripe_invoice_id: 'in_2',
+                amount_cents: 9900,
+                currency: 'usd',
+                status: 'draft',
+                created_at: '2026-04-15T00:00:00Z',
+              },
+            ],
+            meta: { page: 2, total_pages: 2 },
+          })
+        }
+
+        return HttpResponse.json({
+          data: [
+            {
+              id: 'inv-1',
+              stripe_invoice_id: 'in_1',
+              amount_cents: 4900,
+              currency: 'usd',
+              status: 'paid',
+              pdf_url: 'https://example.test/in_1.pdf',
+              created_at: '2026-05-15T00:00:00Z',
+            },
+          ],
+          meta: { page: 1, total_pages: 2 },
+        })
+      })
+    )
+
+    await expect(billingApi.getSubscription()).resolves.toMatchObject({
+      id: 'plan-1',
+      planTier: 'pro',
+      status: 'cancelled',
+      currentPeriodEnd: '2026-06-01T00:00:00Z',
+      period: 'monthly',
+    })
+
+    await expect(billingApi.getUsage()).resolves.toEqual({
+      seats: { used: 7, limit: 10 },
+      tickets: { used: 412, limit: 1000 },
+      apiCalls: { used: 128, limit: null },
+    })
+
+    const pageOne = await billingApi.getInvoices()
+    expect(pageOne.hasMore).toBe(true)
+    expect(pageOne.nextCursor).toBe('2')
+    expect(pageOne.data[0]).toMatchObject({
+      id: 'inv-1',
+      identifier: 'in_1',
+      amountCents: 4900,
+      currency: 'USD',
+      status: 'paid',
+      downloadUrl: 'https://example.test/in_1.pdf',
+    })
+
+    const pageTwo = await billingApi.getInvoices(pageOne.nextCursor ?? undefined)
+    expect(pageTwo.hasMore).toBe(false)
+    expect(pageTwo.nextCursor).toBeNull()
+    expect(pageTwo.data[0]).toMatchObject({
+      id: 'inv-2',
+      identifier: 'in_2',
+      amountCents: 9900,
+      status: 'pending',
+    })
+
+    expect(seenPages).toEqual([1, 2])
+  })
+
   it('normalizes integration status from backend snake_case fields', async () => {
     server.use(
       http.get('/api/v1/integrations', () =>
@@ -353,6 +474,16 @@ describe('CRM API contract mapping', () => {
       'DELETE /api/v1/calendar/connections/cal-1',
       'POST /api/v1/calendar/sync',
     ])
+  })
+
+  it('normalizes null calendar connections payload to an empty list', async () => {
+    server.use(
+      http.get('/api/v1/calendar/connections', () => {
+        return HttpResponse.json({ data: null })
+      })
+    )
+
+    await expect(calendarApi.listConnections()).resolves.toEqual([])
   })
 
   it('uses org admin settings routes for bundle-2 configuration surfaces', async () => {

@@ -34,6 +34,8 @@ type Activity struct {
 	Subject         string       `json:"subject"`
 	Description     *string      `json:"description,omitempty"`
 	DueDate         *time.Time   `json:"due_date,omitempty"`
+	StartAt         *time.Time   `json:"start_at,omitempty"`
+	EndAt           *time.Time   `json:"end_at,omitempty"`
 	CompletedAt     *time.Time   `json:"completed_at,omitempty"`
 	ContactID       *uuid.UUID   `json:"contact_id,omitempty"`
 	AccountID       *uuid.UUID   `json:"account_id,omitempty"`
@@ -56,6 +58,18 @@ func (a *Activity) Validate() error {
 	if a.OwnerID == uuid.Nil {
 		return fmt.Errorf("%w: owner_id is required", ErrValidation)
 	}
+	if a.EndAt != nil {
+		start := a.StartAt
+		if start == nil {
+			start = a.DueDate
+		}
+		if start == nil {
+			return fmt.Errorf("%w: end_at requires start_at or due_date", ErrValidation)
+		}
+		if a.EndAt.Before(*start) {
+			return fmt.Errorf("%w: end_at must be on or after start_at", ErrValidation)
+		}
+	}
 	return nil
 }
 
@@ -65,6 +79,8 @@ type ActivityPatch struct {
 	Subject     *string       `json:"subject,omitempty"`
 	Description *string       `json:"description,omitempty"`
 	DueDate     *time.Time    `json:"due_date,omitempty"`
+	StartAt     *time.Time    `json:"start_at,omitempty"`
+	EndAt       *time.Time    `json:"end_at,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
 	ContactID   *uuid.UUID    `json:"contact_id,omitempty"`
 	AccountID   *uuid.UUID    `json:"account_id,omitempty"`
