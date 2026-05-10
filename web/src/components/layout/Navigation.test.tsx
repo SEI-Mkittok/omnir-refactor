@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { AppShell, getBreadcrumb } from './AppShell'
 import { Sidebar } from './Sidebar'
 import { SettingsHubPage } from '@/pages/settings/SettingsHubPage'
-import { render, screen } from '@/test/utils'
+import { render, screen, waitFor } from '@/test/utils'
 import { server } from '@/test/mocks/server'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
@@ -87,6 +87,22 @@ describe('app shell navigation', () => {
     render(<Sidebar />)
     expect(screen.queryByRole('link', { name: /users/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /numbering/i })).not.toBeInTheDocument()
+  })
+
+  it('applies org menu configuration to non-admin sidebar navigation', async () => {
+    setUser('agent')
+    server.use(
+      http.get('/api/v1/settings/menu', () =>
+        HttpResponse.json({ menu_config: { deals: false, contacts: true } })
+      )
+    )
+
+    render(<Sidebar />)
+
+    expect(await screen.findByRole('link', { name: /contacts/i })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: /pipeline/i })).not.toBeInTheDocument()
+    })
   })
 
   it('keeps settings hub links covered by route titles', () => {

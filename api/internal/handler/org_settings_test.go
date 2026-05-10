@@ -335,3 +335,42 @@ func TestOrgSettingsHandler_UpdatePortalValidatesWidgetLimit(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 	assert.False(t, repo.updateCalled)
 }
+
+func TestOrgSettingsHandler_MenuConfigGetAllowsNonAdmins(t *testing.T) {
+	orgID := uuid.New()
+	repo := &fakeOrgSettingsRepository{settings: makeOrgSettings(orgID)}
+	h := handler.NewOrgSettingsHandler(repo, "test-key")
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = withClaims(req, &auth.Claims{
+		UserID: uuid.New(),
+		OrgID:  orgID,
+		Role:   string(domain.UserRoleAgent),
+	})
+	w := httptest.NewRecorder()
+
+	h.MenuConfigRouter().ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, repo.getCalled)
+}
+
+func TestOrgSettingsHandler_MenuConfigPatchRemainsAdminOnly(t *testing.T) {
+	orgID := uuid.New()
+	repo := &fakeOrgSettingsRepository{settings: makeOrgSettings(orgID)}
+	h := handler.NewOrgSettingsHandler(repo, "test-key")
+	body := []byte(`{"menu_config":{"dashboard":true,"deals":false}}`)
+
+	req := httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+	req = withClaims(req, &auth.Claims{
+		UserID: uuid.New(),
+		OrgID:  orgID,
+		Role:   string(domain.UserRoleAgent),
+	})
+	w := httptest.NewRecorder()
+
+	h.MenuConfigRouter().ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.False(t, repo.updateCalled)
+}

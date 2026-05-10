@@ -110,7 +110,7 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const { sidebarCollapsed, toggleSidebar, onboardingDismissed, setOnboardingDismissed } = useUIStore()
   const collapsed = sidebarCollapsed
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
-  const { data: menuSettings } = useMenuConfigSettings(isAdmin)
+  const { data: menuSettings } = useMenuConfigSettings()
 
   async function handleDismissOnboarding(e: React.MouseEvent) {
     e.preventDefault()

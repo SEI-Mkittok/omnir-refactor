@@ -74,9 +74,8 @@ func (h *OrgSettingsHandler) ConfigEditorRouter() chi.Router {
 
 func (h *OrgSettingsHandler) MenuConfigRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Use(h.requireAdmin)
 	r.Get("/", h.GetMenuConfig)
-	r.Patch("/", h.UpdateMenuConfig)
+	r.With(h.requireAdmin).Patch("/", h.UpdateMenuConfig)
 	return r
 }
 
