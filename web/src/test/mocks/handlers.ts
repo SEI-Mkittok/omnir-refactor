@@ -113,4 +113,56 @@ export const handlers = [
   http.get('/api/v1/settings/menu', () =>
     HttpResponse.json({ menu_config: {} })
   ),
+
+  http.get('/api/v1/settings/company', () =>
+    HttpResponse.json({})
+  ),
+
+  http.get('/api/v1/settings/portal', () =>
+    HttpResponse.json({
+      portal_enabled: false,
+      portal_menu: [],
+      portal_shortcuts: [],
+      portal_recent_widget_limit: 0,
+    })
+  ),
+
+  http.get('/api/v1/settings/outgoing-server', () =>
+    HttpResponse.json({ smtp_password_set: false })
+  ),
+
+  http.get('/api/v1/settings/config-editor', () =>
+    HttpResponse.json({
+      config_support_email: null,
+      config_upload_max_mb: 0,
+      config_default_page_size: 0,
+      config_list_preview_chars: 0,
+    })
+  ),
+
+  http.get('/api/v1/users', () =>
+    HttpResponse.json({
+      data: [],
+      meta: { page: 1, per_page: 1, total: 0, total_pages: 0 },
+    })
+  ),
+
+  http.get('/api/v1/automations', () =>
+    HttpResponse.json({ data: [], total: 0 })
+  ),
+
+  http.get('/api/v1/activities', () =>
+    HttpResponse.json({
+      data: [],
+      meta: { page: 1, per_page: 500, total: 0, total_pages: 0 },
+    })
+  ),
+
+  http.get('/api/v1/calendar/connections', () =>
+    HttpResponse.json({ data: [] })
+  ),
+
+  http.post('/api/v1/calendar/sync', () =>
+    HttpResponse.json({ status: 'sync queued' }, { status: 202 })
+  ),
 ]
