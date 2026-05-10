@@ -88,7 +88,10 @@ func (r *TicketRepo) Create(ctx context.Context, t *domain.Ticket) (*domain.Tick
 	if err != nil {
 		return nil, err
 	}
-	const prefix = "TKT"
+	prefix, err := getDocPrefix(ctx, r.db, t.OrgID, domain.DocTypeTicket)
+	if err != nil {
+		return nil, err
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO tickets

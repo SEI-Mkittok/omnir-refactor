@@ -50,7 +50,11 @@ func (r *ProductRepo) Create(ctx context.Context, p *domain.Product) (*domain.Pr
 		p.ID = uuid.New()
 	}
 	if p.Currency == "" {
-		p.Currency = "USD"
+		cur, err := getOrgDefaultCurrency(ctx, r.db, p.OrgID)
+		if err != nil {
+			return nil, err
+		}
+		p.Currency = cur
 	}
 	p.IsActive = true
 	row := r.db.QueryRow(ctx,

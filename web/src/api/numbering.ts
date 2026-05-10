@@ -1,14 +1,19 @@
 import apiClient from './client'
 
 export interface NumberingSettings {
-  id: string
   org_id: string
   quote_number_start: number
   ticket_number_start: number
   kb_article_number_start: number
   invoice_number_start: number
-  created_at: string
-  updated_at: string
+  quote_number_prefix: string
+  ticket_number_prefix: string
+  kb_article_number_prefix: string
+  invoice_number_prefix: string
+  quote_number_current: number
+  ticket_number_current: number
+  kb_article_number_current: number
+  invoice_number_current: number
 }
 
 export interface UpdateNumberingSettingsRequest {
@@ -16,6 +21,14 @@ export interface UpdateNumberingSettingsRequest {
   ticket_number_start?: number
   kb_article_number_start?: number
   invoice_number_start?: number
+  quote_number_prefix?: string
+  ticket_number_prefix?: string
+  kb_article_number_prefix?: string
+  invoice_number_prefix?: string
+  quote_number_current?: number
+  ticket_number_current?: number
+  kb_article_number_current?: number
+  invoice_number_current?: number
 }
 
 export const numberingApi = {
