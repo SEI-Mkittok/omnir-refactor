@@ -258,6 +258,14 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve pipeline before creating any conversion records so we fail fast
+	// without leaving partial contact/account inserts behind.
+	pipelineID, err := h.leads.DefaultPipelineID(r.Context(), orgID)
+	if err != nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "no pipeline available for lead conversion")
+		return
+	}
+
 	mappings := []*domain.LeadConversionMapping{}
 	if h.mappingRepo != nil {
 		rows, err := h.mappingRepo.List(r.Context(), orgID)
@@ -465,12 +473,6 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pipelineID, err := h.leads.DefaultPipelineID(r.Context(), orgID)
-	if err != nil {
-		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "no pipeline available for lead conversion")
-		return
-	}
-
 	dealTitle := "Converted Lead"
 	if mappedDealTitle != nil && strings.TrimSpace(*mappedDealTitle) != "" {
 		dealTitle = strings.TrimSpace(*mappedDealTitle)
@@ -480,13 +482,13 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 		dealTitle = "Opportunity: " + strings.TrimSpace(*lead.Email)
 	}
 	deal := &domain.Deal{
-		Title:      dealTitle,
-		Stage:      domain.DealStageLead,
+		Title:       dealTitle,
+		Stage:       domain.DealStageLead,
 		Probability: 0,
-		OwnerID:    ownerID,
-		PipelineID: pipelineID,
-		AccountID:  &createdAccount.ID,
-		ContactID:  &createdContact.ID,
+		OwnerID:     ownerID,
+		PipelineID:  pipelineID,
+		AccountID:   &createdAccount.ID,
+		ContactID:   &createdContact.ID,
 	}
 	if mappedDealCurrency != nil {
 		deal.Currency = *mappedDealCurrency

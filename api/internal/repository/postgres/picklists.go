@@ -212,22 +212,23 @@ func (r *PicklistRepo) UpsertValues(ctx context.Context, orgID, customFieldID uu
 		}
 	}
 
+	deactivateSQL := `
+		UPDATE picklist_values
+		SET is_active = FALSE, updated_at = NOW()
+		WHERE org_id = $1 AND custom_field_id = $2
+	`
+	deactivateArgs := []any{orgID, customFieldID}
 	if len(values) > 0 {
 		placeholders := make([]string, 0, len(values))
-		args := make([]any, 0, len(values)+2)
-		args = append(args, orgID, customFieldID)
 		for idx, v := range values {
 			placeholders = append(placeholders, fmt.Sprintf("$%d", idx+3))
-			args = append(args, v.Value)
+			deactivateArgs = append(deactivateArgs, v.Value)
 		}
-		_, err = tx.Exec(ctx, `
-			UPDATE picklist_values
-			SET is_active = FALSE, updated_at = NOW()
-			WHERE org_id = $1 AND custom_field_id = $2 AND value NOT IN (`+strings.Join(placeholders, ",")+`)
-		`, args...)
-		if err != nil {
-			return nil, err
-		}
+		deactivateSQL += ` AND value NOT IN (` + strings.Join(placeholders, ",") + `)`
+	}
+	_, err = tx.Exec(ctx, deactivateSQL, deactivateArgs...)
+	if err != nil {
+		return nil, err
 	}
 
 	// Keep definition options as the full option set (active+inactive) for backward compatibility validation.
