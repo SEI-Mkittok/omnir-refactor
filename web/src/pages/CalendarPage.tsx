@@ -351,13 +351,6 @@ function CalendarSettingsTab() {
   const googleConnection = connections.find((c) => c.provider === 'google')
   const microsoftConnection = connections.find((c) => c.provider === 'microsoft')
 
-  function handleConnect(provider: 'google' | 'microsoft') {
-    const path = provider === 'google'
-      ? '/api/v1/calendar/auth/google'
-      : '/api/v1/calendar/auth/microsoft'
-    window.location.href = path
-  }
-
   async function handleSync() {
     setSyncing(true)
     try {
@@ -427,15 +420,19 @@ function CalendarSettingsTab() {
                 <XCircle className="h-3.5 w-3.5 mr-1.5" />
                 Disconnect
               </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => handleConnect('google')}
-                disabled={!!microsoftConnection}
-              >
+            ) : microsoftConnection ? (
+              <Button size="sm" disabled>
                 <Link2 className="h-3.5 w-3.5 mr-1.5" />
                 Connect
               </Button>
+            ) : (
+              <a
+                href="/api/v1/calendar/auth/google"
+                className="inline-flex h-7 items-center rounded-md bg-[var(--color-primary)] px-3 text-xs font-medium text-white hover:bg-[var(--color-primary)]/90"
+              >
+                <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                Connect
+              </a>
             )}
           </div>
         </div>
@@ -482,15 +479,19 @@ function CalendarSettingsTab() {
                 <XCircle className="h-3.5 w-3.5 mr-1.5" />
                 Disconnect
               </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => handleConnect('microsoft')}
-                disabled={!!googleConnection}
-              >
+            ) : googleConnection ? (
+              <Button size="sm" disabled>
                 <Link2 className="h-3.5 w-3.5 mr-1.5" />
                 Connect
               </Button>
+            ) : (
+              <a
+                href="/api/v1/calendar/auth/microsoft"
+                className="inline-flex h-7 items-center rounded-md bg-[var(--color-primary)] px-3 text-xs font-medium text-white hover:bg-[var(--color-primary)]/90"
+              >
+                <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                Connect
+              </a>
             )}
           </div>
         </div>
