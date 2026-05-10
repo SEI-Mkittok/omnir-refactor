@@ -44,4 +44,3 @@ type PicklistDependencyInput struct {
 	Mapping       map[string][]string   `json:"mapping"`
 	IsActive      bool                  `json:"is_active"`
 }
-

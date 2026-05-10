@@ -114,7 +114,7 @@ export function CurrenciesPage() {
     const defaultCurrency = normalized.find((row) => row.is_default) ?? normalized[0]
     mutation.mutate({
       default_code: defaultCurrency.code,
-      currencies: normalized.map(({ is_default, ...input }) => input),
+      currencies: normalized.map(({ is_default: _is_default, ...input }) => input),
     })
   }
 

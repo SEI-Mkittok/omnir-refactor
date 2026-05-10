@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ElementType, type FormEvent } from 'react'
-import { AlertCircle, BookOpen, FileText, Hash, Receipt, Save, Ticket } from 'lucide-react'
+import { AlertCircle, BookOpen, FileText, Receipt, Save, Ticket } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useNumberingSettings, useUpdateNumberingSettings } from '@/hooks/useNumbering'

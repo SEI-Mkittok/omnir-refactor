@@ -10,12 +10,10 @@ import { Input } from '@/components/ui/Input'
 import type {
   Account,
   Contact,
-  Deal,
   SearchEntityType,
   SearchFilters,
   SearchRelationship,
   SearchResult,
-  Ticket,
 } from '@/api/types'
 
 type SearchItem = NonNullable<SearchResult[keyof SearchResult]>[number]
