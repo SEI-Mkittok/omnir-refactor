@@ -31,4 +31,3 @@ type OrgCurrencyUpdateRequest struct {
 	DefaultCode string             `json:"default_code"`
 	Currencies  []OrgCurrencyInput `json:"currencies"`
 }
-

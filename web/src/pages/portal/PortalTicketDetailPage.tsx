@@ -5,7 +5,6 @@ import { usePortalTicket, usePortalTicketComments, useAddPortalComment } from '@
 import { useAuthStore } from '@/stores/auth'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Spinner } from '@/components/ui/Spinner'
 import { formatDate } from '@/lib/utils'
 import type { PortalTicketStatus, TicketPriority } from '@/api/types'
 
