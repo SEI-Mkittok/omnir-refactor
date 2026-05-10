@@ -108,4 +108,9 @@ export const handlers = [
       deals: q ? [mockDeal] : [],
     })
   }),
+
+  // Settings
+  http.get('/api/v1/settings/menu', () =>
+    HttpResponse.json({ menu_config: {} })
+  ),
 ]

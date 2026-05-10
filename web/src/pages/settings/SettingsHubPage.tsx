@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import {
   User, Shield, Users, SlidersHorizontal, KeyRound, Clock,
-  ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook,
+  ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook, Building2,
+  Send, PanelTopOpen, MenuSquare,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 
@@ -47,6 +48,36 @@ const ADMIN_CARDS: SettingsCard[] = [
     description: 'Configure starting numbers for quotes, tickets, invoices, and KB articles.',
     href: '/settings/numbering',
     badge: 'Admin',
+  },
+  {
+    icon: Building2,
+    title: 'Company Profile',
+    description: 'Manage company identity, contact information, and tenant profile details.',
+    href: '/settings/company',
+  },
+  {
+    icon: PanelTopOpen,
+    title: 'Portal Configuration',
+    description: 'Configure customer portal visibility, shortcuts, and portal messaging.',
+    href: '/settings/portal',
+  },
+  {
+    icon: Send,
+    title: 'Outgoing Server',
+    description: 'Configure SMTP host, sender defaults, and authentication behavior.',
+    href: '/settings/outgoing-server',
+  },
+  {
+    icon: SlidersHorizontal,
+    title: 'Configuration Editor',
+    description: 'Set shared runtime defaults like page size, uploads, and preview lengths.',
+    href: '/settings/config-editor',
+  },
+  {
+    icon: MenuSquare,
+    title: 'Main Menu Configuration',
+    description: 'Control which modules are enabled in the organization navigation.',
+    href: '/settings/menu',
   },
   {
     icon: Clock,

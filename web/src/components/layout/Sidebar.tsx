@@ -4,12 +4,13 @@ import {
   LayoutDashboard, Users, Building2, TrendingUp, UserPlus, Ticket,
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
-  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X, Hash,
+  BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X, Hash, Send, PanelTopOpen, MenuSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { updateOnboarding } from '@/api/onboarding'
+import { useMenuConfigSettings } from '@/hooks/useAdminSettings'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -65,12 +66,34 @@ const ADMIN_GROUP = {
     { to: '/users', icon: UserCog, label: 'Users' },
     { to: '/settings/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
     { to: '/settings/numbering', icon: Hash, label: 'Numbering' },
+    { to: '/settings/company', icon: Building2, label: 'Company Profile' },
+    { to: '/settings/portal', icon: PanelTopOpen, label: 'Portal Config' },
+    { to: '/settings/outgoing-server', icon: Send, label: 'Outgoing Server' },
+    { to: '/settings/config-editor', icon: SlidersHorizontal, label: 'Config Editor' },
+    { to: '/settings/menu', icon: MenuSquare, label: 'Menu Config' },
     { to: '/api-keys', icon: KeyRound, label: 'API Keys' },
     { to: '/settings/sla', icon: Clock, label: 'SLA Policies' },
     { to: '/admin/audit', icon: ShieldCheck, label: 'Audit Log' },
     { to: '/settings/billing', icon: CreditCard, label: 'Billing' },
     { to: '/settings/integrations', icon: Plug, label: 'Integrations' },
   ],
+}
+
+const ROUTE_MENU_KEYS: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/deals': 'deals',
+  '/contacts': 'contacts',
+  '/accounts': 'accounts',
+  '/leads': 'leads',
+  '/quotes': 'quotes',
+  '/sequences': 'sequences',
+  '/inbox': 'inbox',
+  '/tickets': 'tickets',
+  '/kb': 'kb',
+  '/reports': 'reports',
+  '/dashboards': 'dashboards',
+  '/automations': 'automations',
+  '/calendar': 'calendar',
 }
 
 interface SidebarProps {
@@ -86,6 +109,8 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const activeOrg = useAuthStore((s) => s.activeOrg)
   const { sidebarCollapsed, toggleSidebar, onboardingDismissed, setOnboardingDismissed } = useUIStore()
   const collapsed = sidebarCollapsed
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const { data: menuSettings } = useMenuConfigSettings(isAdmin)
 
   async function handleDismissOnboarding(e: React.MouseEvent) {
     e.preventDefault()
@@ -98,8 +123,15 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const isOpen = mobileOpen ?? open
   const handleClose = onMobileClose ?? onClose
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
-  const groups = isAdmin ? [...NAV_GROUPS, ADMIN_GROUP] : NAV_GROUPS
+  const menuConfig = menuSettings?.menu_config ?? {}
+  const groups = (isAdmin ? [...NAV_GROUPS, ADMIN_GROUP] : NAV_GROUPS).map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const key = ROUTE_MENU_KEYS[item.to]
+      if (!key) return true
+      return menuConfig[key] ?? true
+    }),
+  }))
 
   function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {
     return (
