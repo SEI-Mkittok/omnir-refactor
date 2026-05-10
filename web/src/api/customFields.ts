@@ -7,9 +7,19 @@ import type {
 } from './types'
 
 export const customFieldsApi = {
-  list: async (entity_type?: CustomFieldEntityType): Promise<CustomFieldDefinition[]> => {
+  list: async (
+    entity_type?: CustomFieldEntityType,
+    options?: { activeOptionsOnly?: boolean },
+  ): Promise<CustomFieldDefinition[]> => {
+    const params: Record<string, string> = {}
+    if (entity_type) {
+      params.entity_type = entity_type
+    }
+    if (options?.activeOptionsOnly) {
+      params.active_options_only = 'true'
+    }
     const { data } = await apiClient.get('/custom-fields', {
-      params: entity_type ? { entity_type } : undefined,
+      params: Object.keys(params).length > 0 ? params : undefined,
     })
     return data
   },

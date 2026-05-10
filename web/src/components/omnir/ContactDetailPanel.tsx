@@ -326,7 +326,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
   const { data: contact, isLoading } = useContact(contactId)
   const updateContact = useUpdateContact()
   const deleteContact = useDeleteContact()
-  const { data: customFields = [] } = useCustomFieldDefinitions('contact')
+  const { data: customFields = [] } = useCustomFieldDefinitions('contact', { activeOptionsOnly: true })
 
   const patch = useCallback(
     async (payload: UpdateContactRequest) => {

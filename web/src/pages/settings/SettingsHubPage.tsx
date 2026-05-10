@@ -77,6 +77,24 @@ const ADMIN_CARDS: SettingsCard[] = [
     href: '/settings/currencies',
   },
   {
+    icon: SlidersHorizontal,
+    title: 'Picklists',
+    description: 'Manage selectable custom-field values, order, labels, and remap/delete flows.',
+    href: '/settings/picklists',
+  },
+  {
+    icon: SlidersHorizontal,
+    title: 'Picklist Dependencies',
+    description: 'Constrain target picklist values based on source selections.',
+    href: '/settings/picklist-dependencies',
+  },
+  {
+    icon: SlidersHorizontal,
+    title: 'Lead Conversion Mapping',
+    description: 'Configure lead-to-contact/account/deal mapping for conversion behavior.',
+    href: '/settings/lead-conversion-mapping',
+  },
+  {
     icon: Building2,
     title: 'Company Profile',
     description: 'Manage company identity, contact information, and tenant profile details.',
