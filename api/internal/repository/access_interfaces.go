@@ -9,6 +9,8 @@ import (
 )
 
 type AccessRepository interface {
+	RecordAccessRepository
+
 	ResolveAccess(ctx context.Context, userID, orgID uuid.UUID, platformRole string) (*domain.AccessContext, error)
 
 	ListRoles(ctx context.Context, orgID uuid.UUID) ([]*domain.ACLRole, error)
@@ -32,4 +34,8 @@ type AccessRepository interface {
 
 	GetSharingRules(ctx context.Context, orgID uuid.UUID) (*domain.ACLSharingRules, error)
 	ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, rules *domain.ACLSharingRules) (*domain.ACLSharingRules, error)
+}
+
+type RecordAccessRepository interface {
+	CanAccessRecord(ctx context.Context, module domain.ACLModule, id uuid.UUID, access domain.SharingAccessLevel) (bool, error)
 }

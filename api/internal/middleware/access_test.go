@@ -1,17 +1,35 @@
 package middleware_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 )
+
+type recordAccessCall struct {
+	module domain.ACLModule
+	id     uuid.UUID
+	access domain.SharingAccessLevel
+}
+
+type fakeRecordAccessRepo struct {
+	allowed bool
+	calls   []recordAccessCall
+}
+
+func (f *fakeRecordAccessRepo) CanAccessRecord(_ context.Context, module domain.ACLModule, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	f.calls = append(f.calls, recordAccessCall{module: module, id: id, access: access})
+	return f.allowed, nil
+}
 
 func TestRequireModulePermissionUsesResolvedProfilePermissions(t *testing.T) {
 	handler := middleware.RequireModulePermission()(okHandler)
@@ -90,4 +108,49 @@ func TestPortalRoutesBypassInternalModuleACL(t *testing.T) {
 	w = httptest.NewRecorder()
 	fieldHandler.ServeHTTP(w, fieldReq)
 	require.Equal(t, http.StatusCreated, w.Code)
+}
+
+func TestRequireNestedParentRecordAccessChecksReadVisibility(t *testing.T) {
+	parentID := uuid.New()
+	repo := &fakeRecordAccessRepo{allowed: false}
+	handler := middleware.RequireNestedParentRecordAccess(repo)(okHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/"+parentID.String()+"/notes", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Len(t, repo.calls, 1)
+	require.Equal(t, domain.ACLModuleContacts, repo.calls[0].module)
+	require.Equal(t, parentID, repo.calls[0].id)
+	require.Equal(t, domain.SharingAccessRead, repo.calls[0].access)
+}
+
+func TestRequireNestedParentRecordAccessUsesWriteVisibilityForMutations(t *testing.T) {
+	parentID := uuid.New()
+	repo := &fakeRecordAccessRepo{allowed: true}
+	handler := middleware.RequireNestedParentRecordAccess(repo)(okHandler)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/deals/"+parentID.String()+"/quotes", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Len(t, repo.calls, 1)
+	require.Equal(t, domain.ACLModuleDeals, repo.calls[0].module)
+	require.Equal(t, parentID, repo.calls[0].id)
+	require.Equal(t, domain.SharingAccessWrite, repo.calls[0].access)
+}
+
+func TestRequireNestedParentRecordAccessSkipsTopLevelRecords(t *testing.T) {
+	parentID := uuid.New()
+	repo := &fakeRecordAccessRepo{allowed: false}
+	handler := middleware.RequireNestedParentRecordAccess(repo)(okHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/contacts/"+parentID.String(), nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, repo.calls)
 }

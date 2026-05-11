@@ -56,6 +56,63 @@ func TestAccessRepoResolveAccess_DoesNotInheritAncestorSharingGrants(t *testing.
 	assert.True(t, adminAccess.CanAccessAllRecords(domain.ACLModuleAccounts, domain.SharingAccessWrite))
 }
 
+func TestAccessRepoCanAccessRecordUsesSharingVisibility(t *testing.T) {
+	pool, ctx := setupDB(t)
+	accessRepo := postgres.NewAccessRepo(pool)
+	contactRepo := postgres.NewContactRepo(pool)
+
+	ownerID := uuid.New()
+	otherID := uuid.New()
+	adminID := uuid.New()
+	for _, user := range []struct {
+		id   uuid.UUID
+		role string
+		name string
+	}{
+		{ownerID, "agent", "Owner Agent"},
+		{otherID, "agent", "Other Agent"},
+		{adminID, "admin", "Admin User"},
+	} {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO users (id, org_id, email, name, role)
+			VALUES ($1, $2, $3, $4, $5)
+		`, user.id, defaultOrgID, user.id.String()+"@omnir.test", user.name, user.role)
+		require.NoError(t, err)
+	}
+
+	owned, err := contactRepo.Create(ctx, &domain.Contact{
+		FirstName: "Owned",
+		LastName:  "Contact",
+		OwnerID:   ownerID,
+		Stage:     domain.ContactStageLead,
+	})
+	require.NoError(t, err)
+	other, err := contactRepo.Create(ctx, &domain.Contact{
+		FirstName: "Private",
+		LastName:  "Contact",
+		OwnerID:   otherID,
+		Stage:     domain.ContactStageLead,
+	})
+	require.NoError(t, err)
+
+	ownerAccess, err := accessRepo.ResolveAccess(ctx, ownerID, defaultOrgID, string(domain.UserRoleAgent))
+	require.NoError(t, err)
+	ownerCtx := domain.WithAccessContext(ctx, ownerAccess)
+	canAccess, err := accessRepo.CanAccessRecord(ownerCtx, domain.ACLModuleContacts, owned.ID, domain.SharingAccessRead)
+	require.NoError(t, err)
+	assert.True(t, canAccess)
+	canAccess, err = accessRepo.CanAccessRecord(ownerCtx, domain.ACLModuleContacts, other.ID, domain.SharingAccessRead)
+	require.NoError(t, err)
+	assert.False(t, canAccess)
+
+	adminAccess, err := accessRepo.ResolveAccess(ctx, adminID, defaultOrgID, string(domain.UserRoleAdmin))
+	require.NoError(t, err)
+	adminCtx := domain.WithAccessContext(ctx, adminAccess)
+	canAccess, err = accessRepo.CanAccessRecord(adminCtx, domain.ACLModuleContacts, other.ID, domain.SharingAccessWrite)
+	require.NoError(t, err)
+	assert.True(t, canAccess)
+}
+
 func TestAccessRepo_ACLObjectMutationsAreScopedToContextOrg(t *testing.T) {
 	pool, ctx := setupDB(t)
 	repo := postgres.NewAccessRepo(pool)

@@ -218,6 +218,70 @@ func (r *AccessRepo) ResolveAccess(ctx context.Context, userID, orgID uuid.UUID,
 	return access, rows.Err()
 }
 
+func (r *AccessRepo) CanAccessRecord(ctx context.Context, module domain.ACLModule, id uuid.UUID, accessLevel domain.SharingAccessLevel) (bool, error) {
+	table, ownerPredicate, ok := recordAccessTarget(module)
+	if !ok {
+		return true, nil
+	}
+
+	access, ok := domain.AccessContextFromContext(ctx)
+	if !ok || access.CanAccessAllRecords(module, accessLevel) {
+		return r.recordExists(ctx, table, id, "")
+	}
+
+	return r.recordExists(ctx, table, id, ownerPredicate)
+}
+
+func recordAccessTarget(module domain.ACLModule) (table string, ownerPredicate string, ok bool) {
+	switch module {
+	case domain.ACLModuleAccounts:
+		return "accounts", "owner_id = %s", true
+	case domain.ACLModuleContacts:
+		return "contacts", "owner_id = %s", true
+	case domain.ACLModuleDeals:
+		return "deals", "owner_id = %s", true
+	case domain.ACLModuleLeads:
+		return "leads", "owner_id = %s", true
+	case domain.ACLModuleTickets:
+		return "tickets", "(assignee_id = %s OR submitted_by_user_id = %s)", true
+	default:
+		return "", "", false
+	}
+}
+
+func (r *AccessRepo) recordExists(ctx context.Context, table string, id uuid.UUID, ownerPredicate string) (bool, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		if access, hasAccess := domain.AccessContextFromContext(ctx); hasAccess {
+			orgID = access.OrgID
+		}
+	}
+	if orgID == uuid.Nil {
+		return false, nil
+	}
+
+	q := fmt.Sprintf(`SELECT EXISTS(SELECT 1 FROM %s WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`, table)
+	args := []any{id, orgID}
+	if ownerPredicate != "" {
+		placeholder := "$3"
+		if strings.Count(ownerPredicate, "%s") > 1 {
+			q += " AND " + fmt.Sprintf(ownerPredicate, placeholder, placeholder)
+		} else {
+			q += " AND " + fmt.Sprintf(ownerPredicate, placeholder)
+		}
+		access, ok := domain.AccessContextFromContext(ctx)
+		if !ok {
+			return false, nil
+		}
+		args = append(args, access.UserID)
+	}
+	q += ")"
+
+	var exists bool
+	err := r.db.QueryRow(ctx, q, args...).Scan(&exists)
+	return exists, err
+}
+
 func (r *AccessRepo) ListRoles(ctx context.Context, orgID uuid.UUID) ([]*domain.ACLRole, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, org_id, name, description, system_key, parent_id, created_at, updated_at

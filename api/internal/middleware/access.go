@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/repository"
 )
@@ -114,6 +116,34 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 	}
 }
 
+// RequireNestedParentRecordAccess ensures child resources inherit the sharing
+// visibility of their parent CRM record.
+func RequireNestedParentRecordAccess(repo repository.RecordAccessRepository) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			module, id, accessLevel, ok, err := nestedParentRecordFromRequest(r)
+			if err != nil {
+				http.Error(w, `{"error":"bad_request","code":"invalid_parent_id"}`, http.StatusBadRequest)
+				return
+			}
+			if !ok || repo == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			canAccess, err := repo.CanAccessRecord(r.Context(), module, id, accessLevel)
+			if err != nil {
+				http.Error(w, `{"error":"access_check_failed"}`, http.StatusInternalServerError)
+				return
+			}
+			if !canAccess {
+				http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLAction, bool) {
 	module, ok := moduleFromPath(r.URL.Path)
 	if !ok {
@@ -136,6 +166,54 @@ func actionFromMethod(method string) domain.ACLAction {
 		return domain.ACLActionDelete
 	default:
 		return domain.ACLActionRead
+	}
+}
+
+func nestedParentRecordFromRequest(r *http.Request) (domain.ACLModule, uuid.UUID, domain.SharingAccessLevel, bool, error) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return "", uuid.Nil, "", false, nil
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return "", uuid.Nil, "", false, nil
+	}
+
+	module, ok := parentRecordModule(parts[0])
+	if !ok {
+		return "", uuid.Nil, "", false, nil
+	}
+	id, err := uuid.Parse(parts[1])
+	if err != nil {
+		return "", uuid.Nil, "", false, err
+	}
+	return module, id, sharingAccessFromMethod(r.Method), true, nil
+}
+
+func parentRecordModule(segment string) (domain.ACLModule, bool) {
+	switch segment {
+	case "accounts":
+		return domain.ACLModuleAccounts, true
+	case "contacts":
+		return domain.ACLModuleContacts, true
+	case "deals":
+		return domain.ACLModuleDeals, true
+	case "leads":
+		return domain.ACLModuleLeads, true
+	case "tickets":
+		return domain.ACLModuleTickets, true
+	default:
+		return "", false
+	}
+}
+
+func sharingAccessFromMethod(method string) domain.SharingAccessLevel {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return domain.SharingAccessRead
+	default:
+		return domain.SharingAccessWrite
 	}
 }
 
