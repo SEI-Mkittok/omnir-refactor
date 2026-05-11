@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
@@ -22,6 +23,7 @@ func NewAccessSettingsHandler(repo repository.AccessRepository) *AccessSettingsH
 
 func (h *AccessSettingsHandler) RolesRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Use(requireAccessSettingsAdmin)
 	r.Get("/", h.ListRoles)
 	r.Post("/", h.CreateRole)
 	r.Patch("/{id}", h.UpdateRole)
@@ -32,6 +34,7 @@ func (h *AccessSettingsHandler) RolesRouter() chi.Router {
 
 func (h *AccessSettingsHandler) ProfilesRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Use(requireAccessSettingsAdmin)
 	r.Get("/", h.ListProfiles)
 	r.Post("/", h.CreateProfile)
 	r.Get("/catalog", h.PermissionCatalog)
@@ -44,6 +47,7 @@ func (h *AccessSettingsHandler) ProfilesRouter() chi.Router {
 
 func (h *AccessSettingsHandler) GroupsRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Use(requireAccessSettingsAdmin)
 	r.Get("/", h.ListGroups)
 	r.Post("/", h.CreateGroup)
 	r.Patch("/{id}", h.UpdateGroup)
@@ -54,9 +58,30 @@ func (h *AccessSettingsHandler) GroupsRouter() chi.Router {
 
 func (h *AccessSettingsHandler) SharingRulesRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Use(requireAccessSettingsAdmin)
 	r.Get("/", h.GetSharingRules)
 	r.Patch("/", h.ReplaceSharingRules)
 	return r
+}
+
+func requireAccessSettingsAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hasAccessSettingsAdmin(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		writeError(w, http.StatusForbidden, "admin access required")
+	})
+}
+
+func hasAccessSettingsAdmin(r *http.Request) bool {
+	if claims, ok := middleware.ClaimsFromContext(r); ok && domain.IsAdminRole(claims.Role) {
+		return true
+	}
+	if access, ok := domain.AccessContextFromContext(r.Context()); ok {
+		return access.HasPermission(domain.ACLModuleSettings, domain.ACLActionAdmin)
+	}
+	return false
 }
 
 func (h *AccessSettingsHandler) ListRoles(w http.ResponseWriter, r *http.Request) {
