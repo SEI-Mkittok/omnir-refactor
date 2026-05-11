@@ -622,7 +622,13 @@ func (r *AccessRepo) CreateGroup(ctx context.Context, group *domain.ACLGroup) (*
 			group.OrgID = orgID
 		}
 	}
-	created, err := scanACLGroup(r.db.QueryRow(ctx, `
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	created, err := scanACLGroup(tx.QueryRow(ctx, `
 		INSERT INTO crm_groups (id, org_id, name, description)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, org_id, name, description, ARRAY[]::uuid[]
@@ -631,10 +637,14 @@ func (r *AccessRepo) CreateGroup(ctx context.Context, group *domain.ACLGroup) (*
 		return nil, err
 	}
 	if len(group.UserIDs) > 0 {
-		if err := r.ReplaceGroupMembers(ctx, created.ID, group.UserIDs); err != nil {
+		userIDs, err := replaceGroupMembersTx(ctx, tx, group.OrgID, created.ID, group.UserIDs)
+		if err != nil {
 			return nil, err
 		}
-		created.UserIDs = group.UserIDs
+		created.UserIDs = userIDs
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return created, nil
 }
@@ -704,16 +714,24 @@ func (r *AccessRepo) ReplaceGroupMembers(ctx context.Context, groupID uuid.UUID,
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if _, err := replaceGroupMembersTx(ctx, tx, orgID, groupID, userIDs); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func replaceGroupMembersTx(ctx context.Context, tx pgx.Tx, orgID, groupID uuid.UUID, userIDs []uuid.UUID) ([]uuid.UUID, error) {
 	if err := tx.QueryRow(ctx, `SELECT org_id FROM crm_groups WHERE id = $1 AND org_id = $2`, groupID, orgID).Scan(&orgID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ErrNotFound
+			return nil, domain.ErrNotFound
 		}
-		return err
+		return nil, err
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM crm_group_members WHERE org_id = $1 AND group_id = $2`, orgID, groupID); err != nil {
-		return err
+		return nil, err
 	}
 	seen := map[uuid.UUID]struct{}{}
+	applied := []uuid.UUID{}
 	for _, userID := range userIDs {
 		if _, ok := seen[userID]; ok {
 			continue
@@ -726,13 +744,14 @@ func (r *AccessRepo) ReplaceGroupMembers(ctx context.Context, groupID uuid.UUID,
 			WHERE u.id = $3 AND u.org_id = $1 AND u.deleted_at IS NULL
 		`, orgID, groupID, userID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if result.RowsAffected() == 0 {
-			return domain.ErrNotFound
+			return nil, domain.ErrNotFound
 		}
+		applied = append(applied, userID)
 	}
-	return tx.Commit(ctx)
+	return applied, nil
 }
 
 func (r *AccessRepo) GetSharingRules(ctx context.Context, orgID uuid.UUID) (*domain.ACLSharingRules, error) {

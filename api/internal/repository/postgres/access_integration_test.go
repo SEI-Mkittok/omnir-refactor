@@ -247,3 +247,38 @@ func TestAccessRepo_MoveRoleKeepsSystemRolesImmutable(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, originalParentID, parentID)
 }
+
+func TestAccessRepo_CreateGroupWithInvalidMemberRollsBack(t *testing.T) {
+	pool, ctx := setupDB(t)
+	repo := postgres.NewAccessRepo(pool)
+
+	otherOrgID := uuid.New()
+	_, err := pool.Exec(ctx, `
+		INSERT INTO orgs (id, name, slug, plan)
+		VALUES ($1, 'Other Org', $2, 'single')
+	`, otherOrgID, "other-"+otherOrgID.String())
+	require.NoError(t, err)
+
+	otherUserID := uuid.New()
+	_, err = pool.Exec(ctx, `
+		INSERT INTO users (id, org_id, email, name, role)
+		VALUES ($1, $2, $3, 'Other User', 'agent')
+	`, otherUserID, otherOrgID, "other-"+otherUserID.String()+"@omnir.test")
+	require.NoError(t, err)
+
+	groupID := uuid.New()
+	_, err = repo.CreateGroup(ctx, &domain.ACLGroup{
+		ID:      groupID,
+		Name:    "Invalid Member Group",
+		UserIDs: []uuid.UUID{otherUserID},
+	})
+	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	var groupCount, memberCount int
+	err = pool.QueryRow(ctx, `SELECT COUNT(*) FROM crm_groups WHERE id = $1`, groupID).Scan(&groupCount)
+	require.NoError(t, err)
+	err = pool.QueryRow(ctx, `SELECT COUNT(*) FROM crm_group_members WHERE group_id = $1`, groupID).Scan(&memberCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, groupCount)
+	assert.Equal(t, 0, memberCount)
+}
