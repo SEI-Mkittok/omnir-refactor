@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/Dialog'
 import { formatDate } from '@/lib/utils'
 import { canAccessAdminModule } from '@/lib/access'
+import { applyPlatformRoleChange } from '@/lib/userAssignments'
 import type { ACLProfile, ACLRole, User, UserRole, CreateUserRequest, UpdateUserRequest } from '@/api/types'
 
 const ROLE_OPTIONS = [
@@ -140,7 +141,7 @@ function CreateUserDialog({ open, onClose, aclRoles, profiles }: CreateUserDialo
             <select
               className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               value={form.role}
-              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+              onChange={(e) => setForm((f) => applyPlatformRoleChange(f, e.target.value as UserRole))}
             >
               {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -270,7 +271,7 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
                 <select
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
                   value={form.role ?? 'agent'}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+                  onChange={(e) => setForm((f) => applyPlatformRoleChange(f, e.target.value as UserRole))}
                 >
                   {form.role === 'super_admin' && (
                     <option value="super_admin" disabled>
