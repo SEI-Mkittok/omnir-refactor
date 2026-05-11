@@ -126,6 +126,9 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if childModule, _, hasChildModule := childModuleActionFromRequest(r); hasChildModule {
+				module = childModule
+			}
 			if isSelfServicePreferenceRequest(r) {
 				next.ServeHTTP(w, r)
 				return

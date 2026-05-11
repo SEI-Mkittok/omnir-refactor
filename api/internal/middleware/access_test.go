@@ -316,6 +316,39 @@ func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *test
 	require.Contains(t, w.Body.String(), "field_write_denied")
 }
 
+func TestRequireFieldWriteAccessChecksNestedChildModuleFields(t *testing.T) {
+	dealID := uuid.New()
+	handler := middleware.RequireFieldWriteAccess()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"amount":100}`, string(body))
+		w.WriteHeader(http.StatusCreated)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/deals/"+dealID.String()+"/quotes", strings.NewReader(`{"amount":100}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleQuotes: {"amount": false},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+	require.Contains(t, w.Body.String(), "field_write_denied")
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/deals/"+dealID.String()+"/quotes", strings.NewReader(`{"amount":100}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleDeals: {"amount": false},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+}
+
 func TestRequireFieldWriteAccessAllowsSelfServicePreferenceUpdates(t *testing.T) {
 	userID := uuid.New()
 	handler := middleware.RequireFieldWriteAccess()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
