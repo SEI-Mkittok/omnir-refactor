@@ -273,14 +273,7 @@ func (h *UserHandler) isAdminOrSelf(r *http.Request, targetID uuid.UUID) bool {
 }
 
 func (h *UserHandler) hasAdminAccess(r *http.Request) bool {
-	claims, ok := middleware.ClaimsFromContext(r)
-	if ok && domain.IsAdminRole(claims.Role) {
-		return true
-	}
-	if access, hasAccess := domain.AccessContextFromContext(r.Context()); hasAccess {
-		return access.HasPermission(domain.ACLModuleUsers, domain.ACLActionAdmin)
-	}
-	return false
+	return hasModuleAdminAccess(r, domain.ACLModuleUsers)
 }
 
 // handleUserMutationErr maps low-level Postgres constraint/type errors to
