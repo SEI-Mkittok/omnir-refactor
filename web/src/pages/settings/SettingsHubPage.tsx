@@ -16,6 +16,7 @@ import {
   type OutgoingServerSettings,
   type PortalSettings,
 } from '@/api/adminSettings'
+import { canAccessAdminPath, isWorkspaceAdmin } from '@/lib/access'
 
 interface SettingsCard {
   icon: React.ElementType
@@ -314,7 +315,8 @@ function Card({ icon: Icon, title, description, href, badge }: SettingsCard) {
 
 export function SettingsHubPage() {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.profile_name === 'Administrator'
+  const visibleAdminCards = ADMIN_CARDS.filter((card) => canAccessAdminPath(user, card.href))
+  const isAdmin = isWorkspaceAdmin(user) || visibleAdminCards.length > 0
 
   const usersSummary = useQuery({
     queryKey: ['settings-hub', 'summary', 'users'],
@@ -474,7 +476,7 @@ export function SettingsHubPage() {
             Organisation &amp; Administration
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {ADMIN_CARDS.map((card) => (
+            {visibleAdminCards.map((card) => (
               <Card key={card.href} {...card} />
             ))}
           </div>

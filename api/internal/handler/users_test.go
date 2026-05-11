@@ -369,6 +369,38 @@ func TestUserHandler_GetMe(t *testing.T) {
 	}
 }
 
+func TestUserHandler_GetMeIncludesResolvedPermissions(t *testing.T) {
+	userID := uuid.New()
+	mockRepo := new(mocks.MockUserRepository)
+	mockRepo.On("GetByID", mock.Anything, userID).Return(makeUser(userID), nil)
+	h := handler.NewUserHandler(mockRepo)
+
+	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req = withClaims(req, userClaims(userID))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		OrgID:  domain.DefaultOrgID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {
+				domain.ACLActionAdmin: true,
+			},
+			domain.ACLModuleSettings: {
+				domain.ACLActionAdmin: true,
+			},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.GetMe(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var got domain.User
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&got))
+	require.True(t, got.Permissions[domain.ACLModuleUsers][domain.ACLActionAdmin])
+	require.True(t, got.Permissions[domain.ACLModuleSettings][domain.ACLActionAdmin])
+	mockRepo.AssertExpectations(t)
+}
+
 func TestUserHandler_GetByID(t *testing.T) {
 	adminID := uuid.New()
 	regularID := uuid.New()

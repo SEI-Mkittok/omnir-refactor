@@ -96,6 +96,9 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if access, ok := domain.AccessContextFromContext(r.Context()); ok {
+		u.Permissions = access.Permissions
+	}
 	writeJSON(w, http.StatusOK, u)
 }
 

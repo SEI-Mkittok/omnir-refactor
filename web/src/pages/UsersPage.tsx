@@ -19,6 +19,7 @@ import {
   DialogClose,
 } from '@/components/ui/Dialog'
 import { formatDate } from '@/lib/utils'
+import { canAccessAdminModule } from '@/lib/access'
 import type { ACLProfile, ACLRole, User, UserRole, CreateUserRequest, UpdateUserRequest } from '@/api/types'
 
 const ROLE_OPTIONS = [
@@ -54,10 +55,6 @@ const roleLabel: Record<UserRole, string> = {
   admin: 'Admin',
   agent: 'Agent',
   client: 'Client',
-}
-
-function isWorkspaceAdmin(role: UserRole | undefined, profileName?: string) {
-  return role === 'admin' || role === 'super_admin' || profileName === 'Administrator'
 }
 
 function getApiErrorMessage(err: unknown, fallback: string): string {
@@ -199,20 +196,19 @@ function CreateUserDialog({ open, onClose, aclRoles, profiles }: CreateUserDialo
 
 interface EditUserDialogProps {
   user: User | null
-  currentUserRole: UserRole
-  currentUserProfileName?: string
+  currentUser: User | null
   currentUserId: string
   onClose: () => void
   aclRoles: ACLRole[]
   profiles: ACLProfile[]
 }
 
-function EditUserDialog({ user, currentUserRole, currentUserProfileName, currentUserId, onClose, aclRoles, profiles }: EditUserDialogProps) {
+function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, profiles }: EditUserDialogProps) {
   const { mutate: updateUser, isPending } = useUpdateUser()
   const [form, setForm] = useState<UpdateUserRequest>({})
   const [error, setError] = useState('')
 
-  const isAdmin = isWorkspaceAdmin(currentUserRole, currentUserProfileName)
+  const isAdmin = canAccessAdminModule(currentUser, 'users')
   const isSelf = user?.id === currentUserId
 
   // Populate form when user changes
@@ -335,7 +331,7 @@ function EditUserDialog({ user, currentUserRole, currentUserProfileName, current
 
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user)
-  const isAdmin = isWorkspaceAdmin(currentUser?.role, currentUser?.profile_name)
+  const isAdmin = canAccessAdminModule(currentUser, 'users')
 
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
@@ -537,8 +533,7 @@ export function UsersPage() {
       )}
       <EditUserDialog
         user={editUser}
-        currentUserRole={currentUser?.role ?? 'agent'}
-        currentUserProfileName={currentUser?.profile_name}
+        currentUser={currentUser}
         currentUserId={currentUser?.id ?? ''}
         aclRoles={aclRoles}
         profiles={profiles}

@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 import { updateOnboarding } from '@/api/onboarding'
 import { useMenuConfigSettings } from '@/hooks/useAdminSettings'
+import { canAccessAdminPath } from '@/lib/access'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -114,7 +115,6 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const activeOrg = useAuthStore((s) => s.activeOrg)
   const { sidebarCollapsed, toggleSidebar, onboardingDismissed, setOnboardingDismissed } = useUIStore()
   const collapsed = sidebarCollapsed
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.profile_name === 'Administrator'
   const { data: menuSettings } = useMenuConfigSettings()
 
   async function handleDismissOnboarding(e: React.MouseEvent) {
@@ -129,7 +129,9 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const handleClose = onMobileClose ?? onClose
 
   const menuConfig = menuSettings?.menu_config ?? {}
-  const groups = (isAdmin ? [...NAV_GROUPS, ADMIN_GROUP] : NAV_GROUPS).map((group) => ({
+  const adminItems = ADMIN_GROUP.items.filter((item) => canAccessAdminPath(user, item.to))
+  const baseGroups = adminItems.length > 0 ? [...NAV_GROUPS, { ...ADMIN_GROUP, items: adminItems }] : NAV_GROUPS
+  const groups = baseGroups.map((group) => ({
     ...group,
     items: group.items.filter((item) => {
       const key = ROUTE_MENU_KEYS[item.to]

@@ -34,19 +34,20 @@ func IsValidUserRole(role UserRole) bool {
 }
 
 type User struct {
-	ID          uuid.UUID  `json:"id"`
-	OrgID       uuid.UUID  `json:"org_id"`
-	Email       string     `json:"email"`
-	Name        string     `json:"name"`
-	Role        UserRole   `json:"role"`
-	RoleID      *uuid.UUID `json:"role_id,omitempty"`
-	ProfileID   *uuid.UUID `json:"profile_id,omitempty"`
-	RoleName    *string    `json:"role_name,omitempty"`
-	ProfileName *string    `json:"profile_name,omitempty"`
-	AvatarURL   *string    `json:"avatar_url,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	ID          uuid.UUID                        `json:"id"`
+	OrgID       uuid.UUID                        `json:"org_id"`
+	Email       string                           `json:"email"`
+	Name        string                           `json:"name"`
+	Role        UserRole                         `json:"role"`
+	RoleID      *uuid.UUID                       `json:"role_id,omitempty"`
+	ProfileID   *uuid.UUID                       `json:"profile_id,omitempty"`
+	RoleName    *string                          `json:"role_name,omitempty"`
+	ProfileName *string                          `json:"profile_name,omitempty"`
+	Permissions map[ACLModule]map[ACLAction]bool `json:"permissions,omitempty"`
+	AvatarURL   *string                          `json:"avatar_url,omitempty"`
+	CreatedAt   time.Time                        `json:"created_at"`
+	UpdatedAt   time.Time                        `json:"updated_at"`
+	DeletedAt   *time.Time                       `json:"deleted_at,omitempty"`
 }
 
 // UserPatch holds optional fields for partial user updates.

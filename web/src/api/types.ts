@@ -58,6 +58,7 @@ export interface User {
   profile_id?: string
   role_name?: string
   profile_name?: string
+  permissions?: ACLPermissionMap
   avatar_url?: string
   created_at: string
   updated_at: string
@@ -126,6 +127,7 @@ export type ACLModule =
   | 'webhooks'
 
 export type ACLAction = 'read' | 'create' | 'update' | 'delete' | 'export' | 'admin'
+export type ACLPermissionMap = Partial<Record<ACLModule, Partial<Record<ACLAction, boolean>>>>
 export type SharingDefaultMode = 'private' | 'public_read' | 'public_rw'
 export type SharingAccessLevel = 'read' | 'write'
 export type SharingGranteeType = 'role' | 'group'
