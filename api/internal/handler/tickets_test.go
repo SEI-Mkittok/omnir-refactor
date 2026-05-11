@@ -806,6 +806,58 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 	}
 }
 
+func TestTicketHandler_PublicReadAllowsCommentReadButBlocksNonOwnerCommentCreate(t *testing.T) {
+	ticketID := uuid.New()
+	userID := uuid.New()
+	ownerID := uuid.New()
+	orgID := domain.DefaultOrgID
+	access := &domain.AccessContext{
+		UserID: userID,
+		OrgID:  orgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleTickets: {Mode: domain.SharingDefaultPublicRO},
+		},
+	}
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+	mockTickets.On("GetByID", mock.Anything, ticketID).
+		Return(&domain.Ticket{ID: ticketID, SubmittedByUserID: &ownerID}, nil).
+		Twice()
+	mockComments.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketCommentFilter) bool {
+		return f.TicketID == ticketID && f.IsInternal == nil
+	})).Return([]*domain.TicketComment{}, nil).Once()
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/"+ticketID.String()+"/comments", nil)
+	listReq = withURLParam(listReq, "id", ticketID.String())
+	listReq = withClaims(listReq, &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAgent)})
+	listReq = listReq.WithContext(domain.WithAccessContext(listReq.Context(), access))
+	listW := httptest.NewRecorder()
+
+	h.ListComments(listW, listReq)
+
+	require.Equal(t, http.StatusOK, listW.Code)
+
+	body, err := json.Marshal(map[string]any{"body": "read-only users should not mutate"})
+	require.NoError(t, err)
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/"+ticketID.String()+"/comments", bytes.NewReader(body))
+	createReq = withURLParam(createReq, "id", ticketID.String())
+	createReq = withClaims(createReq, &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAgent)})
+	createReq = createReq.WithContext(domain.WithAccessContext(createReq.Context(), access))
+	createReq.Header.Set("Content-Type", "application/json")
+	createW := httptest.NewRecorder()
+
+	h.CreateComment(createW, createReq)
+
+	require.Equal(t, http.StatusNotFound, createW.Code)
+	mockComments.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	mockTickets.AssertExpectations(t)
+	mockComments.AssertExpectations(t)
+}
+
 func TestTicketHandler_ListAttachments_NormalizesNilSlice(t *testing.T) {
 	ticketID := uuid.New()
 
