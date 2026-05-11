@@ -265,6 +265,10 @@ func (r *AccessRepo) CreateRole(ctx context.Context, role *domain.ACLRole) (*dom
 }
 
 func (r *AccessRepo) UpdateRole(ctx context.Context, id uuid.UUID, patch domain.ACLRolePatch) (*domain.ACLRole, error) {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
 	i := 1
@@ -280,35 +284,28 @@ func (r *AccessRepo) UpdateRole(ctx context.Context, id uuid.UUID, patch domain.
 		add("description", *patch.Description)
 	}
 	if patch.ParentID != nil {
-		var orgID uuid.UUID
-		if err := r.db.QueryRow(ctx, `SELECT org_id FROM crm_roles WHERE id = $1`, id).Scan(&orgID); err != nil {
-			return nil, err
-		}
 		if err := r.ensureRoleParentSafe(ctx, orgID, id, patch.ParentID); err != nil {
 			return nil, err
 		}
 		add("parent_id", *patch.ParentID)
 	}
-	args = append(args, id)
+	args = append(args, id, orgID)
 	query := fmt.Sprintf(`
 		UPDATE crm_roles
 		SET %s
-		WHERE id = $%d AND system_key IS NULL
+		WHERE id = $%d AND org_id = $%d AND system_key IS NULL
 		RETURNING id, org_id, name, description, system_key, parent_id, created_at, updated_at
-	`, strings.Join(sets, ", "), i)
+	`, strings.Join(sets, ", "), i, i+1)
 	role, err := scanACLRole(r.db.QueryRow(ctx, query, args...))
 	if err != nil {
 		return nil, err
 	}
-	return role, r.rebuildRoleClosure(ctx, role.OrgID)
+	return role, r.rebuildRoleClosure(ctx, orgID)
 }
 
 func (r *AccessRepo) DeleteRole(ctx context.Context, id uuid.UUID) error {
-	var orgID uuid.UUID
-	if err := r.db.QueryRow(ctx, `SELECT org_id FROM crm_roles WHERE id = $1 AND system_key IS NULL`, id).Scan(&orgID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ErrNotFound
-		}
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
 		return err
 	}
 	tx, err := r.db.Begin(ctx)
@@ -316,15 +313,15 @@ func (r *AccessRepo) DeleteRole(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE grantee_type = 'role' AND grantee_id = $1`, id); err != nil {
-		return err
-	}
-	result, err := tx.Exec(ctx, `DELETE FROM crm_roles WHERE id = $1 AND system_key IS NULL`, id)
+	result, err := tx.Exec(ctx, `DELETE FROM crm_roles WHERE id = $1 AND org_id = $2 AND system_key IS NULL`, id, orgID)
 	if err != nil {
 		return err
 	}
 	if result.RowsAffected() == 0 {
 		return domain.ErrNotFound
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE org_id = $1 AND grantee_type = 'role' AND grantee_id = $2`, orgID, id); err != nil {
+		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
@@ -333,11 +330,8 @@ func (r *AccessRepo) DeleteRole(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *AccessRepo) MoveRole(ctx context.Context, id uuid.UUID, parentID *uuid.UUID) (*domain.ACLRole, error) {
-	var orgID uuid.UUID
-	if err := r.db.QueryRow(ctx, `SELECT org_id FROM crm_roles WHERE id = $1`, id).Scan(&orgID); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain.ErrNotFound
-		}
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if err := r.ensureRoleParentSafe(ctx, orgID, id, parentID); err != nil {
@@ -346,9 +340,9 @@ func (r *AccessRepo) MoveRole(ctx context.Context, id uuid.UUID, parentID *uuid.
 	role, err := scanACLRole(r.db.QueryRow(ctx, `
 		UPDATE crm_roles
 		SET parent_id = $1, updated_at = NOW()
-		WHERE id = $2
+		WHERE id = $2 AND org_id = $3
 		RETURNING id, org_id, name, description, system_key, parent_id, created_at, updated_at
-	`, parentID, id))
+	`, parentID, id, orgID))
 	if err != nil {
 		return nil, err
 	}
@@ -394,6 +388,10 @@ func (r *AccessRepo) CreateProfile(ctx context.Context, profile *domain.ACLProfi
 }
 
 func (r *AccessRepo) UpdateProfile(ctx context.Context, id uuid.UUID, patch domain.ACLProfilePatch) (*domain.ACLProfile, error) {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
 	i := 1
@@ -407,17 +405,21 @@ func (r *AccessRepo) UpdateProfile(ctx context.Context, id uuid.UUID, patch doma
 		args = append(args, *patch.Description)
 		i++
 	}
-	args = append(args, id)
+	args = append(args, id, orgID)
 	return scanACLProfile(r.db.QueryRow(ctx, fmt.Sprintf(`
 		UPDATE crm_profiles
 		SET %s
-		WHERE id = $%d AND system_key IS NULL
+		WHERE id = $%d AND org_id = $%d AND system_key IS NULL
 		RETURNING id, org_id, name, description, system_key
-	`, strings.Join(sets, ", "), i), args...))
+	`, strings.Join(sets, ", "), i, i+1), args...))
 }
 
 func (r *AccessRepo) DeleteProfile(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.Exec(ctx, `DELETE FROM crm_profiles WHERE id = $1 AND system_key IS NULL`, id)
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return err
+	}
+	result, err := r.db.Exec(ctx, `DELETE FROM crm_profiles WHERE id = $1 AND org_id = $2 AND system_key IS NULL`, id, orgID)
 	if err != nil {
 		return err
 	}
@@ -428,13 +430,20 @@ func (r *AccessRepo) DeleteProfile(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *AccessRepo) ListProfilePermissions(ctx context.Context, profileID uuid.UUID) ([]domain.ACLProfilePermission, []domain.ACLProfileFieldPermission, error) {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := r.ensureProfileInOrg(ctx, orgID, profileID); err != nil {
+		return nil, nil, err
+	}
 	perms := []domain.ACLProfilePermission{}
 	rows, err := r.db.Query(ctx, `
 		SELECT profile_id, module, action, allowed
 		FROM crm_profile_permissions
-		WHERE profile_id = $1
+		WHERE org_id = $1 AND profile_id = $2
 		ORDER BY module, action
-	`, profileID)
+	`, orgID, profileID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -454,9 +463,9 @@ func (r *AccessRepo) ListProfilePermissions(ctx context.Context, profileID uuid.
 	rows, err = r.db.Query(ctx, `
 		SELECT profile_id, module, field_name, can_write
 		FROM crm_profile_field_permissions
-		WHERE profile_id = $1
+		WHERE org_id = $1 AND profile_id = $2
 		ORDER BY module, field_name
-	`, profileID)
+	`, orgID, profileID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -472,17 +481,23 @@ func (r *AccessRepo) ListProfilePermissions(ctx context.Context, profileID uuid.
 }
 
 func (r *AccessRepo) ReplaceProfilePermissions(ctx context.Context, profileID uuid.UUID, permissions []domain.ACLProfilePermission, fieldPermissions []domain.ACLProfileFieldPermission) error {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return err
+	}
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	var orgID uuid.UUID
-	if err := tx.QueryRow(ctx, `SELECT org_id FROM crm_profiles WHERE id = $1`, profileID).Scan(&orgID); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT org_id FROM crm_profiles WHERE id = $1 AND org_id = $2`, profileID, orgID).Scan(&orgID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM crm_profile_permissions WHERE profile_id = $1`, profileID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM crm_profile_permissions WHERE org_id = $1 AND profile_id = $2`, orgID, profileID); err != nil {
 		return err
 	}
 	for _, p := range permissions {
@@ -494,7 +509,7 @@ func (r *AccessRepo) ReplaceProfilePermissions(ctx context.Context, profileID uu
 			return err
 		}
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM crm_profile_field_permissions WHERE profile_id = $1`, profileID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM crm_profile_field_permissions WHERE org_id = $1 AND profile_id = $2`, orgID, profileID); err != nil {
 		return err
 	}
 	for _, f := range fieldPermissions {
@@ -561,6 +576,10 @@ func (r *AccessRepo) CreateGroup(ctx context.Context, group *domain.ACLGroup) (*
 }
 
 func (r *AccessRepo) UpdateGroup(ctx context.Context, id uuid.UUID, patch domain.ACLGroupPatch) (*domain.ACLGroup, error) {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
 	i := 1
@@ -574,10 +593,10 @@ func (r *AccessRepo) UpdateGroup(ctx context.Context, id uuid.UUID, patch domain
 		args = append(args, *patch.Description)
 		i++
 	}
-	args = append(args, id)
+	args = append(args, id, orgID)
 	return scanACLGroup(r.db.QueryRow(ctx, fmt.Sprintf(`
 		WITH updated AS (
-			UPDATE crm_groups SET %s WHERE id = $%d
+			UPDATE crm_groups SET %s WHERE id = $%d AND org_id = $%d
 			RETURNING id, org_id, name, description
 		)
 		SELECT updated.id, updated.org_id, updated.name, updated.description,
@@ -585,48 +604,68 @@ func (r *AccessRepo) UpdateGroup(ctx context.Context, id uuid.UUID, patch domain
 		FROM updated
 		LEFT JOIN crm_group_members gm ON gm.group_id = updated.id
 		GROUP BY updated.id, updated.org_id, updated.name, updated.description
-	`, strings.Join(sets, ", "), i), args...))
+	`, strings.Join(sets, ", "), i, i+1), args...))
 }
 
 func (r *AccessRepo) DeleteGroup(ctx context.Context, id uuid.UUID) error {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return err
+	}
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE grantee_type = 'group' AND grantee_id = $1`, id); err != nil {
-		return err
-	}
-	result, err := tx.Exec(ctx, `DELETE FROM crm_groups WHERE id = $1`, id)
+	result, err := tx.Exec(ctx, `DELETE FROM crm_groups WHERE id = $1 AND org_id = $2`, id, orgID)
 	if err != nil {
 		return err
 	}
 	if result.RowsAffected() == 0 {
 		return domain.ErrNotFound
 	}
+	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE org_id = $1 AND grantee_type = 'group' AND grantee_id = $2`, orgID, id); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 
 func (r *AccessRepo) ReplaceGroupMembers(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) error {
+	orgID, err := accessOrgID(ctx)
+	if err != nil {
+		return err
+	}
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
-	var orgID uuid.UUID
-	if err := tx.QueryRow(ctx, `SELECT org_id FROM crm_groups WHERE id = $1`, groupID).Scan(&orgID); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT org_id FROM crm_groups WHERE id = $1 AND org_id = $2`, groupID, orgID).Scan(&orgID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
 		return err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM crm_group_members WHERE group_id = $1`, groupID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM crm_group_members WHERE org_id = $1 AND group_id = $2`, orgID, groupID); err != nil {
 		return err
 	}
+	seen := map[uuid.UUID]struct{}{}
 	for _, userID := range userIDs {
-		_, err := tx.Exec(ctx, `
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		result, err := tx.Exec(ctx, `
 			INSERT INTO crm_group_members (org_id, group_id, user_id)
-			VALUES ($1, $2, $3)
+			SELECT $1, $2, u.id
+			FROM users u
+			WHERE u.id = $3 AND u.org_id = $1 AND u.deleted_at IS NULL
 		`, orgID, groupID, userID)
 		if err != nil {
 			return err
+		}
+		if result.RowsAffected() == 0 {
+			return domain.ErrNotFound
 		}
 	}
 	return tx.Commit(ctx)
@@ -757,6 +796,27 @@ func scanACLGroup(row pgx.Row) (*domain.ACLGroup, error) {
 		return nil, err
 	}
 	return &group, nil
+}
+
+func accessOrgID(ctx context.Context) (uuid.UUID, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok || orgID == uuid.Nil {
+		return uuid.Nil, domain.ErrNotFound
+	}
+	return orgID, nil
+}
+
+func (r *AccessRepo) ensureProfileInOrg(ctx context.Context, orgID, profileID uuid.UUID) error {
+	var exists bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM crm_profiles WHERE id = $1 AND org_id = $2)
+	`, profileID, orgID).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func (r *AccessRepo) ensureRoleParentSafe(ctx context.Context, orgID, roleID uuid.UUID, parentID *uuid.UUID) error {
