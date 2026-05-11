@@ -50,6 +50,10 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if isSelfServiceUserUpdate(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			access, ok := domain.AccessContextFromContext(r.Context())
 			if !ok {
 				http.Error(w, `{"error":"forbidden","code":"access_context_required"}`, http.StatusForbidden)
@@ -62,6 +66,24 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func isSelfServiceUserUpdate(r *http.Request) bool {
+	if r.Method != http.MethodPatch {
+		return false
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 || parts[0] != "users" {
+		return false
+	}
+	claims, ok := ClaimsFromContext(r)
+	if !ok {
+		return false
+	}
+	userID, err := uuid.Parse(parts[1])
+	return err == nil && userID == claims.UserID
 }
 
 // RequireFieldWriteAccess rejects JSON mutations that touch fields explicitly

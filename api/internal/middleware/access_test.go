@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 )
@@ -51,6 +52,44 @@ func TestRequireModulePermissionUsesResolvedProfilePermissions(t *testing.T) {
 		},
 	}))
 	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestRequireModulePermissionAllowsSelfServiceUserUpdate(t *testing.T) {
+	userID := uuid.New()
+	handler := middleware.RequireModulePermission()(okHandler)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/users/"+userID.String(), nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: userID,
+		Role:   string(domain.UserRoleAgent),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {domain.ACLActionRead: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	otherID := uuid.New()
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/users/"+otherID.String(), nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: userID,
+		Role:   string(domain.UserRoleAgent),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+
 	handler.ServeHTTP(w, req)
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
