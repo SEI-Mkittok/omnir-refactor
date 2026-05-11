@@ -182,6 +182,10 @@ func (r *AccessRepo) ResolveAccess(ctx context.Context, userID, orgID uuid.UUID,
 		return nil, err
 	}
 
+	roleGrantIDs := []uuid.UUID{}
+	if access.RoleID != nil {
+		roleGrantIDs = append(roleGrantIDs, *access.RoleID)
+	}
 	rows, err = r.db.Query(ctx, `
 		SELECT module, access_level
 		FROM crm_sharing_grants
@@ -190,7 +194,7 @@ func (r *AccessRepo) ResolveAccess(ctx context.Context, userID, orgID uuid.UUID,
 			(grantee_type = 'role' AND grantee_id = ANY($2))
 			OR (grantee_type = 'group' AND grantee_id = ANY($3))
 		  )
-	`, orgID, access.RoleLineageIDs, access.GroupIDs)
+	`, orgID, roleGrantIDs, access.GroupIDs)
 	if err != nil {
 		return nil, err
 	}
