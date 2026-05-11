@@ -280,7 +280,11 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+    previous_org_id TEXT := current_setting('app.current_org_id', true);
 BEGIN
+    PERFORM set_config('app.current_org_id', p_org_id::TEXT, true);
+
     WITH role_seed(system_key, name, description) AS (
         VALUES
             ('super_admin', 'Super Admin', 'Cross-organization operator role.'),
@@ -396,6 +400,8 @@ BEGIN
     WHERE r.org_id = p_org_id
       AND r.system_key IN ('super_admin', 'admin')
     ON CONFLICT (org_id, module, grantee_type, grantee_id, access_level) DO NOTHING;
+
+    PERFORM set_config('app.current_org_id', COALESCE(previous_org_id, ''), true);
 END;
 $$;
 

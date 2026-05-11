@@ -95,6 +95,53 @@ func TestRLS_TenantIsolation(t *testing.T) {
 	})
 }
 
+func TestRLS_Bundle4OrgSeedTriggerUsesNewOrgContext(t *testing.T) {
+	pool, _ := setupDB(t)
+	err := postgres.EnableRLS(context.Background(), pool)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = postgres.DisableRLS(context.Background(), pool)
+	})
+
+	ctx := context.Background()
+	conn, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+	defer conn.Release()
+
+	_, err = conn.Exec(ctx, `SELECT set_config('app.current_org_id', $1, false)`, defaultOrgID.String())
+	require.NoError(t, err)
+
+	orgID := uuid.New()
+	_, err = conn.Exec(ctx, `
+		INSERT INTO orgs (id, name, slug, plan)
+		VALUES ($1, 'Seeded Org', $2, 'starter')
+	`, orgID, "seeded-"+orgID.String())
+	require.NoError(t, err)
+
+	var currentOrg string
+	err = conn.QueryRow(ctx, `SELECT current_setting('app.current_org_id', true)`).Scan(&currentOrg)
+	require.NoError(t, err)
+	assert.Equal(t, defaultOrgID.String(), currentOrg)
+
+	_, err = conn.Exec(ctx, `SELECT set_config('app.current_org_id', $1, false)`, orgID.String())
+	require.NoError(t, err)
+
+	var roleCount, profileCount, sharingDefaultCount, sharingGrantCount int
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM crm_roles WHERE org_id = $1`, orgID).Scan(&roleCount)
+	require.NoError(t, err)
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM crm_profiles WHERE org_id = $1`, orgID).Scan(&profileCount)
+	require.NoError(t, err)
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM crm_sharing_defaults WHERE org_id = $1`, orgID).Scan(&sharingDefaultCount)
+	require.NoError(t, err)
+	err = conn.QueryRow(ctx, `SELECT COUNT(*) FROM crm_sharing_grants WHERE org_id = $1`, orgID).Scan(&sharingGrantCount)
+	require.NoError(t, err)
+
+	assert.Equal(t, 4, roleCount)
+	assert.Equal(t, 6, profileCount)
+	assert.Equal(t, 5, sharingDefaultCount)
+	assert.Equal(t, 10, sharingGrantCount)
+}
+
 // TestRLS_DisabledInSingleMode verifies that when RLS is not forced, contacts
 // are accessible without an org_id in the session (superuser / single-tenant).
 func TestRLS_DisabledInSingleMode(t *testing.T) {
