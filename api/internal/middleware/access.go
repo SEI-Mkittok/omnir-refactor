@@ -160,6 +160,10 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 	if first == "auth" || first == "push" || first == "attachments" || first == "portal-links" {
 		return "", false
 	}
+	// Portal routes enforce client role and ownership in the portal handlers.
+	if first == "portal" {
+		return "", false
+	}
 	if first == "admin" && second == "audit-log" {
 		return domain.ACLModuleAuditLog, true
 	}
@@ -181,10 +185,6 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 	if first == "ops-finance" {
 		return domain.ACLModuleOpsFinance, true
 	}
-	if first == "portal" {
-		return domain.ACLModuleTickets, true
-	}
-
 	modules := map[string]domain.ACLModule{
 		"accounts":      domain.ACLModuleAccounts,
 		"activities":    domain.ACLModuleActivities,

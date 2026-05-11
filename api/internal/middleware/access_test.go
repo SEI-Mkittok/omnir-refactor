@@ -65,3 +65,29 @@ func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *test
 	require.Equal(t, http.StatusForbidden, w.Code)
 	require.Contains(t, w.Body.String(), "field_write_denied")
 }
+
+func TestPortalRoutesBypassInternalModuleACL(t *testing.T) {
+	moduleHandler := middleware.RequireModulePermission()(okHandler)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/portal/tickets", nil)
+	w := httptest.NewRecorder()
+	moduleHandler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	fieldHandler := middleware.RequireFieldWriteAccess()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"status":"open"}`, string(body))
+		w.WriteHeader(http.StatusCreated)
+	}))
+	fieldReq := httptest.NewRequest(http.MethodPost, "/api/v1/portal/tickets", strings.NewReader(`{"status":"open"}`))
+	fieldReq.Header.Set("Content-Type", "application/json")
+	fieldReq = fieldReq.WithContext(domain.WithAccessContext(fieldReq.Context(), &domain.AccessContext{
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleTickets: {"status": false},
+		},
+	}))
+	w = httptest.NewRecorder()
+	fieldHandler.ServeHTTP(w, fieldReq)
+	require.Equal(t, http.StatusCreated, w.Code)
+}
