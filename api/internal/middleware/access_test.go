@@ -94,6 +94,44 @@ func TestRequireModulePermissionAllowsSelfServiceUserUpdate(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestRequireModulePermissionAllowsSelfServicePreferenceUpdates(t *testing.T) {
+	userID := uuid.New()
+	handler := middleware.RequireModulePermission()(okHandler)
+	readOnlySettingsAccess := &domain.AccessContext{
+		UserID: userID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleSettings: {domain.ACLActionRead: true},
+		},
+	}
+
+	for _, path := range []string{
+		"/api/v1/settings/preferences",
+		"/api/v1/settings/calendar-preferences",
+	} {
+		req := httptest.NewRequest(http.MethodPatch, path, nil)
+		req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+			UserID: userID,
+			Role:   string(domain.UserRoleAgent),
+		}))
+		req = req.WithContext(domain.WithAccessContext(req.Context(), readOnlySettingsAccess))
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code, path)
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/settings/company", nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: userID,
+		Role:   string(domain.UserRoleAgent),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), readOnlySettingsAccess))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
 func TestRequireModulePermissionChecksImportTargetModule(t *testing.T) {
 	handler := middleware.RequireModulePermission()(okHandler)
 
@@ -158,6 +196,50 @@ func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *test
 	handler.ServeHTTP(w, deniedReq)
 	require.Equal(t, http.StatusForbidden, w.Code)
 	require.Contains(t, w.Body.String(), "field_write_denied")
+}
+
+func TestRequireFieldWriteAccessAllowsSelfServicePreferenceUpdates(t *testing.T) {
+	userID := uuid.New()
+	handler := middleware.RequireFieldWriteAccess()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"calendar_default_view":"week"}`, string(body))
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/settings/preferences", strings.NewReader(`{"calendar_default_view":"week"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: userID,
+		Role:   string(domain.UserRoleAgent),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleSettings: {"calendar_default_view": false},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/settings/company", strings.NewReader(`{"calendar_default_view":"week"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: userID,
+		Role:   string(domain.UserRoleAgent),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleSettings: {"calendar_default_view": false},
+		},
+	}))
+	w = httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
 func TestPortalRoutesBypassInternalModuleACL(t *testing.T) {

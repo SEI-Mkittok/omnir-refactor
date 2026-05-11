@@ -54,6 +54,10 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if isSelfServicePreferenceUpdate(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			access, ok := domain.AccessContextFromContext(r.Context())
 			if !ok {
 				http.Error(w, `{"error":"forbidden","code":"access_context_required"}`, http.StatusForbidden)
@@ -86,6 +90,22 @@ func isSelfServiceUserUpdate(r *http.Request) bool {
 	return err == nil && userID == claims.UserID
 }
 
+func isSelfServicePreferenceUpdate(r *http.Request) bool {
+	if r.Method != http.MethodPatch {
+		return false
+	}
+	if _, ok := ClaimsFromContext(r); !ok {
+		return false
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 || parts[0] != "settings" {
+		return false
+	}
+	return parts[1] == "preferences" || parts[1] == "calendar-preferences"
+}
+
 // RequireFieldWriteAccess rejects JSON mutations that touch fields explicitly
 // disabled by the user's profile.
 func RequireFieldWriteAccess() func(http.Handler) http.Handler {
@@ -97,6 +117,10 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 			}
 			module, _, ok := moduleActionFromRequest(r)
 			if !ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if isSelfServicePreferenceUpdate(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
