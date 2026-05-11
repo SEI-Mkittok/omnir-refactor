@@ -230,6 +230,9 @@ FROM orgs o
 CROSS JOIN sharing_modules m
 ON CONFLICT (org_id, module) DO NOTHING;
 
+WITH sharing_modules(module) AS (
+    VALUES ('accounts'), ('contacts'), ('deals'), ('leads'), ('tickets')
+)
 INSERT INTO crm_sharing_grants (org_id, module, grantee_type, grantee_id, access_level)
 SELECT r.org_id, m.module, 'role', r.id, 'write'
 FROM crm_roles r
