@@ -200,18 +200,19 @@ function CreateUserDialog({ open, onClose, aclRoles, profiles }: CreateUserDialo
 interface EditUserDialogProps {
   user: User | null
   currentUserRole: UserRole
+  currentUserProfileName?: string
   currentUserId: string
   onClose: () => void
   aclRoles: ACLRole[]
   profiles: ACLProfile[]
 }
 
-function EditUserDialog({ user, currentUserRole, currentUserId, onClose, aclRoles, profiles }: EditUserDialogProps) {
+function EditUserDialog({ user, currentUserRole, currentUserProfileName, currentUserId, onClose, aclRoles, profiles }: EditUserDialogProps) {
   const { mutate: updateUser, isPending } = useUpdateUser()
   const [form, setForm] = useState<UpdateUserRequest>({})
   const [error, setError] = useState('')
 
-  const isAdmin = isWorkspaceAdmin(currentUserRole, user?.profile_name)
+  const isAdmin = isWorkspaceAdmin(currentUserRole, currentUserProfileName)
   const isSelf = user?.id === currentUserId
 
   // Populate form when user changes
@@ -537,6 +538,7 @@ export function UsersPage() {
       <EditUserDialog
         user={editUser}
         currentUserRole={currentUser?.role ?? 'agent'}
+        currentUserProfileName={currentUser?.profile_name}
         currentUserId={currentUser?.id ?? ''}
         aclRoles={aclRoles}
         profiles={profiles}
