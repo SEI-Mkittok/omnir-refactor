@@ -51,6 +51,9 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User, passwordHash stri
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		u.OrgID = orgID
 	}
+	if err := r.validateACLAssignments(ctx, u.OrgID, u.RoleID, u.ProfileID); err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
 	u.CreatedAt = now
 	u.UpdatedAt = now
@@ -78,6 +81,52 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User, passwordHash stri
 	return scanUser(row)
 }
 
+func (r *UserRepo) validateACLAssignments(ctx context.Context, orgID uuid.UUID, roleID, profileID *uuid.UUID) error {
+	if roleID == nil && profileID == nil {
+		return nil
+	}
+	if orgID == uuid.Nil {
+		return fmt.Errorf("%w: org_id required for role/profile assignment", domain.ErrValidation)
+	}
+	if roleID != nil {
+		if err := r.ensureUserRoleInOrg(ctx, orgID, *roleID); err != nil {
+			return err
+		}
+	}
+	if profileID != nil {
+		if err := r.ensureUserProfileInOrg(ctx, orgID, *profileID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *UserRepo) ensureUserRoleInOrg(ctx context.Context, orgID, roleID uuid.UUID) error {
+	var exists bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM crm_roles WHERE id = $1 AND org_id = $2)
+	`, roleID, orgID).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("%w: role_id not found in org", domain.ErrValidation)
+	}
+	return nil
+}
+
+func (r *UserRepo) ensureUserProfileInOrg(ctx context.Context, orgID, profileID uuid.UUID) error {
+	var exists bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(SELECT 1 FROM crm_profiles WHERE id = $1 AND org_id = $2)
+	`, profileID, orgID).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("%w: profile_id not found in org", domain.ErrValidation)
+	}
+	return nil
+}
+
 // FindByEmail returns the user and bcrypt password hash for the given email.
 // Returns nil user (not error) when not found.
 func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, string, error) {
@@ -88,8 +137,8 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 		       users.role_id, users.profile_id, role_ref.name, profile_ref.name,
 		       users.avatar_url, users.created_at, users.updated_at, users.deleted_at, users.password_hash
 		FROM users
-		LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id
-		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id
+		LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id AND role_ref.org_id = users.org_id
+		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id AND profile_ref.org_id = users.org_id
 		WHERE users.email = $1 AND users.deleted_at IS NULL
 	`, email).Scan(
 		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Role,
@@ -124,8 +173,8 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 // GetByID returns a user by ID, scoped to the org in context.
 func (r *UserRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	q := `SELECT ` + userCols + ` FROM users
-		LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id
-		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id
+		LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id AND role_ref.org_id = users.org_id
+		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id AND profile_ref.org_id = users.org_id
 		WHERE users.id=$1 AND users.deleted_at IS NULL`
 	args := []any{id}
 
@@ -139,6 +188,16 @@ func (r *UserRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, err
 
 // Update applies a partial patch to a user.
 func (r *UserRepo) Update(ctx context.Context, id uuid.UUID, patch domain.UserPatch) (*domain.User, error) {
+	if patch.RoleID != nil || patch.ProfileID != nil {
+		orgID, ok := domain.OrgIDFromContext(ctx)
+		if !ok || orgID == uuid.Nil {
+			return nil, fmt.Errorf("%w: org_id required for role/profile assignment", domain.ErrValidation)
+		}
+		if err := r.validateACLAssignments(ctx, orgID, patch.RoleID, patch.ProfileID); err != nil {
+			return nil, err
+		}
+	}
+
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
 	i := 1
@@ -191,8 +250,8 @@ func (r *UserRepo) Update(ctx context.Context, id uuid.UUID, patch domain.UserPa
 		       updated.role_id, updated.profile_id, role_ref.name, profile_ref.name,
 		       updated.avatar_url, updated.created_at, updated.updated_at, updated.deleted_at
 		FROM updated
-		LEFT JOIN crm_roles role_ref ON role_ref.id = updated.role_id
-		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = updated.profile_id`,
+		LEFT JOIN crm_roles role_ref ON role_ref.id = updated.role_id AND role_ref.org_id = updated.org_id
+		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = updated.profile_id AND profile_ref.org_id = updated.org_id`,
 		strings.Join(sets, ", "), whereClause,
 	)
 	return scanUser(r.db.QueryRow(ctx, query, args...))
@@ -282,8 +341,8 @@ func (r *UserRepo) List(ctx context.Context, f domain.UserFilter) ([]*domain.Use
 		fmt.Sprintf(
 			`SELECT %s
 			 FROM users
-			 LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id
-			 LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id
+			 LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id AND role_ref.org_id = users.org_id
+			 LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id AND profile_ref.org_id = users.org_id
 			 WHERE %s
 			 ORDER BY users.%s %s
 			 LIMIT $%d OFFSET $%d`,
