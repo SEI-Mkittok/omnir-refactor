@@ -32,6 +32,27 @@ interface DraftGrant {
   access_level: SharingAccessLevel
 }
 
+export function appendUniqueSharingGrant(
+  grants: ACLSharingGrant[],
+  draft: DraftGrant
+): ACLSharingGrant[] {
+  const exists = grants.some(
+    (grant) =>
+      grant.grantee_type === draft.grantee_type &&
+      grant.grantee_id === draft.grantee_id &&
+      grant.access_level === draft.access_level
+  )
+  if (exists) return grants
+  return [
+    ...grants,
+    {
+      grantee_type: draft.grantee_type,
+      grantee_id: draft.grantee_id,
+      access_level: draft.access_level,
+    },
+  ]
+}
+
 export function SharingRulesPage() {
   const { data, isLoading } = useSharingRules()
   const { data: roles = [] } = useACLRoles()
@@ -53,15 +74,9 @@ export function SharingRulesPage() {
   function addGrant(module: ACLModule) {
     const draft = draftGrants[module]
     if (!draft?.grantee_id) return
+    const grants = rules.find((rule) => rule.module === module)?.grants ?? []
     updateRule(module, {
-      grants: [
-        ...(rules.find((rule) => rule.module === module)?.grants ?? []),
-        {
-          grantee_type: draft.grantee_type,
-          grantee_id: draft.grantee_id,
-          access_level: draft.access_level,
-        },
-      ],
+      grants: appendUniqueSharingGrant(grants, draft),
     })
     setDraftGrants((current) => ({
       ...current,
