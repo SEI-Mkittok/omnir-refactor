@@ -25,6 +25,27 @@ function moduleLabel(module: ACLModule) {
   return module.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+export function upsertFieldPermissionOverride(
+  fieldPermissions: ACLProfileFieldPermission[],
+  override: ACLProfileFieldPermission
+) {
+  const normalizedOverride = {
+    ...override,
+    field_name: override.field_name.trim(),
+  }
+  let replaced = false
+
+  const updated = fieldPermissions.map((field) => {
+    if (field.module === normalizedOverride.module && field.field_name === normalizedOverride.field_name) {
+      replaced = true
+      return normalizedOverride
+    }
+    return field
+  })
+
+  return replaced ? updated : [...fieldPermissions, normalizedOverride]
+}
+
 export function ProfilesPage() {
   const { data: profiles = [], isLoading } = useACLProfiles()
   const { data: catalog } = usePermissionCatalog()
@@ -98,15 +119,15 @@ export function ProfilesPage() {
   }
 
   function addFieldPermission() {
-    if (!newField.module || !newField.field_name.trim()) return
-    setFieldPermissions((current) => [
-      ...current,
-      {
+    const fieldName = newField.field_name.trim()
+    if (!newField.module || !fieldName) return
+    setFieldPermissions((current) =>
+      upsertFieldPermissionOverride(current, {
         module: newField.module as ACLModule,
-        field_name: newField.field_name.trim(),
+        field_name: fieldName,
         can_write: newField.can_write,
-      },
-    ])
+      })
+    )
     setNewField({ module: '', field_name: '', can_write: false })
   }
 
