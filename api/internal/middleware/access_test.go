@@ -94,30 +94,33 @@ func TestRequireModulePermissionAllowsSelfServiceUserUpdate(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
-func TestRequireModulePermissionAllowsSelfServicePreferenceUpdates(t *testing.T) {
+func TestRequireModulePermissionAllowsSelfServicePreferenceRequests(t *testing.T) {
 	userID := uuid.New()
 	handler := middleware.RequireModulePermission()(okHandler)
-	readOnlySettingsAccess := &domain.AccessContext{
-		UserID: userID,
-		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
-			domain.ACLModuleSettings: {domain.ACLActionRead: true},
-		},
+	noSettingsAccess := &domain.AccessContext{
+		UserID:      userID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{},
 	}
 
-	for _, path := range []string{
-		"/api/v1/settings/preferences",
-		"/api/v1/settings/calendar-preferences",
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/settings/preferences"},
+		{http.MethodPatch, "/api/v1/settings/preferences"},
+		{http.MethodGet, "/api/v1/settings/calendar-preferences"},
+		{http.MethodPatch, "/api/v1/settings/calendar-preferences"},
 	} {
-		req := httptest.NewRequest(http.MethodPatch, path, nil)
+		req := httptest.NewRequest(tc.method, tc.path, nil)
 		req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
 			UserID: userID,
 			Role:   string(domain.UserRoleAgent),
 		}))
-		req = req.WithContext(domain.WithAccessContext(req.Context(), readOnlySettingsAccess))
+		req = req.WithContext(domain.WithAccessContext(req.Context(), noSettingsAccess))
 		w := httptest.NewRecorder()
 
 		handler.ServeHTTP(w, req)
-		require.Equal(t, http.StatusOK, w.Code, path)
+		require.Equal(t, http.StatusOK, w.Code, tc.method+" "+tc.path)
 	}
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/settings/company", nil)
@@ -125,8 +128,19 @@ func TestRequireModulePermissionAllowsSelfServicePreferenceUpdates(t *testing.T)
 		UserID: userID,
 		Role:   string(domain.UserRoleAgent),
 	}))
-	req = req.WithContext(domain.WithAccessContext(req.Context(), readOnlySettingsAccess))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), noSettingsAccess))
 	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/settings/company", nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: userID,
+		Role:   string(domain.UserRoleAgent),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), noSettingsAccess))
+	w = httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
 	require.Equal(t, http.StatusForbidden, w.Code)

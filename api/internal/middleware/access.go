@@ -54,7 +54,7 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if isSelfServicePreferenceUpdate(r) {
+			if isSelfServicePreferenceRequest(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -96,8 +96,8 @@ func isSelfServiceUserUpdate(r *http.Request) bool {
 	return err == nil && userID == claims.UserID
 }
 
-func isSelfServicePreferenceUpdate(r *http.Request) bool {
-	if r.Method != http.MethodPatch {
+func isSelfServicePreferenceRequest(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodPatch {
 		return false
 	}
 	if _, ok := ClaimsFromContext(r); !ok {
@@ -126,7 +126,7 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if isSelfServicePreferenceUpdate(r) {
+			if isSelfServicePreferenceRequest(r) {
 				next.ServeHTTP(w, r)
 				return
 			}
