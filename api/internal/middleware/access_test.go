@@ -230,3 +230,16 @@ func TestRequireNestedParentRecordAccessSkipsTopLevelRecords(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Empty(t, repo.calls)
 }
+
+func TestRequireNestedParentRecordAccessSkipsNonRecordModuleSubroutes(t *testing.T) {
+	relationshipID := uuid.New()
+	repo := &fakeRecordAccessRepo{allowed: false}
+	handler := middleware.RequireNestedParentRecordAccess(repo)(okHandler)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/relationships/"+relationshipID.String(), nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, repo.calls)
+}

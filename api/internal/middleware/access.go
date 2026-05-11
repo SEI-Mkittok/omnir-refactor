@@ -208,7 +208,10 @@ func nestedParentRecordFromRequest(r *http.Request) (domain.ACLModule, uuid.UUID
 	}
 	id, err := uuid.Parse(parts[1])
 	if err != nil {
-		return "", uuid.Nil, "", false, err
+		// Some routers expose collection subroutes under a record module prefix,
+		// e.g. /accounts/relationships/{relationshipID}; those are not parent
+		// record child routes and should be left to their handlers.
+		return "", uuid.Nil, "", false, nil
 	}
 	return module, id, sharingAccessFromMethod(r.Method), true, nil
 }
