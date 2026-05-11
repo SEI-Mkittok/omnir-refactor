@@ -169,6 +169,64 @@ func TestRequireModulePermissionChecksImportTargetModule(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestRequireModulePermissionChecksNestedChildModules(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+	dealID := uuid.New()
+	contactID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/deals/"+dealID.String()+"/quotes", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleDeals: {domain.ACLActionRead: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/deals/"+dealID.String()+"/quotes", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleDeals:  {domain.ACLActionRead: true},
+			domain.ACLModuleQuotes: {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/contacts/"+contactID.String()+"/emails", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/contacts/"+contactID.String()+"/emails", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionRead: true},
+			domain.ACLModuleEmails:   {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/deals/"+dealID.String()+"/quotes", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleQuotes: {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
 func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *testing.T) {
 	access := &domain.AccessContext{
 		FieldWrite: map[domain.ACLModule]map[string]bool{

@@ -67,6 +67,12 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 				http.Error(w, `{"error":"forbidden","code":"permission_denied"}`, http.StatusForbidden)
 				return
 			}
+			if childModule, childAction, hasChildModule := childModuleActionFromRequest(r); hasChildModule {
+				if !access.HasPermission(childModule, childAction) {
+					http.Error(w, `{"error":"forbidden","code":"permission_denied"}`, http.StatusForbidden)
+					return
+				}
+			}
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -200,6 +206,14 @@ func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLActio
 		action = domain.ACLActionExport
 	}
 	return module, action, true
+}
+
+func childModuleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLAction, bool) {
+	module, ok := childModuleFromPath(r.URL.Path)
+	if !ok {
+		return "", "", false
+	}
+	return module, actionFromMethod(r.Method), true
 }
 
 func actionFromMethod(method string) domain.ACLAction {
@@ -344,6 +358,33 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 	}
 	module, ok := modules[first]
 	return module, ok
+}
+
+func childModuleFromPath(path string) (domain.ACLModule, bool) {
+	path = strings.TrimPrefix(path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return "", false
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return "", false
+	}
+	if _, err := uuid.Parse(parts[1]); err != nil {
+		return "", false
+	}
+
+	switch parts[0] {
+	case "contacts":
+		if parts[2] == "emails" {
+			return domain.ACLModuleEmails, true
+		}
+	case "deals":
+		if parts[2] == "quotes" {
+			return domain.ACLModuleQuotes, true
+		}
+	}
+	return "", false
 }
 
 func importModuleFromPath(segment string) (domain.ACLModule, bool) {
