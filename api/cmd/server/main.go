@@ -248,7 +248,7 @@ func main() {
 	contactAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, appBaseURL, domain.EntityTypeContact, "id")
 	accountAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, appBaseURL, domain.EntityTypeAccount, "id")
 	dealAttachmentHandler := handler.NewEntityAttachmentHandler(entityAttachmentRepo, uploadsDir, appBaseURL, domain.EntityTypeDeal, "id")
-	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo)
+	attachmentDownloadHandler := handler.NewAttachmentDownloadHandler(entityAttachmentRepo, accessRepo)
 	sequenceHandler := handler.NewSequenceHandler(sequenceRepo)
 	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)

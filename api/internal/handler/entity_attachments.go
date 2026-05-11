@@ -266,11 +266,12 @@ func (h *EntityAttachmentHandler) attachmentDownloadURL(id uuid.UUID) string {
 
 // AttachmentDownloadHandler serves raw attachment files.
 type AttachmentDownloadHandler struct {
-	repo repository.EntityAttachmentRepository
+	repo         repository.EntityAttachmentRepository
+	recordAccess repository.RecordAccessRepository
 }
 
-func NewAttachmentDownloadHandler(repo repository.EntityAttachmentRepository) *AttachmentDownloadHandler {
-	return &AttachmentDownloadHandler{repo: repo}
+func NewAttachmentDownloadHandler(repo repository.EntityAttachmentRepository, recordAccess repository.RecordAccessRepository) *AttachmentDownloadHandler {
+	return &AttachmentDownloadHandler{repo: repo, recordAccess: recordAccess}
 }
 
 func (h *AttachmentDownloadHandler) Router() chi.Router {
@@ -291,6 +292,9 @@ func (h *AttachmentDownloadHandler) Download(w http.ResponseWriter, r *http.Requ
 		handleDomainErr(w, err)
 		return
 	}
+	if !h.canDownloadAttachment(w, r, a) {
+		return
+	}
 
 	f, err := os.Open(a.StoragePath)
 	if err != nil {
@@ -305,4 +309,44 @@ func (h *AttachmentDownloadHandler) Download(w http.ResponseWriter, r *http.Requ
 	encodedName := url.PathEscape(a.Filename)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename*=UTF-8''%s`, encodedName))
 	http.ServeContent(w, r, a.Filename, a.CreatedAt, f)
+}
+
+func (h *AttachmentDownloadHandler) canDownloadAttachment(w http.ResponseWriter, r *http.Request, a *domain.EntityAttachment) bool {
+	module, ok := attachmentEntityModule(a.EntityType)
+	if !ok {
+		writeError(w, http.StatusNotFound, "not found")
+		return false
+	}
+	access, ok := domain.AccessContextFromContext(r.Context())
+	if !ok || !access.HasPermission(module, domain.ACLActionRead) {
+		writeError(w, http.StatusNotFound, "not found")
+		return false
+	}
+	if h.recordAccess == nil {
+		writeError(w, http.StatusInternalServerError, "access check failed")
+		return false
+	}
+	canAccess, err := h.recordAccess.CanAccessRecord(r.Context(), module, a.EntityID, domain.SharingAccessRead)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "access check failed")
+		return false
+	}
+	if !canAccess {
+		writeError(w, http.StatusNotFound, "not found")
+		return false
+	}
+	return true
+}
+
+func attachmentEntityModule(entityType domain.EntityType) (domain.ACLModule, bool) {
+	switch entityType {
+	case domain.EntityTypeContact:
+		return domain.ACLModuleContacts, true
+	case domain.EntityTypeAccount:
+		return domain.ACLModuleAccounts, true
+	case domain.EntityTypeDeal:
+		return domain.ACLModuleDeals, true
+	default:
+		return "", false
+	}
 }
