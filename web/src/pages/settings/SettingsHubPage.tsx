@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   User, Shield, Users, SlidersHorizontal, KeyRound, Clock,
   ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook, Building2,
-  Send, PanelTopOpen, MenuSquare,
+  Send, PanelTopOpen, MenuSquare, GitBranch, Share2,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { usersApi } from '@/api/users'
@@ -56,6 +56,30 @@ const ADMIN_CARDS: SettingsCard[] = [
     title: 'Users & Roles',
     description: 'Invite team members, assign roles, and manage access.',
     href: '/users',
+  },
+  {
+    icon: GitBranch,
+    title: 'Roles',
+    description: 'Manage org roles and hierarchy for sharing rules.',
+    href: '/settings/roles',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Profiles',
+    description: 'Configure module actions and field write controls.',
+    href: '/settings/profiles',
+  },
+  {
+    icon: Share2,
+    title: 'Sharing Rules',
+    description: 'Set org defaults plus role and group record-access grants.',
+    href: '/settings/sharing-rules',
+  },
+  {
+    icon: Users,
+    title: 'Groups',
+    description: 'Create user groups for record sharing and team access.',
+    href: '/settings/groups',
   },
   {
     icon: SlidersHorizontal,
@@ -290,7 +314,7 @@ function Card({ icon: Icon, title, description, href, badge }: SettingsCard) {
 
 export function SettingsHubPage() {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.profile_name === 'Administrator'
 
   const usersSummary = useQuery({
     queryKey: ['settings-hub', 'summary', 'users'],

@@ -31,6 +31,7 @@ type SSOHandler struct {
 	encryptKey     string
 	callbackURL    string
 	apiCallbackURL string
+	auditor        Auditor
 }
 
 func NewSSOHandler(
@@ -54,6 +55,11 @@ func NewSSOHandler(
 // WithAPICallbackURL sets the callback URL used by the API-style SSO routes.
 func (h *SSOHandler) WithAPICallbackURL(url string) *SSOHandler {
 	h.apiCallbackURL = url
+	return h
+}
+
+func (h *SSOHandler) WithAuditLog(r repository.AuditLogRepository) *SSOHandler {
+	h.auditor = newAuditor(r)
 	return h
 }
 
@@ -344,6 +350,7 @@ func (h *SSOHandler) handleCallback(w http.ResponseWriter, r *http.Request, call
 	secure := r.TLS != nil
 	setAccessCookie(w, accessToken, secure)
 	setRefreshCookie(w, refreshToken, secure)
+	h.auditor.logLogin(r, user)
 
 	// Redirect to the SPA SSO landing page.
 	http.Redirect(w, r, "/auth/sso/done", http.StatusFound)

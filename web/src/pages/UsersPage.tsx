@@ -3,6 +3,7 @@ import axios from 'axios'
 import { Plus, UserCog } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useUsers'
+import { useACLRoles, useACLProfiles } from '@/hooks/useAccessSettings'
 import { useAuthStore } from '@/stores/auth'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
@@ -18,7 +19,7 @@ import {
   DialogClose,
 } from '@/components/ui/Dialog'
 import { formatDate } from '@/lib/utils'
-import type { User, UserRole, CreateUserRequest, UpdateUserRequest } from '@/api/types'
+import type { ACLProfile, ACLRole, User, UserRole, CreateUserRequest, UpdateUserRequest } from '@/api/types'
 
 const ROLE_OPTIONS = [
   { label: 'All Roles', value: '' },
@@ -55,8 +56,8 @@ const roleLabel: Record<UserRole, string> = {
   client: 'Client',
 }
 
-function isWorkspaceAdmin(role: UserRole | undefined) {
-  return role === 'admin' || role === 'super_admin'
+function isWorkspaceAdmin(role: UserRole | undefined, profileName?: string) {
+  return role === 'admin' || role === 'super_admin' || profileName === 'Administrator'
 }
 
 function getApiErrorMessage(err: unknown, fallback: string): string {
@@ -72,9 +73,11 @@ function getApiErrorMessage(err: unknown, fallback: string): string {
 interface CreateUserDialogProps {
   open: boolean
   onClose: () => void
+  aclRoles: ACLRole[]
+  profiles: ACLProfile[]
 }
 
-function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
+function CreateUserDialog({ open, onClose, aclRoles, profiles }: CreateUserDialogProps) {
   const { mutate: createUser, isPending } = useCreateUser()
   const [form, setForm] = useState<CreateUserRequest>({
     name: '',
@@ -136,7 +139,7 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Role</label>
+            <label className="text-sm font-medium text-slate-700">Platform Role</label>
             <select
               className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
               value={form.role}
@@ -148,6 +151,34 @@ function CreateUserDialog({ open, onClose }: CreateUserDialogProps) {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Org Role</label>
+              <select
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                value={form.role_id ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || undefined }))}
+              >
+                <option value="">Default from platform role</option>
+                {aclRoles.map((role) => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Profile</label>
+              <select
+                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                value={form.profile_id ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || undefined }))}
+              >
+                <option value="">Default from platform role</option>
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
@@ -171,20 +202,28 @@ interface EditUserDialogProps {
   currentUserRole: UserRole
   currentUserId: string
   onClose: () => void
+  aclRoles: ACLRole[]
+  profiles: ACLProfile[]
 }
 
-function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditUserDialogProps) {
+function EditUserDialog({ user, currentUserRole, currentUserId, onClose, aclRoles, profiles }: EditUserDialogProps) {
   const { mutate: updateUser, isPending } = useUpdateUser()
   const [form, setForm] = useState<UpdateUserRequest>({})
   const [error, setError] = useState('')
 
-  const isAdmin = isWorkspaceAdmin(currentUserRole)
+  const isAdmin = isWorkspaceAdmin(currentUserRole, user?.profile_name)
   const isSelf = user?.id === currentUserId
 
   // Populate form when user changes
   const handleOpen = () => {
     if (user) {
-      setForm({ name: user.name, email: user.email, role: user.role })
+      setForm({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        role_id: user.role_id,
+        profile_id: user.profile_id,
+      })
       setError('')
     }
   }
@@ -228,24 +267,52 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
             />
           </div>
           {isAdmin && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Role</label>
-              <select
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
-                value={form.role ?? 'agent'}
-                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
-              >
-                {form.role === 'super_admin' && (
-                  <option value="super_admin" disabled>
-                    Super Admin
-                  </option>
-                )}
-                {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Platform Role</label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                  value={form.role ?? 'agent'}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+                >
+                  {form.role === 'super_admin' && (
+                    <option value="super_admin" disabled>
+                      Super Admin
+                    </option>
+                  )}
+                  {ASSIGNABLE_ROLE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Org Role</label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                  value={form.role_id ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || undefined }))}
+                >
+                  <option value="">Default</option>
+                  {aclRoles.map((role) => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Profile</label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                  value={form.profile_id ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || undefined }))}
+                >
+                  <option value="">Default</option>
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>{profile.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -267,7 +334,7 @@ function EditUserDialog({ user, currentUserRole, currentUserId, onClose }: EditU
 
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user)
-  const isAdmin = isWorkspaceAdmin(currentUser?.role)
+  const isAdmin = isWorkspaceAdmin(currentUser?.role, currentUser?.profile_name)
 
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
@@ -289,6 +356,8 @@ export function UsersPage() {
   })
 
   const { mutate: deleteUser } = useDeleteUser()
+  const { data: aclRoles = [] } = useACLRoles()
+  const { data: profiles = [] } = useACLProfiles()
 
   const users = data?.data ?? []
   const total = data?.meta?.total ?? 0
@@ -323,9 +392,19 @@ export function UsersPage() {
     },
     {
       key: 'role',
-      header: 'Role',
+      header: 'Platform Role',
       render: (u) => (
         <Badge variant={roleBadgeVariant[u.role]}>{roleLabel[u.role]}</Badge>
+      ),
+    },
+    {
+      key: 'profile_name',
+      header: 'Access',
+      hideOnMobile: true,
+      render: (u) => (
+        <span className="text-sm text-slate-600">
+          {u.role_name ?? 'Default'} / {u.profile_name ?? 'Default'}
+        </span>
       ),
     },
     {
@@ -448,12 +527,19 @@ export function UsersPage() {
 
       {/* Dialogs */}
       {isAdmin && (
-        <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} />
+        <CreateUserDialog
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          aclRoles={aclRoles}
+          profiles={profiles}
+        />
       )}
       <EditUserDialog
         user={editUser}
         currentUserRole={currentUser?.role ?? 'agent'}
         currentUserId={currentUser?.id ?? ''}
+        aclRoles={aclRoles}
+        profiles={profiles}
         onClose={() => setEditUser(null)}
       />
     </div>

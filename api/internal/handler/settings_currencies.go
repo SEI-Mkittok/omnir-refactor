@@ -35,7 +35,13 @@ func (h *CurrencySettingsHandler) Router() chi.Router {
 func requireAdminRole(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || !domain.IsAdminRole(claims.Role) {
+		hasAdmin := ok && domain.IsAdminRole(claims.Role)
+		if !hasAdmin {
+			if access, hasAccess := domain.AccessContextFromContext(r.Context()); hasAccess {
+				hasAdmin = access.HasPermission(domain.ACLModuleSettings, domain.ACLActionAdmin)
+			}
+		}
+		if !hasAdmin {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}
@@ -109,4 +115,3 @@ func (h *CurrencySettingsHandler) Update(w http.ResponseWriter, r *http.Request)
 		"currencies":   rows,
 	})
 }
-

@@ -5,6 +5,7 @@ import {
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
   BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X, Hash, Send, PanelTopOpen, MenuSquare,
+  GitBranch, Share2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -64,6 +65,10 @@ const ADMIN_GROUP = {
   label: 'ADMIN',
   items: [
     { to: '/users', icon: UserCog, label: 'Users' },
+    { to: '/settings/roles', icon: GitBranch, label: 'Roles' },
+    { to: '/settings/profiles', icon: ShieldCheck, label: 'Profiles' },
+    { to: '/settings/sharing-rules', icon: Share2, label: 'Sharing Rules' },
+    { to: '/settings/groups', icon: Users, label: 'Groups' },
     { to: '/settings/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
     { to: '/settings/numbering', icon: Hash, label: 'Numbering' },
     { to: '/settings/company', icon: Building2, label: 'Company Profile' },
@@ -109,7 +114,7 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
   const activeOrg = useAuthStore((s) => s.activeOrg)
   const { sidebarCollapsed, toggleSidebar, onboardingDismissed, setOnboardingDismissed } = useUIStore()
   const collapsed = sidebarCollapsed
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.profile_name === 'Administrator'
   const { data: menuSettings } = useMenuConfigSettings()
 
   async function handleDismissOnboarding(e: React.MouseEvent) {

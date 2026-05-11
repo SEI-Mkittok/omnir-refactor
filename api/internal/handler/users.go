@@ -38,8 +38,7 @@ func (h *UserHandler) Router() chi.Router {
 // requireAdmin returns 403 if the caller is not an admin.
 func (h *UserHandler) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || !domain.IsAdminRole(claims.Role) {
+		if !h.hasAdminAccess(r) {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}
@@ -124,10 +123,12 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFromContext(r)
 	var req struct {
-		Name     string          `json:"name"`
-		Email    string          `json:"email"`
-		Password string          `json:"password"`
-		Role     domain.UserRole `json:"role"`
+		Name      string          `json:"name"`
+		Email     string          `json:"email"`
+		Password  string          `json:"password"`
+		Role      domain.UserRole `json:"role"`
+		RoleID    *uuid.UUID      `json:"role_id"`
+		ProfileID *uuid.UUID      `json:"profile_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
@@ -156,9 +157,11 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := &domain.User{
-		Email: req.Email,
-		Name:  req.Name,
-		Role:  req.Role,
+		Email:     req.Email,
+		Name:      req.Name,
+		Role:      req.Role,
+		RoleID:    req.RoleID,
+		ProfileID: req.ProfileID,
 	}
 	created, err := h.repo.Create(r.Context(), u, string(hash))
 	if err != nil {
@@ -195,16 +198,16 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isAdmin := domain.IsAdminRole(claims.Role)
+	isAdmin := h.hasAdminAccess(r)
 	isSelf := claims.UserID == id
 
 	if !isAdmin && !isSelf {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	// Non-admins cannot change role.
-	if !isAdmin && patch.Role != nil {
-		writeError(w, http.StatusForbidden, "only admins can change roles")
+	// Non-admins cannot change platform role or Bundle 4 assignments.
+	if !isAdmin && (patch.Role != nil || patch.RoleID != nil || patch.ProfileID != nil) {
+		writeError(w, http.StatusForbidden, "only admins can change roles or profiles")
 		return
 	}
 	if patch.Role != nil {
@@ -263,7 +266,18 @@ func (h *UserHandler) isAdminOrSelf(r *http.Request, targetID uuid.UUID) bool {
 	if !ok {
 		return false
 	}
-	return domain.IsAdminRole(claims.Role) || claims.UserID == targetID
+	return h.hasAdminAccess(r) || claims.UserID == targetID
+}
+
+func (h *UserHandler) hasAdminAccess(r *http.Request) bool {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if ok && domain.IsAdminRole(claims.Role) {
+		return true
+	}
+	if access, hasAccess := domain.AccessContextFromContext(r.Context()); hasAccess {
+		return access.HasPermission(domain.ACLModuleUsers, domain.ACLActionAdmin)
+	}
+	return false
 }
 
 // handleUserMutationErr maps low-level Postgres constraint/type errors to

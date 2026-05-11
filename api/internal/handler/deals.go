@@ -183,6 +183,11 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if d.Stage == "" {
 		d.Stage = domain.DealStageLead
 	}
+	if d.OwnerID == uuid.Nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			d.OwnerID = claims.UserID
+		}
+	}
 	if err := d.Validate(); err != nil {
 		handleDomainErr(w, err)
 		return

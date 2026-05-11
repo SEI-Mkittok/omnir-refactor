@@ -97,6 +97,11 @@ func (h *AccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if a.OwnerID == uuid.Nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			a.OwnerID = claims.UserID
+		}
+	}
 
 	if err := a.Validate(); err != nil {
 		handleDomainErr(w, err)

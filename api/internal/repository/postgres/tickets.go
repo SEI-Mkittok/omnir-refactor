@@ -115,6 +115,11 @@ func (r *TicketRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket,
 		q += ` AND org_id=$2`
 		args = append(args, orgID)
 	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleTickets, domain.SharingAccessRead) {
+		placeholder := fmt.Sprintf("$%d", len(args)+1)
+		q += fmt.Sprintf(` AND (assignee_id=%s OR submitted_by_user_id=%s)`, placeholder, placeholder)
+		args = append(args, acl.UserID)
+	}
 	return scanTicket(r.db.QueryRow(ctx, q, args...))
 }
 
@@ -138,6 +143,11 @@ func (r *TicketRepo) GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.T
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		q += ` AND t.org_id = $2`
 		args = append(args, orgID)
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleTickets, domain.SharingAccessRead) {
+		placeholder := fmt.Sprintf("$%d", len(args)+1)
+		q += fmt.Sprintf(` AND (t.assignee_id = %s OR t.submitted_by_user_id = %s)`, placeholder, placeholder)
+		args = append(args, acl.UserID)
 	}
 
 	var d domain.TicketDetail
@@ -189,6 +199,11 @@ func (r *TicketRepo) UpdateContact(ctx context.Context, id uuid.UUID, contactID 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		q += ` AND org_id = $3`
 		args = append(args, orgID)
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleTickets, domain.SharingAccessWrite) {
+		placeholder := fmt.Sprintf("$%d", len(args)+1)
+		q += fmt.Sprintf(` AND (assignee_id = %s OR submitted_by_user_id = %s)`, placeholder, placeholder)
+		args = append(args, acl.UserID)
 	}
 
 	q += ` RETURNING ` + ticketCols
@@ -260,6 +275,12 @@ func (r *TicketRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Tick
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleTickets, domain.SharingAccessWrite) {
+		whereClause += fmt.Sprintf(` AND (assignee_id=$%d OR submitted_by_user_id=$%d)`, i, i)
+		args = append(args, acl.UserID)
+		i++
 	}
 
 	query := fmt.Sprintf(
@@ -276,6 +297,11 @@ func (r *TicketRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		q += ` AND org_id=$2`
 		args = append(args, orgID)
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleTickets, domain.SharingAccessWrite) {
+		placeholder := fmt.Sprintf("$%d", len(args)+1)
+		q += fmt.Sprintf(` AND (assignee_id=%s OR submitted_by_user_id=%s)`, placeholder, placeholder)
+		args = append(args, acl.UserID)
 	}
 
 	result, err := r.db.Exec(ctx, q, args...)
@@ -339,6 +365,7 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		args = append(args, f.Q)
 		i++
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleTickets, domain.SharingAccessRead, "(assignee_id = %s OR submitted_by_user_id = %s)")
 
 	whereClause := strings.Join(where, " AND ")
 

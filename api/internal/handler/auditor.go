@@ -73,3 +73,32 @@ func (a *Auditor) logExport(r *http.Request, entityType domain.AuditEntityType) 
 		}
 	}()
 }
+
+func (a *Auditor) logLogin(r *http.Request, user *domain.User) {
+	if a.repo == nil || user == nil {
+		return
+	}
+
+	uid := user.ID
+	name := user.Email
+	entry := domain.AuditEntry{
+		OrgID:      user.OrgID,
+		UserID:     &uid,
+		Action:     domain.AuditActionLogin,
+		EntityType: domain.AuditEntityUser,
+		EntityID:   &uid,
+		EntityName: &name,
+	}
+	if ip := realClientIP(r); ip != "" {
+		entry.IPAddress = &ip
+	}
+	if ua := r.UserAgent(); ua != "" {
+		entry.UserAgent = &ua
+	}
+
+	go func() {
+		if err := a.repo.Append(context.Background(), entry); err != nil {
+			slog.Error("audit log write failed", "action", "login", "error", err)
+		}
+	}()
+}

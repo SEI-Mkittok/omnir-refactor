@@ -14,7 +14,11 @@ import (
 	"github.com/omnir/crm-api/internal/domain"
 )
 
-const userCols = `id, org_id, email, name, role, avatar_url, created_at, updated_at, deleted_at`
+const userCols = `
+	users.id, users.org_id, users.email, users.name, users.role,
+	users.role_id, users.profile_id, role_ref.name, profile_ref.name,
+	users.avatar_url, users.created_at, users.updated_at, users.deleted_at
+`
 
 type UserRepo struct {
 	db *pgxpool.Pool
@@ -52,10 +56,24 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User, passwordHash stri
 	u.UpdatedAt = now
 
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO users (id, org_id, email, name, role, password_hash, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, org_id, email, name, role, avatar_url, created_at, updated_at, deleted_at
-	`, u.ID, u.OrgID, u.Email, u.Name, u.Role, passwordHash, u.CreatedAt, u.UpdatedAt)
+		INSERT INTO users (id, org_id, email, name, role, role_id, profile_id, password_hash, created_at, updated_at)
+		VALUES (
+			$1, $2, $3, $4, $5,
+			COALESCE($6, (SELECT id FROM crm_roles WHERE org_id = $2 AND system_key = $5 LIMIT 1)),
+			COALESCE($7, (
+				SELECT id FROM crm_profiles
+				WHERE org_id = $2
+				  AND system_key = CASE
+					WHEN $5 IN ('super_admin', 'admin') THEN 'administrator'
+					WHEN $5 = 'agent' THEN 'sales'
+					ELSE 'guest'
+				  END
+				LIMIT 1
+			)),
+			$8, $9, $10
+		)
+		RETURNING id, org_id, email, name, role, role_id, profile_id, NULL::text, NULL::text, avatar_url, created_at, updated_at, deleted_at
+	`, u.ID, u.OrgID, u.Email, u.Name, u.Role, u.RoleID, u.ProfileID, passwordHash, u.CreatedAt, u.UpdatedAt)
 
 	return scanUser(row)
 }
@@ -66,11 +84,16 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 	var u domain.User
 	var passwordHash string
 	err := r.db.QueryRow(ctx, `
-		SELECT id, org_id, email, name, role, avatar_url, created_at, updated_at, deleted_at, password_hash
+		SELECT users.id, users.org_id, users.email, users.name, users.role,
+		       users.role_id, users.profile_id, role_ref.name, profile_ref.name,
+		       users.avatar_url, users.created_at, users.updated_at, users.deleted_at, users.password_hash
 		FROM users
-		WHERE email = $1 AND deleted_at IS NULL
+		LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id
+		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id
+		WHERE users.email = $1 AND users.deleted_at IS NULL
 	`, email).Scan(
 		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Role,
+		&u.RoleID, &u.ProfileID, &u.RoleName, &u.ProfileName,
 		&u.AvatarURL, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt, &passwordHash,
 	)
 	if err != nil {
@@ -86,6 +109,7 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
 	err := row.Scan(
 		&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Role,
+		&u.RoleID, &u.ProfileID, &u.RoleName, &u.ProfileName,
 		&u.AvatarURL, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 	)
 	if err != nil {
@@ -99,11 +123,14 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 
 // GetByID returns a user by ID, scoped to the org in context.
 func (r *UserRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	q := `SELECT ` + userCols + ` FROM users WHERE id=$1 AND deleted_at IS NULL`
+	q := `SELECT ` + userCols + ` FROM users
+		LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id
+		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id
+		WHERE users.id=$1 AND users.deleted_at IS NULL`
 	args := []any{id}
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += ` AND users.org_id=$2`
 		args = append(args, orgID)
 	}
 
@@ -121,7 +148,6 @@ func (r *UserRepo) Update(ctx context.Context, id uuid.UUID, patch domain.UserPa
 		args = append(args, val)
 		i++
 	}
-
 	if patch.Name != nil {
 		addArg("name", *patch.Name)
 	}
@@ -130,6 +156,22 @@ func (r *UserRepo) Update(ctx context.Context, id uuid.UUID, patch domain.UserPa
 	}
 	if patch.Role != nil {
 		addArg("role", *patch.Role)
+		if patch.RoleID == nil {
+			sets = append(sets, fmt.Sprintf(`role_id = (SELECT id FROM crm_roles WHERE org_id = users.org_id AND system_key = $%d LIMIT 1)`, i))
+			args = append(args, *patch.Role)
+			i++
+		}
+		if patch.ProfileID == nil {
+			sets = append(sets, fmt.Sprintf(`profile_id = (SELECT id FROM crm_profiles WHERE org_id = users.org_id AND system_key = CASE WHEN $%d IN ('super_admin', 'admin') THEN 'administrator' WHEN $%d = 'agent' THEN 'sales' ELSE 'guest' END LIMIT 1)`, i, i+1))
+			args = append(args, *patch.Role, *patch.Role)
+			i += 2
+		}
+	}
+	if patch.RoleID != nil {
+		addArg("role_id", *patch.RoleID)
+	}
+	if patch.ProfileID != nil {
+		addArg("profile_id", *patch.ProfileID)
 	}
 
 	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)
@@ -142,8 +184,16 @@ func (r *UserRepo) Update(ctx context.Context, id uuid.UUID, patch domain.UserPa
 	}
 
 	query := fmt.Sprintf(
-		`UPDATE users SET %s WHERE %s RETURNING %s`,
-		strings.Join(sets, ", "), whereClause, userCols,
+		`WITH updated AS (
+			UPDATE users SET %s WHERE %s RETURNING *
+		)
+		SELECT updated.id, updated.org_id, updated.email, updated.name, updated.role,
+		       updated.role_id, updated.profile_id, role_ref.name, profile_ref.name,
+		       updated.avatar_url, updated.created_at, updated.updated_at, updated.deleted_at
+		FROM updated
+		LEFT JOIN crm_roles role_ref ON role_ref.id = updated.role_id
+		LEFT JOIN crm_profiles profile_ref ON profile_ref.id = updated.profile_id`,
+		strings.Join(sets, ", "), whereClause,
 	)
 	return scanUser(r.db.QueryRow(ctx, query, args...))
 }
@@ -178,12 +228,12 @@ func (r *UserRepo) List(ctx context.Context, f domain.UserFilter) ([]*domain.Use
 	}
 	offset := (f.Page - 1) * f.Limit
 
-	where := []string{"deleted_at IS NULL"}
+	where := []string{"users.deleted_at IS NULL"}
 	args := []any{}
 	i := 1
 
 	addWhere := func(expr string, val any) {
-		where = append(where, fmt.Sprintf("%s = $%d", expr, i))
+		where = append(where, fmt.Sprintf("users.%s = $%d", expr, i))
 		args = append(args, val)
 		i++
 	}
@@ -201,7 +251,7 @@ func (r *UserRepo) List(ctx context.Context, f domain.UserFilter) ([]*domain.Use
 	}
 	if f.Q != "" {
 		where = append(where, fmt.Sprintf(
-			`(name ILIKE $%d OR email ILIKE $%d)`, i, i+1,
+			`(users.name ILIKE $%d OR users.email ILIKE $%d)`, i, i+1,
 		))
 		args = append(args, "%"+f.Q+"%", "%"+f.Q+"%")
 		i += 2
@@ -230,7 +280,13 @@ func (r *UserRepo) List(ctx context.Context, f domain.UserFilter) ([]*domain.Use
 
 	rows, err := r.db.Query(ctx,
 		fmt.Sprintf(
-			`SELECT %s FROM users WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
+			`SELECT %s
+			 FROM users
+			 LEFT JOIN crm_roles role_ref ON role_ref.id = users.role_id
+			 LEFT JOIN crm_profiles profile_ref ON profile_ref.id = users.profile_id
+			 WHERE %s
+			 ORDER BY users.%s %s
+			 LIMIT $%d OFFSET $%d`,
 			userCols, whereClause, sortCol, order, i, i+1,
 		),
 		append(args, f.Limit, offset)...,
@@ -245,6 +301,7 @@ func (r *UserRepo) List(ctx context.Context, f domain.UserFilter) ([]*domain.Use
 		var u domain.User
 		if err := rows.Scan(
 			&u.ID, &u.OrgID, &u.Email, &u.Name, &u.Role,
+			&u.RoleID, &u.ProfileID, &u.RoleName, &u.ProfileName,
 			&u.AvatarURL, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt,
 		); err != nil {
 			return nil, 0, err

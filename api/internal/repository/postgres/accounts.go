@@ -92,10 +92,16 @@ func (r *AccountRepo) Create(ctx context.Context, a *domain.Account) (*domain.Ac
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	q := `SELECT ` + accountCols + ` FROM accounts WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleAccounts, domain.SharingAccessRead) {
+		q += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	row := r.db.QueryRow(ctx, q, args...)
@@ -155,6 +161,11 @@ func (r *AccountRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Acc
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleAccounts, domain.SharingAccessWrite) {
+		whereClause += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	query := fmt.Sprintf(
@@ -168,10 +179,16 @@ func (r *AccountRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Acc
 func (r *AccountRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	q := `UPDATE accounts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleAccounts, domain.SharingAccessWrite) {
+		q += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	result, err := r.db.Exec(ctx, q, args...)
@@ -211,6 +228,7 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleAccounts, domain.SharingAccessRead, "owner_id = %s")
 
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)

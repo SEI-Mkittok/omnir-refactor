@@ -105,6 +105,7 @@ func main() {
 	onboardingRepo := postgres.NewOnboardingRepo(db)
 	emailTemplateRepo := postgres.NewEmailTemplateRepo(db)
 	opsFinanceRepo := postgres.NewOperationsFinanceRepo(db)
+	accessRepo := postgres.NewAccessRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -264,14 +265,16 @@ func main() {
 	picklistDependencySettingsHandler := handler.NewPicklistDependencySettingsHandler(picklistRepo)
 	leadConversionMappingSettingsHandler := handler.NewLeadConversionMappingSettingsHandler(leadConversionMappingRepo, customFieldRepo)
 	ssoHandler := handler.NewSSOHandler(ssoConfigRepo, orgRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey, cfg.SSOCallbackURL).
-		WithAPICallbackURL(cfg.SSOAPICallbackURL)
-	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey)
+		WithAPICallbackURL(cfg.SSOAPICallbackURL).
+		WithAuditLog(auditLogRepo)
+	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey).WithAuditLog(auditLogRepo)
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
 	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo).WithOrgs(orgRepo)
 	billingHandler := handler.NewBillingHandler(billingRepo, cfg.Stripe, appURL)
 	emailTemplateHandler := handler.NewEmailTemplateHandler(emailTemplateRepo)
 	opsFinanceHandler := handler.NewOperationsFinanceHandler(opsFinanceRepo)
+	accessSettingsHandler := handler.NewAccessSettingsHandler(accessRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, emailTemplateRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 
@@ -337,6 +340,9 @@ func main() {
 		r.Use(chimiddleware.Timeout(30 * time.Second))
 		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
 		r.Use(middleware.OrgScope(cfg.OrgMode))
+		r.Use(middleware.ResolveAccess(accessRepo))
+		r.Use(middleware.RequireModulePermission())
+		r.Use(middleware.RequireFieldWriteAccess())
 		r.Mount("/contacts", contactHandler.Router())
 		r.Mount("/leads", leadHandler.Router())
 		r.Route("/enrich", func(r chi.Router) {
@@ -410,6 +416,10 @@ func main() {
 		r.Mount("/settings/picklists", picklistSettingsHandler.Router())
 		r.Mount("/settings/picklist-dependencies", picklistDependencySettingsHandler.Router())
 		r.Mount("/settings/lead-conversion-mapping", leadConversionMappingSettingsHandler.Router())
+		r.Mount("/settings/roles", accessSettingsHandler.RolesRouter())
+		r.Mount("/settings/profiles", accessSettingsHandler.ProfilesRouter())
+		r.Mount("/settings/groups", accessSettingsHandler.GroupsRouter())
+		r.Mount("/settings/sharing-rules", accessSettingsHandler.SharingRulesRouter())
 		r.Mount("/settings/company", orgSettingsHandler.CompanyRouter())
 		r.Mount("/settings/portal", orgSettingsHandler.PortalRouter())
 		r.Mount("/settings/outgoing-server", orgSettingsHandler.OutgoingServerRouter())
@@ -432,6 +442,9 @@ func main() {
 		r.Use(chimiddleware.Timeout(5 * time.Minute))
 		r.Use(middleware.Authenticate(jwtSvc, apiKeyRepo, userRepo))
 		r.Use(middleware.OrgScope(cfg.OrgMode))
+		r.Use(middleware.ResolveAccess(accessRepo))
+		r.Use(middleware.RequireModulePermission())
+		r.Use(middleware.RequireFieldWriteAccess())
 		r.Mount("/api/v1/import", importHandler.Router())
 	})
 

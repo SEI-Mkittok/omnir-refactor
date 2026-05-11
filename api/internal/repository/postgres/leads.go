@@ -89,10 +89,16 @@ func (r *LeadRepo) Create(ctx context.Context, l *domain.Lead) (*domain.Lead, er
 func (r *LeadRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead, error) {
 	q := `SELECT ` + leadCols + ` FROM leads WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleLeads, domain.SharingAccessRead) {
+		q += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	return scanLead(r.db.QueryRow(ctx, q, args...))
@@ -152,6 +158,11 @@ func (r *LeadRepo) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPa
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleLeads, domain.SharingAccessWrite) {
+		whereClause += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	query := fmt.Sprintf(
@@ -164,10 +175,16 @@ func (r *LeadRepo) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPa
 func (r *LeadRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	q := `UPDATE leads SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleLeads, domain.SharingAccessWrite) {
+		q += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	result, err := r.db.Exec(ctx, q, args...)
@@ -206,6 +223,7 @@ func (r *LeadRepo) List(ctx context.Context, f domain.LeadFilter) ([]*domain.Lea
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleLeads, domain.SharingAccessRead, "owner_id = %s")
 
 	if f.Status != nil {
 		addWhere("status", *f.Status)
@@ -292,6 +310,11 @@ func (r *LeadRepo) ConvertToContact(ctx context.Context, leadID, contactID uuid.
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleLeads, domain.SharingAccessWrite) {
+		q += fmt.Sprintf(` AND owner_id=$%d`, i)
+		args = append(args, acl.UserID)
 	}
 
 	q += ` RETURNING ` + leadCols

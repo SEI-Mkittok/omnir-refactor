@@ -42,6 +42,10 @@ import { CurrenciesPage } from '@/pages/settings/CurrenciesPage'
 import { PicklistsPage } from '@/pages/settings/PicklistsPage'
 import { PicklistDependenciesPage } from '@/pages/settings/PicklistDependenciesPage'
 import { LeadConversionMappingPage } from '@/pages/settings/LeadConversionMappingPage'
+import { RolesPage } from '@/pages/settings/RolesPage'
+import { ProfilesPage } from '@/pages/settings/ProfilesPage'
+import { SharingRulesPage } from '@/pages/settings/SharingRulesPage'
+import { GroupsPage } from '@/pages/settings/GroupsPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -72,13 +76,13 @@ const queryClient = new QueryClient({
   },
 })
 
-function isWorkspaceAdmin(role: string | undefined) {
-  return role === 'admin' || role === 'super_admin'
+function isWorkspaceAdmin(user: { role?: string; profile_name?: string } | null | undefined) {
+  return user?.role === 'admin' || user?.role === 'super_admin' || user?.profile_name === 'Administrator'
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
-  if (!isWorkspaceAdmin(user?.role)) return <Navigate to="/dashboard" replace />
+  if (!isWorkspaceAdmin(user)) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -257,6 +261,38 @@ function AppRoutes() {
           element={
             <AdminRoute>
               <LeadConversionMappingPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/roles"
+          element={
+            <AdminRoute>
+              <RolesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/profiles"
+          element={
+            <AdminRoute>
+              <ProfilesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/sharing-rules"
+          element={
+            <AdminRoute>
+              <SharingRulesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/groups"
+          element={
+            <AdminRoute>
+              <GroupsPage />
             </AdminRoute>
           }
         />
