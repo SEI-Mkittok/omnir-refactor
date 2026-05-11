@@ -219,3 +219,31 @@ func TestAccessRepo_ACLObjectMutationsAreScopedToContextOrg(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, memberCount)
 }
+
+func TestAccessRepo_MoveRoleKeepsSystemRolesImmutable(t *testing.T) {
+	pool, ctx := setupDB(t)
+	repo := postgres.NewAccessRepo(pool)
+
+	var agentRoleID, originalParentID uuid.UUID
+	err := pool.QueryRow(ctx, `
+		SELECT id, parent_id
+		FROM crm_roles
+		WHERE org_id = $1 AND system_key = 'agent'
+	`, defaultOrgID).Scan(&agentRoleID, &originalParentID)
+	require.NoError(t, err)
+
+	customParent, err := repo.CreateRole(ctx, &domain.ACLRole{Name: "Custom Parent"})
+	require.NoError(t, err)
+
+	_, err = repo.MoveRole(ctx, agentRoleID, &customParent.ID)
+	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	var parentID uuid.UUID
+	err = pool.QueryRow(ctx, `
+		SELECT parent_id
+		FROM crm_roles
+		WHERE id = $1 AND org_id = $2
+	`, agentRoleID, defaultOrgID).Scan(&parentID)
+	require.NoError(t, err)
+	assert.Equal(t, originalParentID, parentID)
+}

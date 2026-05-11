@@ -404,7 +404,7 @@ func (r *AccessRepo) MoveRole(ctx context.Context, id uuid.UUID, parentID *uuid.
 	role, err := scanACLRole(r.db.QueryRow(ctx, `
 		UPDATE crm_roles
 		SET parent_id = $1, updated_at = NOW()
-		WHERE id = $2 AND org_id = $3
+		WHERE id = $2 AND org_id = $3 AND system_key IS NULL
 		RETURNING id, org_id, name, description, system_key, parent_id, created_at, updated_at
 	`, parentID, id, orgID))
 	if err != nil {
