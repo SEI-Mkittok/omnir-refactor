@@ -22,14 +22,26 @@ type recordAccessCall struct {
 	access domain.SharingAccessLevel
 }
 
+type relationshipAccessCall struct {
+	id     uuid.UUID
+	access domain.SharingAccessLevel
+}
+
 type fakeRecordAccessRepo struct {
-	allowed bool
-	calls   []recordAccessCall
+	allowed             bool
+	relationshipAllowed bool
+	calls               []recordAccessCall
+	relationshipCalls   []relationshipAccessCall
 }
 
 func (f *fakeRecordAccessRepo) CanAccessRecord(_ context.Context, module domain.ACLModule, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
 	f.calls = append(f.calls, recordAccessCall{module: module, id: id, access: access})
 	return f.allowed, nil
+}
+
+func (f *fakeRecordAccessRepo) CanAccessAccountRelationship(_ context.Context, relationshipID uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	f.relationshipCalls = append(f.relationshipCalls, relationshipAccessCall{id: relationshipID, access: access})
+	return f.relationshipAllowed, nil
 }
 
 func TestRequireModulePermissionUsesResolvedProfilePermissions(t *testing.T) {
@@ -464,15 +476,28 @@ func TestRequireNestedParentRecordAccessSkipsTopLevelRecords(t *testing.T) {
 	require.Empty(t, repo.calls)
 }
 
-func TestRequireNestedParentRecordAccessSkipsNonRecordModuleSubroutes(t *testing.T) {
+func TestRequireNestedParentRecordAccessChecksAccountRelationshipRoutes(t *testing.T) {
 	relationshipID := uuid.New()
-	repo := &fakeRecordAccessRepo{allowed: false}
+	repo := &fakeRecordAccessRepo{relationshipAllowed: false}
 	handler := middleware.RequireNestedParentRecordAccess(repo)(okHandler)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/relationships/"+relationshipID.String(), nil)
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Empty(t, repo.calls)
+	require.Len(t, repo.relationshipCalls, 1)
+	require.Equal(t, relationshipID, repo.relationshipCalls[0].id)
+	require.Equal(t, domain.SharingAccessWrite, repo.relationshipCalls[0].access)
+
+	repo = &fakeRecordAccessRepo{relationshipAllowed: true}
+	handler = middleware.RequireNestedParentRecordAccess(repo)(okHandler)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/relationships/"+relationshipID.String(), nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Empty(t, repo.calls)
+	require.Len(t, repo.relationshipCalls, 1)
 }

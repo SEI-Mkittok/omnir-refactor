@@ -176,6 +176,29 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 func RequireNestedParentRecordAccess(repo repository.RecordAccessRepository) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			relationshipID, relationshipAccessLevel, isRelationshipRoute, err := accountRelationshipFromRequest(r)
+			if err != nil {
+				http.Error(w, `{"error":"bad_request","code":"invalid_relationship_id"}`, http.StatusBadRequest)
+				return
+			}
+			if isRelationshipRoute {
+				if repo == nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+				canAccess, err := repo.CanAccessAccountRelationship(r.Context(), relationshipID, relationshipAccessLevel)
+				if err != nil {
+					http.Error(w, `{"error":"access_check_failed"}`, http.StatusInternalServerError)
+					return
+				}
+				if !canAccess {
+					http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			module, id, accessLevel, ok, err := nestedParentRecordFromRequest(r)
 			if err != nil {
 				http.Error(w, `{"error":"bad_request","code":"invalid_parent_id"}`, http.StatusBadRequest)
@@ -197,6 +220,23 @@ func RequireNestedParentRecordAccess(repo repository.RecordAccessRepository) fun
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func accountRelationshipFromRequest(r *http.Request) (uuid.UUID, domain.SharingAccessLevel, bool, error) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return uuid.Nil, "", false, nil
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) != 3 || parts[0] != "accounts" || parts[1] != "relationships" {
+		return uuid.Nil, "", false, nil
+	}
+	id, err := uuid.Parse(parts[2])
+	if err != nil {
+		return uuid.Nil, "", true, err
+	}
+	return id, sharingAccessFromMethod(r.Method), true, nil
 }
 
 func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLAction, bool) {

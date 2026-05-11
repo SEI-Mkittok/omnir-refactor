@@ -38,4 +38,5 @@ type AccessRepository interface {
 
 type RecordAccessRepository interface {
 	CanAccessRecord(ctx context.Context, module domain.ACLModule, id uuid.UUID, access domain.SharingAccessLevel) (bool, error)
+	CanAccessAccountRelationship(ctx context.Context, relationshipID uuid.UUID, access domain.SharingAccessLevel) (bool, error)
 }

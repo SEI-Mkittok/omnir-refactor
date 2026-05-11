@@ -232,6 +232,42 @@ func (r *AccessRepo) CanAccessRecord(ctx context.Context, module domain.ACLModul
 	return r.recordExists(ctx, table, id, ownerPredicate)
 }
 
+func (r *AccessRepo) CanAccessAccountRelationship(ctx context.Context, relationshipID uuid.UUID, accessLevel domain.SharingAccessLevel) (bool, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		if access, hasAccess := domain.AccessContextFromContext(ctx); hasAccess {
+			orgID = access.OrgID
+		}
+	}
+	if orgID == uuid.Nil {
+		return false, nil
+	}
+
+	var parentID, childID uuid.UUID
+	err := r.db.QueryRow(ctx, `
+		SELECT parent_account_id, child_account_id
+		FROM account_relationships
+		WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL
+	`, relationshipID, orgID).Scan(&parentID, &childID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	access, ok := domain.AccessContextFromContext(ctx)
+	if !ok || access.CanAccessAllRecords(domain.ACLModuleAccounts, accessLevel) {
+		return true, nil
+	}
+
+	canAccessParent, err := r.CanAccessRecord(ctx, domain.ACLModuleAccounts, parentID, accessLevel)
+	if err != nil || !canAccessParent {
+		return canAccessParent, err
+	}
+	return r.CanAccessRecord(ctx, domain.ACLModuleAccounts, childID, accessLevel)
+}
+
 func recordAccessTarget(module domain.ACLModule) (table string, ownerPredicate string, ok bool) {
 	switch module {
 	case domain.ACLModuleAccounts:

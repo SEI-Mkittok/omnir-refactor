@@ -56,6 +56,10 @@ func (f *fakeAttachmentRecordAccessRepository) CanAccessRecord(_ context.Context
 	return f.allowed, nil
 }
 
+func (f *fakeAttachmentRecordAccessRepository) CanAccessAccountRelationship(context.Context, uuid.UUID, domain.SharingAccessLevel) (bool, error) {
+	return f.allowed, nil
+}
+
 func TestAttachmentDownloadRequiresParentReadVisibility(t *testing.T) {
 	attachmentID := uuid.New()
 	contactID := uuid.New()

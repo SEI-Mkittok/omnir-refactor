@@ -113,6 +113,62 @@ func TestAccessRepoCanAccessRecordUsesSharingVisibility(t *testing.T) {
 	assert.True(t, canAccess)
 }
 
+func TestAccessRepoCanAccessAccountRelationshipRequiresLinkedAccountVisibility(t *testing.T) {
+	pool, ctx := setupDB(t)
+	accessRepo := postgres.NewAccessRepo(pool)
+	accountRepo := postgres.NewAccountRepo(pool)
+
+	ownerID := uuid.New()
+	otherID := uuid.New()
+	adminID := uuid.New()
+	for _, user := range []struct {
+		id   uuid.UUID
+		role string
+		name string
+	}{
+		{ownerID, "agent", "Owner Agent"},
+		{otherID, "agent", "Other Agent"},
+		{adminID, "admin", "Admin User"},
+	} {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO users (id, org_id, email, name, role)
+			VALUES ($1, $2, $3, $4, $5)
+		`, user.id, defaultOrgID, user.id.String()+"@omnir.test", user.name, user.role)
+		require.NoError(t, err)
+	}
+
+	parent, err := accountRepo.Create(ctx, &domain.Account{
+		Name:    "Owned Parent",
+		OwnerID: ownerID,
+	})
+	require.NoError(t, err)
+	child, err := accountRepo.Create(ctx, &domain.Account{
+		Name:    "Private Child",
+		OwnerID: otherID,
+	})
+	require.NoError(t, err)
+	rel, err := accountRepo.CreateRelationship(ctx, &domain.AccountRelationship{
+		ParentAccountID:  parent.ID,
+		ChildAccountID:   child.ID,
+		RelationshipType: domain.AccountRelationshipTypePartner,
+	})
+	require.NoError(t, err)
+
+	ownerAccess, err := accessRepo.ResolveAccess(ctx, ownerID, defaultOrgID, string(domain.UserRoleAgent))
+	require.NoError(t, err)
+	ownerCtx := domain.WithAccessContext(ctx, ownerAccess)
+	canAccess, err := accessRepo.CanAccessAccountRelationship(ownerCtx, rel.ID, domain.SharingAccessWrite)
+	require.NoError(t, err)
+	assert.False(t, canAccess)
+
+	adminAccess, err := accessRepo.ResolveAccess(ctx, adminID, defaultOrgID, string(domain.UserRoleAdmin))
+	require.NoError(t, err)
+	adminCtx := domain.WithAccessContext(ctx, adminAccess)
+	canAccess, err = accessRepo.CanAccessAccountRelationship(adminCtx, rel.ID, domain.SharingAccessWrite)
+	require.NoError(t, err)
+	assert.True(t, canAccess)
+}
+
 func TestAccessRepo_ACLObjectMutationsAreScopedToContextOrg(t *testing.T) {
 	pool, ctx := setupDB(t)
 	repo := postgres.NewAccessRepo(pool)
