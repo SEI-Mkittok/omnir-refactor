@@ -241,6 +241,52 @@ func TestRequireModulePermissionChecksNestedChildModules(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestRequireModulePermissionTreatsNestedChildMutationsAsParentUpdate(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+	contactID := uuid.New()
+	noteID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/contacts/"+contactID.String()+"/notes", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/contacts/"+contactID.String()+"/notes", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionCreate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/contacts/"+contactID.String()+"/notes/"+noteID.String(), nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/contacts", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
 func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *testing.T) {
 	access := &domain.AccessContext{
 		FieldWrite: map[domain.ACLModule]map[string]bool{

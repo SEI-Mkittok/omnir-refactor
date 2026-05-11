@@ -202,6 +202,9 @@ func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLActio
 		return "", "", false
 	}
 	action := actionFromMethod(r.Method)
+	if isNestedRecordSubroute(r.URL.Path) && action != domain.ACLActionRead {
+		action = domain.ACLActionUpdate
+	}
 	if module == domain.ACLModuleExport {
 		action = domain.ACLActionExport
 	}
@@ -227,6 +230,23 @@ func actionFromMethod(method string) domain.ACLAction {
 	default:
 		return domain.ACLActionRead
 	}
+}
+
+func isNestedRecordSubroute(path string) bool {
+	path = strings.TrimPrefix(path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return false
+	}
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		return false
+	}
+	if _, ok := parentRecordModule(parts[0]); !ok {
+		return false
+	}
+	_, err := uuid.Parse(parts[1])
+	return err == nil
 }
 
 func nestedParentRecordFromRequest(r *http.Request) (domain.ACLModule, uuid.UUID, domain.SharingAccessLevel, bool, error) {
