@@ -285,6 +285,9 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 	if first == "ops-finance" {
 		return domain.ACLModuleOpsFinance, true
 	}
+	if first == "import" {
+		return importModuleFromPath(second)
+	}
 	modules := map[string]domain.ACLModule{
 		"accounts":      domain.ACLModuleAccounts,
 		"activities":    domain.ACLModuleActivities,
@@ -296,7 +299,6 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 		"deals":         domain.ACLModuleDeals,
 		"emails":        domain.ACLModuleEmails,
 		"export":        domain.ACLModuleExport,
-		"import":        domain.ACLModuleContacts,
 		"integrations":  domain.ACLModuleIntegrations,
 		"kb":            domain.ACLModuleKB,
 		"leads":         domain.ACLModuleLeads,
@@ -315,4 +317,17 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 	}
 	module, ok := modules[first]
 	return module, ok
+}
+
+func importModuleFromPath(segment string) (domain.ACLModule, bool) {
+	switch segment {
+	case "contacts":
+		return domain.ACLModuleContacts, true
+	case "accounts":
+		return domain.ACLModuleAccounts, true
+	case "leads":
+		return domain.ACLModuleLeads, true
+	default:
+		return "", false
+	}
 }

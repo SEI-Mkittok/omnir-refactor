@@ -94,6 +94,43 @@ func TestRequireModulePermissionAllowsSelfServiceUserUpdate(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestRequireModulePermissionChecksImportTargetModule(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/import/accounts", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionCreate: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/import/accounts", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleAccounts: {domain.ACLActionCreate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/import/leads", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleLeads: {domain.ACLActionCreate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *testing.T) {
 	access := &domain.AccessContext{
 		FieldWrite: map[domain.ACLModule]map[string]bool{
