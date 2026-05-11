@@ -91,6 +91,20 @@ func relationshipFilterClause(column string, argIndex int, relationshipType stri
 	return fmt.Sprintf(" AND %s = $%d", column, argIndex), []any{relationshipType}
 }
 
+func addSearchVisibilityWhere(ctx context.Context, where *string, args *[]any, module domain.ACLModule, accessLevel domain.SharingAccessLevel, ownerPredicate string) {
+	acl, ok := domain.AccessContextFromContext(ctx)
+	if !ok || acl.CanAccessAllRecords(module, accessLevel) {
+		return
+	}
+	placeholder := fmt.Sprintf("$%d", len(*args)+1)
+	if strings.Count(ownerPredicate, "%s") > 1 {
+		*where += " AND " + fmt.Sprintf(ownerPredicate, placeholder, placeholder)
+	} else {
+		*where += " AND " + fmt.Sprintf(ownerPredicate, placeholder)
+	}
+	*args = append(*args, acl.UserID)
+}
+
 func (r *SearchRepo) searchContacts(ctx context.Context, orgID uuid.UUID, filter domain.SearchFilter, out *domain.SearchGroupedResult) error {
 	args := []any{orgID, filter.Query}
 	accountArgIndex := 0
@@ -125,6 +139,7 @@ func (r *SearchRepo) searchContacts(ctx context.Context, orgID uuid.UUID, filter
 			args = append(args, extra...)
 		}
 	}
+	addSearchVisibilityWhere(ctx, &where, &args, domain.ACLModuleContacts, domain.SharingAccessRead, "c.owner_id = %s")
 	args = append(args, filter.Limit)
 	accountContactJoin := "LEFT JOIN account_contacts rac ON false"
 	if accountArgIndex > 0 {
@@ -203,6 +218,7 @@ func (r *SearchRepo) searchAccounts(ctx context.Context, orgID uuid.UUID, filter
 		)`, len(args))
 		selectRelated = "NULL::text, NULL::text, rc.id::text, trim(rc.first_name || ' ' || rc.last_name), 'linked'"
 	}
+	addSearchVisibilityWhere(ctx, &where, &args, domain.ACLModuleAccounts, domain.SharingAccessRead, "a.owner_id = %s")
 	args = append(args, filter.Limit)
 
 	rows, err := r.db.Query(ctx, fmt.Sprintf(`
@@ -247,6 +263,7 @@ func (r *SearchRepo) searchDeals(ctx context.Context, orgID uuid.UUID, filter do
 			where += fmt.Sprintf(" AND coalesce(nullif(scoped_dc.role, ''), 'linked') = $%d", len(args))
 		}
 	}
+	addSearchVisibilityWhere(ctx, &where, &args, domain.ACLModuleDeals, domain.SharingAccessRead, "d.owner_id = %s")
 	args = append(args, filter.Limit)
 	rows, err := r.db.Query(ctx, fmt.Sprintf(`
 		SELECT d.id, d.title, d.stage, d.value_cents,
@@ -299,6 +316,7 @@ func (r *SearchRepo) searchTickets(ctx context.Context, orgID uuid.UUID, filter 
 		args = append(args, *filter.ContactID)
 		where += fmt.Sprintf(" AND t.contact_id = $%d", len(args))
 	}
+	addSearchVisibilityWhere(ctx, &where, &args, domain.ACLModuleTickets, domain.SharingAccessRead, "(t.assignee_id = %s OR t.submitted_by_user_id = %s)")
 	args = append(args, filter.Limit)
 	rows, err := r.db.Query(ctx, fmt.Sprintf(`
 		SELECT t.id, t.subject, t.status, t.priority,
