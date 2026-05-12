@@ -46,6 +46,26 @@ export function upsertFieldPermissionOverride(
   return replaced ? updated : [...fieldPermissions, normalizedOverride]
 }
 
+export function canSaveProfilePermissions({
+  selectedProfileId,
+  editableProfileId,
+  isLoading,
+  isFetching,
+  isSaving,
+}: {
+  selectedProfileId: string
+  editableProfileId: string
+  isLoading: boolean
+  isFetching: boolean
+  isSaving: boolean
+}) {
+  return Boolean(selectedProfileId) &&
+    selectedProfileId === editableProfileId &&
+    !isLoading &&
+    !isFetching &&
+    !isSaving
+}
+
 export function ProfilesPage() {
   const { data: profiles = [], isLoading } = useACLProfiles()
   const { data: catalog } = usePermissionCatalog()
@@ -57,6 +77,7 @@ export function ProfilesPage() {
   const [description, setDescription] = useState('')
   const [permissions, setPermissions] = useState<ACLProfilePermission[]>([])
   const [fieldPermissions, setFieldPermissions] = useState<ACLProfileFieldPermission[]>([])
+  const [editableProfileId, setEditableProfileId] = useState('')
   const [newField, setNewField] = useState<{ module: ACLModule | ''; field_name: string; can_write: boolean }>({
     module: '',
     field_name: '',
@@ -73,9 +94,17 @@ export function ProfilesPage() {
   }, [profiles, selectedProfileId])
 
   useEffect(() => {
+    setEditableProfileId('')
+    setPermissions([])
+    setFieldPermissions([])
+  }, [selectedProfileId])
+
+  useEffect(() => {
+    if (!selectedProfileId || !permissionsQuery.data) return
     setPermissions(permissionsQuery.data?.permissions ?? [])
     setFieldPermissions(permissionsQuery.data?.field_permissions ?? [])
-  }, [permissionsQuery.data])
+    setEditableProfileId(selectedProfileId)
+  }, [permissionsQuery.data, selectedProfileId])
 
   const permissionLookup = useMemo(() => {
     const lookup = new Map<string, boolean>()
@@ -132,7 +161,7 @@ export function ProfilesPage() {
   }
 
   function handleSave() {
-    if (!selectedProfileId) return
+    if (!canSave) return
     savePermissions.mutate({
       profileId: selectedProfileId,
       permissions,
@@ -142,6 +171,13 @@ export function ProfilesPage() {
 
   const modules = catalog?.modules ?? []
   const actions = catalog?.actions ?? []
+  const canSave = canSaveProfilePermissions({
+    selectedProfileId,
+    editableProfileId,
+    isLoading: permissionsQuery.isLoading,
+    isFetching: permissionsQuery.isFetching,
+    isSaving: savePermissions.isPending,
+  })
 
   return (
     <div className="space-y-6">
@@ -204,7 +240,7 @@ export function ProfilesPage() {
                 {selectedProfile?.description ?? 'Choose a profile to edit permissions.'}
               </p>
             </div>
-            <Button onClick={handleSave} disabled={!selectedProfileId || savePermissions.isPending}>
+            <Button onClick={handleSave} disabled={!canSave}>
               <Save className="h-4 w-4" />
               {savePermissions.isPending ? 'Saving...' : 'Save Permissions'}
             </Button>
