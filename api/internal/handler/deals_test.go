@@ -69,10 +69,11 @@ func TestDealHandler_AddContact(t *testing.T) {
 	pipelineID := uuid.New()
 
 	tests := []struct {
-		name       string
-		body       map[string]any
-		setupMock  func(*mocks.MockDealRepository)
-		wantStatus int
+		name          string
+		body          map[string]any
+		setupMock     func(*mocks.MockDealRepository)
+		setupContacts func(*mocks.MockContactRepository)
+		wantStatus    int
 	}{
 		{
 			name: "adds contact successfully",
@@ -92,28 +93,47 @@ func TestDealHandler_AddContact(t *testing.T) {
 					},
 				}, nil)
 			},
+			setupContacts: func(m *mocks.MockContactRepository) {
+				m.On("GetByID", mock.Anything, contactID).Return(&domain.Contact{ID: contactID, OwnerID: ownerID}, nil)
+			},
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "returns 422 for missing contact_id",
-			body:       map[string]any{"role": "influencer"},
-			setupMock:  func(_ *mocks.MockDealRepository) {},
-			wantStatus: http.StatusUnprocessableEntity,
+			name: "returns 404 when contact is not visible",
+			body: map[string]any{
+				"contact_id": contactID.String(),
+				"role":       "decision_maker",
+			},
+			setupMock: func(_ *mocks.MockDealRepository) {},
+			setupContacts: func(m *mocks.MockContactRepository) {
+				m.On("GetByID", mock.Anything, contactID).Return(nil, domain.ErrNotFound)
+			},
+			wantStatus: http.StatusNotFound,
 		},
 		{
-			name:       "returns 400 for invalid JSON",
-			body:       nil, // will send raw invalid bytes
-			setupMock:  func(_ *mocks.MockDealRepository) {},
-			wantStatus: http.StatusBadRequest,
+			name:          "returns 422 for missing contact_id",
+			body:          map[string]any{"role": "influencer"},
+			setupMock:     func(_ *mocks.MockDealRepository) {},
+			setupContacts: func(_ *mocks.MockContactRepository) {},
+			wantStatus:    http.StatusUnprocessableEntity,
+		},
+		{
+			name:          "returns 400 for invalid JSON",
+			body:          nil, // will send raw invalid bytes
+			setupMock:     func(_ *mocks.MockDealRepository) {},
+			setupContacts: func(_ *mocks.MockContactRepository) {},
+			wantStatus:    http.StatusBadRequest,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockRepo := new(mocks.MockDealRepository)
+			mockContacts := new(mocks.MockContactRepository)
 			tt.setupMock(mockRepo)
+			tt.setupContacts(mockContacts)
 
-			h := handler.NewDealHandler(mockRepo)
+			h := handler.NewDealHandler(mockRepo).WithContacts(mockContacts)
 
 			var bodyReader *bytes.Reader
 			if tt.name == "returns 400 for invalid JSON" {
@@ -133,6 +153,7 @@ func TestDealHandler_AddContact(t *testing.T) {
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 			mockRepo.AssertExpectations(t)
+			mockContacts.AssertExpectations(t)
 		})
 	}
 }

@@ -89,11 +89,14 @@ func (r *LeadRepo) Create(ctx context.Context, l *domain.Lead) (*domain.Lead, er
 func (r *LeadRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead, error) {
 	q := `SELECT ` + leadCols + ` FROM leads WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleLeads, domain.SharingAccessRead, "owner_id")
 
 	return scanLead(r.db.QueryRow(ctx, q, args...))
 }
@@ -152,7 +155,9 @@ func (r *LeadRepo) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPa
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &whereClause, &args, domain.ACLModuleLeads, domain.SharingAccessWrite, "owner_id")
 
 	query := fmt.Sprintf(
 		`UPDATE leads SET %s WHERE %s RETURNING %s`,
@@ -164,11 +169,14 @@ func (r *LeadRepo) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPa
 func (r *LeadRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	q := `UPDATE leads SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleLeads, domain.SharingAccessWrite, "owner_id")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -206,6 +214,7 @@ func (r *LeadRepo) List(ctx context.Context, f domain.LeadFilter) ([]*domain.Lea
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleLeads, domain.SharingAccessRead, "owner_id")
 
 	if f.Status != nil {
 		addWhere("status", *f.Status)
@@ -292,7 +301,9 @@ func (r *LeadRepo) ConvertToContact(ctx context.Context, leadID, contactID uuid.
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleLeads, domain.SharingAccessWrite, "owner_id")
 
 	q += ` RETURNING ` + leadCols
 	return scanLead(r.db.QueryRow(ctx, q, args...))

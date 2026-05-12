@@ -350,6 +350,83 @@ func TestAccountHandler_List(t *testing.T) {
 	}
 }
 
+func TestAccountHandler_CreateRelationshipChecksChildAccountVisibility(t *testing.T) {
+	parentID := uuid.New()
+	childID := uuid.New()
+	userID := uuid.New()
+	orgID := domain.DefaultOrgID
+	access := &domain.AccessContext{
+		UserID: userID,
+		OrgID:  orgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleAccounts: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+	body, err := json.Marshal(map[string]any{
+		"child_account_id":  childID.String(),
+		"relationship_type": string(domain.AccountRelationshipTypePartner),
+	})
+	require.NoError(t, err)
+
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("CanAccess", mock.Anything, childID, domain.SharingAccessWrite).Return(false, nil).Once()
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/"+parentID.String()+"/relationships", bytes.NewReader(body))
+	req = withURLParam(req, "id", parentID.String())
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	w := httptest.NewRecorder()
+
+	h.CreateRelationship(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	mockRepo.AssertNotCalled(t, "CreateRelationship", mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestAccountHandler_CreateRelationshipAllowsVisibleChildAccount(t *testing.T) {
+	parentID := uuid.New()
+	childID := uuid.New()
+	userID := uuid.New()
+	orgID := domain.DefaultOrgID
+	access := &domain.AccessContext{
+		UserID: userID,
+		OrgID:  orgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleAccounts: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+	body, err := json.Marshal(map[string]any{
+		"child_account_id":  childID.String(),
+		"relationship_type": string(domain.AccountRelationshipTypePartner),
+	})
+	require.NoError(t, err)
+
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("CanAccess", mock.Anything, childID, domain.SharingAccessWrite).Return(true, nil).Once()
+	mockRepo.On("CreateRelationship", mock.Anything, mock.MatchedBy(func(rel *domain.AccountRelationship) bool {
+		return rel.ParentAccountID == parentID &&
+			rel.ChildAccountID == childID &&
+			rel.RelationshipType == domain.AccountRelationshipTypePartner
+	})).Return(&domain.AccountRelationship{
+		ID:               uuid.New(),
+		ParentAccountID:  parentID,
+		ChildAccountID:   childID,
+		RelationshipType: domain.AccountRelationshipTypePartner,
+	}, nil).Once()
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/"+parentID.String()+"/relationships", bytes.NewReader(body))
+	req = withURLParam(req, "id", parentID.String())
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	w := httptest.NewRecorder()
+
+	h.CreateRelationship(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
 func TestAccountHandler_ListDescendants(t *testing.T) {
 	accountID := uuid.New()
 	descendantID := uuid.New()
@@ -367,6 +444,39 @@ func TestAccountHandler_ListDescendants(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+func TestAccountHandler_ListDescendantsFiltersHiddenAccounts(t *testing.T) {
+	accountID := uuid.New()
+	visibleID := uuid.New()
+	hiddenID := uuid.New()
+	access := &domain.AccessContext{
+		UserID: uuid.New(),
+		OrgID:  domain.DefaultOrgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleAccounts: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("ListDescendants", mock.Anything, accountID).Return([]uuid.UUID{visibleID, hiddenID}, nil)
+	mockRepo.On("CanAccess", mock.Anything, visibleID, domain.SharingAccessRead).Return(true, nil).Once()
+	mockRepo.On("CanAccess", mock.Anything, hiddenID, domain.SharingAccessRead).Return(false, nil).Once()
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+accountID.String()+"/hierarchy/descendants", nil)
+	req = withURLParam(req, "id", accountID.String())
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	w := httptest.NewRecorder()
+
+	h.ListDescendants(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		DescendantIDs []uuid.UUID `json:"descendant_ids"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.Equal(t, []uuid.UUID{visibleID}, resp.DescendantIDs)
+	mockRepo.AssertExpectations(t)
+}
+
 func TestAccountHandler_ListAncestors(t *testing.T) {
 	accountID := uuid.New()
 	ancestorID := uuid.New()
@@ -381,5 +491,38 @@ func TestAccountHandler_ListAncestors(t *testing.T) {
 	h.ListAncestors(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestAccountHandler_ListAncestorsFiltersHiddenAccounts(t *testing.T) {
+	accountID := uuid.New()
+	visibleID := uuid.New()
+	hiddenID := uuid.New()
+	access := &domain.AccessContext{
+		UserID: uuid.New(),
+		OrgID:  domain.DefaultOrgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleAccounts: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("ListAncestors", mock.Anything, accountID).Return([]uuid.UUID{visibleID, hiddenID}, nil)
+	mockRepo.On("CanAccess", mock.Anything, visibleID, domain.SharingAccessRead).Return(true, nil).Once()
+	mockRepo.On("CanAccess", mock.Anything, hiddenID, domain.SharingAccessRead).Return(false, nil).Once()
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts/"+accountID.String()+"/hierarchy/ancestors", nil)
+	req = withURLParam(req, "id", accountID.String())
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	w := httptest.NewRecorder()
+
+	h.ListAncestors(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		AncestorIDs []uuid.UUID `json:"ancestor_ids"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.Equal(t, []uuid.UUID{visibleID}, resp.AncestorIDs)
 	mockRepo.AssertExpectations(t)
 }

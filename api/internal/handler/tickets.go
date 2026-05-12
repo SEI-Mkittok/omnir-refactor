@@ -175,6 +175,11 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "subject is required")
 		return
 	}
+	if t.SubmittedByUserID == nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			t.SubmittedByUserID = &claims.UserID
+		}
+	}
 	if err := validateContactAccountPair(r.Context(), h.contacts, t.ContactID, t.AccountID); err != nil {
 		handleDomainErr(w, err)
 		return
@@ -339,12 +344,31 @@ func (h *TicketHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *TicketHandler) ensureTicketAccess(w http.ResponseWriter, r *http.Request, ticketID uuid.UUID, accessLevel domain.SharingAccessLevel) bool {
+	if _, ok := domain.AccessContextFromContext(r.Context()); !ok {
+		return true
+	}
+	canAccess, err := h.tickets.CanAccess(r.Context(), ticketID, accessLevel)
+	if err != nil {
+		handleDomainErr(w, err)
+		return false
+	}
+	if !canAccess {
+		handleDomainErr(w, domain.ErrNotFound)
+		return false
+	}
+	return true
+}
+
 // ---- Comments ----
 
 func (h *TicketHandler) ListComments(w http.ResponseWriter, r *http.Request) {
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessRead) {
 		return
 	}
 
@@ -372,6 +396,9 @@ func (h *TicketHandler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessWrite) {
 		return
 	}
 
@@ -430,6 +457,9 @@ func (h *TicketHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessWrite) {
+		return
+	}
 	commentID, err := uuid.Parse(chi.URLParam(r, "commentID"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid comment id")
@@ -450,6 +480,9 @@ func (h *TicketHandler) ListAttachments(w http.ResponseWriter, r *http.Request) 
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
 		return
 	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessRead) {
+		return
+	}
 	attachments, err := h.attachments.List(r.Context(), ticketID)
 	if err != nil {
 		handleDomainErr(w, err)
@@ -468,6 +501,9 @@ func (h *TicketHandler) CreateAttachment(w http.ResponseWriter, r *http.Request)
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessWrite) {
 		return
 	}
 
@@ -536,6 +572,9 @@ func (h *TicketHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessRead) {
 		return
 	}
 	attachmentID, err := uuid.Parse(chi.URLParam(r, "attachmentID"))
@@ -615,6 +654,9 @@ func (h *TicketHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request)
 	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+	if !h.ensureTicketAccess(w, r, ticketID, domain.SharingAccessWrite) {
 		return
 	}
 	attachmentID, err := uuid.Parse(chi.URLParam(r, "attachmentID"))

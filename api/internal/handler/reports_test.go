@@ -58,11 +58,33 @@ func TestReportsHandler_ManagerDashboard(t *testing.T) {
 		repo.AssertNotCalled(t, "ManagerDashboard", mock.Anything, mock.Anything)
 	})
 
-	t.Run("allows org override for admin only", func(t *testing.T) {
+	t.Run("allows org override for super admin only", func(t *testing.T) {
 		repo := &mocks.MockReportsRepository{}
 		orgID := uuid.New()
 		repo.On("ManagerDashboard", mock.Anything, mock.MatchedBy(func(f domain.ReportFilter) bool {
 			return f.OrgID != nil && *f.OrgID == orgID
+		})).Return(&domain.ManagerDashboardReport{}, nil)
+
+		h := handler.NewReportsHandler(repo)
+		req := httptest.NewRequest(
+			http.MethodGet,
+			"/manager-dashboard?org_id="+orgID.String()+"&from="+time.Now().UTC().Format(time.RFC3339),
+			nil,
+		)
+		req = withClaims(req, &auth.Claims{UserID: uuid.New(), Role: string(domain.UserRoleSuperAdmin)})
+		rec := httptest.NewRecorder()
+
+		h.Router().ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+		repo.AssertExpectations(t)
+	})
+
+	t.Run("ignores org override for tenant admin", func(t *testing.T) {
+		repo := &mocks.MockReportsRepository{}
+		orgID := uuid.New()
+		repo.On("ManagerDashboard", mock.Anything, mock.MatchedBy(func(f domain.ReportFilter) bool {
+			return f.OrgID == nil
 		})).Return(&domain.ManagerDashboardReport{}, nil)
 
 		h := handler.NewReportsHandler(repo)

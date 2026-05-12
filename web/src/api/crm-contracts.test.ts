@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { http, HttpResponse } from 'msw'
 
 import { accountsApi } from './accounts'
+import { accessSettingsApi } from './accessSettings'
 import type { CreateActivityRequest } from './activities'
 import { adminSettingsApi } from './adminSettings'
 import { billingApi } from './billing'
@@ -16,9 +17,29 @@ import { numberingApi } from './numbering'
 import { picklistsApi } from './picklists'
 import { preferencesApi } from './preferences'
 import { slaApi } from './sla'
+import { usersApi } from './users'
 import { server } from '@/test/mocks/server'
 
 describe('CRM API contract mapping', () => {
+  it('loads user ACL assignment options from the users admin endpoint', async () => {
+    const seen: string[] = []
+    server.use(
+      http.get('/api/v1/users/assignment-options', () => {
+        seen.push('GET /api/v1/users/assignment-options')
+        return HttpResponse.json({
+          roles: [{ id: 'role-1', name: 'Sales Manager', org_id: 'org-1' }],
+          profiles: [{ id: 'profile-1', name: 'Sales', org_id: 'org-1' }],
+        })
+      })
+    )
+
+    const options = await usersApi.assignmentOptions()
+
+    expect(options.roles[0].id).toBe('role-1')
+    expect(options.profiles[0].id).toBe('profile-1')
+    expect(seen).toEqual(['GET /api/v1/users/assignment-options'])
+  })
+
   it('keeps activity creation restricted to backend-supported types', () => {
     const valid: CreateActivityRequest = { type: 'task', subject: 'Follow up' }
     expect(valid.type).toBe('task')
@@ -677,6 +698,126 @@ describe('CRM API contract mapping', () => {
       'DELETE /api/v1/settings/picklist-dependencies/dependency-1',
       'GET /api/v1/settings/lead-conversion-mapping',
       'PUT /api/v1/settings/lead-conversion-mapping',
+    ])
+  })
+
+  it('uses bundle-4 access settings routes and snake_case payload contracts', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.get('/api/v1/settings/roles', () => {
+        seen.push('GET /api/v1/settings/roles')
+        return HttpResponse.json({ data: [{ id: 'role-1', name: 'Manager', org_id: 'org-1' }] })
+      }),
+      http.post('/api/v1/settings/roles', async ({ request }) => {
+        seen.push('POST /api/v1/settings/roles')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.parent_id).toBe('role-1')
+        expect(body.parentId).toBeUndefined()
+        return HttpResponse.json({ id: 'role-2', name: body.name, parent_id: body.parent_id }, { status: 201 })
+      }),
+      http.patch('/api/v1/settings/roles/role-2/parent', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/roles/role-2/parent')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.parent_id).toBeNull()
+        return HttpResponse.json({ id: 'role-2', parent_id: null })
+      }),
+      http.get('/api/v1/settings/profiles', () => {
+        seen.push('GET /api/v1/settings/profiles')
+        return HttpResponse.json({ data: [{ id: 'profile-1', name: 'Sales', org_id: 'org-1' }] })
+      }),
+      http.get('/api/v1/settings/profiles/catalog', () => {
+        seen.push('GET /api/v1/settings/profiles/catalog')
+        return HttpResponse.json({ modules: ['contacts'], actions: ['read', 'update'] })
+      }),
+      http.put('/api/v1/settings/profiles/profile-1/permissions', async ({ request }) => {
+        seen.push('PUT /api/v1/settings/profiles/profile-1/permissions')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.field_permissions).toEqual([
+          { module: 'contacts', field_name: 'email', can_write: false },
+        ])
+        return HttpResponse.json(body)
+      }),
+      http.get('/api/v1/settings/groups', () => {
+        seen.push('GET /api/v1/settings/groups')
+        return HttpResponse.json({ data: [] })
+      }),
+      http.get('/api/v1/settings/groups/member-candidates', () => {
+        seen.push('GET /api/v1/settings/groups/member-candidates')
+        return HttpResponse.json({
+          data: [{ id: 'user-1', name: 'Ada Admin', email: 'ada@example.com', role: 'agent' }],
+          meta: { page: 1, per_page: 500, total: 1, total_pages: 1 },
+        })
+      }),
+      http.post('/api/v1/settings/groups', async ({ request }) => {
+        seen.push('POST /api/v1/settings/groups')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.user_ids).toEqual(['user-1'])
+        return HttpResponse.json({ id: 'group-1', ...body }, { status: 201 })
+      }),
+      http.put('/api/v1/settings/groups/group-1/members', async ({ request }) => {
+        seen.push('PUT /api/v1/settings/groups/group-1/members')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.user_ids).toEqual(['user-1', 'user-2'])
+        return new HttpResponse(null, { status: 204 })
+      }),
+      http.get('/api/v1/settings/sharing-rules', () => {
+        seen.push('GET /api/v1/settings/sharing-rules')
+        return HttpResponse.json({ rules: [] })
+      }),
+      http.patch('/api/v1/settings/sharing-rules', async ({ request }) => {
+        seen.push('PATCH /api/v1/settings/sharing-rules')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body).toEqual({
+          rules: [
+            {
+              module: 'contacts',
+              mode: 'private',
+              grants: [{ grantee_type: 'role', grantee_id: 'role-1', access_level: 'write' }],
+            },
+          ],
+        })
+        return HttpResponse.json(body)
+      })
+    )
+
+    await accessSettingsApi.listRoles()
+    await accessSettingsApi.createRole({ name: 'Regional Manager', parent_id: 'role-1' })
+    await accessSettingsApi.moveRole('role-2', null)
+    await accessSettingsApi.listProfiles()
+    await accessSettingsApi.getPermissionCatalog()
+    await accessSettingsApi.replaceProfilePermissions('profile-1', {
+      permissions: [{ module: 'contacts', action: 'read', allowed: true }],
+      field_permissions: [{ module: 'contacts', field_name: 'email', can_write: false }],
+    })
+    await accessSettingsApi.listGroups()
+    await accessSettingsApi.listGroupMemberCandidates()
+    await accessSettingsApi.createGroup({ name: 'West Team', user_ids: ['user-1'] })
+    await accessSettingsApi.replaceGroupMembers('group-1', ['user-1', 'user-2'])
+    await accessSettingsApi.getSharingRules()
+    await accessSettingsApi.replaceSharingRules({
+      rules: [
+        {
+          module: 'contacts',
+          mode: 'private',
+          grants: [{ grantee_type: 'role', grantee_id: 'role-1', access_level: 'write' }],
+        },
+      ],
+    })
+
+    expect(seen).toEqual([
+      'GET /api/v1/settings/roles',
+      'POST /api/v1/settings/roles',
+      'PATCH /api/v1/settings/roles/role-2/parent',
+      'GET /api/v1/settings/profiles',
+      'GET /api/v1/settings/profiles/catalog',
+      'PUT /api/v1/settings/profiles/profile-1/permissions',
+      'GET /api/v1/settings/groups',
+      'GET /api/v1/settings/groups/member-candidates',
+      'POST /api/v1/settings/groups',
+      'PUT /api/v1/settings/groups/group-1/members',
+      'GET /api/v1/settings/sharing-rules',
+      'PATCH /api/v1/settings/sharing-rules',
     ])
   })
 })

@@ -30,6 +30,11 @@ func (m *MockDealRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 	return args.Get(0).(*domain.Deal), args.Error(1)
 }
 
+func (m *MockDealRepository) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	args := m.Called(ctx, id, access)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockDealRepository) Update(ctx context.Context, id uuid.UUID, patch domain.DealPatch) (*domain.Deal, error) {
 	args := m.Called(ctx, id, patch)
 	if args.Get(0) == nil {

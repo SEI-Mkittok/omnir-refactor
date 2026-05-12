@@ -45,6 +45,89 @@ func scanActivity(row pgx.Row) (*domain.Activity, error) {
 	return &a, nil
 }
 
+type activityParentTarget struct {
+	column string
+	table  string
+	module domain.ACLModule
+	owners []string
+}
+
+func activityParentTargets() []activityParentTarget {
+	return []activityParentTarget{
+		{column: "contact_id", table: "contacts", module: domain.ACLModuleContacts, owners: []string{"p.owner_id"}},
+		{column: "account_id", table: "accounts", module: domain.ACLModuleAccounts, owners: []string{"p.owner_id"}},
+		{column: "deal_id", table: "deals", module: domain.ACLModuleDeals, owners: []string{"p.owner_id"}},
+	}
+}
+
+func addActivityParentVisibilityWhere(ctx context.Context, where *[]string, args *[]any, idx *int, access domain.SharingAccessLevel, activityRef string) {
+	if _, ok := domain.AccessContextFromContext(ctx); !ok {
+		return
+	}
+	for _, target := range activityParentTargets() {
+		parentWhere := []string{
+			fmt.Sprintf("p.id = %s.%s", activityRef, target.column),
+			fmt.Sprintf("p.org_id = %s.org_id", activityRef),
+			"p.deleted_at IS NULL",
+		}
+		predicate, predicateArgs := accessVisibilityPredicate(ctx, *idx, target.module, access, target.owners...)
+		if predicate != "" {
+			parentWhere = append(parentWhere, predicate)
+			*args = append(*args, predicateArgs...)
+			*idx += len(predicateArgs)
+		}
+		*where = append(*where, fmt.Sprintf(
+			"(%s.%s IS NULL OR EXISTS (SELECT 1 FROM %s p WHERE %s))",
+			activityRef,
+			target.column,
+			target.table,
+			strings.Join(parentWhere, " AND "),
+		))
+	}
+}
+
+func activityOrgID(ctx context.Context) uuid.UUID {
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		return orgID
+	}
+	if access, ok := domain.AccessContextFromContext(ctx); ok {
+		return access.OrgID
+	}
+	return uuid.Nil
+}
+
+func (r *ActivityRepo) ensureActivityParentAccess(ctx context.Context, module domain.ACLModule, id *uuid.UUID, access domain.SharingAccessLevel) error {
+	if id == nil {
+		return nil
+	}
+	orgID := activityOrgID(ctx)
+	if orgID == uuid.Nil {
+		return nil
+	}
+	table, ownerExprs, ok := recordAccessTarget(module)
+	if !ok {
+		return nil
+	}
+	qualifiedOwners := make([]string, 0, len(ownerExprs))
+	for _, ownerExpr := range ownerExprs {
+		qualifiedOwners = append(qualifiedOwners, "p."+ownerExpr)
+	}
+
+	q := fmt.Sprintf(`SELECT EXISTS(SELECT 1 FROM %s p WHERE p.id = $1 AND p.org_id = $2 AND p.deleted_at IS NULL`, table)
+	args := []any{*id, orgID}
+	appendAccessVisibilitySQL(ctx, &q, &args, module, access, qualifiedOwners...)
+	q += ")"
+
+	var exists bool
+	if err := r.db.QueryRow(ctx, q, args...).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *ActivityRepo) Create(ctx context.Context, a *domain.Activity) (*domain.Activity, error) {
 	if a.ID == uuid.Nil {
 		a.ID = uuid.New()
@@ -55,6 +138,16 @@ func (r *ActivityRepo) Create(ctx context.Context, a *domain.Activity) (*domain.
 	now := time.Now().UTC()
 	a.CreatedAt = now
 	a.UpdatedAt = now
+
+	if err := r.ensureActivityParentAccess(ctx, domain.ACLModuleContacts, a.ContactID, domain.SharingAccessWrite); err != nil {
+		return nil, err
+	}
+	if err := r.ensureActivityParentAccess(ctx, domain.ACLModuleAccounts, a.AccountID, domain.SharingAccessWrite); err != nil {
+		return nil, err
+	}
+	if err := r.ensureActivityParentAccess(ctx, domain.ACLModuleDeals, a.DealID, domain.SharingAccessWrite); err != nil {
+		return nil, err
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO activities
@@ -71,14 +164,18 @@ func (r *ActivityRepo) Create(ctx context.Context, a *domain.Activity) (*domain.
 }
 
 func (r *ActivityRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Activity, error) {
-	q := `SELECT ` + activityCols + ` FROM activities WHERE id=$1 AND deleted_at IS NULL`
+	where := []string{"id=$1", "deleted_at IS NULL"}
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		where = append(where, fmt.Sprintf("org_id=$%d", i))
 		args = append(args, orgID)
+		i++
 	}
+	addActivityParentVisibilityWhere(ctx, &where, &args, &i, domain.SharingAccessRead, "activities")
 
+	q := `SELECT ` + activityCols + ` FROM activities WHERE ` + strings.Join(where, " AND ")
 	row := r.db.QueryRow(ctx, q, args...)
 	return scanActivity(row)
 }
@@ -139,24 +236,41 @@ func (r *ActivityRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Ac
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
+	}
+	where := []string{whereClause}
+	addActivityParentVisibilityWhere(ctx, &where, &args, &i, domain.SharingAccessWrite, "activities")
+
+	if err := r.ensureActivityParentAccess(ctx, domain.ACLModuleContacts, patch.ContactID, domain.SharingAccessWrite); err != nil {
+		return nil, err
+	}
+	if err := r.ensureActivityParentAccess(ctx, domain.ACLModuleAccounts, patch.AccountID, domain.SharingAccessWrite); err != nil {
+		return nil, err
+	}
+	if err := r.ensureActivityParentAccess(ctx, domain.ACLModuleDeals, patch.DealID, domain.SharingAccessWrite); err != nil {
+		return nil, err
 	}
 
 	query := fmt.Sprintf(
 		`UPDATE activities SET %s WHERE %s RETURNING %s`,
-		strings.Join(sets, ", "), whereClause, activityCols,
+		strings.Join(sets, ", "), strings.Join(where, " AND "), activityCols,
 	)
 	row := r.db.QueryRow(ctx, query, args...)
 	return scanActivity(row)
 }
 
 func (r *ActivityRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	q := `UPDATE activities SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
+	where := []string{"id=$1", "deleted_at IS NULL"}
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		where = append(where, fmt.Sprintf("org_id=$%d", i))
 		args = append(args, orgID)
+		i++
 	}
+	addActivityParentVisibilityWhere(ctx, &where, &args, &i, domain.SharingAccessWrite, "activities")
+	q := `UPDATE activities SET deleted_at=NOW() WHERE ` + strings.Join(where, " AND ")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -220,6 +334,7 @@ func (r *ActivityRepo) List(ctx context.Context, f domain.ActivityFilter) ([]*do
 		args = append(args, f.Q)
 		i++
 	}
+	addActivityParentVisibilityWhere(ctx, &where, &args, &i, domain.SharingAccessRead, "activities")
 
 	whereClause := strings.Join(where, " AND ")
 

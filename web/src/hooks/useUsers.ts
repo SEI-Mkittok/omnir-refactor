@@ -9,6 +9,7 @@ export const userKeys = {
   details: () => [...userKeys.all, 'detail'] as const,
   detail: (id: string) => [...userKeys.details(), id] as const,
   me: () => [...userKeys.all, 'me'] as const,
+  assignmentOptions: () => [...userKeys.all, 'assignment-options'] as const,
 }
 
 export function useUsers(params?: UserListParams) {
@@ -33,6 +34,15 @@ export function useMe() {
     queryKey: userKeys.me(),
     queryFn: () => usersApi.me(),
     staleTime: 60_000,
+  })
+}
+
+export function useUserAssignmentOptions(enabled = true) {
+  return useQuery({
+    queryKey: userKeys.assignmentOptions(),
+    queryFn: usersApi.assignmentOptions,
+    staleTime: 60_000,
+    enabled,
   })
 }
 

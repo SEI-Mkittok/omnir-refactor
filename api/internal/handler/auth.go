@@ -261,6 +261,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	secure := r.TLS != nil
 	setAccessCookie(w, accessToken, secure)
 	setRefreshCookie(w, refreshToken, secure)
+	h.auditor.logLogin(r, user)
 
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})
 }

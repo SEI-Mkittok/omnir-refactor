@@ -31,6 +31,7 @@ type SSOHandler struct {
 	encryptKey     string
 	callbackURL    string
 	apiCallbackURL string
+	auditor        Auditor
 }
 
 func NewSSOHandler(
@@ -54,6 +55,11 @@ func NewSSOHandler(
 // WithAPICallbackURL sets the callback URL used by the API-style SSO routes.
 func (h *SSOHandler) WithAPICallbackURL(url string) *SSOHandler {
 	h.apiCallbackURL = url
+	return h
+}
+
+func (h *SSOHandler) WithAuditLog(r repository.AuditLogRepository) *SSOHandler {
+	h.auditor = newAuditor(r)
 	return h
 }
 
@@ -344,6 +350,7 @@ func (h *SSOHandler) handleCallback(w http.ResponseWriter, r *http.Request, call
 	secure := r.TLS != nil
 	setAccessCookie(w, accessToken, secure)
 	setRefreshCookie(w, refreshToken, secure)
+	h.auditor.logLogin(r, user)
 
 	// Redirect to the SPA SSO landing page.
 	http.Redirect(w, r, "/auth/sso/done", http.StatusFound)
@@ -364,7 +371,7 @@ func (h *SSOHandler) GetOrgSSO(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if !isAdminOrAbove(claims.Role) && claims.OrgID != orgID {
+	if !h.canManageOrgSSO(r, claims, orgID) {
 		writeError(w, http.StatusForbidden, "admin role required")
 		return
 	}
@@ -396,7 +403,7 @@ func (h *SSOHandler) UpdateOrgSSO(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if !isAdminOrAbove(claims.Role) {
+	if !h.canManageOrgSSO(r, claims, orgID) {
 		writeError(w, http.StatusForbidden, "admin role required")
 		return
 	}
@@ -535,7 +542,22 @@ func randomState() string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-func isAdminOrAbove(role string) bool {
-	return strings.EqualFold(role, string(domain.UserRoleAdmin)) ||
-		strings.EqualFold(role, string(domain.UserRoleSuperAdmin))
+func (h *SSOHandler) canManageOrgSSO(r *http.Request, claims *auth.Claims, orgID uuid.UUID) bool {
+	if claims == nil {
+		return false
+	}
+	if strings.EqualFold(claims.Role, string(domain.UserRoleSuperAdmin)) {
+		return true
+	}
+	requestOrgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok || requestOrgID != orgID {
+		return false
+	}
+	if strings.EqualFold(claims.Role, string(domain.UserRoleAdmin)) {
+		return true
+	}
+	if access, ok := domain.AccessContextFromContext(r.Context()); ok {
+		return access.HasPermission(domain.ACLModuleIntegrations, domain.ACLActionAdmin)
+	}
+	return false
 }

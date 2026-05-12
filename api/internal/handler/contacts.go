@@ -169,6 +169,11 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if c.Stage == "" {
 		c.Stage = domain.ContactStageLead
 	}
+	if c.OwnerID == uuid.Nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			c.OwnerID = claims.UserID
+		}
+	}
 	if err := c.Validate(); err != nil {
 		handleDomainErr(w, err)
 		return

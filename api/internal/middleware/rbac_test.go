@@ -123,3 +123,29 @@ func TestRequireRole_NoClaimsReturns401(t *testing.T) {
 	handler.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
+
+func TestRequireRole_ACLFallbackRequiresAdminPermission(t *testing.T) {
+	handler := middleware.RequireRole(domain.UserRoleAdmin)(okHandler)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/audit-log", nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{Role: string(domain.UserRoleAgent)}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleAuditLog: {domain.ACLActionRead: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/audit-log", nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{Role: string(domain.UserRoleAgent)}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleAuditLog: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}

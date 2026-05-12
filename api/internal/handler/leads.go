@@ -155,6 +155,11 @@ func (h *LeadHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	if l.OwnerID == nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			l.OwnerID = &claims.UserID
+		}
+	}
 
 	created, err := h.leads.Create(r.Context(), &l)
 	if err != nil {

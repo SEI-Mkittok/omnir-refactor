@@ -26,6 +26,13 @@ func RequireRole(roles ...domain.UserRole) func(http.Handler) http.Handler {
 				_, permitted = allowed[string(domain.UserRoleAdmin)]
 			}
 			if !permitted {
+				if module, _, ok := moduleActionFromRequest(r); ok {
+					if access, hasAccess := domain.AccessContextFromContext(r.Context()); hasAccess && access.HasPermission(module, domain.ACLActionAdmin) {
+						permitted = true
+					}
+				}
+			}
+			if !permitted {
 				http.Error(w, `{"error":"forbidden","code":"forbidden"}`, http.StatusForbidden)
 				return
 			}

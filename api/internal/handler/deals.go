@@ -183,6 +183,11 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if d.Stage == "" {
 		d.Stage = domain.DealStageLead
 	}
+	if d.OwnerID == uuid.Nil {
+		if claims, ok := middleware.ClaimsFromContext(r); ok {
+			d.OwnerID = claims.UserID
+		}
+	}
 	if err := d.Validate(); err != nil {
 		handleDomainErr(w, err)
 		return
@@ -340,6 +345,14 @@ func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.ContactID == uuid.Nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "contact_id is required")
+		return
+	}
+	if h.contacts == nil {
+		writeError(w, http.StatusInternalServerError, "contact access repository not configured")
+		return
+	}
+	if _, err := h.contacts.GetByID(r.Context(), body.ContactID); err != nil {
+		handleDomainErr(w, err)
 		return
 	}
 	if err := h.repo.AddContact(r.Context(), dealID, body.ContactID, body.Role); err != nil {
