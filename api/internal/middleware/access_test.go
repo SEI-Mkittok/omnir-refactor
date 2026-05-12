@@ -299,6 +299,52 @@ func TestRequireModulePermissionTreatsNestedChildMutationsAsParentUpdate(t *test
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestRequireModulePermissionTreatsPostCommandsAsUpdate(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+	quoteID := uuid.New()
+	viewID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/quotes/"+quoteID.String()+"/send", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleQuotes: {domain.ACLActionCreate: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/quotes/"+quoteID.String()+"/approve", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleQuotes: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/views/"+viewID.String()+"/pin", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleSavedViews: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/quotes", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleQuotes: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+}
+
 func TestRequireModulePermissionChecksConversionCreateTargets(t *testing.T) {
 	handler := middleware.RequireModulePermission()(okHandler)
 	leadID := uuid.New()

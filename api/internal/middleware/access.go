@@ -256,6 +256,9 @@ func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLActio
 		return "", "", false
 	}
 	action := actionFromMethod(r.Method)
+	if commandAction, ok := commandActionFromPath(r.Method, r.URL.Path); ok {
+		action = commandAction
+	}
 	if isNestedRecordSubroute(r.URL.Path) && action != domain.ACLActionRead {
 		action = domain.ACLActionUpdate
 	}
@@ -263,6 +266,36 @@ func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLActio
 		action = domain.ACLActionExport
 	}
 	return module, action, true
+}
+
+func commandActionFromPath(method, path string) (domain.ACLAction, bool) {
+	if method != http.MethodPost {
+		return "", false
+	}
+	path = strings.TrimPrefix(path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 3 {
+		return "", false
+	}
+	if _, err := uuid.Parse(parts[1]); err != nil {
+		return "", false
+	}
+
+	updateCommands := map[string]map[string]bool{
+		"quotes": {
+			"approve": true,
+			"reject":  true,
+			"send":    true,
+		},
+		"views": {
+			"pin": true,
+		},
+	}
+	if commands, ok := updateCommands[parts[0]]; ok && commands[parts[2]] {
+		return domain.ACLActionUpdate, true
+	}
+	return "", false
 }
 
 func childModuleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLAction, bool) {
