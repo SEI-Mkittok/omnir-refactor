@@ -188,6 +188,10 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
 		return
 	}
+	if (req.RoleID != nil || req.ProfileID != nil) && !h.canManageACLAssignments(r) {
+		writeError(w, http.StatusForbidden, "settings admin access required to assign roles or profiles")
+		return
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -250,6 +254,16 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	// Non-admins cannot change platform role or Bundle 4 assignments.
 	if !isAdmin && (patch.Role != nil || patch.RoleID != nil || patch.ProfileID != nil || patch.ClearRoleID || patch.ClearProfileID) {
 		writeError(w, http.StatusForbidden, "only admins can change roles or profiles")
+		return
+	}
+	if isSelf &&
+		(patch.Role != nil || patch.RoleID != nil || patch.ProfileID != nil || patch.ClearRoleID || patch.ClearProfileID) &&
+		claims.Role != string(domain.UserRoleSuperAdmin) {
+		writeError(w, http.StatusForbidden, "cannot change your own roles or profiles")
+		return
+	}
+	if (patch.RoleID != nil || patch.ProfileID != nil || patch.ClearRoleID || patch.ClearProfileID) && !h.canManageACLAssignments(r) {
+		writeError(w, http.StatusForbidden, "settings admin access required to assign roles or profiles")
 		return
 	}
 	if patch.Role != nil {
@@ -325,6 +339,10 @@ func (h *UserHandler) isAdminOrSelf(r *http.Request, targetID uuid.UUID) bool {
 
 func (h *UserHandler) hasAdminAccess(r *http.Request) bool {
 	return hasModuleAdminAccess(r, domain.ACLModuleUsers)
+}
+
+func (h *UserHandler) canManageACLAssignments(r *http.Request) bool {
+	return hasModuleAdminAccess(r, domain.ACLModuleSettings)
 }
 
 // handleUserMutationErr maps low-level Postgres constraint/type errors to

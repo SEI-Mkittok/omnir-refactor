@@ -457,6 +457,39 @@ func TestUserHandler_AssignmentOptionsAllowsDelegatedUserAdmin(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+func TestUserHandler_CreateRequiresSettingsAdminForACLAssignments(t *testing.T) {
+	userID := uuid.New()
+	profileID := uuid.New()
+	mockRepo := new(mocks.MockUserRepository)
+	h := handler.NewUserHandler(mockRepo)
+
+	bodyBytes, err := json.Marshal(map[string]any{
+		"name":       "Delegated Target",
+		"email":      "target@example.com",
+		"password":   "secret123",
+		"role":       "agent",
+		"profile_id": profileID.String(),
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req = withClaims(req, userClaims(userID))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		OrgID:  domain.DefaultOrgID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+	mockRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything, mock.Anything)
+}
+
 func TestUserHandler_GetByID(t *testing.T) {
 	adminID := uuid.New()
 	regularID := uuid.New()
@@ -775,6 +808,59 @@ func TestUserHandler_UpdateSelfIncludesResolvedPermissions(t *testing.T) {
 	require.True(t, got.Permissions[domain.ACLModuleUsers][domain.ACLActionAdmin])
 	require.True(t, got.Permissions[domain.ACLModuleSettings][domain.ACLActionAdmin])
 	mockRepo.AssertExpectations(t)
+}
+
+func TestUserHandler_UpdateSelfCannotEscalateACLAssignmentWithOnlyUserAdmin(t *testing.T) {
+	userID := uuid.New()
+	profileID := uuid.New()
+	mockRepo := new(mocks.MockUserRepository)
+	h := handler.NewUserHandler(mockRepo)
+
+	bodyBytes, err := json.Marshal(map[string]any{"profile_id": profileID.String()})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPatch, "/"+userID.String(), bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req = withURLParam(req, "id", userID.String())
+	req = withClaims(req, userClaims(userID))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		OrgID:  domain.DefaultOrgID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+	mockRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUserHandler_UpdateSelfCannotEscalatePlatformRoleWithUserAdmin(t *testing.T) {
+	userID := uuid.New()
+	mockRepo := new(mocks.MockUserRepository)
+	h := handler.NewUserHandler(mockRepo)
+
+	bodyBytes, err := json.Marshal(map[string]any{"role": "admin"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPatch, "/"+userID.String(), bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req = withURLParam(req, "id", userID.String())
+	req = withClaims(req, userClaims(userID))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		OrgID:  domain.DefaultOrgID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	require.Equal(t, http.StatusForbidden, w.Code)
+	mockRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestUserHandler_Delete tests Delete via the Router (which applies requireAdmin).
