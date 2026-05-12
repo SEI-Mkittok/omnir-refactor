@@ -225,6 +225,17 @@ func (h *AccountHandler) CreateRelationship(w http.ResponseWriter, r *http.Reque
 		handleDomainErr(w, err)
 		return
 	}
+	if _, ok := domain.AccessContextFromContext(r.Context()); ok {
+		canAccessChild, err := h.repo.CanAccess(r.Context(), rel.ChildAccountID, domain.SharingAccessWrite)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if !canAccessChild {
+			handleDomainErr(w, domain.ErrNotFound)
+			return
+		}
+	}
 	created, err := h.repo.CreateRelationship(r.Context(), &rel)
 	if err != nil {
 		handleDomainErr(w, err)

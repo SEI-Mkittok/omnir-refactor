@@ -38,6 +38,7 @@ type ContactRepository interface {
 type AccountRepository interface {
 	Create(ctx context.Context, a *domain.Account) (*domain.Account, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error)
+	CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error)
 	GetByName(ctx context.Context, name string) (*domain.Account, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.AccountPatch) (*domain.Account, error)
 	Delete(ctx context.Context, id uuid.UUID) error

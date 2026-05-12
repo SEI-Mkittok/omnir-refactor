@@ -350,6 +350,83 @@ func TestAccountHandler_List(t *testing.T) {
 	}
 }
 
+func TestAccountHandler_CreateRelationshipChecksChildAccountVisibility(t *testing.T) {
+	parentID := uuid.New()
+	childID := uuid.New()
+	userID := uuid.New()
+	orgID := domain.DefaultOrgID
+	access := &domain.AccessContext{
+		UserID: userID,
+		OrgID:  orgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleAccounts: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+	body, err := json.Marshal(map[string]any{
+		"child_account_id":  childID.String(),
+		"relationship_type": string(domain.AccountRelationshipTypePartner),
+	})
+	require.NoError(t, err)
+
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("CanAccess", mock.Anything, childID, domain.SharingAccessWrite).Return(false, nil).Once()
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/"+parentID.String()+"/relationships", bytes.NewReader(body))
+	req = withURLParam(req, "id", parentID.String())
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	w := httptest.NewRecorder()
+
+	h.CreateRelationship(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	mockRepo.AssertNotCalled(t, "CreateRelationship", mock.Anything, mock.Anything)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestAccountHandler_CreateRelationshipAllowsVisibleChildAccount(t *testing.T) {
+	parentID := uuid.New()
+	childID := uuid.New()
+	userID := uuid.New()
+	orgID := domain.DefaultOrgID
+	access := &domain.AccessContext{
+		UserID: userID,
+		OrgID:  orgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleAccounts: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+	body, err := json.Marshal(map[string]any{
+		"child_account_id":  childID.String(),
+		"relationship_type": string(domain.AccountRelationshipTypePartner),
+	})
+	require.NoError(t, err)
+
+	mockRepo := new(mocks.MockAccountRepository)
+	mockRepo.On("CanAccess", mock.Anything, childID, domain.SharingAccessWrite).Return(true, nil).Once()
+	mockRepo.On("CreateRelationship", mock.Anything, mock.MatchedBy(func(rel *domain.AccountRelationship) bool {
+		return rel.ParentAccountID == parentID &&
+			rel.ChildAccountID == childID &&
+			rel.RelationshipType == domain.AccountRelationshipTypePartner
+	})).Return(&domain.AccountRelationship{
+		ID:               uuid.New(),
+		ParentAccountID:  parentID,
+		ChildAccountID:   childID,
+		RelationshipType: domain.AccountRelationshipTypePartner,
+	}, nil).Once()
+
+	h := handler.NewAccountHandler(mockRepo)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/"+parentID.String()+"/relationships", bytes.NewReader(body))
+	req = withURLParam(req, "id", parentID.String())
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	w := httptest.NewRecorder()
+
+	h.CreateRelationship(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	mockRepo.AssertExpectations(t)
+}
+
 func TestAccountHandler_ListDescendants(t *testing.T) {
 	accountID := uuid.New()
 	descendantID := uuid.New()

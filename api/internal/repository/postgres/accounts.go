@@ -105,6 +105,11 @@ func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Accoun
 	return scanAccount(row)
 }
 
+func (r *AccountRepo) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	repo := NewAccessRepo(r.db)
+	return repo.CanAccessRecord(ctx, domain.ACLModuleAccounts, id, access)
+}
+
 func (r *AccountRepo) GetByName(ctx context.Context, name string) (*domain.Account, error) {
 	q := `SELECT ` + accountCols + ` FROM accounts WHERE name=$1 AND deleted_at IS NULL`
 	args := []any{name}
