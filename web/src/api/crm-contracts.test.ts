@@ -17,9 +17,29 @@ import { numberingApi } from './numbering'
 import { picklistsApi } from './picklists'
 import { preferencesApi } from './preferences'
 import { slaApi } from './sla'
+import { usersApi } from './users'
 import { server } from '@/test/mocks/server'
 
 describe('CRM API contract mapping', () => {
+  it('loads user ACL assignment options from the users admin endpoint', async () => {
+    const seen: string[] = []
+    server.use(
+      http.get('/api/v1/users/assignment-options', () => {
+        seen.push('GET /api/v1/users/assignment-options')
+        return HttpResponse.json({
+          roles: [{ id: 'role-1', name: 'Sales Manager', org_id: 'org-1' }],
+          profiles: [{ id: 'profile-1', name: 'Sales', org_id: 'org-1' }],
+        })
+      })
+    )
+
+    const options = await usersApi.assignmentOptions()
+
+    expect(options.roles[0].id).toBe('role-1')
+    expect(options.profiles[0].id).toBe('profile-1')
+    expect(seen).toEqual(['GET /api/v1/users/assignment-options'])
+  })
+
   it('keeps activity creation restricted to backend-supported types', () => {
     const valid: CreateActivityRequest = { type: 'task', subject: 'Follow up' }
     expect(valid.type).toBe('task')

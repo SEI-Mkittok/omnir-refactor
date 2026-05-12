@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -33,6 +34,19 @@ func userClaims(userID uuid.UUID) *auth.Claims {
 
 func makeUser(id uuid.UUID) *domain.User {
 	return &domain.User{ID: id, Email: "user@example.com", Name: "Test User", Role: domain.UserRoleAgent}
+}
+
+type fakeUserAssignmentRepo struct {
+	roles    []*domain.ACLRole
+	profiles []*domain.ACLProfile
+}
+
+func (f fakeUserAssignmentRepo) ListRoles(_ context.Context, _ uuid.UUID) ([]*domain.ACLRole, error) {
+	return f.roles, nil
+}
+
+func (f fakeUserAssignmentRepo) ListProfiles(_ context.Context, _ uuid.UUID) ([]*domain.ACLProfile, error) {
+	return f.profiles, nil
 }
 
 func TestUserHandler_List(t *testing.T) {
@@ -398,6 +412,48 @@ func TestUserHandler_GetMeIncludesResolvedPermissions(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&got))
 	require.True(t, got.Permissions[domain.ACLModuleUsers][domain.ACLActionAdmin])
 	require.True(t, got.Permissions[domain.ACLModuleSettings][domain.ACLActionAdmin])
+	mockRepo.AssertExpectations(t)
+}
+
+func TestUserHandler_AssignmentOptionsAllowsDelegatedUserAdmin(t *testing.T) {
+	userID := uuid.New()
+	roleID := uuid.New()
+	profileID := uuid.New()
+	mockRepo := new(mocks.MockUserRepository)
+	assignments := fakeUserAssignmentRepo{
+		roles: []*domain.ACLRole{
+			{ID: roleID, OrgID: domain.DefaultOrgID, Name: "Sales Manager"},
+		},
+		profiles: []*domain.ACLProfile{
+			{ID: profileID, OrgID: domain.DefaultOrgID, Name: "Delegated Admin"},
+		},
+	}
+	h := handler.NewUserHandler(mockRepo, assignments)
+
+	req := httptest.NewRequest(http.MethodGet, "/assignment-options", nil)
+	req = withClaims(req, userClaims(userID))
+	req = req.WithContext(domain.WithOrgID(req.Context(), domain.DefaultOrgID))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		OrgID:  domain.DefaultOrgID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		Roles    []domain.ACLRole    `json:"roles"`
+		Profiles []domain.ACLProfile `json:"profiles"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	require.Len(t, resp.Roles, 1)
+	require.Equal(t, roleID, resp.Roles[0].ID)
+	require.Len(t, resp.Profiles, 1)
+	require.Equal(t, profileID, resp.Profiles[0].ID)
 	mockRepo.AssertExpectations(t)
 }
 

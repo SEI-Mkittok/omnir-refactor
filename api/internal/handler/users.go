@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,16 +18,27 @@ import (
 )
 
 type UserHandler struct {
-	repo repository.UserRepository
+	repo        repository.UserRepository
+	assignments userAssignmentRepository
 }
 
-func NewUserHandler(repo repository.UserRepository) *UserHandler {
-	return &UserHandler{repo: repo}
+type userAssignmentRepository interface {
+	ListRoles(ctx context.Context, orgID uuid.UUID) ([]*domain.ACLRole, error)
+	ListProfiles(ctx context.Context, orgID uuid.UUID) ([]*domain.ACLProfile, error)
+}
+
+func NewUserHandler(repo repository.UserRepository, assignments ...userAssignmentRepository) *UserHandler {
+	h := &UserHandler{repo: repo}
+	if len(assignments) > 0 {
+		h.assignments = assignments[0]
+	}
+	return h
 }
 
 func (h *UserHandler) Router() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", h.requireAdmin(h.List))
+	r.Get("/assignment-options", h.requireAdmin(h.AssignmentOptions))
 	r.Post("/", h.requireAdmin(h.Create))
 	r.Get("/me", h.GetMe)
 	r.Get("/{id}", h.GetByID)
@@ -82,6 +94,32 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, paginated(users, total, filter.Page, filter.Limit))
+}
+
+func (h *UserHandler) AssignmentOptions(w http.ResponseWriter, r *http.Request) {
+	if h.assignments == nil {
+		writeError(w, http.StatusInternalServerError, "assignment repository unavailable")
+		return
+	}
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok || orgID == uuid.Nil {
+		writeError(w, http.StatusUnauthorized, "org_id required")
+		return
+	}
+	roles, err := h.assignments.ListRoles(r.Context(), orgID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	profiles, err := h.assignments.ListProfiles(r.Context(), orgID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"roles":    roles,
+		"profiles": profiles,
+	})
 }
 
 // GetMe returns the currently authenticated user.

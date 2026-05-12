@@ -177,7 +177,7 @@ func main() {
 	setupHandler := handler.NewSetupHandler(userRepo, orgRepo, jwtSvc, cfg.OrgMode)
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo).WithOrgs(orgRepo)
-	userHandler := handler.NewUserHandler(userRepo)
+	userHandler := handler.NewUserHandler(userRepo, accessRepo)
 	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
 	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)

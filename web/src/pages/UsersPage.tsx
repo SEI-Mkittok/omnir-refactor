@@ -2,8 +2,7 @@ import { useState, useCallback } from 'react'
 import axios from 'axios'
 import { Plus, UserCog } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useUsers'
-import { useACLRoles, useACLProfiles } from '@/hooks/useAccessSettings'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUserAssignmentOptions } from '@/hooks/useUsers'
 import { useAuthStore } from '@/stores/auth'
 import { FilterBar } from '@/components/ui/FilterBar'
 import { Table, type Column } from '@/components/ui/Table'
@@ -354,8 +353,9 @@ export function UsersPage() {
   })
 
   const { mutate: deleteUser } = useDeleteUser()
-  const { data: aclRoles = [] } = useACLRoles()
-  const { data: profiles = [] } = useACLProfiles()
+  const { data: assignmentOptions } = useUserAssignmentOptions(isAdmin)
+  const aclRoles = assignmentOptions?.roles ?? []
+  const profiles = assignmentOptions?.profiles ?? []
 
   const users = data?.data ?? []
   const total = data?.meta?.total ?? 0
