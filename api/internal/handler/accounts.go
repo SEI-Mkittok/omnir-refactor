@@ -272,6 +272,11 @@ func (h *AccountHandler) ListDescendants(w http.ResponseWriter, r *http.Request)
 		handleDomainErr(w, err)
 		return
 	}
+	ids, err = h.filterVisibleAccountIDs(r, ids)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"account_id": accountID, "descendant_ids": ids})
 }
 
@@ -286,5 +291,28 @@ func (h *AccountHandler) ListAncestors(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	ids, err = h.filterVisibleAccountIDs(r, ids)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"account_id": accountID, "ancestor_ids": ids})
+}
+
+func (h *AccountHandler) filterVisibleAccountIDs(r *http.Request, ids []uuid.UUID) ([]uuid.UUID, error) {
+	if _, ok := domain.AccessContextFromContext(r.Context()); !ok {
+		return ids, nil
+	}
+
+	visible := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		canAccess, err := h.repo.CanAccess(r.Context(), id, domain.SharingAccessRead)
+		if err != nil {
+			return nil, err
+		}
+		if canAccess {
+			visible = append(visible, id)
+		}
+	}
+	return visible, nil
 }
