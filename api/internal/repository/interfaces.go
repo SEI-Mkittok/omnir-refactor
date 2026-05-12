@@ -56,6 +56,7 @@ type AccountRepository interface {
 type DealRepository interface {
 	Create(ctx context.Context, d *domain.Deal) (*domain.Deal, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, error)
+	CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.DealPatch) (*domain.Deal, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context, filter domain.DealFilter) ([]*domain.Deal, int, error)
@@ -299,6 +300,8 @@ type SLAInstanceRepository interface {
 type PortalLinkRepository interface {
 	// Create inserts a new portal link.
 	Create(ctx context.Context, l *domain.PortalLink) (*domain.PortalLink, error)
+	// GetByID returns the portal link by ID, scoped to org context when present.
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.PortalLink, error)
 	// GetByToken returns the portal link for the given token. Returns ErrNotFound when absent.
 	// This query does NOT require org context — the token is globally unique.
 	GetByToken(ctx context.Context, token string) (*domain.PortalLink, error)

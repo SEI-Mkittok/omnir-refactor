@@ -52,6 +52,16 @@ func (r *PortalLinkRepo) Create(ctx context.Context, l *domain.PortalLink) (*dom
 	return scanPortalLink(row)
 }
 
+func (r *PortalLinkRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.PortalLink, error) {
+	q := `SELECT ` + portalLinkCols + ` FROM portal_links WHERE id = $1`
+	args := []any{id}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q += ` AND org_id = $2`
+		args = append(args, orgID)
+	}
+	return scanPortalLink(r.db.QueryRow(ctx, q, args...))
+}
+
 // GetByToken looks up a portal link by its unique token. The query uses an
 // explicit token = $1 filter, which is independent of the org-scoped session
 // variable, so it works correctly for unauthenticated public portal requests.

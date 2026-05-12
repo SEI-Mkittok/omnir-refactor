@@ -109,6 +109,11 @@ func (r *DealRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, err
 	return deal, nil
 }
 
+func (r *DealRepo) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	repo := NewAccessRepo(r.db)
+	return repo.CanAccessRecord(ctx, domain.ACLModuleDeals, id, access)
+}
+
 // AddContact inserts a row into deal_contacts (upsert on conflict to allow role updates).
 func (r *DealRepo) AddContact(ctx context.Context, dealID, contactID uuid.UUID, role string) error {
 	_, err := r.db.Exec(ctx, `
