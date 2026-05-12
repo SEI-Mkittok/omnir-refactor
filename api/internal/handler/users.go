@@ -96,9 +96,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
-	if access, ok := domain.AccessContextFromContext(r.Context()); ok {
-		u.Permissions = access.Permissions
-	}
+	attachPermissionsFromAccess(r, u)
 	writeJSON(w, http.StatusOK, u)
 }
 
@@ -243,7 +241,19 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if claims.UserID == id {
+		attachPermissionsFromAccess(r, u)
+	}
 	writeJSON(w, http.StatusOK, u)
+}
+
+func attachPermissionsFromAccess(r *http.Request, u *domain.User) {
+	if u == nil {
+		return
+	}
+	if access, ok := domain.AccessContextFromContext(r.Context()); ok {
+		u.Permissions = access.Permissions
+	}
 }
 
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {

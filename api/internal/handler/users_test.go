@@ -683,6 +683,44 @@ func TestUserHandler_Update(t *testing.T) {
 	}
 }
 
+func TestUserHandler_UpdateSelfIncludesResolvedPermissions(t *testing.T) {
+	userID := uuid.New()
+	mockRepo := new(mocks.MockUserRepository)
+	mockRepo.On("Update", mock.Anything, userID, mock.MatchedBy(func(p domain.UserPatch) bool {
+		return p.Name != nil && *p.Name == "Delegated Admin"
+	})).Return(&domain.User{ID: userID, Email: "delegate@example.com", Name: "Delegated Admin", Role: domain.UserRoleAgent}, nil)
+	h := handler.NewUserHandler(mockRepo)
+
+	bodyBytes, err := json.Marshal(map[string]any{"name": "Delegated Admin"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPatch, "/"+userID.String(), bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	req = withURLParam(req, "id", userID.String())
+	req = withClaims(req, userClaims(userID))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		UserID: userID,
+		OrgID:  domain.DefaultOrgID,
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleUsers: {
+				domain.ACLActionAdmin: true,
+			},
+			domain.ACLModuleSettings: {
+				domain.ACLActionAdmin: true,
+			},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Update(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var got domain.User
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&got))
+	require.True(t, got.Permissions[domain.ACLModuleUsers][domain.ACLActionAdmin])
+	require.True(t, got.Permissions[domain.ACLModuleSettings][domain.ACLActionAdmin])
+	mockRepo.AssertExpectations(t)
+}
+
 // TestUserHandler_Delete tests Delete via the Router (which applies requireAdmin).
 func TestUserHandler_Delete(t *testing.T) {
 	adminID := uuid.New()
