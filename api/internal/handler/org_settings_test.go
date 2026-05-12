@@ -192,6 +192,30 @@ func TestOrgSettingsHandler_AllowsWorkspaceAdmins(t *testing.T) {
 	assert.Equal(t, int64(1000), resp.QuoteNumberStart)
 }
 
+func TestOrgSettingsHandler_AllowsSettingsACLAdmins(t *testing.T) {
+	orgID := uuid.New()
+	repo := &fakeOrgSettingsRepository{settings: makeOrgSettings(orgID)}
+	h := handler.NewOrgSettingsHandler(repo, "test-key")
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = withClaims(req, &auth.Claims{
+		UserID: uuid.New(),
+		OrgID:  orgID,
+		Role:   string(domain.UserRoleAgent),
+	})
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleSettings: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, repo.getCalled)
+}
+
 func TestOrgSettingsHandler_RejectsNonAdmins(t *testing.T) {
 	repo := &fakeOrgSettingsRepository{}
 	h := handler.NewOrgSettingsHandler(repo, "test-key")

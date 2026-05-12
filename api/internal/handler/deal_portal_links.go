@@ -164,6 +164,23 @@ func (h *DealPortalLinksHandler) RevokeLink(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	link, err := h.links.GetByID(r.Context(), id)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if _, ok := domain.AccessContextFromContext(r.Context()); ok {
+		canAccessDeal, err := h.deals.CanAccess(r.Context(), link.DealID, domain.SharingAccessWrite)
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if !canAccessDeal {
+			handleDomainErr(w, domain.ErrNotFound)
+			return
+		}
+	}
+
 	if err := h.links.Revoke(r.Context(), id, orgID); err != nil {
 		handleDomainErr(w, err)
 		return

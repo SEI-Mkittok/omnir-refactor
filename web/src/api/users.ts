@@ -5,7 +5,14 @@ import type {
   UpdateUserRequest,
   UserListParams,
   PaginatedResponse,
+  ACLProfile,
+  ACLRole,
 } from './types'
+
+export interface UserAssignmentOptions {
+  roles: ACLRole[]
+  profiles: ACLProfile[]
+}
 
 export const usersApi = {
   list: async (params?: UserListParams): Promise<PaginatedResponse<User>> => {
@@ -20,6 +27,11 @@ export const usersApi = {
 
   me: async (): Promise<User> => {
     const { data } = await apiClient.get('/users/me')
+    return data
+  },
+
+  assignmentOptions: async (): Promise<UserAssignmentOptions> => {
+    const { data } = await apiClient.get<UserAssignmentOptions>('/users/assignment-options')
     return data
   },
 

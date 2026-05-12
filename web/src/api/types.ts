@@ -54,6 +54,11 @@ export interface User {
   email: string
   name: string
   role: UserRole
+  role_id?: string
+  profile_id?: string
+  role_name?: string
+  profile_name?: string
+  permissions?: ACLPermissionMap
   avatar_url?: string
   created_at: string
   updated_at: string
@@ -64,12 +69,16 @@ export interface CreateUserRequest {
   email: string
   password: string
   role?: UserRole
+  role_id?: string
+  profile_id?: string
 }
 
 export interface UpdateUserRequest {
   name?: string
   email?: string
   role?: UserRole
+  role_id?: string | null
+  profile_id?: string | null
 }
 
 export interface UserListParams {
@@ -79,6 +88,113 @@ export interface UserListParams {
   role?: UserRole
   sort?: string
   order?: 'asc' | 'desc'
+}
+
+// ---- Bundle 4 Access Control ----
+
+export type ACLModule =
+  | 'accounts'
+  | 'activities'
+  | 'api_keys'
+  | 'audit_log'
+  | 'automations'
+  | 'billing'
+  | 'calendar'
+  | 'contacts'
+  | 'custom_fields'
+  | 'dashboards'
+  | 'deals'
+  | 'email_templates'
+  | 'emails'
+  | 'export'
+  | 'integrations'
+  | 'kb'
+  | 'leads'
+  | 'notifications'
+  | 'onboarding'
+  | 'ops_finance'
+  | 'products'
+  | 'quotes'
+  | 'reports'
+  | 'views'
+  | 'search'
+  | 'sequences'
+  | 'settings'
+  | 'sla'
+  | 'tickets'
+  | 'timeline'
+  | 'users'
+  | 'webhooks'
+
+export type ACLAction = 'read' | 'create' | 'update' | 'delete' | 'export' | 'admin'
+export type ACLPermissionMap = Partial<Record<ACLModule, Partial<Record<ACLAction, boolean>>>>
+export type SharingDefaultMode = 'private' | 'public_read' | 'public_rw'
+export type SharingAccessLevel = 'read' | 'write'
+export type SharingGranteeType = 'role' | 'group'
+
+export interface ACLRole {
+  id: string
+  org_id: string
+  name: string
+  description?: string
+  system_key?: string
+  parent_id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ACLProfile {
+  id: string
+  org_id: string
+  name: string
+  description?: string
+  system_key?: string
+}
+
+export interface ACLProfilePermission {
+  profile_id?: string
+  module: ACLModule
+  action: ACLAction
+  allowed: boolean
+}
+
+export interface ACLProfileFieldPermission {
+  profile_id?: string
+  module: ACLModule
+  field_name: string
+  can_write: boolean
+}
+
+export interface ACLGroup {
+  id: string
+  org_id: string
+  name: string
+  description?: string
+  user_ids?: string[]
+}
+
+export interface ACLSharingGrant {
+  id?: string
+  org_id?: string
+  module?: ACLModule
+  grantee_type: SharingGranteeType
+  grantee_id: string
+  access_level: SharingAccessLevel
+}
+
+export interface ACLSharingModuleRule {
+  module: ACLModule
+  mode: SharingDefaultMode
+  grants: ACLSharingGrant[]
+}
+
+export interface ACLSharingRules {
+  rules: ACLSharingModuleRule[]
+}
+
+export interface PermissionCatalog {
+  modules: ACLModule[]
+  actions: ACLAction[]
 }
 
 // ---- Contact ----

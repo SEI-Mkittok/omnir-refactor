@@ -115,7 +115,13 @@ func (r *TicketRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket,
 		q += ` AND org_id=$2`
 		args = append(args, orgID)
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleTickets, domain.SharingAccessRead, "assignee_id", "submitted_by_user_id")
 	return scanTicket(r.db.QueryRow(ctx, q, args...))
+}
+
+func (r *TicketRepo) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	repo := NewAccessRepo(r.db)
+	return repo.CanAccessRecord(ctx, domain.ACLModuleTickets, id, access)
 }
 
 const ticketDetailQuery = `
@@ -139,6 +145,7 @@ func (r *TicketRepo) GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.T
 		q += ` AND t.org_id = $2`
 		args = append(args, orgID)
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleTickets, domain.SharingAccessRead, "t.assignee_id", "t.submitted_by_user_id")
 
 	var d domain.TicketDetail
 	var (
@@ -190,6 +197,7 @@ func (r *TicketRepo) UpdateContact(ctx context.Context, id uuid.UUID, contactID 
 		q += ` AND org_id = $3`
 		args = append(args, orgID)
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleTickets, domain.SharingAccessWrite, "assignee_id", "submitted_by_user_id")
 
 	q += ` RETURNING ` + ticketCols
 	return scanTicket(r.db.QueryRow(ctx, q, args...))
@@ -260,7 +268,9 @@ func (r *TicketRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Tick
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &whereClause, &args, domain.ACLModuleTickets, domain.SharingAccessWrite, "assignee_id", "submitted_by_user_id")
 
 	query := fmt.Sprintf(
 		`UPDATE tickets SET %s WHERE %s RETURNING %s`,
@@ -277,6 +287,7 @@ func (r *TicketRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		q += ` AND org_id=$2`
 		args = append(args, orgID)
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleTickets, domain.SharingAccessWrite, "assignee_id", "submitted_by_user_id")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -339,6 +350,7 @@ func (r *TicketRepo) List(ctx context.Context, f domain.TicketFilter) ([]*domain
 		args = append(args, f.Q)
 		i++
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleTickets, domain.SharingAccessRead, "assignee_id", "submitted_by_user_id")
 
 	whereClause := strings.Join(where, " AND ")
 

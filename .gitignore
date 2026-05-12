@@ -27,3 +27,11 @@ Thumbs.db
 .postgres-data/
 omnir-refactor/
 agents/heimdall/.github-token
+
+# Local agent/Codex workspace artifacts
+.codex_tmp/
+.openclaw/
+
+# Locally generated source dumps
+docs/original-crm-feature-issues.md
+docs/original-crm-feature-prompts.md

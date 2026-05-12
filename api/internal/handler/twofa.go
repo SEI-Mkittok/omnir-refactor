@@ -26,6 +26,7 @@ type TwoFAHandler struct {
 	users      repository.UserRepository
 	jwtSvc     *auth.JWTService
 	encryptKey string
+	auditor    Auditor
 }
 
 func NewTwoFAHandler(
@@ -35,6 +36,11 @@ func NewTwoFAHandler(
 	encryptKey string,
 ) *TwoFAHandler {
 	return &TwoFAHandler{totpRepo: totpRepo, users: users, jwtSvc: jwtSvc, encryptKey: encryptKey}
+}
+
+func (h *TwoFAHandler) WithAuditLog(r repository.AuditLogRepository) *TwoFAHandler {
+	h.auditor = newAuditor(r)
+	return h
 }
 
 // Router returns routes for authenticated user 2FA management.
@@ -275,6 +281,7 @@ func (h *TwoFAHandler) VerifyLogin(w http.ResponseWriter, r *http.Request) {
 	secure := r.TLS != nil
 	setAccessCookie(w, accessToken, secure)
 	setRefreshCookie(w, refreshToken, secure)
+	h.auditor.logLogin(r, user)
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})
 }
 

@@ -30,6 +30,11 @@ func (m *MockTicketRepository) GetByID(ctx context.Context, id uuid.UUID) (*doma
 	return args.Get(0).(*domain.Ticket), args.Error(1)
 }
 
+func (m *MockTicketRepository) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	args := m.Called(ctx, id, access)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockTicketRepository) GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {

@@ -74,8 +74,7 @@ func (h *IntegrationsHandler) Router() chi.Router {
 
 func (h *IntegrationsHandler) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || !domain.IsAdminRole(claims.Role) {
+		if !hasModuleAdminAccess(r, domain.ACLModuleIntegrations) {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}

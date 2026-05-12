@@ -83,11 +83,14 @@ func (r *ContactRepo) Create(ctx context.Context, c *domain.Contact) (*domain.Co
 func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contact, error) {
 	q := `SELECT ` + contactCols + ` FROM contacts WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleContacts, domain.SharingAccessRead, "owner_id")
 
 	row := r.db.QueryRow(ctx, q, args...)
 	return scanContact(row)
@@ -157,7 +160,9 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &whereClause, &args, domain.ACLModuleContacts, domain.SharingAccessWrite, "owner_id")
 
 	query := fmt.Sprintf(
 		`UPDATE contacts SET %s WHERE %s RETURNING %s`,
@@ -170,11 +175,14 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 func (r *ContactRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	q := `UPDATE contacts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleContacts, domain.SharingAccessWrite, "owner_id")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -213,6 +221,7 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleContacts, domain.SharingAccessRead, "owner_id")
 
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)

@@ -26,6 +26,15 @@ var orgScopedTables = []string{
 	"ticket_attachments",
 	"leads",
 	"crm_entity_links",
+	"crm_roles",
+	"crm_role_closure",
+	"crm_profiles",
+	"crm_profile_permissions",
+	"crm_profile_field_permissions",
+	"crm_groups",
+	"crm_group_members",
+	"crm_sharing_defaults",
+	"crm_sharing_grants",
 }
 
 // EnableRLS activates FORCE ROW LEVEL SECURITY on every org-scoped table so

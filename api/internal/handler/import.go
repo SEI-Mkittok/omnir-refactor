@@ -141,6 +141,37 @@ func strPtr(s string) *string {
 	return &s
 }
 
+func importAccessContext(w http.ResponseWriter, r *http.Request) (*domain.AccessContext, bool) {
+	access, ok := domain.AccessContextFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusForbidden, "access context required")
+		return nil, false
+	}
+	return access, true
+}
+
+func deniedImportField(access *domain.AccessContext, module domain.ACLModule, fields ...string) string {
+	if access != nil && domain.IsAdminRole(access.PlatformRole) {
+		return ""
+	}
+	seen := map[string]bool{}
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field == "" || seen[field] {
+			continue
+		}
+		seen[field] = true
+		if !access.CanWriteField(module, field) {
+			return field
+		}
+	}
+	return ""
+}
+
+func importFieldDeniedMessage(field string) string {
+	return `field "` + field + `" is not writable`
+}
+
 // callerUserID returns the authenticated user's ID from the request context.
 func callerUserID(r *http.Request) uuid.UUID {
 	if claims, ok := middleware.ClaimsFromContext(r); ok {
@@ -166,6 +197,13 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	idx := buildIndex(headers, mapping)
+	access, ok := importAccessContext(w, r)
+	if !ok {
+		return
+	}
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims && access.PlatformRole == "" {
+		access.PlatformRole = claims.Role
+	}
 
 	result := ImportResult{}
 	rowNum := 1 // header is row 0; data starts at row 1
@@ -192,6 +230,18 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 		}
 
 		email := getField(row, idx, "email")
+		phone := getField(row, idx, "phone")
+		leadSource := getField(row, idx, "lead_source")
+		fields := []string{"first_name", "last_name"}
+		if email != "" {
+			fields = append(fields, "email")
+		}
+		if phone != "" {
+			fields = append(fields, "phone")
+		}
+		if leadSource != "" {
+			fields = append(fields, "lead_source")
+		}
 
 		// Validate email format when provided.
 		if email != "" && !strings.Contains(email, "@") {
@@ -204,11 +254,23 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			existing, lookupErr := h.contacts.GetByEmail(r.Context(), email)
 			if lookupErr == nil && existing != nil {
+				updateFields := []string{"first_name", "last_name"}
+				if phone != "" {
+					updateFields = append(updateFields, "phone")
+				}
+				if leadSource != "" {
+					updateFields = append(updateFields, "lead_source")
+				}
+				if denied := deniedImportField(access, domain.ACLModuleContacts, updateFields...); denied != "" {
+					result.Failed++
+					result.Errors = append(result.Errors, ImportError{Row: rowNum, Error: importFieldDeniedMessage(denied)})
+					continue
+				}
 				patch := domain.ContactPatch{
 					FirstName:  &firstName,
 					LastName:   &lastName,
-					Phone:      strPtr(getField(row, idx, "phone")),
-					LeadSource: strPtr(getField(row, idx, "lead_source")),
+					Phone:      strPtr(phone),
+					LeadSource: strPtr(leadSource),
 				}
 				if _, updateErr := h.contacts.Update(r.Context(), existing.ID, patch); updateErr != nil {
 					result.Failed++
@@ -220,14 +282,26 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		if stageStr := getField(row, idx, "stage"); stageStr != "" {
+			s := domain.ContactStage(stageStr)
+			if s.IsValid() {
+				fields = append(fields, "stage")
+			}
+		}
+		if denied := deniedImportField(access, domain.ACLModuleContacts, fields...); denied != "" {
+			result.Failed++
+			result.Errors = append(result.Errors, ImportError{Row: rowNum, Error: importFieldDeniedMessage(denied)})
+			continue
+		}
+
 		c := &domain.Contact{
 			FirstName:  firstName,
 			LastName:   lastName,
 			Email:      strPtr(email),
-			Phone:      strPtr(getField(row, idx, "phone")),
+			Phone:      strPtr(phone),
 			OwnerID:    ownerID,
 			Stage:      domain.ContactStageLead,
-			LeadSource: strPtr(getField(row, idx, "lead_source")),
+			LeadSource: strPtr(leadSource),
 		}
 		if stageStr := getField(row, idx, "stage"); stageStr != "" {
 			s := domain.ContactStage(stageStr)
@@ -268,6 +342,13 @@ func (h *ImportHandler) ImportAccounts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	idx := buildIndex(headers, mapping)
+	access, ok := importAccessContext(w, r)
+	if !ok {
+		return
+	}
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims && access.PlatformRole == "" {
+		access.PlatformRole = claims.Role
+	}
 
 	result := ImportResult{}
 	rowNum := 1
@@ -292,15 +373,34 @@ func (h *ImportHandler) ImportAccounts(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		domainValue := getField(row, idx, "domain")
+		industry := getField(row, idx, "industry")
+		sizeStr := getField(row, idx, "size")
+		fields := []string{"name"}
+		if domainValue != "" {
+			fields = append(fields, "domain")
+		}
+		if industry != "" {
+			fields = append(fields, "industry")
+		}
+		if sizeStr != "" {
+			fields = append(fields, "size")
+		}
+		if denied := deniedImportField(access, domain.ACLModuleAccounts, fields...); denied != "" {
+			result.Failed++
+			result.Errors = append(result.Errors, ImportError{Row: rowNum, Error: importFieldDeniedMessage(denied)})
+			continue
+		}
+
 		// Upsert by name (exact match within org). Note: accounts with the same name but
 		// different domains are treated as duplicates — intentional Phase 6 limitation.
 		existing, lookupErr := h.accounts.GetByName(r.Context(), name)
 		if lookupErr == nil && existing != nil {
 			patch := domain.AccountPatch{
-				Domain:   strPtr(getField(row, idx, "domain")),
-				Industry: strPtr(getField(row, idx, "industry")),
+				Domain:   strPtr(domainValue),
+				Industry: strPtr(industry),
 			}
-			if sizeStr := getField(row, idx, "size"); sizeStr != "" {
+			if sizeStr != "" {
 				s := domain.AccountSize(sizeStr)
 				patch.Size = &s
 			}
@@ -315,11 +415,11 @@ func (h *ImportHandler) ImportAccounts(w http.ResponseWriter, r *http.Request) {
 
 		a := &domain.Account{
 			Name:     name,
-			Domain:   strPtr(getField(row, idx, "domain")),
-			Industry: strPtr(getField(row, idx, "industry")),
+			Domain:   strPtr(domainValue),
+			Industry: strPtr(industry),
 			OwnerID:  ownerID,
 		}
-		if sizeStr := getField(row, idx, "size"); sizeStr != "" {
+		if sizeStr != "" {
 			s := domain.AccountSize(sizeStr)
 			a.Size = &s
 		}
@@ -356,6 +456,13 @@ func (h *ImportHandler) ImportLeads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	idx := buildIndex(headers, mapping)
+	access, ok := importAccessContext(w, r)
+	if !ok {
+		return
+	}
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims && access.PlatformRole == "" {
+		access.PlatformRole = claims.Role
+	}
 
 	result := ImportResult{}
 	rowNum := 1
@@ -381,13 +488,36 @@ func (h *ImportHandler) ImportLeads(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		email := getField(row, idx, "email")
+		phone := getField(row, idx, "phone")
+		company := getField(row, idx, "company")
+		leadSource := getField(row, idx, "lead_source")
+		fields := []string{"first_name", "last_name"}
+		if email != "" {
+			fields = append(fields, "email")
+		}
+		if phone != "" {
+			fields = append(fields, "phone")
+		}
+		if company != "" {
+			fields = append(fields, "company")
+		}
+		if leadSource != "" {
+			fields = append(fields, "lead_source")
+		}
+		if denied := deniedImportField(access, domain.ACLModuleLeads, fields...); denied != "" {
+			result.Failed++
+			result.Errors = append(result.Errors, ImportError{Row: rowNum, Error: importFieldDeniedMessage(denied)})
+			continue
+		}
+
 		l := &domain.Lead{
 			FirstName:  firstName,
 			LastName:   lastName,
-			Email:      strPtr(getField(row, idx, "email")),
-			Phone:      strPtr(getField(row, idx, "phone")),
-			Company:    strPtr(getField(row, idx, "company")),
-			LeadSource: strPtr(getField(row, idx, "lead_source")),
+			Email:      strPtr(email),
+			Phone:      strPtr(phone),
+			Company:    strPtr(company),
+			LeadSource: strPtr(leadSource),
 			Status:     domain.LeadStatusNew,
 			OwnerID:    &ownerID,
 		}

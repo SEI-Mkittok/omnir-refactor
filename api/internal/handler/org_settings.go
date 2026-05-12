@@ -82,8 +82,7 @@ func (h *OrgSettingsHandler) MenuConfigRouter() chi.Router {
 
 func (h *OrgSettingsHandler) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := middleware.ClaimsFromContext(r)
-		if !ok || !domain.IsAdminRole(claims.Role) {
+		if !hasModuleAdminAccess(r, domain.ACLModuleSettings) {
 			writeError(w, http.StatusForbidden, "admin access required")
 			return
 		}
@@ -97,34 +96,34 @@ type numberingSequenceAccessor interface {
 }
 
 type numberingSettingsPayload struct {
-	QuoteNumberStart      *int64  `json:"quote_number_start,omitempty"`
-	TicketNumberStart     *int64  `json:"ticket_number_start,omitempty"`
-	KBArticleNumberStart  *int64  `json:"kb_article_number_start,omitempty"`
-	InvoiceNumberStart    *int64  `json:"invoice_number_start,omitempty"`
-	QuoteNumberPrefix     *string `json:"quote_number_prefix,omitempty"`
-	TicketNumberPrefix    *string `json:"ticket_number_prefix,omitempty"`
-	KBArticleNumberPrefix *string `json:"kb_article_number_prefix,omitempty"`
-	InvoiceNumberPrefix   *string `json:"invoice_number_prefix,omitempty"`
-	QuoteNumberCurrent    *int64  `json:"quote_number_current,omitempty"`
-	TicketNumberCurrent   *int64  `json:"ticket_number_current,omitempty"`
-	KBArticleNumberCurrent *int64 `json:"kb_article_number_current,omitempty"`
-	InvoiceNumberCurrent  *int64  `json:"invoice_number_current,omitempty"`
+	QuoteNumberStart       *int64  `json:"quote_number_start,omitempty"`
+	TicketNumberStart      *int64  `json:"ticket_number_start,omitempty"`
+	KBArticleNumberStart   *int64  `json:"kb_article_number_start,omitempty"`
+	InvoiceNumberStart     *int64  `json:"invoice_number_start,omitempty"`
+	QuoteNumberPrefix      *string `json:"quote_number_prefix,omitempty"`
+	TicketNumberPrefix     *string `json:"ticket_number_prefix,omitempty"`
+	KBArticleNumberPrefix  *string `json:"kb_article_number_prefix,omitempty"`
+	InvoiceNumberPrefix    *string `json:"invoice_number_prefix,omitempty"`
+	QuoteNumberCurrent     *int64  `json:"quote_number_current,omitempty"`
+	TicketNumberCurrent    *int64  `json:"ticket_number_current,omitempty"`
+	KBArticleNumberCurrent *int64  `json:"kb_article_number_current,omitempty"`
+	InvoiceNumberCurrent   *int64  `json:"invoice_number_current,omitempty"`
 }
 
 type numberingSettingsResponse struct {
 	OrgID                  uuid.UUID `json:"org_id"`
-	QuoteNumberStart       int64  `json:"quote_number_start"`
-	TicketNumberStart      int64  `json:"ticket_number_start"`
-	KBArticleNumberStart   int64  `json:"kb_article_number_start"`
-	InvoiceNumberStart     int64  `json:"invoice_number_start"`
-	QuoteNumberPrefix      string `json:"quote_number_prefix"`
-	TicketNumberPrefix     string `json:"ticket_number_prefix"`
-	KBArticleNumberPrefix  string `json:"kb_article_number_prefix"`
-	InvoiceNumberPrefix    string `json:"invoice_number_prefix"`
-	QuoteNumberCurrent     int64  `json:"quote_number_current"`
-	TicketNumberCurrent    int64  `json:"ticket_number_current"`
-	KBArticleNumberCurrent int64  `json:"kb_article_number_current"`
-	InvoiceNumberCurrent   int64  `json:"invoice_number_current"`
+	QuoteNumberStart       int64     `json:"quote_number_start"`
+	TicketNumberStart      int64     `json:"ticket_number_start"`
+	KBArticleNumberStart   int64     `json:"kb_article_number_start"`
+	InvoiceNumberStart     int64     `json:"invoice_number_start"`
+	QuoteNumberPrefix      string    `json:"quote_number_prefix"`
+	TicketNumberPrefix     string    `json:"ticket_number_prefix"`
+	KBArticleNumberPrefix  string    `json:"kb_article_number_prefix"`
+	InvoiceNumberPrefix    string    `json:"invoice_number_prefix"`
+	QuoteNumberCurrent     int64     `json:"quote_number_current"`
+	TicketNumberCurrent    int64     `json:"ticket_number_current"`
+	KBArticleNumberCurrent int64     `json:"kb_article_number_current"`
+	InvoiceNumberCurrent   int64     `json:"invoice_number_current"`
 }
 
 // Get returns current org settings (including numbering start values).

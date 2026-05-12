@@ -92,14 +92,22 @@ func (r *AccountRepo) Create(ctx context.Context, a *domain.Account) (*domain.Ac
 func (r *AccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	q := `SELECT ` + accountCols + ` FROM accounts WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleAccounts, domain.SharingAccessRead, "owner_id")
 
 	row := r.db.QueryRow(ctx, q, args...)
 	return scanAccount(row)
+}
+
+func (r *AccountRepo) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	repo := NewAccessRepo(r.db)
+	return repo.CanAccessRecord(ctx, domain.ACLModuleAccounts, id, access)
 }
 
 func (r *AccountRepo) GetByName(ctx context.Context, name string) (*domain.Account, error) {
@@ -155,7 +163,9 @@ func (r *AccountRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Acc
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
 		whereClause += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &whereClause, &args, domain.ACLModuleAccounts, domain.SharingAccessWrite, "owner_id")
 
 	query := fmt.Sprintf(
 		`UPDATE accounts SET %s WHERE %s RETURNING %s`,
@@ -168,11 +178,14 @@ func (r *AccountRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Acc
 func (r *AccountRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	q := `UPDATE accounts SET deleted_at=NOW() WHERE id=$1 AND deleted_at IS NULL`
 	args := []any{id}
+	i := 2
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		q += ` AND org_id=$2`
+		q += fmt.Sprintf(` AND org_id=$%d`, i)
 		args = append(args, orgID)
+		i++
 	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleAccounts, domain.SharingAccessWrite, "owner_id")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -211,6 +224,7 @@ func (r *AccountRepo) List(ctx context.Context, f domain.AccountFilter) ([]*doma
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleAccounts, domain.SharingAccessRead, "owner_id")
 
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)

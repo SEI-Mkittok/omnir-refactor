@@ -17,7 +17,7 @@ const org: Org = {
   created_at: '2026-05-09T12:00:00Z',
 }
 
-function makeUser(role: UserRole): User {
+function makeUser(role: UserRole, patch: Partial<User> = {}): User {
   return {
     id: `${role}-1`,
     org_id: org.id,
@@ -26,6 +26,7 @@ function makeUser(role: UserRole): User {
     role,
     created_at: '2026-05-09T12:00:00Z',
     updated_at: '2026-05-09T12:00:00Z',
+    ...patch,
   }
 }
 
@@ -87,6 +88,45 @@ describe('app shell navigation', () => {
     render(<Sidebar />)
     expect(screen.queryByRole('link', { name: /users/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /numbering/i })).not.toBeInTheDocument()
+  })
+
+  it('shows only permitted admin navigation for delegated ACL admins', () => {
+    useAuthStore.setState({
+      user: makeUser('agent', {
+        profile_name: 'People Admin',
+        permissions: {
+          users: { admin: true },
+        },
+      }),
+      activeOrg: org,
+      isAuthenticated: true,
+      isInitializing: false,
+    })
+
+    const { unmount } = render(<Sidebar />)
+
+    expect(screen.getByRole('link', { name: /users/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /roles/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /billing/i })).not.toBeInTheDocument()
+
+    unmount()
+    useAuthStore.setState({
+      user: makeUser('agent', {
+        profile_name: 'Access Admin',
+        permissions: {
+          settings: { admin: true },
+        },
+      }),
+      activeOrg: org,
+      isAuthenticated: true,
+      isInitializing: false,
+    })
+
+    render(<Sidebar />)
+
+    expect(screen.queryByRole('link', { name: /users/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /roles/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /sharing rules/i })).toBeInTheDocument()
   })
 
   it('applies org menu configuration to non-admin sidebar navigation', async () => {

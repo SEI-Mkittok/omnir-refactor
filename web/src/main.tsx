@@ -42,6 +42,10 @@ import { CurrenciesPage } from '@/pages/settings/CurrenciesPage'
 import { PicklistsPage } from '@/pages/settings/PicklistsPage'
 import { PicklistDependenciesPage } from '@/pages/settings/PicklistDependenciesPage'
 import { LeadConversionMappingPage } from '@/pages/settings/LeadConversionMappingPage'
+import { RolesPage } from '@/pages/settings/RolesPage'
+import { ProfilesPage } from '@/pages/settings/ProfilesPage'
+import { SharingRulesPage } from '@/pages/settings/SharingRulesPage'
+import { GroupsPage } from '@/pages/settings/GroupsPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
@@ -61,6 +65,8 @@ import { AccountDetailPage } from '@/pages/AccountDetailPage'
 import { TicketDetailPage } from '@/pages/TicketDetailPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
+import { canAccessAdminModule } from '@/lib/access'
+import type { ACLModule } from '@/api/types'
 import '@/styles/globals.css'
 
 const queryClient = new QueryClient({
@@ -72,13 +78,9 @@ const queryClient = new QueryClient({
   },
 })
 
-function isWorkspaceAdmin(role: string | undefined) {
-  return role === 'admin' || role === 'super_admin'
-}
-
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminRoute({ children, module }: { children: React.ReactNode; module: ACLModule }) {
   const user = useAuthStore((s) => s.user)
-  if (!isWorkspaceAdmin(user?.role)) return <Navigate to="/dashboard" replace />
+  if (!canAccessAdminModule(user, module)) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 
@@ -155,7 +157,7 @@ function AppRoutes() {
         <Route
           path="/users"
           element={
-            <AdminRoute>
+            <AdminRoute module="users">
               <UsersPage />
             </AdminRoute>
           }
@@ -167,7 +169,7 @@ function AppRoutes() {
         <Route
           path="/settings/custom-fields"
           element={
-            <AdminRoute>
+            <AdminRoute module="custom_fields">
               <CustomFieldsPage />
             </AdminRoute>
           }
@@ -175,7 +177,7 @@ function AppRoutes() {
         <Route
           path="/api-keys"
           element={
-            <AdminRoute>
+            <AdminRoute module="api_keys">
               <APIKeysPage />
             </AdminRoute>
           }
@@ -183,7 +185,7 @@ function AppRoutes() {
         <Route
           path="/settings/numbering"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <DocumentNumberingPage />
             </AdminRoute>
           }
@@ -191,7 +193,7 @@ function AppRoutes() {
         <Route
           path="/settings/company"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <CompanyProfileSettingsPage />
             </AdminRoute>
           }
@@ -199,7 +201,7 @@ function AppRoutes() {
         <Route
           path="/settings/portal"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <PortalConfigurationPage />
             </AdminRoute>
           }
@@ -207,7 +209,7 @@ function AppRoutes() {
         <Route
           path="/settings/outgoing-server"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <OutgoingServerSettingsPage />
             </AdminRoute>
           }
@@ -215,7 +217,7 @@ function AppRoutes() {
         <Route
           path="/settings/config-editor"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <ConfigurationEditorPage />
             </AdminRoute>
           }
@@ -223,7 +225,7 @@ function AppRoutes() {
         <Route
           path="/settings/menu"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <MenuConfigurationPage />
             </AdminRoute>
           }
@@ -231,7 +233,7 @@ function AppRoutes() {
         <Route
           path="/settings/currencies"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <CurrenciesPage />
             </AdminRoute>
           }
@@ -239,7 +241,7 @@ function AppRoutes() {
         <Route
           path="/settings/picklists"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <PicklistsPage />
             </AdminRoute>
           }
@@ -247,7 +249,7 @@ function AppRoutes() {
         <Route
           path="/settings/picklist-dependencies"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <PicklistDependenciesPage />
             </AdminRoute>
           }
@@ -255,15 +257,47 @@ function AppRoutes() {
         <Route
           path="/settings/lead-conversion-mapping"
           element={
-            <AdminRoute>
+            <AdminRoute module="settings">
               <LeadConversionMappingPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/roles"
+          element={
+            <AdminRoute module="settings">
+              <RolesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/profiles"
+          element={
+            <AdminRoute module="settings">
+              <ProfilesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/sharing-rules"
+          element={
+            <AdminRoute module="settings">
+              <SharingRulesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/groups"
+          element={
+            <AdminRoute module="settings">
+              <GroupsPage />
             </AdminRoute>
           }
         />
         <Route
           path="/settings/sla"
           element={
-            <AdminRoute>
+            <AdminRoute module="sla">
               <SLASettingsPage />
             </AdminRoute>
           }
@@ -271,7 +305,7 @@ function AppRoutes() {
         <Route
           path="/settings/webhooks"
           element={
-            <AdminRoute>
+            <AdminRoute module="webhooks">
               <WebhooksPage />
             </AdminRoute>
           }
@@ -279,7 +313,7 @@ function AppRoutes() {
         <Route
           path="/settings/billing"
           element={
-            <AdminRoute>
+            <AdminRoute module="billing">
               <BillingSettingsPage />
             </AdminRoute>
           }
@@ -287,7 +321,7 @@ function AppRoutes() {
         <Route
           path="/settings/billing/plans"
           element={
-            <AdminRoute>
+            <AdminRoute module="billing">
               <BillingPlansPage />
             </AdminRoute>
           }
@@ -295,7 +329,7 @@ function AppRoutes() {
         <Route
           path="/settings/integrations"
           element={
-            <AdminRoute>
+            <AdminRoute module="integrations">
               <IntegrationsSettingsPage />
             </AdminRoute>
           }
@@ -304,7 +338,7 @@ function AppRoutes() {
         <Route
           path="/admin/audit"
           element={
-            <AdminRoute>
+            <AdminRoute module="audit_log">
               <AuditLogPage />
             </AdminRoute>
           }
