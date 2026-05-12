@@ -243,11 +243,6 @@ func (a *AccessContext) HasPermission(module ACLModule, action ACLAction) bool {
 			return true
 		}
 	}
-	if action == ACLActionExport {
-		if actions, ok := a.Permissions[module]; ok && actions[ACLActionRead] {
-			return true
-		}
-	}
 	return false
 }
 
