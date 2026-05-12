@@ -51,19 +51,34 @@ func reportDateClause(args []interface{}, f domain.ReportFilter, alias, col stri
 	return args, sb.String()
 }
 
+func appendReportReadVisibility(ctx context.Context, q *string, args *[]interface{}, module domain.ACLModule, ownerExprs ...string) {
+	appendAccessVisibilitySQL(ctx, q, args, module, domain.SharingAccessRead, ownerExprs...)
+}
+
+func cloneReportArgs(args []interface{}) []interface{} {
+	cloned := make([]interface{}, len(args))
+	copy(cloned, args)
+	return cloned
+}
+
 // DealsByStage returns deal count and total value_cents grouped by stage, scoped to the org.
 func (r *ReportsRepo) DealsByStage(ctx context.Context) ([]domain.DealStageMetric, error) {
 	orgID, ok := domain.OrgIDFromContext(ctx)
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-	rows, err := r.db.Query(ctx, `
+	args := []interface{}{orgID}
+	q := `
 		SELECT stage, COUNT(*) AS count, COALESCE(SUM(value_cents), 0) AS total_value_cents
 		FROM deals
 		WHERE org_id = $1 AND deleted_at IS NULL
+	`
+	appendReportReadVisibility(ctx, &q, &args, domain.ACLModuleDeals, "owner_id")
+	q += `
 		GROUP BY stage
 		ORDER BY stage
-	`, orgID)
+	`
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,15 +103,20 @@ func (r *ReportsRepo) ContactsMonthly(ctx context.Context) ([]domain.ContactMont
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-	rows, err := r.db.Query(ctx, `
+	args := []interface{}{orgID}
+	q := `
 		SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS count
 		FROM contacts
 		WHERE org_id = $1
 		  AND deleted_at IS NULL
 		  AND created_at >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+	`
+	appendReportReadVisibility(ctx, &q, &args, domain.ACLModuleContacts, "owner_id")
+	q += `
 		GROUP BY month
 		ORDER BY month
-	`, orgID)
+	`
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -156,16 +176,21 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 		orgID = *filter.OrgID
 	}
 
-	args, dateClause := reportArgs(orgID, filter, "t")
+	baseArgs, dateClause := reportArgs(orgID, filter, "t")
 
 	// Per-status counts.
-	statusRows, err := r.db.Query(ctx, `
+	statusArgs := cloneReportArgs(baseArgs)
+	statusQuery := `
 		SELECT status, COUNT(*) AS count
 		FROM tickets t
-		WHERE t.org_id = $1 AND t.deleted_at IS NULL`+dateClause+`
+		WHERE t.org_id = $1 AND t.deleted_at IS NULL` + dateClause + `
+	`
+	appendReportReadVisibility(ctx, &statusQuery, &statusArgs, domain.ACLModuleTickets, "t.assignee_id", "t.submitted_by_user_id")
+	statusQuery += `
 		GROUP BY status
 		ORDER BY status
-	`, args...)
+	`
+	statusRows, err := r.db.Query(ctx, statusQuery, statusArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +220,8 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 
 	// Average resolution time (hours) for resolved/closed tickets.
 	var avgHours float64
-	if err := r.db.QueryRow(ctx, `
+	avgArgs := cloneReportArgs(baseArgs)
+	avgQuery := `
 		SELECT COALESCE(
 			AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 3600.0),
 			0
@@ -203,9 +229,9 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 		FROM tickets t
 		WHERE t.org_id = $1
 		  AND t.deleted_at IS NULL
-		  AND t.status IN ('resolved', 'closed')`+dateClause,
-		args...,
-	).Scan(&avgHours); err != nil {
+		  AND t.status IN ('resolved', 'closed')` + dateClause
+	appendReportReadVisibility(ctx, &avgQuery, &avgArgs, domain.ACLModuleTickets, "t.assignee_id", "t.submitted_by_user_id")
+	if err := r.db.QueryRow(ctx, avgQuery, avgArgs...).Scan(&avgHours); err != nil {
 		return nil, err
 	}
 
@@ -215,14 +241,14 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 	breachThreshIdx := "$" + strconv.Itoa(len(breachArgs))
 
 	var openTotal, openBreached int
-	if err := r.db.QueryRow(ctx, `
+	breachQuery := `
 		SELECT
 			COUNT(*) FILTER (WHERE t.status IN ('open','in_progress','pending')) AS open_total,
-			COUNT(*) FILTER (WHERE t.status IN ('open','in_progress','pending') AND t.created_at <= `+breachThreshIdx+`) AS open_breached
+			COUNT(*) FILTER (WHERE t.status IN ('open','in_progress','pending') AND t.created_at <= ` + breachThreshIdx + `) AS open_breached
 		FROM tickets t
-		WHERE t.org_id = $1 AND t.deleted_at IS NULL`+breachDateClause,
-		breachArgs...,
-	).Scan(&openTotal, &openBreached); err != nil {
+		WHERE t.org_id = $1 AND t.deleted_at IS NULL` + breachDateClause
+	appendReportReadVisibility(ctx, &breachQuery, &breachArgs, domain.ACLModuleTickets, "t.assignee_id", "t.submitted_by_user_id")
+	if err := r.db.QueryRow(ctx, breachQuery, breachArgs...).Scan(&openTotal, &openBreached); err != nil {
 		return nil, err
 	}
 
@@ -232,13 +258,18 @@ func (r *ReportsRepo) TicketMetrics(ctx context.Context, filter domain.ReportFil
 	}
 
 	// Daily ticket count for the Tickets Over Time chart.
-	dailyRows, err := r.db.Query(ctx, `
+	dailyArgs := cloneReportArgs(baseArgs)
+	dailyQuery := `
 		SELECT TO_CHAR(t.created_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
 		FROM tickets t
-		WHERE t.org_id = $1 AND t.deleted_at IS NULL`+dateClause+`
+		WHERE t.org_id = $1 AND t.deleted_at IS NULL` + dateClause + `
+	`
+	appendReportReadVisibility(ctx, &dailyQuery, &dailyArgs, domain.ACLModuleTickets, "t.assignee_id", "t.submitted_by_user_id")
+	dailyQuery += `
 		GROUP BY date
 		ORDER BY date
-	`, args...)
+	`
+	dailyRows, err := r.db.Query(ctx, dailyQuery, dailyArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -281,34 +312,41 @@ func (r *ReportsRepo) ContactMetrics(ctx context.Context, filter domain.ReportFi
 
 	// All-time total for the org (no date filter).
 	var totalCount int
-	if err := r.db.QueryRow(ctx, `
+	totalArgs := []interface{}{orgID}
+	totalQuery := `
 		SELECT COUNT(*)
 		FROM contacts c
-		WHERE c.org_id = $1 AND c.deleted_at IS NULL`,
-		orgID,
-	).Scan(&totalCount); err != nil {
+		WHERE c.org_id = $1 AND c.deleted_at IS NULL`
+	appendReportReadVisibility(ctx, &totalQuery, &totalArgs, domain.ACLModuleContacts, "c.owner_id")
+	if err := r.db.QueryRow(ctx, totalQuery, totalArgs...).Scan(&totalCount); err != nil {
 		return nil, err
 	}
 
 	// Contacts created within the date range.
-	rangeArgs, dateClause := reportArgs(orgID, filter, "c")
+	baseRangeArgs, dateClause := reportArgs(orgID, filter, "c")
 	var newCount int
-	if err := r.db.QueryRow(ctx, `
+	newCountArgs := cloneReportArgs(baseRangeArgs)
+	newCountQuery := `
 		SELECT COUNT(*)
 		FROM contacts c
-		WHERE c.org_id = $1 AND c.deleted_at IS NULL`+dateClause,
-		rangeArgs...,
-	).Scan(&newCount); err != nil {
+		WHERE c.org_id = $1 AND c.deleted_at IS NULL` + dateClause
+	appendReportReadVisibility(ctx, &newCountQuery, &newCountArgs, domain.ACLModuleContacts, "c.owner_id")
+	if err := r.db.QueryRow(ctx, newCountQuery, newCountArgs...).Scan(&newCount); err != nil {
 		return nil, err
 	}
 
-	overTimeRows, err := r.db.Query(ctx, `
+	overTimeArgs := cloneReportArgs(baseRangeArgs)
+	overTimeQuery := `
 		SELECT TO_CHAR(c.created_at, 'YYYY-MM') AS month, COUNT(*) AS count
 		FROM contacts c
-		WHERE c.org_id = $1 AND c.deleted_at IS NULL`+dateClause+`
+		WHERE c.org_id = $1 AND c.deleted_at IS NULL` + dateClause + `
+	`
+	appendReportReadVisibility(ctx, &overTimeQuery, &overTimeArgs, domain.ACLModuleContacts, "c.owner_id")
+	overTimeQuery += `
 		GROUP BY month
 		ORDER BY month
-	`, rangeArgs...)
+	`
+	overTimeRows, err := r.db.Query(ctx, overTimeQuery, overTimeArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -348,13 +386,17 @@ func (r *ReportsRepo) DealMetrics(ctx context.Context, filter domain.ReportFilte
 
 	args, dateClause := reportArgs(orgID, filter, "d")
 
-	stageRows, err := r.db.Query(ctx, `
+	stageQuery := `
 		SELECT stage, COUNT(*) AS count, COALESCE(SUM(value_cents), 0) AS total_value_cents
 		FROM deals d
-		WHERE d.org_id = $1 AND d.deleted_at IS NULL`+dateClause+`
+		WHERE d.org_id = $1 AND d.deleted_at IS NULL` + dateClause + `
+	`
+	appendReportReadVisibility(ctx, &stageQuery, &args, domain.ACLModuleDeals, "d.owner_id")
+	stageQuery += `
 		GROUP BY stage
 		ORDER BY stage
-	`, args...)
+	`
+	stageRows, err := r.db.Query(ctx, stageQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -403,17 +445,18 @@ func (r *ReportsRepo) LeadMetrics(ctx context.Context, filter domain.ReportFilte
 		orgID = *filter.OrgID
 	}
 
-	args, dateClause := reportArgs(orgID, filter, "l")
+	baseArgs, dateClause := reportArgs(orgID, filter, "l")
 
 	var newCount, convertedCount int
-	if err := r.db.QueryRow(ctx, `
+	countArgs := cloneReportArgs(baseArgs)
+	countQuery := `
 		SELECT
 			COUNT(*) AS total,
 			COUNT(*) FILTER (WHERE l.status = 'converted' OR l.converted_contact_id IS NOT NULL) AS converted
 		FROM leads l
-		WHERE l.org_id = $1 AND l.deleted_at IS NULL`+dateClause,
-		args...,
-	).Scan(&newCount, &convertedCount); err != nil {
+		WHERE l.org_id = $1 AND l.deleted_at IS NULL` + dateClause
+	appendReportReadVisibility(ctx, &countQuery, &countArgs, domain.ACLModuleLeads, "l.owner_id")
+	if err := r.db.QueryRow(ctx, countQuery, countArgs...).Scan(&newCount, &convertedCount); err != nil {
 		return nil, err
 	}
 
@@ -423,13 +466,18 @@ func (r *ReportsRepo) LeadMetrics(ctx context.Context, filter domain.ReportFilte
 	}
 
 	// Funnel: count per lead status for the funnel breakdown chart.
-	funnelRows, err := r.db.Query(ctx, `
+	funnelArgs := cloneReportArgs(baseArgs)
+	funnelQuery := `
 		SELECT l.status, COUNT(*) AS count
 		FROM leads l
-		WHERE l.org_id = $1 AND l.deleted_at IS NULL`+dateClause+`
+		WHERE l.org_id = $1 AND l.deleted_at IS NULL` + dateClause + `
+	`
+	appendReportReadVisibility(ctx, &funnelQuery, &funnelArgs, domain.ACLModuleLeads, "l.owner_id")
+	funnelQuery += `
 		GROUP BY l.status
 		ORDER BY l.status
-	`, args...)
+	`
+	funnelRows, err := r.db.Query(ctx, funnelQuery, funnelArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -501,6 +549,7 @@ func (r *ReportsRepo) PipelineFunnel(ctx context.Context, pipelineID *uuid.UUID,
 		args = append(args, *filter.To)
 		i++
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleDeals, domain.SharingAccessRead, "owner_id")
 	_ = i
 
 	q := `SELECT stage, COUNT(*), COALESCE(SUM(value_cents), 0) FROM deals WHERE ` +
@@ -561,6 +610,7 @@ func (r *ReportsRepo) ConversionRates(ctx context.Context, filter domain.ReportF
 		args = append(args, *filter.To)
 		i++
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleDeals, domain.SharingAccessRead, "owner_id")
 	_ = i
 
 	q := `SELECT stage, COUNT(*) FROM deals WHERE ` + strings.Join(where, " AND ") + ` GROUP BY stage`
@@ -622,6 +672,7 @@ func (r *ReportsRepo) RevenueProjection(ctx context.Context, months int) (*domai
 		args = append(args, orgID)
 		i++
 	}
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleDeals, domain.SharingAccessRead, "owner_id")
 	_ = i
 
 	q := `SELECT stage, expected_close_date, value_cents FROM deals WHERE ` + strings.Join(where, " AND ")
@@ -767,30 +818,34 @@ func (r *ReportsRepo) ManagerDashboard(ctx context.Context, filter domain.Report
 	backlogThresholdIdx := "$" + strconv.Itoa(len(backlogArgs))
 
 	var backlogCount int
-	if err := r.db.QueryRow(ctx, `
+	backlogQuery := `
 		SELECT COUNT(*)
 		FROM tickets t
 		WHERE t.org_id = $1
 		  AND t.deleted_at IS NULL
 		  AND t.status IN ('open','in_progress','pending')
-		  AND t.created_at <= `+backlogThresholdIdx+backlogDateClause,
-		backlogArgs...,
-	).Scan(&backlogCount); err != nil {
+		  AND t.created_at <= ` + backlogThresholdIdx + backlogDateClause
+	appendReportReadVisibility(ctx, &backlogQuery, &backlogArgs, domain.ACLModuleTickets, "t.assignee_id", "t.submitted_by_user_id")
+	if err := r.db.QueryRow(ctx, backlogQuery, backlogArgs...).Scan(&backlogCount); err != nil {
 		return nil, err
 	}
 
 	// Resolution trend: resolved/closed ticket counts grouped by updated_at date.
 	resolutionArgs := []interface{}{orgID}
 	resolutionArgs, resolutionDateClause := reportDateClause(resolutionArgs, filter, "t", "updated_at")
-	resolutionRows, err := r.db.Query(ctx, `
+	resolutionQuery := `
 		SELECT TO_CHAR(t.updated_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
 		FROM tickets t
 		WHERE t.org_id = $1
 		  AND t.deleted_at IS NULL
-		  AND t.status IN ('resolved','closed')`+resolutionDateClause+`
+		  AND t.status IN ('resolved','closed')` + resolutionDateClause + `
+	`
+	appendReportReadVisibility(ctx, &resolutionQuery, &resolutionArgs, domain.ACLModuleTickets, "t.assignee_id", "t.submitted_by_user_id")
+	resolutionQuery += `
 		GROUP BY date
 		ORDER BY date
-	`, resolutionArgs...)
+	`
+	resolutionRows, err := r.db.Query(ctx, resolutionQuery, resolutionArgs...)
 	if err != nil {
 		return nil, err
 	}
