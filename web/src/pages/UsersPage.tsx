@@ -72,9 +72,10 @@ interface CreateUserDialogProps {
   onClose: () => void
   aclRoles: ACLRole[]
   profiles: ACLProfile[]
+  canManageACLAssignments: boolean
 }
 
-function CreateUserDialog({ open, onClose, aclRoles, profiles }: CreateUserDialogProps) {
+function CreateUserDialog({ open, onClose, aclRoles, profiles, canManageACLAssignments }: CreateUserDialogProps) {
   const { mutate: createUser, isPending } = useCreateUser()
   const [form, setForm] = useState<CreateUserRequest>({
     name: '',
@@ -149,34 +150,36 @@ function CreateUserDialog({ open, onClose, aclRoles, profiles }: CreateUserDialo
               ))}
             </select>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Org Role</label>
-              <select
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
-                value={form.role_id ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || undefined }))}
-              >
-                <option value="">Default from platform role</option>
-                {aclRoles.map((role) => (
-                  <option key={role.id} value={role.id}>{role.name}</option>
-                ))}
-              </select>
+          {canManageACLAssignments && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Org Role</label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                  value={form.role_id ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || undefined }))}
+                >
+                  <option value="">Default from platform role</option>
+                  {aclRoles.map((role) => (
+                    <option key={role.id} value={role.id}>{role.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Profile</label>
+                <select
+                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                  value={form.profile_id ?? ''}
+                  onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || undefined }))}
+                >
+                  <option value="">Default from platform role</option>
+                  {profiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>{profile.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Profile</label>
-              <select
-                className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
-                value={form.profile_id ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || undefined }))}
-              >
-                <option value="">Default from platform role</option>
-                {profiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>{profile.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>
             <DialogClose asChild>
@@ -201,9 +204,10 @@ interface EditUserDialogProps {
   onClose: () => void
   aclRoles: ACLRole[]
   profiles: ACLProfile[]
+  canManageACLAssignments: boolean
 }
 
-function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, profiles }: EditUserDialogProps) {
+function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, profiles, canManageACLAssignments }: EditUserDialogProps) {
   const { mutate: updateUser, isPending } = useUpdateUser()
   const [form, setForm] = useState<UpdateUserRequest>({})
   const [error, setError] = useState('')
@@ -214,13 +218,16 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
   // Populate form when user changes
   const handleOpen = () => {
     if (user) {
-      setForm({
+      const nextForm: UpdateUserRequest = {
         name: user.name,
         email: user.email,
         role: user.role,
-        role_id: user.role_id,
-        profile_id: user.profile_id,
-      })
+      }
+      if (canManageACLAssignments) {
+        nextForm.role_id = user.role_id
+        nextForm.profile_id = user.profile_id
+      }
+      setForm(nextForm)
       setError('')
     }
   }
@@ -264,7 +271,7 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
             />
           </div>
           {isAdmin && (
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className={`grid gap-3 ${canManageACLAssignments ? 'md:grid-cols-3' : 'md:grid-cols-1'}`}>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-700">Platform Role</label>
                 <select
@@ -284,32 +291,36 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Org Role</label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
-                  value={form.role_id ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || null }))}
-                >
-                  <option value="">Default</option>
-                  {aclRoles.map((role) => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Profile</label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
-                  value={form.profile_id ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || null }))}
-                >
-                  <option value="">Default</option>
-                  {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>{profile.name}</option>
-                  ))}
-                </select>
-              </div>
+              {canManageACLAssignments && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Org Role</label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                      value={form.role_id ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || null }))}
+                    >
+                      <option value="">Default</option>
+                      {aclRoles.map((role) => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Profile</label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
+                      value={form.profile_id ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || null }))}
+                    >
+                      <option value="">Default</option>
+                      {profiles.map((profile) => (
+                        <option key={profile.id} value={profile.id}>{profile.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           )}
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -332,6 +343,7 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
 export function UsersPage() {
   const currentUser = useAuthStore((s) => s.user)
   const isAdmin = canAccessAdminModule(currentUser, 'users')
+  const canManageACLAssignments = canAccessAdminModule(currentUser, 'settings')
 
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
@@ -353,7 +365,7 @@ export function UsersPage() {
   })
 
   const { mutate: deleteUser } = useDeleteUser()
-  const { data: assignmentOptions } = useUserAssignmentOptions(isAdmin)
+  const { data: assignmentOptions } = useUserAssignmentOptions(canManageACLAssignments)
   const aclRoles = assignmentOptions?.roles ?? []
   const profiles = assignmentOptions?.profiles ?? []
 
@@ -530,6 +542,7 @@ export function UsersPage() {
           onClose={() => setShowCreate(false)}
           aclRoles={aclRoles}
           profiles={profiles}
+          canManageACLAssignments={canManageACLAssignments}
         />
       )}
       <EditUserDialog
@@ -538,6 +551,7 @@ export function UsersPage() {
         currentUserId={currentUser?.id ?? ''}
         aclRoles={aclRoles}
         profiles={profiles}
+        canManageACLAssignments={canManageACLAssignments}
         onClose={() => setEditUser(null)}
       />
     </div>

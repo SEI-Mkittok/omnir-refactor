@@ -38,6 +38,7 @@ func (h *DashboardHandler) Router() chi.Router {
 // ScheduleRouter mounts scheduled report CRUD under /reports/schedules.
 func (h *DashboardHandler) ScheduleRouter() chi.Router {
 	r := chi.NewRouter()
+	r.Use(h.requireScheduleAdmin)
 	r.Get("/", h.ListSchedules)
 	r.Post("/", h.CreateSchedule)
 	r.Get("/{id}", h.GetSchedule)
@@ -218,6 +219,31 @@ func (h *DashboardHandler) runWidget(r *http.Request, widget domain.Widget) (any
 }
 
 // ── Scheduled report CRUD ─────────────────────────────────────────────────────
+
+func (h *DashboardHandler) requireScheduleAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !hasModuleAdminAccess(r, domain.ACLModuleReports) {
+			writeError(w, http.StatusForbidden, "report admin access required")
+			return
+		}
+		access, ok := domain.AccessContextFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusForbidden, "access context required")
+			return
+		}
+		if access.SuperAdminBypass {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !access.CanAccessAllRecords(domain.ACLModuleContacts, domain.SharingAccessRead) ||
+			!access.CanAccessAllRecords(domain.ACLModuleAccounts, domain.SharingAccessRead) ||
+			!access.CanAccessAllRecords(domain.ACLModuleDeals, domain.SharingAccessRead) {
+			writeError(w, http.StatusForbidden, "all-record access required to schedule reports")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 func (h *DashboardHandler) ListSchedules(w http.ResponseWriter, r *http.Request) {
 	list, err := h.repo.ListSchedules(r.Context())

@@ -94,10 +94,10 @@ func parseReportFilter(r *http.Request) (domain.ReportFilter, error) {
 		f.To = &t
 	}
 
-	// org_id is admin-only; silently ignored for non-admin callers.
+	// org_id is super-admin-only; tenant admins must stay scoped to their org.
 	if v := q.Get("org_id"); v != "" {
 		claims, ok := middleware.ClaimsFromContext(r)
-		if ok && domain.IsAdminRole(claims.Role) {
+		if ok && claims.Role == string(domain.UserRoleSuperAdmin) {
 			if id, err := uuid.Parse(v); err == nil {
 				f.OrgID = &id
 			}

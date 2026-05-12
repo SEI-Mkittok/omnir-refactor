@@ -55,6 +55,16 @@ func appendReportReadVisibility(ctx context.Context, q *string, args *[]interfac
 	appendAccessVisibilitySQL(ctx, q, args, module, domain.SharingAccessRead, ownerExprs...)
 }
 
+func reportActivityParentVisibilityClause(ctx context.Context, args *[]interface{}, activityRef string) string {
+	where := []string{}
+	idx := len(*args) + 1
+	addActivityParentVisibilityWhere(ctx, &where, args, &idx, domain.SharingAccessRead, activityRef)
+	if len(where) == 0 {
+		return ""
+	}
+	return " AND " + strings.Join(where, " AND ")
+}
+
 func cloneReportArgs(args []interface{}) []interface{} {
 	cloned := make([]interface{}, len(args))
 	copy(cloned, args)
@@ -141,13 +151,18 @@ func (r *ReportsRepo) ActivitiesByType(ctx context.Context) ([]domain.ActivityTy
 	if !ok {
 		return nil, domain.ErrNotFound
 	}
-	rows, err := r.db.Query(ctx, `
+	args := []interface{}{orgID}
+	q := `
 		SELECT type, COUNT(*) AS count
 		FROM activities
-		WHERE org_id = $1 AND deleted_at IS NULL
+		WHERE activities.org_id = $1 AND activities.deleted_at IS NULL
+	`
+	q += reportActivityParentVisibilityClause(ctx, &args, "activities")
+	q += `
 		GROUP BY type
 		ORDER BY type
-	`, orgID)
+	`
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -726,31 +741,32 @@ func (r *ReportsRepo) RevenueProjection(ctx context.Context, months int) (*domai
 }
 
 func (r *ReportsRepo) ActivitySummary(ctx context.Context, filter domain.ReportFilter) (*domain.ActivitySummaryReport, error) {
-	where := []string{"deleted_at IS NULL"}
+	where := []string{"a.deleted_at IS NULL"}
 	args := []any{}
 	i := 1
 
 	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		where = append(where, fmt.Sprintf("org_id = $%d", i))
+		where = append(where, fmt.Sprintf("a.org_id = $%d", i))
 		args = append(args, orgID)
 		i++
 	}
 	if filter.From != nil {
-		where = append(where, fmt.Sprintf("created_at >= $%d", i))
+		where = append(where, fmt.Sprintf("a.created_at >= $%d", i))
 		args = append(args, *filter.From)
 		i++
 	}
 	if filter.To != nil {
-		where = append(where, fmt.Sprintf("created_at <= $%d", i))
+		where = append(where, fmt.Sprintf("a.created_at <= $%d", i))
 		args = append(args, *filter.To)
 		i++
 	}
+	addActivityParentVisibilityWhere(ctx, &where, &args, &i, domain.SharingAccessRead, "a")
 	_ = i
 
 	whereStr := strings.Join(where, " AND ")
 
 	// By type (called "kind" in the response)
-	kindRows, err := r.db.Query(ctx, `SELECT type, COUNT(*) FROM activities WHERE `+whereStr+` GROUP BY type ORDER BY type`, args...)
+	kindRows, err := r.db.Query(ctx, `SELECT a.type, COUNT(*) FROM activities a WHERE `+whereStr+` GROUP BY a.type ORDER BY a.type`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -768,7 +784,7 @@ func (r *ReportsRepo) ActivitySummary(ctx context.Context, filter domain.ReportF
 	}
 
 	// By owner
-	ownerRows, err := r.db.Query(ctx, `SELECT owner_id, COUNT(*) FROM activities WHERE `+whereStr+` GROUP BY owner_id ORDER BY count DESC LIMIT 20`, args...)
+	ownerRows, err := r.db.Query(ctx, `SELECT a.owner_id, COUNT(*) AS count FROM activities a WHERE `+whereStr+` GROUP BY a.owner_id ORDER BY count DESC LIMIT 20`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -868,6 +884,7 @@ func (r *ReportsRepo) ManagerDashboard(ctx context.Context, filter domain.Report
 
 	createdByOwnerArgs := []interface{}{orgID}
 	createdByOwnerArgs, createdByOwnerClause := reportDateClause(createdByOwnerArgs, filter, "a", "created_at")
+	createdByOwnerClause += reportActivityParentVisibilityClause(ctx, &createdByOwnerArgs, "a")
 	createdByOwnerRows, err := r.db.Query(ctx, `
 		SELECT a.owner_id, COUNT(*) AS created_count
 		FROM activities a
@@ -898,6 +915,7 @@ func (r *ReportsRepo) ManagerDashboard(ctx context.Context, filter domain.Report
 
 	completedByOwnerArgs := []interface{}{orgID}
 	completedByOwnerArgs, completedByOwnerClause := reportDateClause(completedByOwnerArgs, filter, "a", "completed_at")
+	completedByOwnerClause += reportActivityParentVisibilityClause(ctx, &completedByOwnerArgs, "a")
 	completedByOwnerRows, err := r.db.Query(ctx, `
 		SELECT a.owner_id, COUNT(*) AS completed_count
 		FROM activities a
@@ -942,6 +960,7 @@ func (r *ReportsRepo) ManagerDashboard(ctx context.Context, filter domain.Report
 
 	createdTrendArgs := []interface{}{orgID}
 	createdTrendArgs, createdTrendClause := reportDateClause(createdTrendArgs, filter, "a", "created_at")
+	createdTrendClause += reportActivityParentVisibilityClause(ctx, &createdTrendArgs, "a")
 	createdTrendRows, err := r.db.Query(ctx, `
 		SELECT TO_CHAR(a.created_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
 		FROM activities a
@@ -969,6 +988,7 @@ func (r *ReportsRepo) ManagerDashboard(ctx context.Context, filter domain.Report
 
 	completedTrendArgs := []interface{}{orgID}
 	completedTrendArgs, completedTrendClause := reportDateClause(completedTrendArgs, filter, "a", "completed_at")
+	completedTrendClause += reportActivityParentVisibilityClause(ctx, &completedTrendArgs, "a")
 	completedTrendRows, err := r.db.Query(ctx, `
 		SELECT TO_CHAR(a.completed_at, 'YYYY-MM-DD') AS date, COUNT(*) AS count
 		FROM activities a
