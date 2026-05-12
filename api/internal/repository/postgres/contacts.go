@@ -90,10 +90,7 @@ func (r *ContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Contac
 		args = append(args, orgID)
 		i++
 	}
-	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleContacts, domain.SharingAccessRead) {
-		q += fmt.Sprintf(` AND owner_id=$%d`, i)
-		args = append(args, acl.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleContacts, domain.SharingAccessRead, "owner_id")
 
 	row := r.db.QueryRow(ctx, q, args...)
 	return scanContact(row)
@@ -165,10 +162,7 @@ func (r *ContactRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Con
 		args = append(args, orgID)
 		i++
 	}
-	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleContacts, domain.SharingAccessWrite) {
-		whereClause += fmt.Sprintf(` AND owner_id=$%d`, i)
-		args = append(args, acl.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &whereClause, &args, domain.ACLModuleContacts, domain.SharingAccessWrite, "owner_id")
 
 	query := fmt.Sprintf(
 		`UPDATE contacts SET %s WHERE %s RETURNING %s`,
@@ -188,10 +182,7 @@ func (r *ContactRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		args = append(args, orgID)
 		i++
 	}
-	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleContacts, domain.SharingAccessWrite) {
-		q += fmt.Sprintf(` AND owner_id=$%d`, i)
-		args = append(args, acl.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleContacts, domain.SharingAccessWrite, "owner_id")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -230,7 +221,7 @@ func (r *ContactRepo) List(ctx context.Context, f domain.ContactFilter) ([]*doma
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
-	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleContacts, domain.SharingAccessRead, "owner_id = %s")
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleContacts, domain.SharingAccessRead, "owner_id")
 
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)

@@ -219,17 +219,17 @@ func (r *AccessRepo) ResolveAccess(ctx context.Context, userID, orgID uuid.UUID,
 }
 
 func (r *AccessRepo) CanAccessRecord(ctx context.Context, module domain.ACLModule, id uuid.UUID, accessLevel domain.SharingAccessLevel) (bool, error) {
-	table, ownerPredicate, ok := recordAccessTarget(module)
+	table, ownerExprs, ok := recordAccessTarget(module)
 	if !ok {
 		return true, nil
 	}
 
 	access, ok := domain.AccessContextFromContext(ctx)
 	if !ok || access.CanAccessAllRecords(module, accessLevel) {
-		return r.recordExists(ctx, table, id, "")
+		return r.recordExists(ctx, table, id, module, accessLevel)
 	}
 
-	return r.recordExists(ctx, table, id, ownerPredicate)
+	return r.recordExists(ctx, table, id, module, accessLevel, ownerExprs...)
 }
 
 func (r *AccessRepo) CanAccessAccountRelationship(ctx context.Context, relationshipID uuid.UUID, accessLevel domain.SharingAccessLevel) (bool, error) {
@@ -268,24 +268,24 @@ func (r *AccessRepo) CanAccessAccountRelationship(ctx context.Context, relations
 	return r.CanAccessRecord(ctx, domain.ACLModuleAccounts, childID, accessLevel)
 }
 
-func recordAccessTarget(module domain.ACLModule) (table string, ownerPredicate string, ok bool) {
+func recordAccessTarget(module domain.ACLModule) (table string, ownerExprs []string, ok bool) {
 	switch module {
 	case domain.ACLModuleAccounts:
-		return "accounts", "owner_id = %s", true
+		return "accounts", []string{"owner_id"}, true
 	case domain.ACLModuleContacts:
-		return "contacts", "owner_id = %s", true
+		return "contacts", []string{"owner_id"}, true
 	case domain.ACLModuleDeals:
-		return "deals", "owner_id = %s", true
+		return "deals", []string{"owner_id"}, true
 	case domain.ACLModuleLeads:
-		return "leads", "owner_id = %s", true
+		return "leads", []string{"owner_id"}, true
 	case domain.ACLModuleTickets:
-		return "tickets", "(assignee_id = %s OR submitted_by_user_id = %s)", true
+		return "tickets", []string{"assignee_id", "submitted_by_user_id"}, true
 	default:
-		return "", "", false
+		return "", nil, false
 	}
 }
 
-func (r *AccessRepo) recordExists(ctx context.Context, table string, id uuid.UUID, ownerPredicate string) (bool, error) {
+func (r *AccessRepo) recordExists(ctx context.Context, table string, id uuid.UUID, module domain.ACLModule, accessLevel domain.SharingAccessLevel, ownerExprs ...string) (bool, error) {
 	orgID, ok := domain.OrgIDFromContext(ctx)
 	if !ok {
 		if access, hasAccess := domain.AccessContextFromContext(ctx); hasAccess {
@@ -298,19 +298,7 @@ func (r *AccessRepo) recordExists(ctx context.Context, table string, id uuid.UUI
 
 	q := fmt.Sprintf(`SELECT EXISTS(SELECT 1 FROM %s WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`, table)
 	args := []any{id, orgID}
-	if ownerPredicate != "" {
-		placeholder := "$3"
-		if strings.Count(ownerPredicate, "%s") > 1 {
-			q += " AND " + fmt.Sprintf(ownerPredicate, placeholder, placeholder)
-		} else {
-			q += " AND " + fmt.Sprintf(ownerPredicate, placeholder)
-		}
-		access, ok := domain.AccessContextFromContext(ctx)
-		if !ok {
-			return false, nil
-		}
-		args = append(args, access.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &q, &args, module, accessLevel, ownerExprs...)
 	q += ")"
 
 	var exists bool

@@ -95,10 +95,7 @@ func (r *DealRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, err
 		args = append(args, orgID)
 		i++
 	}
-	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleDeals, domain.SharingAccessRead) {
-		q += fmt.Sprintf(` AND owner_id=$%d`, i)
-		args = append(args, acl.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleDeals, domain.SharingAccessRead, "owner_id")
 
 	deal, err := scanDeal(r.db.QueryRow(ctx, q, args...))
 	if err != nil {
@@ -214,10 +211,7 @@ func (r *DealRepo) Update(ctx context.Context, id uuid.UUID, patch domain.DealPa
 		args = append(args, orgID)
 		i++
 	}
-	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleDeals, domain.SharingAccessWrite) {
-		whereClause += fmt.Sprintf(` AND owner_id=$%d`, i)
-		args = append(args, acl.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &whereClause, &args, domain.ACLModuleDeals, domain.SharingAccessWrite, "owner_id")
 
 	query := fmt.Sprintf(
 		`UPDATE deals SET %s WHERE %s RETURNING id, org_id, title, value_cents, currency, stage, probability, expected_close_date, contact_id, account_id, owner_id, pipeline_id, custom_fields, created_at, updated_at, deleted_at`,
@@ -237,10 +231,7 @@ func (r *DealRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		args = append(args, orgID)
 		i++
 	}
-	if acl, ok := domain.AccessContextFromContext(ctx); ok && !acl.CanAccessAllRecords(domain.ACLModuleDeals, domain.SharingAccessWrite) {
-		q += fmt.Sprintf(` AND owner_id=$%d`, i)
-		args = append(args, acl.UserID)
-	}
+	appendAccessVisibilitySQL(ctx, &q, &args, domain.ACLModuleDeals, domain.SharingAccessWrite, "owner_id")
 
 	result, err := r.db.Exec(ctx, q, args...)
 	if err != nil {
@@ -279,7 +270,7 @@ func (r *DealRepo) List(ctx context.Context, f domain.DealFilter) ([]*domain.Dea
 	if orgID != uuid.Nil {
 		addWhere("org_id", orgID)
 	}
-	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleDeals, domain.SharingAccessRead, "deals.owner_id = %s")
+	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleDeals, domain.SharingAccessRead, "deals.owner_id")
 
 	if f.OwnerID != nil {
 		addWhere("owner_id", *f.OwnerID)
