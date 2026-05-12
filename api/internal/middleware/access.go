@@ -73,6 +73,17 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 					return
 				}
 			}
+			targetModules, err := conversionCreateModulesFromRequest(r)
+			if err != nil {
+				http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+				return
+			}
+			for _, targetModule := range targetModules {
+				if !access.HasPermission(targetModule, domain.ACLActionCreate) {
+					http.Error(w, `{"error":"forbidden","code":"permission_denied"}`, http.StatusForbidden)
+					return
+				}
+			}
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -260,6 +271,59 @@ func childModuleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACL
 		return "", "", false
 	}
 	return module, actionFromMethod(r.Method), true
+}
+
+func conversionCreateModulesFromRequest(r *http.Request) ([]domain.ACLModule, error) {
+	if r.Method != http.MethodPost {
+		return nil, nil
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 3 || parts[2] != "convert" {
+		return nil, nil
+	}
+	if _, err := uuid.Parse(parts[1]); err != nil {
+		return nil, nil
+	}
+
+	switch parts[0] {
+	case "leads":
+		return []domain.ACLModule{
+			domain.ACLModuleContacts,
+			domain.ACLModuleAccounts,
+			domain.ACLModuleDeals,
+		}, nil
+	case "contacts":
+		if !contactConversionCreatesDeal(r) {
+			return nil, nil
+		}
+		return []domain.ACLModule{domain.ACLModuleDeals}, nil
+	default:
+		return nil, nil
+	}
+}
+
+func contactConversionCreatesDeal(r *http.Request) bool {
+	if r.Body == nil {
+		return false
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		r.Body = io.NopCloser(bytes.NewReader(nil))
+		return false
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	if len(bytes.TrimSpace(body)) == 0 {
+		return false
+	}
+	var payload struct {
+		CreateDeal bool `json:"create_deal"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return false
+	}
+	return payload.CreateDeal
 }
 
 func actionFromMethod(method string) domain.ACLAction {

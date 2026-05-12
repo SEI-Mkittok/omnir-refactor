@@ -299,6 +299,57 @@ func TestRequireModulePermissionTreatsNestedChildMutationsAsParentUpdate(t *test
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestRequireModulePermissionChecksConversionCreateTargets(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+	leadID := uuid.New()
+	contactID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/leads/"+leadID.String()+"/convert", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleLeads:    {domain.ACLActionUpdate: true},
+			domain.ACLModuleContacts: {domain.ACLActionCreate: true},
+			domain.ACLModuleAccounts: {domain.ACLActionCreate: true},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/leads/"+leadID.String()+"/convert", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleLeads:    {domain.ACLActionUpdate: true},
+			domain.ACLModuleContacts: {domain.ACLActionCreate: true},
+			domain.ACLModuleAccounts: {domain.ACLActionCreate: true},
+			domain.ACLModuleDeals:    {domain.ACLActionCreate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/contacts/"+contactID.String()+"/convert", strings.NewReader(`{"create_deal":true}`))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/contacts/"+contactID.String()+"/convert", strings.NewReader(`{"create_deal":false}`))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionUpdate: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *testing.T) {
 	access := &domain.AccessContext{
 		FieldWrite: map[domain.ACLModule]map[string]bool{
