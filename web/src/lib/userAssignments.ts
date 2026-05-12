@@ -2,8 +2,8 @@ import type { UserRole } from '@/api/types'
 
 type UserAssignmentForm = {
   role?: UserRole
-  role_id?: string
-  profile_id?: string
+  role_id?: string | null
+  profile_id?: string | null
 }
 
 export function applyPlatformRoleChange<T extends UserAssignmentForm>(form: T, role: UserRole): T {

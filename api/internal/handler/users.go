@@ -192,10 +192,13 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var patch domain.UserPatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	raw, err := decodeJSONPatch(r, &patch)
+	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	patch.ClearRoleID = patchFieldIsNull(raw, "role_id")
+	patch.ClearProfileID = patchFieldIsNull(raw, "profile_id")
 	if patch.Role != nil && !domain.IsValidUserRole(*patch.Role) {
 		writeError(w, http.StatusUnprocessableEntity, "invalid role")
 		return
@@ -209,7 +212,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Non-admins cannot change platform role or Bundle 4 assignments.
-	if !isAdmin && (patch.Role != nil || patch.RoleID != nil || patch.ProfileID != nil) {
+	if !isAdmin && (patch.Role != nil || patch.RoleID != nil || patch.ProfileID != nil || patch.ClearRoleID || patch.ClearProfileID) {
 		writeError(w, http.StatusForbidden, "only admins can change roles or profiles")
 		return
 	}

@@ -290,7 +290,7 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
                 <select
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
                   value={form.role_id ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || undefined }))}
+                  onChange={(e) => setForm((f) => ({ ...f, role_id: e.target.value || null }))}
                 >
                   <option value="">Default</option>
                   {aclRoles.map((role) => (
@@ -303,7 +303,7 @@ function EditUserDialog({ user, currentUser, currentUserId, onClose, aclRoles, p
                 <select
                   className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-focus)]"
                   value={form.profile_id ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || undefined }))}
+                  onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value || null }))}
                 >
                   <option value="">Default</option>
                   {profiles.map((profile) => (

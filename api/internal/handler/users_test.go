@@ -540,6 +540,21 @@ func TestUserHandler_Update(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			name:     "admin can clear bundle4 assignments",
+			targetID: otherID.String(),
+			claims:   adminClaims(adminID),
+			body:     map[string]any{"role_id": nil, "profile_id": nil},
+			setupMock: func(m *mocks.MockUserRepository) {
+				m.On("Update", mock.Anything, otherID, mock.MatchedBy(func(p domain.UserPatch) bool {
+					return p.RoleID == nil &&
+						p.ProfileID == nil &&
+						p.ClearRoleID &&
+						p.ClearProfileID
+				})).Return(makeUser(otherID), nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:     "admin cannot demote super admin",
 			targetID: otherID.String(),
 			claims:   adminClaims(adminID),
@@ -555,6 +570,14 @@ func TestUserHandler_Update(t *testing.T) {
 			targetID:   regularID.String(),
 			claims:     userClaims(regularID),
 			body:       map[string]any{"role": "admin"},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "non-admin cannot clear bundle4 assignments",
+			targetID:   regularID.String(),
+			claims:     userClaims(regularID),
+			body:       map[string]any{"role_id": nil, "profile_id": nil},
 			setupMock:  func(_ *mocks.MockUserRepository) {},
 			wantStatus: http.StatusForbidden,
 		},

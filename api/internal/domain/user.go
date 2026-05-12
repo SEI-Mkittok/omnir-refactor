@@ -52,11 +52,13 @@ type User struct {
 
 // UserPatch holds optional fields for partial user updates.
 type UserPatch struct {
-	Name      *string    `json:"name,omitempty"`
-	Email     *string    `json:"email,omitempty"`
-	Role      *UserRole  `json:"role,omitempty"`
-	RoleID    *uuid.UUID `json:"role_id,omitempty"`
-	ProfileID *uuid.UUID `json:"profile_id,omitempty"`
+	Name           *string    `json:"name,omitempty"`
+	Email          *string    `json:"email,omitempty"`
+	Role           *UserRole  `json:"role,omitempty"`
+	RoleID         *uuid.UUID `json:"role_id,omitempty"`
+	ProfileID      *uuid.UUID `json:"profile_id,omitempty"`
+	ClearRoleID    bool       `json:"-"`
+	ClearProfileID bool       `json:"-"`
 }
 
 // UserFilter holds query parameters for listing users.

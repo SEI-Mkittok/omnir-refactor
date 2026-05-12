@@ -100,6 +100,39 @@ func TestUserRepo_RoleProfileAssignmentsAreOrgScoped(t *testing.T) {
 		require.ErrorIs(t, err, domain.ErrValidation)
 	})
 
+	t.Run("update clears role and profile assignments", func(t *testing.T) {
+		var adminRoleID uuid.UUID
+		require.NoError(t, pool.QueryRow(context.Background(), `
+			SELECT id FROM crm_roles WHERE org_id = $1 AND system_key = 'admin'
+		`, defaultOrgID).Scan(&adminRoleID))
+
+		var adminProfileID uuid.UUID
+		require.NoError(t, pool.QueryRow(context.Background(), `
+			SELECT id FROM crm_profiles WHERE org_id = $1 AND system_key = 'administrator'
+		`, defaultOrgID).Scan(&adminProfileID))
+
+		user, err := repo.Create(ctx, &domain.User{
+			Email:     "clear-acl-assignments@omnir.test",
+			Name:      "Clear ACL Assignments",
+			Role:      domain.UserRoleAgent,
+			RoleID:    &adminRoleID,
+			ProfileID: &adminProfileID,
+		}, "hashed-pw")
+		require.NoError(t, err)
+		require.NotNil(t, user.RoleID)
+		require.NotNil(t, user.ProfileID)
+
+		got, err := repo.Update(ctx, user.ID, domain.UserPatch{
+			ClearRoleID:    true,
+			ClearProfileID: true,
+		})
+		require.NoError(t, err)
+		assert.Nil(t, got.RoleID)
+		assert.Nil(t, got.ProfileID)
+		assert.Nil(t, got.RoleName)
+		assert.Nil(t, got.ProfileName)
+	})
+
 	t.Run("stale cross-org ids do not expose foreign role or profile names", func(t *testing.T) {
 		user, err := repo.Create(ctx, &domain.User{
 			Email: "stale-cross-org@omnir.test",

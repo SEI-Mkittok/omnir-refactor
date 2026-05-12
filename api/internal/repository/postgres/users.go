@@ -215,21 +215,25 @@ func (r *UserRepo) Update(ctx context.Context, id uuid.UUID, patch domain.UserPa
 	}
 	if patch.Role != nil {
 		addArg("role", *patch.Role)
-		if patch.RoleID == nil {
+		if patch.RoleID == nil && !patch.ClearRoleID {
 			sets = append(sets, fmt.Sprintf(`role_id = (SELECT id FROM crm_roles WHERE org_id = users.org_id AND system_key = $%d LIMIT 1)`, i))
 			args = append(args, *patch.Role)
 			i++
 		}
-		if patch.ProfileID == nil {
+		if patch.ProfileID == nil && !patch.ClearProfileID {
 			sets = append(sets, fmt.Sprintf(`profile_id = (SELECT id FROM crm_profiles WHERE org_id = users.org_id AND system_key = CASE WHEN $%d IN ('super_admin', 'admin') THEN 'administrator' WHEN $%d = 'agent' THEN 'sales' ELSE 'guest' END LIMIT 1)`, i, i+1))
 			args = append(args, *patch.Role, *patch.Role)
 			i += 2
 		}
 	}
-	if patch.RoleID != nil {
+	if patch.ClearRoleID {
+		addArg("role_id", nil)
+	} else if patch.RoleID != nil {
 		addArg("role_id", *patch.RoleID)
 	}
-	if patch.ProfileID != nil {
+	if patch.ClearProfileID {
+		addArg("profile_id", nil)
+	} else if patch.ProfileID != nil {
 		addArg("profile_id", *patch.ProfileID)
 	}
 

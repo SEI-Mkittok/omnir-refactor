@@ -77,8 +77,8 @@ export interface UpdateUserRequest {
   name?: string
   email?: string
   role?: UserRole
-  role_id?: string
-  profile_id?: string
+  role_id?: string | null
+  profile_id?: string | null
 }
 
 export interface UserListParams {
