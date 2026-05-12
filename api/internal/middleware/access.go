@@ -148,6 +148,10 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if claims, ok := ClaimsFromContext(r); ok && domain.IsAdminRole(claims.Role) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if !strings.Contains(r.Header.Get("Content-Type"), "application/json") {
 				next.ServeHTTP(w, r)
 				return
@@ -174,16 +178,36 @@ func RequireFieldWriteAccess() func(http.Handler) http.Handler {
 				http.Error(w, `{"error":"forbidden","code":"access_context_required"}`, http.StatusForbidden)
 				return
 			}
-			for field := range payload {
-				if !access.CanWriteField(module, field) {
-					http.Error(w, fmt.Sprintf(`{"error":"forbidden","code":"field_write_denied","field":%q}`, field), http.StatusForbidden)
-					return
-				}
+			if deniedField := deniedWriteField(access, module, payload); deniedField != "" {
+				http.Error(w, fmt.Sprintf(`{"error":"forbidden","code":"field_write_denied","field":%q}`, deniedField), http.StatusForbidden)
+				return
 			}
 			r.Body = io.NopCloser(bytes.NewReader(body))
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func deniedWriteField(access *domain.AccessContext, module domain.ACLModule, payload map[string]json.RawMessage) string {
+	for field, raw := range payload {
+		if !access.CanWriteField(module, field) {
+			return field
+		}
+		if field != "custom_fields" {
+			continue
+		}
+		var customFields map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &customFields); err != nil {
+			continue
+		}
+		for customField := range customFields {
+			qualified := "custom_fields." + customField
+			if !access.CanWriteField(module, qualified) || !access.CanWriteField(module, customField) {
+				return qualified
+			}
+		}
+	}
+	return ""
 }
 
 // RequireNestedParentRecordAccess ensures child resources inherit the sharing
@@ -268,6 +292,9 @@ func moduleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACLActio
 	}
 	if module == domain.ACLModuleExport {
 		action = domain.ACLActionExport
+	}
+	if isOrgSSOPath(r.URL.Path) {
+		action = domain.ACLActionAdmin
 	}
 	return module, action, true
 }
@@ -487,6 +514,12 @@ func moduleFromPath(path string) (domain.ACLModule, bool) {
 	if first == "custom-fields" {
 		return domain.ACLModuleCustomFields, true
 	}
+	if first == "enrich" {
+		return domain.ACLModuleContacts, true
+	}
+	if first == "orgs" && len(parts) > 2 && parts[2] == "sso" {
+		return domain.ACLModuleIntegrations, true
+	}
 	if first == "ops-finance" {
 		return domain.ACLModuleOpsFinance, true
 	}
@@ -549,6 +582,17 @@ func childModuleFromPath(path string) (domain.ACLModule, bool) {
 		}
 	}
 	return "", false
+}
+
+func isOrgSSOPath(path string) bool {
+	path = strings.TrimPrefix(path, "/api/v1/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 || parts[0] != "orgs" || parts[2] != "sso" {
+		return false
+	}
+	_, err := uuid.Parse(parts[1])
+	return err == nil
 }
 
 func importModuleFromPath(segment string) (domain.ACLModule, bool) {

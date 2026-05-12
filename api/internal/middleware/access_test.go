@@ -219,6 +219,49 @@ func TestRequireModulePermissionChecksImportTargetModule(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestRequireModulePermissionChecksEnrichmentAndOrgSSO(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+	orgID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/enrich/domain?domain=example.com", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/enrich/domain?domain=example.com", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleContacts: {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/orgs/"+orgID.String()+"/sso", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleIntegrations: {domain.ACLActionRead: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/orgs/"+orgID.String()+"/sso", nil)
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{
+			domain.ACLModuleIntegrations: {domain.ACLActionAdmin: true},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestRequireModulePermissionChecksNestedChildModules(t *testing.T) {
 	handler := middleware.RequireModulePermission()(okHandler)
 	dealID := uuid.New()
@@ -447,6 +490,53 @@ func TestRequireFieldWriteAccessRejectsDeniedFieldAndRestoresAllowedBody(t *test
 	handler.ServeHTTP(w, deniedReq)
 	require.Equal(t, http.StatusForbidden, w.Code)
 	require.Contains(t, w.Body.String(), "field_write_denied")
+}
+
+func TestRequireFieldWriteAccessBypassesPlatformAdmins(t *testing.T) {
+	handler := middleware.RequireFieldWriteAccess()(okHandler)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/contacts/"+uuid.NewString(), strings.NewReader(`{"email":"ada@example.test"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: uuid.New(),
+		Role:   string(domain.UserRoleAdmin),
+	}))
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleContacts: {"email": false},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestRequireFieldWriteAccessChecksCustomFieldOverrides(t *testing.T) {
+	handler := middleware.RequireFieldWriteAccess()(okHandler)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/contacts/"+uuid.NewString(), strings.NewReader(`{"custom_fields":{"vip_score":100}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleContacts: {"custom_fields.vip_score": false},
+		},
+	}))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+	require.Contains(t, w.Body.String(), "custom_fields.vip_score")
+
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/contacts/"+uuid.NewString(), strings.NewReader(`{"custom_fields":{"vip_score":100}}`))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		FieldWrite: map[domain.ACLModule]map[string]bool{
+			domain.ACLModuleContacts: {"vip_score": false},
+		},
+	}))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusForbidden, w.Code)
+	require.Contains(t, w.Body.String(), "custom_fields.vip_score")
 }
 
 func TestRequireFieldWriteAccessChecksNestedChildModuleFields(t *testing.T) {

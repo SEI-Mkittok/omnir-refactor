@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
@@ -188,6 +189,10 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
 		return
 	}
+	if req.Role == domain.UserRoleAdmin && !isPlatformAdminClaims(claims) {
+		writeError(w, http.StatusForbidden, "only platform admins can assign the admin role")
+		return
+	}
 	if (req.RoleID != nil || req.ProfileID != nil) && !h.canManageACLAssignments(r) {
 		writeError(w, http.StatusForbidden, "settings admin access required to assign roles or profiles")
 		return
@@ -268,6 +273,11 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.Role != nil {
 		callerIsSuperAdmin := claims.Role == string(domain.UserRoleSuperAdmin)
+		callerIsPlatformAdmin := isPlatformAdminClaims(claims)
+		if *patch.Role == domain.UserRoleAdmin && !callerIsPlatformAdmin {
+			writeError(w, http.StatusForbidden, "only platform admins can assign the admin role")
+			return
+		}
 		if *patch.Role == domain.UserRoleSuperAdmin && !callerIsSuperAdmin {
 			writeError(w, http.StatusForbidden, "only super admins can assign the super_admin role")
 			return
@@ -276,6 +286,10 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 			current, err := h.repo.GetByID(r.Context(), id)
 			if err != nil {
 				handleDomainErr(w, err)
+				return
+			}
+			if current.Role == domain.UserRoleAdmin && !callerIsPlatformAdmin {
+				writeError(w, http.StatusForbidden, "only platform admins can change the admin role")
 				return
 			}
 			if current.Role == domain.UserRoleSuperAdmin {
@@ -297,6 +311,10 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 		attachPermissionsFromAccess(r, u)
 	}
 	writeJSON(w, http.StatusOK, u)
+}
+
+func isPlatformAdminClaims(claims *auth.Claims) bool {
+	return claims != nil && domain.IsAdminRole(claims.Role)
 }
 
 func attachPermissionsFromAccess(r *http.Request, u *domain.User) {
