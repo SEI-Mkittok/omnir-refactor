@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Plus, Trash2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { useUsers } from '@/hooks/useUsers'
 import {
   useACLGroups,
   useCreateACLGroup,
   useDeleteACLGroup,
+  useGroupMemberCandidates,
   useSaveGroupMembers,
 } from '@/hooks/useAccessSettings'
 import type { ACLGroup } from '@/api/types'
@@ -17,7 +17,7 @@ function selectedOptions(select: HTMLSelectElement): string[] {
 
 export function GroupsPage() {
   const { data: groups = [], isLoading } = useACLGroups()
-  const { data: usersData } = useUsers({ page: 1, limit: 200, sort: 'name', order: 'asc' })
+  const { data: usersData } = useGroupMemberCandidates()
   const createGroup = useCreateACLGroup()
   const saveMembers = useSaveGroupMembers()
   const deleteGroup = useDeleteACLGroup()

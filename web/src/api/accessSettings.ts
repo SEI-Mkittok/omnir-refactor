@@ -7,6 +7,8 @@ import type {
   ACLRole,
   ACLSharingRules,
   PermissionCatalog,
+  PaginatedResponse,
+  User,
 } from './types'
 
 interface ListResponse<T> {
@@ -81,6 +83,11 @@ export const accessSettingsApi = {
   listGroups: async (): Promise<ACLGroup[]> => {
     const { data } = await apiClient.get<ListResponse<ACLGroup>>('/settings/groups')
     return data.data
+  },
+
+  listGroupMemberCandidates: async (): Promise<PaginatedResponse<User>> => {
+    const { data } = await apiClient.get<PaginatedResponse<User>>('/settings/groups/member-candidates')
+    return data
   },
 
   createGroup: async (payload: Pick<ACLGroup, 'name' | 'description' | 'user_ids'>): Promise<ACLGroup> => {

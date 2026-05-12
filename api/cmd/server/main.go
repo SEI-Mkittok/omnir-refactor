@@ -274,7 +274,7 @@ func main() {
 	billingHandler := handler.NewBillingHandler(billingRepo, cfg.Stripe, appURL)
 	emailTemplateHandler := handler.NewEmailTemplateHandler(emailTemplateRepo)
 	opsFinanceHandler := handler.NewOperationsFinanceHandler(opsFinanceRepo)
-	accessSettingsHandler := handler.NewAccessSettingsHandler(accessRepo)
+	accessSettingsHandler := handler.NewAccessSettingsHandler(accessRepo, userRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, emailTemplateRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	sequenceWorker.Start(workerCtx)
 

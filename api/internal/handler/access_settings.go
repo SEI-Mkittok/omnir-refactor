@@ -13,11 +13,16 @@ import (
 )
 
 type AccessSettingsHandler struct {
-	repo repository.AccessRepository
+	repo  repository.AccessRepository
+	users repository.UserRepository
 }
 
-func NewAccessSettingsHandler(repo repository.AccessRepository) *AccessSettingsHandler {
-	return &AccessSettingsHandler{repo: repo}
+func NewAccessSettingsHandler(repo repository.AccessRepository, users ...repository.UserRepository) *AccessSettingsHandler {
+	h := &AccessSettingsHandler{repo: repo}
+	if len(users) > 0 {
+		h.users = users[0]
+	}
+	return h
 }
 
 func (h *AccessSettingsHandler) RolesRouter() chi.Router {
@@ -48,6 +53,7 @@ func (h *AccessSettingsHandler) GroupsRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Use(requireAccessSettingsAdmin)
 	r.Get("/", h.ListGroups)
+	r.Get("/member-candidates", h.ListGroupMemberCandidates)
 	r.Post("/", h.CreateGroup)
 	r.Patch("/{id}", h.UpdateGroup)
 	r.Delete("/{id}", h.DeleteGroup)
@@ -290,6 +296,24 @@ func (h *AccessSettingsHandler) ListGroups(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": groups})
+}
+
+func (h *AccessSettingsHandler) ListGroupMemberCandidates(w http.ResponseWriter, r *http.Request) {
+	if h.users == nil {
+		writeError(w, http.StatusInternalServerError, "user repository unavailable")
+		return
+	}
+	users, total, err := h.users.List(r.Context(), domain.UserFilter{
+		Page:  1,
+		Limit: 500,
+		Sort:  "name",
+		Order: "asc",
+	})
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, paginated(users, total, 1, 500))
 }
 
 func (h *AccessSettingsHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {

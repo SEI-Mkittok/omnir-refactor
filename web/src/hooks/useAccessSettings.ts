@@ -16,6 +16,7 @@ export const accessSettingsKeys = {
   profilePermissions: (id: string) => [...accessSettingsKeys.profiles(), id, 'permissions'] as const,
   catalog: () => [...accessSettingsKeys.profiles(), 'catalog'] as const,
   groups: () => [...accessSettingsKeys.all, 'groups'] as const,
+  groupMemberCandidates: () => [...accessSettingsKeys.groups(), 'member-candidates'] as const,
   sharing: () => [...accessSettingsKeys.all, 'sharing'] as const,
 }
 
@@ -55,6 +56,14 @@ export function useACLGroups() {
   return useQuery({
     queryKey: accessSettingsKeys.groups(),
     queryFn: accessSettingsApi.listGroups,
+    staleTime: 60_000,
+  })
+}
+
+export function useGroupMemberCandidates() {
+  return useQuery({
+    queryKey: accessSettingsKeys.groupMemberCandidates(),
+    queryFn: accessSettingsApi.listGroupMemberCandidates,
     staleTime: 60_000,
   })
 }

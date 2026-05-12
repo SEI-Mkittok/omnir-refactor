@@ -722,6 +722,13 @@ describe('CRM API contract mapping', () => {
         seen.push('GET /api/v1/settings/groups')
         return HttpResponse.json({ data: [] })
       }),
+      http.get('/api/v1/settings/groups/member-candidates', () => {
+        seen.push('GET /api/v1/settings/groups/member-candidates')
+        return HttpResponse.json({
+          data: [{ id: 'user-1', name: 'Ada Admin', email: 'ada@example.com', role: 'agent' }],
+          meta: { page: 1, per_page: 500, total: 1, total_pages: 1 },
+        })
+      }),
       http.post('/api/v1/settings/groups', async ({ request }) => {
         seen.push('POST /api/v1/settings/groups')
         const body = (await request.json()) as Record<string, unknown>
@@ -764,6 +771,7 @@ describe('CRM API contract mapping', () => {
       field_permissions: [{ module: 'contacts', field_name: 'email', can_write: false }],
     })
     await accessSettingsApi.listGroups()
+    await accessSettingsApi.listGroupMemberCandidates()
     await accessSettingsApi.createGroup({ name: 'West Team', user_ids: ['user-1'] })
     await accessSettingsApi.replaceGroupMembers('group-1', ['user-1', 'user-2'])
     await accessSettingsApi.getSharingRules()
@@ -785,6 +793,7 @@ describe('CRM API contract mapping', () => {
       'GET /api/v1/settings/profiles/catalog',
       'PUT /api/v1/settings/profiles/profile-1/permissions',
       'GET /api/v1/settings/groups',
+      'GET /api/v1/settings/groups/member-candidates',
       'POST /api/v1/settings/groups',
       'PUT /api/v1/settings/groups/group-1/members',
       'GET /api/v1/settings/sharing-rules',
