@@ -163,6 +163,7 @@ type LeadRepository interface {
 type TicketRepository interface {
 	Create(ctx context.Context, t *domain.Ticket) (*domain.Ticket, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket, error)
+	CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error)
 	GetDetailByID(ctx context.Context, id uuid.UUID) (*domain.TicketDetail, error)
 	GetByEmailMessageID(ctx context.Context, messageID string) (*domain.Ticket, error)
 	Update(ctx context.Context, id uuid.UUID, patch domain.TicketPatch) (*domain.Ticket, error)

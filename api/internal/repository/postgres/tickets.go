@@ -119,6 +119,11 @@ func (r *TicketRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Ticket,
 	return scanTicket(r.db.QueryRow(ctx, q, args...))
 }
 
+func (r *TicketRepo) CanAccess(ctx context.Context, id uuid.UUID, access domain.SharingAccessLevel) (bool, error) {
+	repo := NewAccessRepo(r.db)
+	return repo.CanAccessRecord(ctx, domain.ACLModuleTickets, id, access)
+}
+
 const ticketDetailQuery = `
 	SELECT
 		t.id, t.org_id, t.subject, t.description, t.status, t.priority,

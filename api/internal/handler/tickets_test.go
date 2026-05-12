@@ -809,7 +809,6 @@ func TestTicketHandler_CreateComment(t *testing.T) {
 func TestTicketHandler_PublicReadAllowsCommentReadButBlocksNonOwnerCommentCreate(t *testing.T) {
 	ticketID := uuid.New()
 	userID := uuid.New()
-	ownerID := uuid.New()
 	orgID := domain.DefaultOrgID
 	access := &domain.AccessContext{
 		UserID: userID,
@@ -822,9 +821,12 @@ func TestTicketHandler_PublicReadAllowsCommentReadButBlocksNonOwnerCommentCreate
 	mockTickets := new(mocks.MockTicketRepository)
 	mockComments := new(mocks.MockTicketCommentRepository)
 	mockAttachments := new(mocks.MockTicketAttachmentRepository)
-	mockTickets.On("GetByID", mock.Anything, ticketID).
-		Return(&domain.Ticket{ID: ticketID, SubmittedByUserID: &ownerID}, nil).
-		Twice()
+	mockTickets.On("CanAccess", mock.Anything, ticketID, domain.SharingAccessRead).
+		Return(true, nil).
+		Once()
+	mockTickets.On("CanAccess", mock.Anything, ticketID, domain.SharingAccessWrite).
+		Return(false, nil).
+		Once()
 	mockComments.On("List", mock.Anything, mock.MatchedBy(func(f domain.TicketCommentFilter) bool {
 		return f.TicketID == ticketID && f.IsInternal == nil
 	})).Return([]*domain.TicketComment{}, nil).Once()
@@ -854,6 +856,46 @@ func TestTicketHandler_PublicReadAllowsCommentReadButBlocksNonOwnerCommentCreate
 
 	require.Equal(t, http.StatusNotFound, createW.Code)
 	mockComments.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+	mockTickets.AssertExpectations(t)
+	mockComments.AssertExpectations(t)
+}
+
+func TestTicketHandler_CreateCommentAllowsRepositoryWriteVisibility(t *testing.T) {
+	ticketID := uuid.New()
+	userID := uuid.New()
+	orgID := domain.DefaultOrgID
+	access := &domain.AccessContext{
+		UserID: userID,
+		OrgID:  orgID,
+		Sharing: map[domain.ACLModule]domain.ACLSharingAccess{
+			domain.ACLModuleTickets: {Mode: domain.SharingDefaultPrivate},
+		},
+	}
+
+	mockTickets := new(mocks.MockTicketRepository)
+	mockComments := new(mocks.MockTicketCommentRepository)
+	mockAttachments := new(mocks.MockTicketAttachmentRepository)
+	mockTickets.On("CanAccess", mock.Anything, ticketID, domain.SharingAccessWrite).
+		Return(true, nil).
+		Once()
+	mockComments.On("Create", mock.Anything, mock.MatchedBy(func(c *domain.TicketComment) bool {
+		return c.TicketID == ticketID && c.Body == "manager update"
+	})).Return(&domain.TicketComment{ID: uuid.New(), TicketID: ticketID, Body: "manager update"}, nil).Once()
+
+	h := handler.NewTicketHandler(mockTickets, mockComments, mockAttachments, mocks.NoopStorageBackend{})
+
+	body, err := json.Marshal(map[string]any{"body": "manager update"})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/"+ticketID.String()+"/comments", bytes.NewReader(body))
+	req = withURLParam(req, "id", ticketID.String())
+	req = withClaims(req, &auth.Claims{UserID: userID, OrgID: orgID, Role: string(domain.UserRoleAgent)})
+	req = req.WithContext(domain.WithAccessContext(req.Context(), access))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.CreateComment(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
 	mockTickets.AssertExpectations(t)
 	mockComments.AssertExpectations(t)
 }

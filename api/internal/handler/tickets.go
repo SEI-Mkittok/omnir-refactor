@@ -345,33 +345,19 @@ func (h *TicketHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TicketHandler) ensureTicketAccess(w http.ResponseWriter, r *http.Request, ticketID uuid.UUID, accessLevel domain.SharingAccessLevel) bool {
-	access, ok := domain.AccessContextFromContext(r.Context())
-	if !ok {
+	if _, ok := domain.AccessContextFromContext(r.Context()); !ok {
 		return true
 	}
-	ticket, err := h.tickets.GetByID(r.Context(), ticketID)
+	canAccess, err := h.tickets.CanAccess(r.Context(), ticketID, accessLevel)
 	if err != nil {
 		handleDomainErr(w, err)
 		return false
 	}
-	if accessLevel == domain.SharingAccessWrite && !ticketWriteVisible(access, ticket) {
+	if !canAccess {
 		handleDomainErr(w, domain.ErrNotFound)
 		return false
 	}
 	return true
-}
-
-func ticketWriteVisible(access *domain.AccessContext, ticket *domain.Ticket) bool {
-	if access == nil || access.CanAccessAllRecords(domain.ACLModuleTickets, domain.SharingAccessWrite) {
-		return true
-	}
-	if ticket == nil {
-		return false
-	}
-	if ticket.AssigneeID != nil && *ticket.AssigneeID == access.UserID {
-		return true
-	}
-	return ticket.SubmittedByUserID != nil && *ticket.SubmittedByUserID == access.UserID
 }
 
 // ---- Comments ----
