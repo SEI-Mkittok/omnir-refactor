@@ -58,6 +58,10 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
+			if claims, ok := ClaimsFromContext(r); ok && domain.IsAdminRole(claims.Role) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			access, ok := domain.AccessContextFromContext(r.Context())
 			if !ok {
 				http.Error(w, `{"error":"forbidden","code":"access_context_required"}`, http.StatusForbidden)

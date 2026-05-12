@@ -68,6 +68,30 @@ func TestRequireModulePermissionUsesResolvedProfilePermissions(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, w.Code)
 }
 
+func TestRequireModulePermissionPreservesPlatformAdminAccess(t *testing.T) {
+	handler := middleware.RequireModulePermission()(okHandler)
+
+	for _, path := range []string{
+		"/api/v1/settings/company",
+		"/api/v1/deals/" + uuid.NewString() + "/quotes",
+		"/api/v1/leads/" + uuid.NewString() + "/convert",
+	} {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"create_deal":true}`))
+		req.Header.Set("Content-Type", "application/json")
+		req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+			UserID: uuid.New(),
+			Role:   string(domain.UserRoleAdmin),
+		}))
+		req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+			Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{},
+		}))
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code, path)
+	}
+}
+
 func TestRequireModulePermissionAllowsSelfServiceUserUpdate(t *testing.T) {
 	userID := uuid.New()
 	handler := middleware.RequireModulePermission()(okHandler)
