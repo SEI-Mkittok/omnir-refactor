@@ -347,6 +347,14 @@ func (h *DealHandler) AddContact(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", "contact_id is required")
 		return
 	}
+	if h.contacts == nil {
+		writeError(w, http.StatusInternalServerError, "contact access repository not configured")
+		return
+	}
+	if _, err := h.contacts.GetByID(r.Context(), body.ContactID); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	if err := h.repo.AddContact(r.Context(), dealID, body.ContactID, body.Role); err != nil {
 		handleDomainErr(w, err)
 		return
