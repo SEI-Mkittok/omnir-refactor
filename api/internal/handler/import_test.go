@@ -88,6 +88,46 @@ func TestImportContactsRejectsDeniedField(t *testing.T) {
 	contacts.AssertExpectations(t)
 }
 
+func TestImportContactsPlatformAdminBypassesDeniedField(t *testing.T) {
+	contacts := new(mocks.MockContactRepository)
+	contacts.On("GetByEmail", mock.Anything, "alice@example.com").Return(nil, domain.ErrNotFound)
+	contacts.On("Create", mock.Anything, mock.MatchedBy(func(c *domain.Contact) bool {
+		return c.FirstName == "Alice" && c.LastName == "Smith" && c.Email != nil && *c.Email == "alice@example.com"
+	})).Return(&domain.Contact{ID: uuid.New()}, nil)
+	h := handler.NewImportHandler(contacts, nil, nil)
+
+	req := newImportRequest(t, "/api/v1/import/contacts", "first_name,last_name,email\nAlice,Smith,alice@example.com\n", domain.ACLModuleContacts, "email")
+	req = withClaims(req, &auth.Claims{UserID: uuid.New(), Role: string(domain.UserRoleAdmin)})
+	w := httptest.NewRecorder()
+
+	h.ImportContacts(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, strings.TrimSpace(w.Body.String()))
+	contacts.AssertExpectations(t)
+}
+
+func TestImportContactsExistingRowsDoNotValidateLookupOnlyEmail(t *testing.T) {
+	contactID := uuid.New()
+	contacts := new(mocks.MockContactRepository)
+	contacts.On("GetByEmail", mock.Anything, "alice@example.com").
+		Return(&domain.Contact{ID: contactID, Email: strPtrForTest("alice@example.com")}, nil)
+	contacts.On("Update", mock.Anything, contactID, mock.MatchedBy(func(p domain.ContactPatch) bool {
+		return p.FirstName != nil && *p.FirstName == "Alicia" &&
+			p.LastName != nil && *p.LastName == "Smith" &&
+			p.Phone != nil && *p.Phone == "555-0100"
+	})).Return(&domain.Contact{ID: contactID}, nil)
+	h := handler.NewImportHandler(contacts, nil, nil)
+
+	req := newImportRequest(t, "/api/v1/import/contacts", "first_name,last_name,email,phone\nAlicia,Smith,alice@example.com,555-0100\n", domain.ACLModuleContacts, "email")
+	w := httptest.NewRecorder()
+
+	h.ImportContacts(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code, strings.TrimSpace(w.Body.String()))
+	contacts.AssertExpectations(t)
+	contacts.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
 func TestImportAccountsRejectsDeniedFieldBeforeUpsert(t *testing.T) {
 	accounts := new(mocks.MockAccountRepository)
 	h := handler.NewImportHandler(nil, accounts, nil)
@@ -131,4 +171,8 @@ func TestImportContactsAllowsEmptyDeniedColumn(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code, strings.TrimSpace(w.Body.String()))
 	contacts.AssertExpectations(t)
+}
+
+func strPtrForTest(s string) *string {
+	return &s
 }

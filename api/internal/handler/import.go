@@ -151,6 +151,9 @@ func importAccessContext(w http.ResponseWriter, r *http.Request) (*domain.Access
 }
 
 func deniedImportField(access *domain.AccessContext, module domain.ACLModule, fields ...string) string {
+	if access != nil && domain.IsAdminRole(access.PlatformRole) {
+		return ""
+	}
 	seen := map[string]bool{}
 	for _, field := range fields {
 		field = strings.TrimSpace(field)
@@ -197,6 +200,9 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 	access, ok := importAccessContext(w, r)
 	if !ok {
 		return
+	}
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims && access.PlatformRole == "" {
+		access.PlatformRole = claims.Role
 	}
 
 	result := ImportResult{}
@@ -248,7 +254,14 @@ func (h *ImportHandler) ImportContacts(w http.ResponseWriter, r *http.Request) {
 		if email != "" {
 			existing, lookupErr := h.contacts.GetByEmail(r.Context(), email)
 			if lookupErr == nil && existing != nil {
-				if denied := deniedImportField(access, domain.ACLModuleContacts, fields...); denied != "" {
+				updateFields := []string{"first_name", "last_name"}
+				if phone != "" {
+					updateFields = append(updateFields, "phone")
+				}
+				if leadSource != "" {
+					updateFields = append(updateFields, "lead_source")
+				}
+				if denied := deniedImportField(access, domain.ACLModuleContacts, updateFields...); denied != "" {
 					result.Failed++
 					result.Errors = append(result.Errors, ImportError{Row: rowNum, Error: importFieldDeniedMessage(denied)})
 					continue
@@ -332,6 +345,9 @@ func (h *ImportHandler) ImportAccounts(w http.ResponseWriter, r *http.Request) {
 	access, ok := importAccessContext(w, r)
 	if !ok {
 		return
+	}
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims && access.PlatformRole == "" {
+		access.PlatformRole = claims.Role
 	}
 
 	result := ImportResult{}
@@ -443,6 +459,9 @@ func (h *ImportHandler) ImportLeads(w http.ResponseWriter, r *http.Request) {
 	access, ok := importAccessContext(w, r)
 	if !ok {
 		return
+	}
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims && access.PlatformRole == "" {
+		access.PlatformRole = claims.Role
 	}
 
 	result := ImportResult{}

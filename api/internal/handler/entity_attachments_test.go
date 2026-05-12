@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/handler"
 )
@@ -116,6 +117,39 @@ func TestAttachmentDownloadRequiresParentModuleReadPermission(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, w.Code)
 	require.Empty(t, accessRepo.calls)
+}
+
+func TestAttachmentDownloadAllowsPlatformAdminWithoutProfileReadPermission(t *testing.T) {
+	attachmentID := uuid.New()
+	dealID := uuid.New()
+	path := filepath.Join(t.TempDir(), "admin.txt")
+	require.NoError(t, os.WriteFile(path, []byte("admin attachment"), 0o600))
+	repo := &fakeEntityAttachmentRepository{attachment: &domain.EntityAttachment{
+		ID:          attachmentID,
+		EntityType:  domain.EntityTypeDeal,
+		EntityID:    dealID,
+		Filename:    "admin.txt",
+		ContentType: "text/plain",
+		StoragePath: path,
+		CreatedAt:   time.Now(),
+	}}
+	accessRepo := &fakeAttachmentRecordAccessRepository{allowed: true}
+	h := handler.NewAttachmentDownloadHandler(repo, accessRepo)
+
+	req := httptest.NewRequest(http.MethodGet, "/"+attachmentID.String(), nil)
+	req = withClaims(req, &auth.Claims{UserID: uuid.New(), Role: string(domain.UserRoleAdmin)})
+	req = req.WithContext(domain.WithAccessContext(req.Context(), &domain.AccessContext{
+		Permissions: map[domain.ACLModule]map[domain.ACLAction]bool{},
+	}))
+	w := httptest.NewRecorder()
+
+	h.Router().ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "admin attachment", w.Body.String())
+	require.Len(t, accessRepo.calls, 1)
+	require.Equal(t, domain.ACLModuleDeals, accessRepo.calls[0].module)
+	require.Equal(t, dealID, accessRepo.calls[0].id)
 }
 
 func TestAttachmentDownloadServesFileWhenParentReadIsAllowed(t *testing.T) {

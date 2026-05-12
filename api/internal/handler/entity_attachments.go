@@ -317,8 +317,12 @@ func (h *AttachmentDownloadHandler) canDownloadAttachment(w http.ResponseWriter,
 		writeError(w, http.StatusNotFound, "not found")
 		return false
 	}
+	platformAdmin := false
+	if claims, hasClaims := middleware.ClaimsFromContext(r); hasClaims {
+		platformAdmin = domain.IsAdminRole(claims.Role)
+	}
 	access, ok := domain.AccessContextFromContext(r.Context())
-	if !ok || !access.HasPermission(module, domain.ACLActionRead) {
+	if !platformAdmin && (!ok || !access.HasPermission(module, domain.ACLActionRead)) {
 		writeError(w, http.StatusNotFound, "not found")
 		return false
 	}
