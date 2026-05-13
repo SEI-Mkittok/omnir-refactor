@@ -5,6 +5,8 @@ import { render, screen, waitFor } from '@/test/utils'
 import { server } from '@/test/mocks/server'
 import { ModuleRelationshipsPage } from './ModuleRelationshipsPage'
 
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000'
+
 const relationships = [
   {
     id: 'rel-system',
@@ -53,5 +55,57 @@ describe('ModuleRelationshipsPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
     await waitFor(() => expect(deletedId).toBe('rel-custom'))
+  })
+
+  it('keeps unsaved system defaults keyed by relationship key instead of zero UUID', async () => {
+    const savedRequests: Record<string, unknown>[] = []
+    server.use(
+      http.get('/api/v1/settings/module-relationships', () => HttpResponse.json([
+        {
+          id: ZERO_UUID,
+          relationship_key: 'account_contacts',
+          from_entity_type: 'account',
+          to_entity_type: 'contact',
+          label: 'Account contacts',
+          cardinality: 'one_to_many',
+          storage_strategy: 'native',
+          is_enabled: true,
+          system_locked: true,
+          order_idx: 10,
+          metadata: {},
+        },
+        {
+          id: ZERO_UUID,
+          relationship_key: 'account_deals',
+          from_entity_type: 'account',
+          to_entity_type: 'deal',
+          label: 'Account deals',
+          cardinality: 'one_to_many',
+          storage_strategy: 'native',
+          is_enabled: true,
+          system_locked: true,
+          order_idx: 20,
+          metadata: {},
+        },
+      ])),
+      http.put('/api/v1/settings/module-relationships', async ({ request }) => {
+        const saved = await request.json() as Record<string, unknown>
+        savedRequests.push(saved)
+        return HttpResponse.json({ ...saved, id: 'persisted-rel' })
+      })
+    )
+
+    render(<ModuleRelationshipsPage />)
+
+    const labels = await screen.findAllByLabelText('Relationship label')
+    await userEvent.clear(labels[0])
+    await userEvent.type(labels[0], 'Primary contacts')
+
+    expect(labels[0]).toHaveValue('Primary contacts')
+    expect(labels[1]).toHaveValue('Account deals')
+
+    await userEvent.click(screen.getAllByRole('button', { name: /save/i })[0])
+    await waitFor(() => expect(savedRequests[0]?.relationship_key).toBe('account_contacts'))
+    expect(savedRequests[0]?.label).toBe('Primary contacts')
   })
 })

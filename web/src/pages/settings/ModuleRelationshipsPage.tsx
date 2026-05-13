@@ -13,6 +13,7 @@ import { CARDINALITY_LABELS, MODULE_ENTITIES } from '@/lib/moduleConfiguration'
 import type { CustomFieldEntityType, ModuleRelationshipDefinition, RelationshipCardinality } from '@/api/types'
 
 const CARDINALITIES: RelationshipCardinality[] = ['one_to_one', 'many_to_one', 'one_to_many', 'many_to_many']
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000'
 
 const emptyDefinition = (from: CustomFieldEntityType): ModuleRelationshipDefinition => ({
   relationship_key: '',
@@ -31,6 +32,14 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
+function persistedRelationshipID(relationship: ModuleRelationshipDefinition): string | null {
+  return relationship.id && relationship.id !== ZERO_UUID ? relationship.id : null
+}
+
+function relationshipDraftKey(relationship: ModuleRelationshipDefinition): string {
+  return persistedRelationshipID(relationship) ?? relationship.relationship_key
+}
+
 export function ModuleRelationshipsPage() {
   const [entityType, setEntityType] = useState<CustomFieldEntityType>('account')
   const { data: relationships = [], isLoading } = useModuleRelationships(entityType)
@@ -45,12 +54,12 @@ export function ModuleRelationshipsPage() {
     [entityType]
   )
 
-  const rows = relationships.map((relationship) => drafts[relationship.id || relationship.relationship_key] ?? relationship)
+  const rows = relationships.map((relationship) => drafts[relationshipDraftKey(relationship)] ?? relationship)
   const systemCount = rows.filter((row) => row.system_locked).length
   const customCount = rows.length - systemCount
 
   const setDraft = (relationship: ModuleRelationshipDefinition, patch: Partial<ModuleRelationshipDefinition>) => {
-    const key = relationship.id || relationship.relationship_key
+    const key = relationshipDraftKey(relationship)
     setDrafts((current) => ({ ...current, [key]: { ...relationship, ...current[key], ...patch } }))
   }
 
@@ -59,7 +68,7 @@ export function ModuleRelationshipsPage() {
       const saved = await saveRelationship.mutateAsync(relationship)
       setDrafts((current) => {
         const next = { ...current }
-        delete next[relationship.id || relationship.relationship_key]
+        delete next[relationshipDraftKey(relationship)]
         return next
       })
       setStatus(`${saved.label} saved.`)
@@ -145,7 +154,7 @@ export function ModuleRelationshipsPage() {
             ) : (
               <div className="space-y-3">
                 {rows.map((relationship) => (
-                  <div key={relationship.id || relationship.relationship_key} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div key={relationshipDraftKey(relationship)} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0 flex-1 space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -196,14 +205,14 @@ export function ModuleRelationshipsPage() {
                           <Save className="h-4 w-4" />
                           Save
                         </Button>
-                        {!relationship.system_locked && relationship.id && (
+                        {!relationship.system_locked && persistedRelationshipID(relationship) && (
                           <Button
                             type="button"
                             variant="outline"
                             className="text-red-600 hover:bg-red-50"
                             onClick={async () => {
                               try {
-                                await deleteRelationship.mutateAsync(relationship.id!)
+                                await deleteRelationship.mutateAsync(persistedRelationshipID(relationship)!)
                                 setStatus(`${relationship.label} deleted.`)
                               } catch (error) {
                                 setStatus(errorMessage(error, 'Relationship is still in use. Disable it or remove its links before deleting.'))
