@@ -46,11 +46,47 @@ const HARD_REQUIRED_FIELDS: Record<CustomFieldEntityType, Set<string>> = {
   ticket: new Set(['subject']),
 }
 
+const CREATE_FORM_REQUIRED_STANDARD_FIELDS: Record<CustomFieldEntityType, Set<string>> = {
+  account: new Set(['name', 'domain', 'industry', 'size']),
+  contact: new Set(['first_name', 'last_name', 'email', 'phone', 'account_id', 'stage']),
+  lead: new Set(['first_name', 'last_name', 'email', 'phone', 'company', 'lead_source', 'status']),
+  deal: new Set(['title', 'value_cents', 'stage', 'expected_close_date']),
+  ticket: new Set(['subject', 'status', 'priority']),
+}
+
 function isLockedRequiredField(entityType: CustomFieldEntityType, field: ModuleLayoutField, requiredCustomFields: Set<string>): boolean {
   if (field.source === 'standard') {
     return HARD_REQUIRED_FIELDS[entityType]?.has(field.field_key) ?? false
   }
   return requiredCustomFields.has(field.field_key)
+}
+
+function isHardRequiredStandardField(entityType: CustomFieldEntityType, field: ModuleLayoutField): boolean {
+  return field.source === 'standard' && (HARD_REQUIRED_FIELDS[entityType]?.has(field.field_key) ?? false)
+}
+
+function canRequireFieldInCreateForm(entityType: CustomFieldEntityType, field: ModuleLayoutField): boolean {
+  if (field.source === 'custom') {
+    return true
+  }
+  if (isHardRequiredStandardField(entityType, field)) {
+    return true
+  }
+  return CREATE_FORM_REQUIRED_STANDARD_FIELDS[entityType]?.has(field.field_key) ?? false
+}
+
+function sanitizeUnsupportedRequiredFields(
+  blocks: ModuleLayoutBlock[],
+  entityType: CustomFieldEntityType
+): ModuleLayoutBlock[] {
+  return blocks.map((block) => ({
+    ...block,
+    fields: block.fields.map((field) =>
+      field.required && !canRequireFieldInCreateForm(entityType, field)
+        ? { ...field, required: false }
+        : field
+    ),
+  }))
 }
 
 export function ModuleLayoutsPage() {
@@ -64,10 +100,11 @@ export function ModuleLayoutsPage() {
 
   useEffect(() => {
     if (layout) {
-      setDraft(cloneLayout(layout))
+      const cloned = cloneLayout(layout)
+      setDraft({ ...cloned, blocks: sanitizeUnsupportedRequiredFields(cloned.blocks, entityType) })
       setStatus(null)
     }
-  }, [layout])
+  }, [layout, entityType])
 
   const selectedEntity = useMemo(
     () => MODULE_ENTITIES.find((item) => item.value === entityType) ?? MODULE_ENTITIES[0],
@@ -82,10 +119,13 @@ export function ModuleLayoutsPage() {
     setDraft((current) => {
       if (!current) return current
       const next = cloneLayout(current)
-      next.blocks[blockIndex].fields[fieldIndex] = {
+      const updatedField = {
         ...next.blocks[blockIndex].fields[fieldIndex],
         ...patch,
       }
+      next.blocks[blockIndex].fields[fieldIndex] = canRequireFieldInCreateForm(entityType, updatedField)
+        ? updatedField
+        : { ...updatedField, required: false }
       return next
     })
   }
@@ -136,7 +176,9 @@ export function ModuleLayoutsPage() {
 
   const handleSave = async () => {
     if (!draft) return
-    const saved = await saveLayout.mutateAsync({ blocks: normalizeOrders(draft.blocks) })
+    const saved = await saveLayout.mutateAsync({
+      blocks: normalizeOrders(sanitizeUnsupportedRequiredFields(draft.blocks, entityType)),
+    })
     setDraft(cloneLayout(saved))
     setStatus('Layout saved.')
   }
@@ -213,6 +255,7 @@ export function ModuleLayoutsPage() {
                     <div className="divide-y divide-slate-100">
                       {block.fields.map((field, fieldIndex) => {
                         const lockedRequired = isLockedRequiredField(entityType, field, requiredCustomFields)
+                        const requiredUnsupported = !canRequireFieldInCreateForm(entityType, field)
                         return (
                         <div key={`${field.source}:${field.field_key}`} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(180px,1fr)_130px_1.3fr_80px] lg:items-center">
                           <div>
@@ -242,25 +285,36 @@ export function ModuleLayoutsPage() {
                             ))}
                           </select>
 
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                            {([
-                              ['visible', 'Visible'],
-                              ['required', 'Required'],
-                              ['quick_create', 'Quick create'],
-                              ['mass_edit', 'Mass edit'],
-                              ['header', 'Header'],
-                              ['key_field', 'Key field'],
-                            ] as const).map(([key, label]) => (
-                              <label key={key} className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600">
-                                <input
-                                  type="checkbox"
-                                  checked={Boolean(field[key])}
-                                  disabled={lockedRequired && (key === 'visible' || key === 'required' || key === 'quick_create')}
-                                  onChange={(e) => updateField(blockIndex, fieldIndex, { [key]: e.target.checked })}
-                                />
-                                {label}
-                              </label>
-                            ))}
+                          <div className="space-y-1">
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                              {([
+                                ['visible', 'Visible'],
+                                ['required', 'Required'],
+                                ['quick_create', 'Quick create'],
+                                ['mass_edit', 'Mass edit'],
+                                ['header', 'Header'],
+                                ['key_field', 'Key field'],
+                              ] as const).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(field[key])}
+                                    disabled={
+                                      (lockedRequired && (key === 'visible' || key === 'required' || key === 'quick_create')) ||
+                                      (key === 'required' && requiredUnsupported)
+                                    }
+                                    aria-label={`${field.field_key} ${label}`}
+                                    onChange={(e) => updateField(blockIndex, fieldIndex, { [key]: e.target.checked })}
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                            {requiredUnsupported && (
+                              <span className="text-[11px] font-medium text-amber-700">
+                                Required locked: not available in quick create
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex gap-1 lg:justify-end">
