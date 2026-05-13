@@ -89,4 +89,72 @@ describe('CustomRelationshipsPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: /remove relationship link/i }))
     await waitFor(() => expect(deletedId).toBe('link-1'))
   })
+
+  it('uses the current record side for same-module relationship links', async () => {
+    const createdBodies: unknown[] = []
+    server.use(
+      http.get('/api/v1/module-relationships', () =>
+        HttpResponse.json([
+          {
+            id: 'rel-peer',
+            relationship_key: 'custom_account_peer',
+            from_entity_type: 'account',
+            to_entity_type: 'account',
+            label: 'Peer account',
+            cardinality: 'many_to_many',
+            storage_strategy: 'crm_entity_links',
+            is_enabled: true,
+            system_locked: false,
+            order_idx: 1,
+            metadata: {},
+          },
+        ])
+      ),
+      http.get('/api/v1/entity-links/account/account-2', () =>
+        HttpResponse.json([
+          {
+            id: 'link-peer',
+            org_id: 'org-1',
+            relationship_definition_id: 'rel-peer',
+            from_entity_type: 'account',
+            from_entity_id: 'account-1',
+            to_entity_type: 'account',
+            to_entity_id: 'account-2',
+            link_type: 'custom',
+            metadata: {},
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ])
+      ),
+      http.get('/api/v1/accounts', () =>
+        HttpResponse.json({
+          data: [{
+            id: 'account-1',
+            name: 'Acme Holdings',
+            domain: 'acme.example',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          }],
+          meta: { page: 1, per_page: 10, total: 1, total_pages: 1 },
+        })
+      ),
+      http.post('/api/v1/entity-links', async ({ request }) => {
+        createdBodies.push(await request.json())
+        return HttpResponse.json({ id: 'link-duplicate' }, { status: 201 })
+      })
+    )
+
+    render(<CustomRelationshipsPanel entityType="account" entityId="account-2" />)
+
+    expect(await screen.findByText('Peer account')).toBeInTheDocument()
+    expect(await screen.findByText('account-1')).toBeInTheDocument()
+    expect(screen.queryByText('account-2')).not.toBeInTheDocument()
+
+    await userEvent.type(screen.getByPlaceholderText(/search accounts/i), 'Acm')
+    await userEvent.click(await screen.findByText('Acme Holdings'))
+
+    expect(await screen.findByText(/already linked/i)).toBeInTheDocument()
+    expect(createdBodies).toHaveLength(0)
+  })
 })

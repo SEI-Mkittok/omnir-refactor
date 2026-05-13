@@ -10,6 +10,7 @@ import { ticketsApi } from '@/api/tickets'
 import type {
   Account,
   Contact,
+  CRMEntityLink,
   CustomFieldEntityType,
   Deal,
   Lead,
@@ -111,8 +112,17 @@ function targetEntityFor(definition: ModuleRelationshipDefinition, currentType: 
   return null
 }
 
-function linkOppositeId(definition: ModuleRelationshipDefinition, currentType: CustomFieldEntityType, link: { from_entity_id: string; to_entity_id: string }) {
-  return definition.from_entity_type === currentType ? link.to_entity_id : link.from_entity_id
+function linkOppositeId(
+  definition: ModuleRelationshipDefinition,
+  currentType: CustomFieldEntityType,
+  currentId: string,
+  link: Pick<CRMEntityLink, 'from_entity_id' | 'to_entity_id'>,
+) {
+  if (definition.from_entity_type === currentType && link.from_entity_id === currentId) return link.to_entity_id
+  if (definition.to_entity_type === currentType && link.to_entity_id === currentId) return link.from_entity_id
+  if (definition.from_entity_type === currentType && definition.to_entity_type !== currentType) return link.to_entity_id
+  if (definition.to_entity_type === currentType && definition.from_entity_type !== currentType) return link.from_entity_id
+  return link.from_entity_id
 }
 
 export function CustomRelationshipsPanel({ entityType, entityId, title = 'Custom relationships' }: CustomRelationshipsPanelProps) {
@@ -164,6 +174,11 @@ export function CustomRelationshipsPanel({ entityType, entityId, title = 'Custom
 
   const createLink = useMutation({
     mutationFn: async ({ definition, candidate }: { definition: ModuleRelationshipDefinition; candidate: RelationshipCandidate }) => {
+      const existingLinks = linksByDefinition[definition.id!] ?? []
+      const alreadyLinked = existingLinks.some((link) => linkOppositeId(definition, entityType, entityId, link) === candidate.id)
+      if (alreadyLinked) {
+        throw new Error('This record is already linked through this relationship.')
+      }
       const currentIsFrom = definition.from_entity_type === entityType
       return moduleConfigurationApi.createEntityLink({
         relationship_definition_id: definition.id!,
@@ -238,7 +253,7 @@ export function CustomRelationshipsPanel({ entityType, entityId, title = 'Custom
                     links.map((link) => (
                       <div key={link.id} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-2 text-sm">
                         <span className="min-w-0 truncate text-slate-700">
-                          {entityLabel(targetType)} <span className="font-mono text-xs text-slate-500">{linkOppositeId(definition, entityType, link)}</span>
+                          {entityLabel(targetType)} <span className="font-mono text-xs text-slate-500">{linkOppositeId(definition, entityType, entityId, link)}</span>
                         </span>
                         <Button
                           type="button"
