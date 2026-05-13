@@ -44,26 +44,28 @@ func (t CRMEntityType) IsValid() bool {
 
 // CRMEntityLink captures a reusable typed relationship between two CRM entities.
 type CRMEntityLink struct {
-	ID             uuid.UUID       `json:"id"`
-	OrgID          uuid.UUID       `json:"org_id"`
-	FromEntityType CRMEntityType   `json:"from_entity_type"`
-	FromEntityID   uuid.UUID       `json:"from_entity_id"`
-	ToEntityType   CRMEntityType   `json:"to_entity_type"`
-	ToEntityID     uuid.UUID       `json:"to_entity_id"`
-	LinkType       string          `json:"link_type"`
-	Metadata       json.RawMessage `json:"metadata,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID                       uuid.UUID       `json:"id"`
+	OrgID                    uuid.UUID       `json:"org_id"`
+	RelationshipDefinitionID *uuid.UUID      `json:"relationship_definition_id,omitempty"`
+	FromEntityType           CRMEntityType   `json:"from_entity_type"`
+	FromEntityID             uuid.UUID       `json:"from_entity_id"`
+	ToEntityType             CRMEntityType   `json:"to_entity_type"`
+	ToEntityID               uuid.UUID       `json:"to_entity_id"`
+	LinkType                 string          `json:"link_type"`
+	Metadata                 json.RawMessage `json:"metadata,omitempty"`
+	CreatedAt                time.Time       `json:"created_at"`
+	UpdatedAt                time.Time       `json:"updated_at"`
 }
 
 // CRMEntityLinkFilter selects links associated with a specific source or target entity.
 type CRMEntityLinkFilter struct {
-	OrgID       uuid.UUID
-	EntityType  CRMEntityType
-	EntityID    uuid.UUID
-	LinkType    string
-	IncludeFrom bool
-	IncludeTo   bool
+	OrgID                    uuid.UUID
+	EntityType               CRMEntityType
+	EntityID                 uuid.UUID
+	RelationshipDefinitionID *uuid.UUID
+	LinkType                 string
+	IncludeFrom              bool
+	IncludeTo                bool
 }
 
 // Validate checks required fields on a CRMEntityLink.

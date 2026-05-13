@@ -42,6 +42,8 @@ import { CurrenciesPage } from '@/pages/settings/CurrenciesPage'
 import { PicklistsPage } from '@/pages/settings/PicklistsPage'
 import { PicklistDependenciesPage } from '@/pages/settings/PicklistDependenciesPage'
 import { LeadConversionMappingPage } from '@/pages/settings/LeadConversionMappingPage'
+import { ModuleLayoutsPage } from '@/pages/settings/ModuleLayoutsPage'
+import { ModuleRelationshipsPage } from '@/pages/settings/ModuleRelationshipsPage'
 import { RolesPage } from '@/pages/settings/RolesPage'
 import { ProfilesPage } from '@/pages/settings/ProfilesPage'
 import { SharingRulesPage } from '@/pages/settings/SharingRulesPage'
@@ -259,6 +261,22 @@ function AppRoutes() {
           element={
             <AdminRoute module="settings">
               <LeadConversionMappingPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/module-layouts"
+          element={
+            <AdminRoute module="settings">
+              <ModuleLayoutsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/module-relationships"
+          element={
+            <AdminRoute module="settings">
+              <ModuleRelationshipsPage />
             </AdminRoute>
           }
         />

@@ -24,6 +24,7 @@ import {
   useAccountContacts,
   useAccountNotes,
   useDeleteAccount,
+  useUpdateAccount,
   useAddAccountNote,
   useLinkContactToAccount,
   useLinkDealToAccount,
@@ -49,8 +50,13 @@ import { formatDate, formatRelativeTime, formatCurrency } from '@/lib/utils'
 import { mapCrmLinkError } from '@/lib/crmLinkErrors'
 import { Spinner } from '@/components/ui/Spinner'
 import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
+import { CustomRelationshipsPanel } from '@/components/omnir/CustomRelationshipsPanel'
 import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
-import type { Contact, Deal, EmailSequence, InboxThread, Note, Ticket as TicketType } from '@/api/types'
+import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
+import type { Contact, CustomFieldValues, Deal, EmailSequence, InboxThread, Note, Ticket as TicketType } from '@/api/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -908,6 +914,14 @@ export function AccountDetailPage() {
   const { data: account, isLoading, isError } = useAccount(id!)
   const { data: accountContacts } = useAccountContacts(id!)
   const deleteAccount = useDeleteAccount()
+  const updateAccount = useUpdateAccount()
+  const { data: customFields = [] } = useCustomFieldDefinitions('account', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('account')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'detail'),
+    [customFields, layout]
+  )
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'detail')
   const [relationshipRows, setRelationshipRows] = useState<RelationshipRow[]>([])
   const accountRelationshipSeed = useMemo(
     () => createAccountRelationshipRows(accountContacts),
@@ -1005,13 +1019,13 @@ export function AccountDetailPage() {
           >
             {account.name}
           </h1>
-          {account.industry && (
+          {(visible('industry') || visible('size')) && account.industry && (
             <p className="mt-0.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
               {account.industry.charAt(0).toUpperCase() + account.industry.slice(1)}
-              {account.size ? ` · ${account.size} employees` : ''}
+              {visible('size') && account.size ? ` · ${account.size} employees` : ''}
             </p>
           )}
-          {account.domain && (
+          {visible('domain') && account.domain && (
             <a
               href={`https://${account.domain}`}
               target="_blank"
@@ -1060,20 +1074,20 @@ export function AccountDetailPage() {
             Details
           </p>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-            {account.phone && (
+            {visible('phone') && account.phone && (
               <div>
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <Phone className="h-3.5 w-3.5" /> Phone
+                  <Phone className="h-3.5 w-3.5" /> {layoutFieldLabel(layout, 'standard', 'phone', 'Phone')}
                 </dt>
                 <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   {account.phone}
                 </dd>
               </div>
             )}
-            {account.website && (
+            {visible('website') && account.website && (
               <div>
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <Globe className="h-3.5 w-3.5" /> Website
+                  <Globe className="h-3.5 w-3.5" /> {layoutFieldLabel(layout, 'standard', 'website', 'Website')}
                 </dt>
                 <dd>
                   <a
@@ -1088,10 +1102,10 @@ export function AccountDetailPage() {
                 </dd>
               </div>
             )}
-            {account.address && (
+            {visible('address') && account.address && (
               <div className="sm:col-span-2">
                 <dt className="flex items-center gap-1.5 text-xs mb-0.5" style={{ color: 'var(--text-label)' }}>
-                  <MapPin className="h-3.5 w-3.5" /> Address
+                  <MapPin className="h-3.5 w-3.5" /> {layoutFieldLabel(layout, 'standard', 'address', 'Address')}
                 </dt>
                 <dd className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   {account.address}
@@ -1117,6 +1131,14 @@ export function AccountDetailPage() {
           </dl>
         </div>
 
+        <CustomFieldEditableSection
+          fields={layoutCustomFields}
+          values={account.custom_fields as CustomFieldValues | undefined}
+          onSave={async (cf) => {
+            await updateAccount.mutateAsync({ id: account.id, payload: { custom_fields: cf as Record<string, unknown> } })
+          }}
+        />
+
         <RelationshipEditor
           title="Relationship Roles"
           entityLabel="Contact"
@@ -1129,6 +1151,8 @@ export function AccountDetailPage() {
         <UnifiedTimeline entityType="account" entityId={account.id} />
 
         <LinkedEntitiesSection accountId={account.id} accountName={account.name} />
+
+        <CustomRelationshipsPanel entityType="account" entityId={account.id} />
 
         <NotesPanel accountId={account.id} />
       </div>

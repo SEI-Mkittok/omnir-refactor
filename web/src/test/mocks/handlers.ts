@@ -31,6 +31,38 @@ const mockDeal = {
   updatedAt: '2026-01-01T00:00:00Z',
 }
 
+function mockModuleLayout(entityType: string) {
+  const standard: Record<string, string[]> = {
+    lead: ['first_name', 'last_name', 'email', 'phone', 'company', 'lead_source', 'status'],
+    contact: ['first_name', 'last_name', 'email', 'phone', 'account_id', 'stage'],
+    account: ['name', 'domain', 'industry', 'size'],
+    deal: ['title', 'value_cents', 'stage', 'expected_close_date', 'pipeline_id'],
+    ticket: ['subject', 'status', 'priority'],
+  }
+  return {
+    entity_type: entityType,
+    blocks: [
+      {
+        id: 'main',
+        label: 'Main',
+        order: 0,
+        fields: (standard[entityType] ?? []).map((field, index) => ({
+          source: 'standard',
+          field_key: field,
+          label: field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          visible: true,
+          required: ['name', 'first_name', 'last_name', 'title', 'pipeline_id', 'subject'].includes(field),
+          order: index,
+          quick_create: true,
+          mass_edit: true,
+          header: index < 2,
+          key_field: index === 0,
+        })),
+      },
+    ],
+  }
+}
+
 export const handlers = [
   // Auth
   http.post('/api/auth/login', async ({ request }) => {
@@ -138,6 +170,56 @@ export const handlers = [
       config_default_page_size: 0,
       config_list_preview_chars: 0,
     })
+  ),
+
+  http.get('/api/v1/custom-fields', () =>
+    HttpResponse.json([])
+  ),
+
+  http.get('/api/v1/module-layouts/:entityType', ({ params }) =>
+    HttpResponse.json(mockModuleLayout(String(params.entityType)))
+  ),
+
+  http.get('/api/v1/settings/module-layouts/:entityType', ({ params }) =>
+    HttpResponse.json(mockModuleLayout(String(params.entityType)))
+  ),
+
+  http.put('/api/v1/settings/module-layouts/:entityType', async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({ ...mockModuleLayout(String(params.entityType)), ...body })
+  }),
+
+  http.post('/api/v1/settings/module-layouts/:entityType/reset', ({ params }) =>
+    HttpResponse.json(mockModuleLayout(String(params.entityType)))
+  ),
+
+  http.get('/api/v1/settings/module-relationships', () =>
+    HttpResponse.json([])
+  ),
+
+  http.get('/api/v1/module-relationships', () =>
+    HttpResponse.json([])
+  ),
+
+  http.get('/api/v1/entity-links/:entityType/:entityId', () =>
+    HttpResponse.json([])
+  ),
+
+  http.post('/api/v1/entity-links', async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>
+    return HttpResponse.json({
+      id: 'entity-link-id',
+      org_id: 'org-id',
+      link_type: 'custom',
+      metadata: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      ...body,
+    }, { status: 201 })
+  }),
+
+  http.delete('/api/v1/entity-links/:id', () =>
+    new HttpResponse(null, { status: 204 })
   ),
 
   http.get('/api/v1/users', () =>

@@ -33,6 +33,8 @@ type TicketHandler struct {
 	emailNotifier *worker.EmailNotifier
 	users         repository.UserRepository
 	contacts      repository.ContactRepository
+	cfDefs        repository.CustomFieldDefinitionRepository
+	layouts       repository.ModuleLayoutRepository
 	logger        *slog.Logger
 
 	// optional — set via WithTeamsNotifier
@@ -53,6 +55,16 @@ func NewTicketHandler(
 
 func (h *TicketHandler) WithContacts(contacts repository.ContactRepository) *TicketHandler {
 	h.contacts = contacts
+	return h
+}
+
+func (h *TicketHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *TicketHandler {
+	h.cfDefs = r
+	return h
+}
+
+func (h *TicketHandler) WithModuleLayouts(r repository.ModuleLayoutRepository) *TicketHandler {
+	h.layouts = r
 	return h
 }
 
@@ -184,6 +196,10 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if err := validateModuleLayoutCreate(r.Context(), h.layouts, h.cfDefs, domain.CustomFieldEntityTicket, &t); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 
 	created, err := h.tickets.Create(r.Context(), &t)
 	if err != nil {
@@ -203,6 +219,13 @@ func (h *TicketHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if h.cfDefs != nil {
+		et := domain.CustomFieldEntityTicket
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err == nil && len(defs) > 0 {
+			t.Ticket.CustomFields = domain.ExpandCustomFields(t.Ticket.CustomFields, defs)
+		}
 	}
 	writeJSON(w, http.StatusOK, t)
 }
@@ -284,6 +307,18 @@ func (h *TicketHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	patch.ClearContactID = patchFieldIsNull(raw, "contact_id")
 	patch.ClearAccountID = patchFieldIsNull(raw, "account_id")
+	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
+		et := domain.CustomFieldEntityTicket
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := domain.ValidateCustomFields(patch.CustomFields, defs); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
 	if h.contacts != nil && (patch.ContactID != nil || patch.AccountID != nil || patch.ClearContactID || patch.ClearAccountID) {
 		current, err := h.tickets.GetByID(r.Context(), id)
 		if err != nil {

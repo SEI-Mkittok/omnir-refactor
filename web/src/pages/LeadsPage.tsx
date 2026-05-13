@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, UserPlus, UserCheck, Upload } from 'lucide-react'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -18,7 +18,9 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import { applyLayoutToCustomFields, isLayoutFieldRequired, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
 import type { Lead, LeadStatus, CreateLeadRequest, CustomFieldValues, SavedView } from '@/api/types'
 
 // ── Lead Score Indicator ──────────────────────────────────────────────────────
@@ -207,6 +209,13 @@ function LeadForm({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const createLead = useCreateLead()
   const { data: customFields = [] } = useCustomFieldDefinitions('lead', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('lead')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'quick_create'),
+    [customFields, layout]
+  )
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'quick_create')
+  const required = (fieldKey: string) => isLayoutFieldRequired(layout, 'standard', fieldKey)
 
   const set = (field: keyof CreateLeadRequest) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -216,8 +225,8 @@ function LeadForm({ open, onClose }: { open: boolean; onClose: () => void }) {
     const errs: typeof errors = {}
     if (!form.first_name.trim()) errs.first_name = 'Required'
     if (!form.last_name.trim()) errs.last_name = 'Required'
-    if (!form.email.trim()) errs.email = 'Required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email'
+    if (visible('email') && required('email') && !form.email.trim()) errs.email = 'Required'
+    else if (visible('email') && form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -252,42 +261,42 @@ function LeadForm({ open, onClose }: { open: boolean; onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                First name <span className="text-red-500">*</span>
+                {layoutFieldLabel(layout, 'standard', 'first_name', 'First name')} <span className="text-red-500">*</span>
               </label>
               <Input value={form.first_name} onChange={set('first_name')} placeholder="Jane" aria-invalid={!!errors.first_name} />
               {errors.first_name && <p className="mt-0.5 text-xs text-red-500">{errors.first_name}</p>}
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                Last name <span className="text-red-500">*</span>
+                {layoutFieldLabel(layout, 'standard', 'last_name', 'Last name')} <span className="text-red-500">*</span>
               </label>
               <Input value={form.last_name} onChange={set('last_name')} placeholder="Smith" aria-invalid={!!errors.last_name} />
               {errors.last_name && <p className="mt-0.5 text-xs text-red-500">{errors.last_name}</p>}
             </div>
           </div>
-          <div>
+          {visible('email') && <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-              Email <span className="text-red-500">*</span>
+              {layoutFieldLabel(layout, 'standard', 'email', 'Email')} {required('email') && <span className="text-red-500">*</span>}
             </label>
             <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" aria-invalid={!!errors.email} />
             {errors.email && <p className="mt-0.5 text-xs text-red-500">{errors.email}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          </div>}
+          {(visible('company') || visible('lead_source')) && <div className="grid grid-cols-2 gap-3">
+            {visible('company') && <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Company</label>
               <Input value={form.company ?? ''} onChange={set('company')} placeholder="Acme Inc." />
-            </div>
-            <div>
+            </div>}
+            {visible('lead_source') && <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Source</label>
               <Input value={form.lead_source ?? ''} onChange={set('lead_source')} placeholder="Website, Referral…" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+            </div>}
+          </div>}
+          {(visible('phone') || visible('status')) && <div className="grid grid-cols-2 gap-3">
+            {visible('phone') && <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Phone</label>
               <Input type="tel" value={form.phone ?? ''} onChange={set('phone')} placeholder="+1 555 000 0000" />
-            </div>
-            <div>
+            </div>}
+            {visible('status') && <div>
               <label className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Status</label>
               <select
                 value={form.status}
@@ -299,10 +308,10 @@ function LeadForm({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <option value="qualified">Qualified</option>
                 <option value="unqualified">Unqualified</option>
               </select>
-            </div>
-          </div>
+            </div>}
+          </div>}
           <CustomFieldFormSection
-            fields={customFields}
+            fields={layoutCustomFields}
             values={customFieldValues}
             onChange={setCustomFieldValues}
           />

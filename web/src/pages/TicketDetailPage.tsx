@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -25,7 +25,12 @@ import {
 } from '@/hooks/useTickets'
 import { useUsers } from '@/hooks/useUsers'
 import { ContactSection } from '@/components/omnir/ContactSection'
-import type { TicketStatus, TicketComment } from '@/api/types'
+import { CustomRelationshipsPanel } from '@/components/omnir/CustomRelationshipsPanel'
+import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
+import type { CustomFieldValues, TicketStatus, TicketComment } from '@/api/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -471,6 +476,14 @@ function RightPanel({ ticketId }: RightPanelProps) {
   const { data: ticket } = useTicket(ticketId)
   const updateTicket = useUpdateTicket()
   const { data: usersData } = useUsers({ limit: 100 })
+  const { data: customFields = [] } = useCustomFieldDefinitions('ticket', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('ticket')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'detail'),
+    [customFields, layout]
+  )
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'detail')
+  const label = (fieldKey: string, fallback: string) => layoutFieldLabel(layout, 'standard', fieldKey, fallback)
   const [localTags, setLocalTags] = useState<string[]>([])
 
   useEffect(() => {
@@ -490,9 +503,10 @@ function RightPanel({ ticketId }: RightPanelProps) {
     ...(usersData?.data.map((u) => ({ value: u.id, label: u.name })) ?? []),
   ]
 
-  const propertyRows: { label: string; content: React.ReactNode }[] = [
+  const propertyRows: { label: string; content: React.ReactNode; hidden?: boolean }[] = [
     {
-      label: 'Assigned To',
+      label: label('assignee_id', 'Assigned To'),
+      hidden: !visible('assignee_id'),
       content: (
         <InlineSelect
           value={ticket.assignee?.id ?? UNASSIGNED}
@@ -503,7 +517,8 @@ function RightPanel({ ticketId }: RightPanelProps) {
       ),
     },
     {
-      label: 'Status',
+      label: label('status', 'Status'),
+      hidden: !visible('status'),
       content: (
         <InlineSelect
           value={ticket.status}
@@ -514,7 +529,8 @@ function RightPanel({ ticketId }: RightPanelProps) {
       ),
     },
     {
-      label: 'Source',
+      label: label('source', 'Source'),
+      hidden: !visible('source'),
       content: <span className="text-[14px] text-[var(--text-primary)]">{ticket.source ?? '—'}</span>,
     },
     {
@@ -525,7 +541,7 @@ function RightPanel({ ticketId }: RightPanelProps) {
         </span>
       ),
     },
-  ]
+  ].filter((row) => !row.hidden)
 
   return (
     <aside className="w-full lg:w-[320px] lg:flex-shrink-0 space-y-3">
@@ -565,6 +581,16 @@ function RightPanel({ ticketId }: RightPanelProps) {
       <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
         <TagEditor tags={localTags} onChange={handleTagsChange} />
       </div>
+
+      <CustomFieldEditableSection
+        fields={layoutCustomFields}
+        values={ticket.custom_fields as CustomFieldValues | undefined}
+        onSave={async (cf) => {
+          await updateTicket.mutateAsync({ id: ticketId, payload: { custom_fields: cf as Record<string, unknown> } })
+        }}
+      />
+
+      <CustomRelationshipsPanel entityType="ticket" entityId={ticketId} />
     </aside>
   )
 }

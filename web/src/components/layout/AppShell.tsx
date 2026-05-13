@@ -235,6 +235,8 @@ export function getBreadcrumb(pathname: string): string {
     '/settings/security':  'Security',
     '/settings/security/2fa/enroll': '2FA Enroll',
     '/settings/custom-fields': 'Custom Fields',
+    '/settings/module-layouts': 'Module Layouts',
+    '/settings/module-relationships': 'Module Relationships',
     '/settings/numbering': 'Document Numbering',
     '/settings/company': 'Company Profile',
     '/settings/portal': 'Portal Configuration',

@@ -45,7 +45,7 @@ func scanLead(row pgx.Row) (*domain.Lead, error) {
 		return nil, err
 	}
 	if customFields != nil {
-		l.CustomFields = &customFields
+		l.CustomFields = customFields
 	}
 	return &l, nil
 }
@@ -65,9 +65,9 @@ func (r *LeadRepo) Create(ctx context.Context, l *domain.Lead) (*domain.Lead, er
 		l.Status = domain.LeadStatusNew
 	}
 
-	var customFields *[]byte
-	if l.CustomFields != nil {
-		customFields = l.CustomFields
+	var customFields []byte
+	if len(l.CustomFields) > 0 {
+		customFields = []byte(l.CustomFields)
 	}
 
 	row := r.db.QueryRow(ctx, `
@@ -146,6 +146,9 @@ func (r *LeadRepo) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPa
 	}
 	if patch.OwnerID != nil {
 		addArg("owner_id", *patch.OwnerID)
+	}
+	if len(patch.CustomFields) > 0 {
+		addArg("custom_fields", []byte(patch.CustomFields))
 	}
 
 	whereClause := fmt.Sprintf(`id=$%d AND deleted_at IS NULL`, i)

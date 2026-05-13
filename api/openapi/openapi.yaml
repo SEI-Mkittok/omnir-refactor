@@ -36,6 +36,8 @@ tags:
     description: Deal pipeline configuration
   - name: search
     description: Unified search
+  - name: module-configuration
+    description: CRM module layouts and relationship configuration
 
 paths:
 
@@ -763,6 +765,208 @@ paths:
               schema:
                 $ref: '#/components/schemas/SearchResults'
 
+  # ─── MODULE CONFIGURATION ─────────────────────────────────────────────────
+
+  /module-layouts/{entityType}:
+    parameters:
+      - $ref: '#/components/parameters/EntityType'
+    get:
+      tags: [module-configuration]
+      summary: Get the effective runtime layout for a CRM module
+      description: Authenticated users need read access to the requested CRM module.
+      responses:
+        '200':
+          description: Runtime module layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleLayout'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+
+  /settings/module-layouts/{entityType}:
+    parameters:
+      - $ref: '#/components/parameters/EntityType'
+    get:
+      tags: [module-configuration]
+      summary: Get the admin-editable layout for a CRM module
+      responses:
+        '200':
+          description: Admin module layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleLayout'
+    put:
+      tags: [module-configuration]
+      summary: Save a CRM module layout
+      description: Requires settings admin/write access. Layout overlays custom-field presentation and does not replace custom-field definitions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blocks]
+              properties:
+                blocks:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ModuleLayoutBlock'
+      responses:
+        '200':
+          description: Saved module layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleLayout'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /settings/module-layouts/{entityType}/reset:
+    parameters:
+      - $ref: '#/components/parameters/EntityType'
+    post:
+      tags: [module-configuration]
+      summary: Reset a CRM module layout to generated defaults
+      responses:
+        '200':
+          description: Default module layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleLayout'
+
+  /module-relationships:
+    get:
+      tags: [module-configuration]
+      summary: List enabled runtime relationship definitions for a module
+      parameters:
+        - $ref: '#/components/parameters/EntityTypeQuery'
+      responses:
+        '200':
+          description: Enabled relationship definitions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModuleRelationshipDefinition'
+
+  /settings/module-relationships:
+    get:
+      tags: [module-configuration]
+      summary: List admin relationship definitions
+      parameters:
+        - $ref: '#/components/parameters/EntityTypeQueryOptional'
+      responses:
+        '200':
+          description: Relationship definitions, including system metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModuleRelationshipDefinition'
+    put:
+      tags: [module-configuration]
+      summary: Create or update a relationship definition
+      description: System relationships keep native storage; custom relationships use crm_entity_links.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModuleRelationshipDefinition'
+      responses:
+        '200':
+          description: Saved relationship definition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleRelationshipDefinition'
+        '409':
+          description: Existing links prevent destructive relationship shape changes
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /settings/module-relationships/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    delete:
+      tags: [module-configuration]
+      summary: Delete a custom relationship definition
+      description: System definitions and definitions with existing links cannot be deleted.
+      responses:
+        '204':
+          description: Deleted
+        '409':
+          description: Definition has existing links
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /entity-links/{entityType}/{entityID}:
+    parameters:
+      - $ref: '#/components/parameters/EntityType'
+      - name: entityID
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: relationship_definition_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [module-configuration]
+      summary: List readable generic links for an entity
+      description: Results omit links whose opposite endpoint is not readable by the caller.
+      responses:
+        '200':
+          description: Filtered entity links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CRMEntityLink'
+
+  /entity-links:
+    post:
+      tags: [module-configuration]
+      summary: Create a generic custom relationship link
+      description: Requires write access to both endpoint records and an enabled crm_entity_links relationship definition.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCRMEntityLinkRequest'
+      responses:
+        '201':
+          description: Created entity link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CRMEntityLink'
+        '409':
+          description: Duplicate or cardinality conflict
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /entity-links/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    delete:
+      tags: [module-configuration]
+      summary: Delete a generic custom relationship link
+      description: Requires write access to both endpoint records.
+      responses:
+        '204':
+          description: Deleted
+
 # ─── COMPONENTS ──────────────────────────────────────────────────────────────
 
 components:
@@ -801,6 +1005,24 @@ components:
       in: query
       schema:
         type: string
+    EntityType:
+      name: entityType
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/CustomFieldEntityType'
+    EntityTypeQuery:
+      name: entity_type
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/CustomFieldEntityType'
+    EntityTypeQueryOptional:
+      name: entity_type
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/CustomFieldEntityType'
     OwnerId:
       name: owner_id
       in: query
@@ -882,6 +1104,181 @@ components:
             type: array
             items:
               type: string
+
+    # ── Module Configuration ───────────────────────────────────────────────
+
+    CustomFieldEntityType:
+      type: string
+      enum: [account, contact, lead, deal, ticket]
+
+    ModuleLayoutFieldSource:
+      type: string
+      enum: [standard, custom]
+
+    ModuleLayoutField:
+      type: object
+      required: [source, field_key, label, visible, required, order, quick_create, mass_edit, header, key_field]
+      properties:
+        source:
+          $ref: '#/components/schemas/ModuleLayoutFieldSource'
+        field_key:
+          type: string
+        label:
+          type: string
+        visible:
+          type: boolean
+        required:
+          type: boolean
+        order:
+          type: integer
+        quick_create:
+          type: boolean
+        mass_edit:
+          type: boolean
+        header:
+          type: boolean
+        key_field:
+          type: boolean
+
+    ModuleLayoutBlock:
+      type: object
+      required: [id, label, order, fields]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        order:
+          type: integer
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModuleLayoutField'
+
+    ModuleLayout:
+      type: object
+      required: [entity_type, blocks]
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModuleLayoutBlock'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RelationshipCardinality:
+      type: string
+      enum: [one_to_one, many_to_one, one_to_many, many_to_many]
+
+    RelationshipStorageStrategy:
+      type: string
+      enum: [native, crm_entity_links]
+
+    ModuleRelationshipDefinition:
+      type: object
+      required: [relationship_key, from_entity_type, to_entity_type, label, cardinality, storage_strategy, is_enabled, system_locked, order_idx]
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        relationship_key:
+          type: string
+        from_entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        to_entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        label:
+          type: string
+        cardinality:
+          $ref: '#/components/schemas/RelationshipCardinality'
+        storage_strategy:
+          $ref: '#/components/schemas/RelationshipStorageStrategy'
+        is_enabled:
+          type: boolean
+        system_locked:
+          type: boolean
+        order_idx:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CRMEntityLink:
+      type: object
+      required: [id, org_id, from_entity_type, from_entity_id, to_entity_type, to_entity_id, link_type, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        relationship_definition_id:
+          type: string
+          format: uuid
+        from_entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        from_entity_id:
+          type: string
+          format: uuid
+        to_entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        to_entity_id:
+          type: string
+          format: uuid
+        link_type:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCRMEntityLinkRequest:
+      type: object
+      required: [relationship_definition_id, from_entity_type, from_entity_id, to_entity_type, to_entity_id]
+      properties:
+        relationship_definition_id:
+          type: string
+          format: uuid
+        from_entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        from_entity_id:
+          type: string
+          format: uuid
+        to_entity_type:
+          $ref: '#/components/schemas/CustomFieldEntityType'
+        to_entity_id:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+          additionalProperties: true
 
     # ── Auth ────────────────────────────────────────────────────────────────
 

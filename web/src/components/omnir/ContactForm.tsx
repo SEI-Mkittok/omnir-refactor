@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Loader2, Sparkles, X } from 'lucide-react'
 import {
   Dialog,
@@ -13,7 +13,9 @@ import { useCreateContact } from '@/hooks/useContacts'
 import { useDomainLookup } from '@/hooks/useContacts'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import { applyLayoutToCustomFields, isLayoutFieldRequired, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
 import type { CreateContactRequest, CustomFieldValues } from '@/api/types'
 
 interface ContactFormProps {
@@ -48,6 +50,11 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
 
   const createContact = useCreateContact()
   const { data: customFields = [] } = useCustomFieldDefinitions('contact', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('contact')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'quick_create'),
+    [customFields, layout]
+  )
   const { data: enrichment, isFetching: enrichFetching } = useDomainLookup(lookupDomain)
   const { data: accountsData, isLoading: accountsLoading } = useAccounts({ per_page: 50 })
   const accounts = accountsData?.data || []
@@ -81,8 +88,8 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
     const errs: typeof errors = {}
     if (!form.first_name.trim()) errs.first_name = 'Required'
     if (!form.last_name.trim()) errs.last_name = 'Required'
-    if (!form.email.trim()) errs.email = 'Required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email'
+    if (visible('email') && required('email') && !form.email.trim()) errs.email = 'Required'
+    else if (visible('email') && form.email.trim() && !/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -131,6 +138,8 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
     !enrichFetching &&
     !!enrichment?.data?.company_name &&
     !!lookupDomain
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'quick_create')
+  const required = (fieldKey: string) => isLayoutFieldRequired(layout, 'standard', fieldKey)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -211,7 +220,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">
-                First name <span className="text-red-500">*</span>
+                {layoutFieldLabel(layout, 'standard', 'first_name', 'First name')} <span className="text-red-500">*</span>
               </label>
               <Input
                 value={form.first_name}
@@ -225,7 +234,7 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">
-                Last name <span className="text-red-500">*</span>
+                {layoutFieldLabel(layout, 'standard', 'last_name', 'Last name')} <span className="text-red-500">*</span>
               </label>
               <Input
                 value={form.last_name}
@@ -239,9 +248,9 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
             </div>
           </div>
 
-          <div>
+          {visible('email') && <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">
-              Email <span className="text-red-500">*</span>
+              {layoutFieldLabel(layout, 'standard', 'email', 'Email')} {required('email') && <span className="text-red-500">*</span>}
             </label>
             <Input
               type="email"
@@ -251,9 +260,9 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
               aria-invalid={!!errors.email}
             />
             {errors.email && <p className="mt-0.5 text-xs text-red-500">{errors.email}</p>}
-          </div>
+          </div>}
 
-          <div>
+          {visible('account_id') && <div>
             <label className="mb-1 block text-xs font-medium text-slate-700">Account</label>
             <select
               value={form.account_id ?? ''}
@@ -268,10 +277,10 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
                 </option>
               ))}
             </select>
-          </div>
+          </div>}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          {(visible('phone') || visible('stage')) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {visible('phone') && <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Phone</label>
               <Input
                 type="tel"
@@ -279,8 +288,8 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
                 onChange={set('phone')}
                 placeholder="+1 555 000 0000"
               />
-            </div>
-            <div>
+            </div>}
+            {visible('stage') && <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Stage</label>
               <select
                 value={form.stage}
@@ -292,30 +301,30 @@ export function ContactForm({ open, onClose }: ContactFormProps) {
                 <option value="customer">Customer</option>
                 <option value="churned">Churned</option>
               </select>
-            </div>
-          </div>
+            </div>}
+          </div>}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          {(visible('title') || visible('department')) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {visible('title') && <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Title</label>
               <Input
                 value={form.title ?? ''}
                 onChange={set('title')}
                 placeholder="VP of Sales"
               />
-            </div>
-            <div>
+            </div>}
+            {visible('department') && <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Department</label>
               <Input
                 value={form.department ?? ''}
                 onChange={set('department')}
                 placeholder="Sales"
               />
-            </div>
-          </div>
+            </div>}
+          </div>}
 
           <CustomFieldFormSection
-            fields={customFields}
+            fields={layoutCustomFields}
             values={customFieldValues}
             onChange={setCustomFieldValues}
           />

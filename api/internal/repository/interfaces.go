@@ -212,6 +212,22 @@ type CustomFieldDefinitionRepository interface {
 	List(ctx context.Context, filter domain.CustomFieldDefinitionFilter) ([]*domain.CustomFieldDefinition, error)
 }
 
+// ModuleLayoutRepository manages per-org CRM form/detail layout configuration.
+type ModuleLayoutRepository interface {
+	GetByEntity(ctx context.Context, orgID uuid.UUID, entityType domain.CustomFieldEntityType) (*domain.ModuleLayout, error)
+	Upsert(ctx context.Context, layout *domain.ModuleLayout) (*domain.ModuleLayout, error)
+	Delete(ctx context.Context, orgID uuid.UUID, entityType domain.CustomFieldEntityType) error
+}
+
+// ModuleRelationshipDefinitionRepository manages configurable CRM relationship metadata.
+type ModuleRelationshipDefinitionRepository interface {
+	List(ctx context.Context, filter domain.ModuleRelationshipDefinitionFilter) ([]*domain.ModuleRelationshipDefinition, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.ModuleRelationshipDefinition, error)
+	GetByKey(ctx context.Context, orgID uuid.UUID, key string) (*domain.ModuleRelationshipDefinition, error)
+	Upsert(ctx context.Context, def *domain.ModuleRelationshipDefinition) (*domain.ModuleRelationshipDefinition, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
 // NotificationPrefRepository manages per-user email notification preferences.
 type NotificationPrefRepository interface {
 	// GetByUser returns the prefs for a user+org pair, or a default (all-enabled) pref if none exist.
@@ -385,6 +401,10 @@ type CRMEntityLinkRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.CRMEntityLink, error)
 	// ListForEntity returns links where the entity is either the source and/or target.
 	ListForEntity(ctx context.Context, filter domain.CRMEntityLinkFilter) ([]*domain.CRMEntityLink, error)
+	// ListForRelationshipDefinition returns all links using a definition.
+	ListForRelationshipDefinition(ctx context.Context, relationshipDefinitionID uuid.UUID) ([]*domain.CRMEntityLink, error)
+	// HasForRelationshipDefinition reports whether any links use a definition.
+	HasForRelationshipDefinition(ctx context.Context, relationshipDefinitionID uuid.UUID) (bool, error)
 	// Delete removes one link row by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 }

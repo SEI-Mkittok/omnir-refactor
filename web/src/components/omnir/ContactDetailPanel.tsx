@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   User,
@@ -33,8 +33,11 @@ import { useTickets } from '@/hooks/useTickets'
 import { ActivityTimeline } from '@/components/omnir/ActivityTimeline'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
 import { EmailTimeline } from '@/components/omnir/EmailTimeline'
+import { CustomRelationshipsPanel } from '@/components/omnir/CustomRelationshipsPanel'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
 import type { ContactStage, UpdateContactRequest, CustomFieldValues } from '@/api/types'
 
 // ── Editable field ──────────────────────────────────────────────────────────
@@ -327,6 +330,13 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
   const updateContact = useUpdateContact()
   const deleteContact = useDeleteContact()
   const { data: customFields = [] } = useCustomFieldDefinitions('contact', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('contact')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'detail'),
+    [customFields, layout]
+  )
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'detail')
+  const label = (fieldKey: string, fallback: string) => layoutFieldLabel(layout, 'standard', fieldKey, fallback)
 
   const patch = useCallback(
     async (payload: UpdateContactRequest) => {
@@ -386,12 +396,12 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
           </div>
           <div className="min-w-0">
             <p className="text-lg font-semibold text-slate-900 truncate">{fullName}</p>
-            <div className="mt-1">
+            {visible('stage') && <div className="mt-1">
               <StageSelector
                 current={contact.stage}
                 onSave={(stage) => patch({ stage })}
               />
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -402,28 +412,28 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             Details
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-            <EditableField
-              label="First Name"
+            {visible('first_name') && <EditableField
+              label={label('first_name', 'First Name')}
               value={contact.first_name}
               onSave={(v) => patch({ first_name: v })}
-            />
-            <EditableField
-              label="Last Name"
+            />}
+            {visible('last_name') && <EditableField
+              label={label('last_name', 'Last Name')}
               value={contact.last_name}
               onSave={(v) => patch({ last_name: v })}
-            />
-            <EditableField
-              label="Title"
+            />}
+            {visible('title') && <EditableField
+              label={label('title', 'Title')}
               value={contact.title}
               onSave={(v) => patch({ title: v })}
               placeholder="No title"
-            />
-            <EditableField
-              label="Department"
+            />}
+            {visible('department') && <EditableField
+              label={label('department', 'Department')}
               value={contact.department}
               onSave={(v) => patch({ department: v })}
               placeholder="No department"
-            />
+            />}
           </div>
         </div>
 
@@ -434,27 +444,27 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
             Contact
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-            <EditableField
-              label="Email"
+            {visible('email') && <EditableField
+              label={label('email', 'Email')}
               value={contact.email}
               onSave={(v) => patch({ email: v })}
               type="email"
-            />
-            <EditableField
-              label="Phone"
+            />}
+            {visible('phone') && <EditableField
+              label={label('phone', 'Phone')}
               value={contact.phone}
               onSave={(v) => patch({ phone: v })}
               placeholder="No phone"
               type="tel"
-            />
+            />}
           </div>
         </div>
 
         {/* Linked account */}
-        <div>
+        {visible('account_id') && <div>
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-700">
             <Building2 className="h-4 w-4" />
-            Account
+            {label('account_id', 'Account')}
           </h3>
           {contact.account ? (
             <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
@@ -481,7 +491,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
           ) : (
             <p className="text-sm text-slate-400">No account linked.</p>
           )}
-        </div>
+        </div>}
 
         {/* Associated deals */}
         <div>
@@ -524,7 +534,7 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
         <LinkedTicketsSection contactId={contactId} />
 
         {/* Tags */}
-        {contact.tags && contact.tags.length > 0 && (
+        {visible('tags') && contact.tags && contact.tags.length > 0 && (
           <div>
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-700">
               <Tag className="h-4 w-4" />
@@ -542,10 +552,12 @@ export function ContactDetailPanel({ contactId, onClose }: ContactDetailPanelPro
 
         {/* Custom fields */}
         <CustomFieldEditableSection
-          fields={customFields}
+          fields={layoutCustomFields}
           values={contact.custom_fields as CustomFieldValues | undefined}
           onSave={async (cf) => { await patch({ custom_fields: cf as Record<string, unknown> }) }}
         />
+
+        <CustomRelationshipsPanel entityType="contact" entityId={contactId} />
 
         {/* Metadata */}
         <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">

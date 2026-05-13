@@ -18,6 +18,7 @@ type ContactHandler struct {
 	repo        repository.ContactRepository
 	deals       repository.DealRepository
 	cfDefs      repository.CustomFieldDefinitionRepository
+	layouts     repository.ModuleLayoutRepository
 	dispatcher  chan<- worker.WebhookEvent
 	automations chan<- worker.AutomationEvent
 }
@@ -28,6 +29,11 @@ func NewContactHandler(repo repository.ContactRepository) *ContactHandler {
 
 func (h *ContactHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *ContactHandler {
 	h.cfDefs = r
+	return h
+}
+
+func (h *ContactHandler) WithModuleLayouts(r repository.ModuleLayoutRepository) *ContactHandler {
+	h.layouts = r
 	return h
 }
 
@@ -175,6 +181,10 @@ func (h *ContactHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := c.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if err := validateModuleLayoutCreate(r.Context(), h.layouts, h.cfDefs, domain.CustomFieldEntityContact, &c); err != nil {
 		handleDomainErr(w, err)
 		return
 	}

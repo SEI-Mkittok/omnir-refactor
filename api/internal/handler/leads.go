@@ -29,6 +29,7 @@ type LeadHandler struct {
 	deals       repository.DealRepository
 	mappingRepo repository.LeadConversionMappingRepository
 	cfDefs      repository.CustomFieldDefinitionRepository
+	layouts     repository.ModuleLayoutRepository
 }
 
 func NewLeadHandler(
@@ -47,6 +48,11 @@ func NewLeadHandler(
 		mappingRepo: mappingRepo,
 		cfDefs:      cfDefs,
 	}
+}
+
+func (h *LeadHandler) WithModuleLayouts(r repository.ModuleLayoutRepository) *LeadHandler {
+	h.layouts = r
+	return h
 }
 
 func (h *LeadHandler) Router() chi.Router {
@@ -160,6 +166,10 @@ func (h *LeadHandler) Create(w http.ResponseWriter, r *http.Request) {
 			l.OwnerID = &claims.UserID
 		}
 	}
+	if err := validateModuleLayoutCreate(r.Context(), h.layouts, h.cfDefs, domain.CustomFieldEntityLead, &l); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 
 	created, err := h.leads.Create(r.Context(), &l)
 	if err != nil {
@@ -180,6 +190,17 @@ func (h *LeadHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	if h.cfDefs != nil {
+		et := domain.CustomFieldEntityLead
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err == nil && len(defs) > 0 {
+			expanded := domain.ExpandCustomFields(nil, defs)
+			if len(l.CustomFields) > 0 {
+				expanded = domain.ExpandCustomFields(l.CustomFields, defs)
+			}
+			l.CustomFields = expanded
+		}
+	}
 	writeJSON(w, http.StatusOK, l)
 }
 
@@ -193,6 +214,18 @@ func (h *LeadHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
+	}
+	if h.cfDefs != nil && len(patch.CustomFields) > 0 {
+		et := domain.CustomFieldEntityLead
+		defs, err := h.cfDefs.List(r.Context(), domain.CustomFieldDefinitionFilter{EntityType: &et})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		if err := domain.ValidateCustomFields(patch.CustomFields, defs); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 	}
 	// Auto-derive score from status when status changes and score is not explicitly set.
 	if patch.Status != nil && patch.Score == nil {
@@ -282,8 +315,8 @@ func (h *LeadHandler) Convert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	leadCustom := map[string]any{}
-	if lead.CustomFields != nil && len(*lead.CustomFields) > 0 {
-		_ = json.Unmarshal(*lead.CustomFields, &leadCustom)
+	if len(lead.CustomFields) > 0 {
+		_ = json.Unmarshal(lead.CustomFields, &leadCustom)
 	}
 
 	resolveLeadValue := func(field string) any {
