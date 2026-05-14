@@ -467,6 +467,17 @@ type KBArticleRepository interface {
 	Suggest(ctx context.Context, orgID uuid.UUID, subject string, limit int) ([]*domain.KBSuggestResult, error)
 }
 
+// ProductHelpRepository defines persistence for global Omnir product-help articles.
+type ProductHelpRepository interface {
+	ListCategories(ctx context.Context) ([]*domain.ProductHelpCategory, error)
+	ListArticles(ctx context.Context, filter domain.ProductHelpArticleFilter) ([]*domain.ProductHelpArticle, int, error)
+	GetArticleBySlug(ctx context.Context, slug string) (*domain.ProductHelpArticle, error)
+	IncrementViewCount(ctx context.Context, id uuid.UUID) error
+	LatestSyncRun(ctx context.Context) (*domain.ProductHelpSyncRun, error)
+	RecordSyncRun(ctx context.Context, run *domain.ProductHelpSyncRun) (*domain.ProductHelpSyncRun, error)
+	ReplaceContent(ctx context.Context, categories []*domain.ProductHelpCategory, articles []*domain.ProductHelpArticle, run *domain.ProductHelpSyncRun) (*domain.ProductHelpSyncRun, error)
+}
+
 // TeamsConnectionRepository manages Microsoft Teams Incoming Webhook connections per org.
 type TeamsConnectionRepository interface {
 	// Upsert creates or replaces the Teams connection for an org (one connection per org).

@@ -4,6 +4,7 @@ import {
   User, Shield, Users, SlidersHorizontal, KeyRound, Clock,
   ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook, Building2,
   Send, PanelTopOpen, MenuSquare, GitBranch, Share2, LayoutTemplate, Waypoints,
+  BookOpen,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { usersApi } from '@/api/users'
@@ -178,6 +179,12 @@ const ADMIN_CARDS: SettingsCard[] = [
     title: 'Integrations',
     description: 'Connect Gmail, Outlook, Slack, and other third-party tools.',
     href: '/settings/integrations',
+  },
+  {
+    icon: BookOpen,
+    title: 'Product Help',
+    description: 'Sync Omnir product guides from the public GitHub Wiki.',
+    href: '/settings/product-help',
   },
   {
     icon: KeyRound,
