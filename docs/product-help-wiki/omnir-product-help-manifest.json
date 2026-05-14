@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "categories": [
+    { "name": "Getting Started", "slug": "getting-started", "position": 10 },
+    { "name": "CRM Workflows", "slug": "crm-workflows", "position": 20 },
+    { "name": "Service and Support", "slug": "service-support", "position": 30 },
+    { "name": "Productivity", "slug": "productivity", "position": 40 },
+    { "name": "Insights", "slug": "insights", "position": 50 },
+    { "name": "Administration", "slug": "administration", "position": 60 },
+    { "name": "Reference", "slug": "reference", "position": 70 }
+  ],
+  "articles": [
+    {
+      "title": "Welcome to Omnir",
+      "slug": "welcome-to-omnir",
+      "category": "getting-started",
+      "path": "Welcome-to-Omnir.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["overview", "orientation"],
+      "excerpt": "A quick orientation to Omnir CRM and how the major work areas fit together."
+    },
+    {
+      "title": "First Day Setup",
+      "slug": "first-day-setup",
+      "category": "getting-started",
+      "path": "First-Day-Setup.md",
+      "status": "published",
+      "position": 20,
+      "tags": ["onboarding", "setup"],
+      "excerpt": "The recommended setup order for admins and new CRM users."
+    },
+    {
+      "title": "Navigation and Search",
+      "slug": "navigation-and-search",
+      "category": "getting-started",
+      "path": "Navigation-and-Search.md",
+      "status": "published",
+      "position": 30,
+      "tags": ["navigation", "search"],
+      "excerpt": "How to move through Omnir, find records, and use product help without leaving your workflow."
+    },
+    {
+      "title": "Admin Launch Checklist",
+      "slug": "admin-launch-checklist",
+      "category": "getting-started",
+      "path": "Admin-Launch-Checklist.md",
+      "status": "published",
+      "position": 40,
+      "tags": ["admin", "launch"],
+      "excerpt": "A practical checklist for preparing a workspace before inviting the full team."
+    },
+    {
+      "title": "Contacts and Accounts",
+      "slug": "contacts-and-accounts",
+      "category": "crm-workflows",
+      "path": "Contacts-and-Accounts.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["contacts", "accounts"],
+      "excerpt": "How contacts and accounts work together as the core customer relationship model."
+    },
+    {
+      "title": "Leads and Conversion",
+      "slug": "leads-and-conversion",
+      "category": "crm-workflows",
+      "path": "Leads-and-Conversion.md",
+      "status": "published",
+      "position": 20,
+      "tags": ["leads", "conversion"],
+      "excerpt": "How to qualify leads and convert them into durable CRM records."
+    },
+    {
+      "title": "Deals and Pipeline",
+      "slug": "deals-and-pipeline",
+      "category": "crm-workflows",
+      "path": "Deals-and-Pipeline.md",
+      "status": "published",
+      "position": 30,
+      "tags": ["deals", "pipeline"],
+      "excerpt": "How teams manage opportunities, stages, next steps, and close discipline."
+    },
+    {
+      "title": "Quotes",
+      "slug": "quotes",
+      "category": "crm-workflows",
+      "path": "Quotes.md",
+      "status": "published",
+      "position": 40,
+      "tags": ["quotes", "sales"],
+      "excerpt": "How to create and track quotes connected to accounts, contacts, and deals."
+    },
+    {
+      "title": "Tickets and SLAs",
+      "slug": "tickets-and-slas",
+      "category": "service-support",
+      "path": "Tickets-and-SLAs.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["tickets", "sla", "support"],
+      "excerpt": "How service teams triage requests, manage ticket status, and use SLA policies."
+    },
+    {
+      "title": "Customer Portal",
+      "slug": "customer-portal",
+      "category": "service-support",
+      "path": "Customer-Portal.md",
+      "status": "published",
+      "position": 20,
+      "tags": ["portal", "customers"],
+      "excerpt": "How customers submit and track tickets through the portal."
+    },
+    {
+      "title": "Knowledge Base vs Product Help",
+      "slug": "knowledge-base-vs-product-help",
+      "category": "service-support",
+      "path": "Knowledge-Base-vs-Product-Help.md",
+      "status": "published",
+      "position": 30,
+      "tags": ["kb", "help"],
+      "excerpt": "The difference between tenant Knowledge Base content and Omnir product help."
+    },
+    {
+      "title": "Inbox and Email",
+      "slug": "inbox-and-email",
+      "category": "productivity",
+      "path": "Inbox-and-Email.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["email", "inbox"],
+      "excerpt": "How to work with connected email inside Omnir."
+    },
+    {
+      "title": "Sequences",
+      "slug": "sequences",
+      "category": "productivity",
+      "path": "Sequences.md",
+      "status": "published",
+      "position": 20,
+      "tags": ["sequences", "outreach"],
+      "excerpt": "How to build repeatable outreach with sequence steps and templates."
+    },
+    {
+      "title": "Calendar",
+      "slug": "calendar",
+      "category": "productivity",
+      "path": "Calendar.md",
+      "status": "published",
+      "position": 30,
+      "tags": ["calendar", "activities"],
+      "excerpt": "How meetings and activities fit into Omnir calendar workflows."
+    },
+    {
+      "title": "Automations",
+      "slug": "automations",
+      "category": "productivity",
+      "path": "Automations.md",
+      "status": "published",
+      "position": 40,
+      "tags": ["automation", "workflows"],
+      "excerpt": "How to automate repeated CRM actions while keeping ownership clear."
+    },
+    {
+      "title": "Reports and Dashboards",
+      "slug": "reports-and-dashboards",
+      "category": "insights",
+      "path": "Reports-and-Dashboards.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["reports", "dashboards"],
+      "excerpt": "How managers and teams use reports, dashboards, and scheduled views."
+    },
+    {
+      "title": "Users, Roles, and Security",
+      "slug": "users-roles-and-security",
+      "category": "administration",
+      "path": "Users-Roles-and-Security.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["users", "roles", "security"],
+      "excerpt": "How admins manage users, roles, profiles, sharing, and account security."
+    },
+    {
+      "title": "Settings and Customization",
+      "slug": "settings-and-customization",
+      "category": "administration",
+      "path": "Settings-and-Customization.md",
+      "status": "published",
+      "position": 20,
+      "tags": ["settings", "customization"],
+      "excerpt": "How to tailor fields, layouts, picklists, numbering, and company settings."
+    },
+    {
+      "title": "Integrations and Webhooks",
+      "slug": "integrations-and-webhooks",
+      "category": "administration",
+      "path": "Integrations-and-Webhooks.md",
+      "status": "published",
+      "position": 30,
+      "tags": ["integrations", "webhooks", "api"],
+      "excerpt": "How to connect Omnir to email, calendar, webhooks, and API-based tools."
+    },
+    {
+      "title": "Billing and Plans",
+      "slug": "billing-and-plans",
+      "category": "administration",
+      "path": "Billing-and-Plans.md",
+      "status": "published",
+      "position": 40,
+      "tags": ["billing", "plans"],
+      "excerpt": "How admins review subscription, usage, invoices, and plan limits."
+    },
+    {
+      "title": "Troubleshooting",
+      "slug": "troubleshooting",
+      "category": "reference",
+      "path": "Troubleshooting.md",
+      "status": "published",
+      "position": 10,
+      "tags": ["troubleshooting", "support"],
+      "excerpt": "Common issues and the fastest checks before escalating."
+    },
+    {
+      "title": "FAQ",
+      "slug": "faq",
+      "category": "reference",
+      "path": "FAQ.md",
+      "status": "published",
+      "position": 20,
+      "tags": ["faq", "reference"],
+      "excerpt": "Short answers to common product and workflow questions."
+    }
+  ]
+}

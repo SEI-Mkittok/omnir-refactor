@@ -25,6 +25,7 @@ export const adminRouteModules: Record<string, ACLModule> = {
   '/settings/billing': 'billing',
   '/settings/billing/plans': 'billing',
   '/settings/integrations': 'integrations',
+  '/settings/product-help': 'settings',
   '/admin/audit': 'audit_log',
 }
 

@@ -58,6 +58,10 @@ import { HelpCenterPage } from '@/pages/help/HelpCenterPage'
 import { HelpCategoryPage } from '@/pages/help/HelpCategoryPage'
 import { HelpArticlePage } from '@/pages/help/HelpArticlePage'
 import { HelpSearchPage } from '@/pages/help/HelpSearchPage'
+import { ProductHelpCenterPage } from '@/pages/product-help/ProductHelpCenterPage'
+import { ProductHelpCategoryPage } from '@/pages/product-help/ProductHelpCategoryPage'
+import { ProductHelpArticlePage } from '@/pages/product-help/ProductHelpArticlePage'
+import { ProductHelpSearchPage } from '@/pages/product-help/ProductHelpSearchPage'
 import { SecuritySettingsPage } from '@/pages/SecuritySettingsPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { IntegrationsSettingsPage } from '@/pages/IntegrationsSettingsPage'
@@ -65,6 +69,7 @@ import { TotpEnrollPage } from '@/pages/TotpEnrollPage'
 import { ContactDetailPage } from '@/pages/ContactDetailPage'
 import { AccountDetailPage } from '@/pages/AccountDetailPage'
 import { TicketDetailPage } from '@/pages/TicketDetailPage'
+import { ProductHelpSettingsPage } from '@/pages/settings/ProductHelpSettingsPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import { canAccessAdminModule } from '@/lib/access'
@@ -125,6 +130,12 @@ function AppRoutes() {
       <Route path="/help/:orgSlug/c/:categorySlug" element={<HelpCategoryPage />} />
       <Route path="/help/:orgSlug/a/:articleSlug" element={<HelpArticlePage />} />
       <Route path="/help/:orgSlug/search" element={<HelpSearchPage />} />
+
+      {/* Public Omnir product-help routes (no auth, separate from tenant KB) */}
+      <Route path="/product-help" element={<ProductHelpCenterPage />} />
+      <Route path="/product-help/c/:categorySlug" element={<ProductHelpCategoryPage />} />
+      <Route path="/product-help/a/:articleSlug" element={<ProductHelpArticlePage />} />
+      <Route path="/product-help/search" element={<ProductHelpSearchPage />} />
 
       {/* Client portal routes */}
       <Route path="/portal/login" element={<PortalLoginPage />} />
@@ -349,6 +360,14 @@ function AppRoutes() {
           element={
             <AdminRoute module="integrations">
               <IntegrationsSettingsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/product-help"
+          element={
+            <AdminRoute module="settings">
+              <ProductHelpSettingsPage />
             </AdminRoute>
           }
         />
