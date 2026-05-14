@@ -12,13 +12,13 @@ import type {
 } from './types'
 
 interface ListResponse<T> {
-  data: T[]
+  data: T[] | null
 }
 
 export const accessSettingsApi = {
   listRoles: async (): Promise<ACLRole[]> => {
     const { data } = await apiClient.get<ListResponse<ACLRole>>('/settings/roles')
-    return data.data
+    return data.data ?? []
   },
 
   createRole: async (payload: Pick<ACLRole, 'name' | 'description' | 'parent_id'>): Promise<ACLRole> => {
@@ -42,7 +42,7 @@ export const accessSettingsApi = {
 
   listProfiles: async (): Promise<ACLProfile[]> => {
     const { data } = await apiClient.get<ListResponse<ACLProfile>>('/settings/profiles')
-    return data.data
+    return data.data ?? []
   },
 
   createProfile: async (payload: Pick<ACLProfile, 'name' | 'description'>): Promise<ACLProfile> => {
@@ -82,7 +82,7 @@ export const accessSettingsApi = {
 
   listGroups: async (): Promise<ACLGroup[]> => {
     const { data } = await apiClient.get<ListResponse<ACLGroup>>('/settings/groups')
-    return data.data
+    return data.data ?? []
   },
 
   listGroupMemberCandidates: async (): Promise<PaginatedResponse<User>> => {

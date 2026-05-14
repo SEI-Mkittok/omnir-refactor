@@ -65,7 +65,8 @@ func TestAddSearchVisibilityWhereIncludesSubordinateOwnerRoles(t *testing.T) {
 	require.Contains(t, where, "role_closure.ancestor_id = $4")
 	require.Contains(t, where, "owner_user.id = a.owner_id")
 	require.Contains(t, where, "role_closure.depth > 0")
-	require.Equal(t, []any{orgID, "acme", userID, roleID, orgID}, args)
+	require.Contains(t, where, "FROM crm_sharing_rules sr")
+	require.Equal(t, []any{orgID, "acme", userID, roleID, orgID, orgID, domain.ACLModuleAccounts, roleID, []uuid.UUID{}}, args)
 }
 
 func TestAddSearchVisibilityWhereSkipsPublicReadModules(t *testing.T) {

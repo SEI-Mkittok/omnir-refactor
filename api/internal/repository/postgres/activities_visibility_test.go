@@ -36,17 +36,19 @@ func TestAddActivityParentVisibilityWhereAddsParentPredicates(t *testing.T) {
 		"activities.deal_id IS NULL OR EXISTS",
 		"FROM deals p",
 		"p.owner_id = $1",
-		"p.owner_id = $2",
-		"p.owner_id = $3",
+		"p.owner_id = $6",
+		"p.owner_id = $11",
+		"FROM crm_sharing_rules sr",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("expected activity parent visibility SQL to contain %q, got: %s", want, joined)
 		}
 	}
-	if len(args) != 3 {
-		t.Fatalf("expected one owner arg per parent module, got %d", len(args))
+	if len(args) != 15 {
+		t.Fatalf("expected owner and advanced sharing args per parent module, got %d", len(args))
 	}
-	for i, arg := range args {
+	for _, i := range []int{0, 5, 10} {
+		arg := args[i]
 		if got, ok := arg.(uuid.UUID); !ok || got != userID {
 			t.Fatalf("expected arg %d to be user id %s, got %#v", i, userID, arg)
 		}

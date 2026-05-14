@@ -22,6 +22,14 @@ import { usersApi } from './users'
 import { server } from '@/test/mocks/server'
 
 describe('CRM API contract mapping', () => {
+  it('normalizes nullable settings list responses to arrays', async () => {
+    server.use(
+      http.get('/api/v1/settings/groups', () => HttpResponse.json({ data: null }))
+    )
+
+    await expect(accessSettingsApi.listGroups()).resolves.toEqual([])
+  })
+
   it('loads user ACL assignment options from the users admin endpoint', async () => {
     const seen: string[] = []
     server.use(
@@ -831,7 +839,14 @@ describe('CRM API contract mapping', () => {
             {
               module: 'contacts',
               mode: 'private',
-              grants: [{ grantee_type: 'role', grantee_id: 'role-1', access_level: 'write' }],
+              advanced_rules: [
+                {
+                  source_type: 'all',
+                  target_type: 'role',
+                  target_id: 'role-1',
+                  access_level: 'write',
+                },
+              ],
             },
           ],
         })
@@ -858,7 +873,14 @@ describe('CRM API contract mapping', () => {
         {
           module: 'contacts',
           mode: 'private',
-          grants: [{ grantee_type: 'role', grantee_id: 'role-1', access_level: 'write' }],
+          advanced_rules: [
+            {
+              source_type: 'all',
+              target_type: 'role',
+              target_id: 'role-1',
+              access_level: 'write',
+            },
+          ],
         },
       ],
     })

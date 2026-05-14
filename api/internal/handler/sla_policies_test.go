@@ -53,6 +53,21 @@ func TestSLAPolicyHandler_Create(t *testing.T) {
 			wantStatus: http.StatusCreated,
 		},
 		{
+			name: "creates fractional hour policy successfully",
+			body: map[string]any{
+				"name":                  "Fractional",
+				"response_time_hours":   0.25,
+				"resolution_time_hours": 1.75,
+				"priority_filter":       []string{"critical"},
+			},
+			setupMock: func(m *mocks.MockSLAPolicyRepository) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(p *domain.SLAPolicy) bool {
+					return p.ResponseTimeHours == 0.25 && p.ResolutionTimeHours == 1.75
+				})).Return(sampleSLAPolicy(), nil)
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
 			name:       "returns 422 for missing name",
 			body:       map[string]any{"response_time_hours": 8, "resolution_time_hours": 24},
 			setupMock:  func(_ *mocks.MockSLAPolicyRepository) {},

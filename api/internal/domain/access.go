@@ -77,6 +77,16 @@ const (
 	SharingGranteeGroup SharingGranteeType = "group"
 )
 
+type SharingPrincipalType string
+
+const (
+	SharingPrincipalAll              SharingPrincipalType = "all"
+	SharingPrincipalUser             SharingPrincipalType = "user"
+	SharingPrincipalRole             SharingPrincipalType = "role"
+	SharingPrincipalRoleSubordinates SharingPrincipalType = "role_subordinates"
+	SharingPrincipalGroup            SharingPrincipalType = "group"
+)
+
 var PermissionActions = []ACLAction{
 	ACLActionRead,
 	ACLActionCreate,
@@ -201,10 +211,24 @@ type ACLSharingGrant struct {
 	AccessLevel SharingAccessLevel `json:"access_level"`
 }
 
+type ACLSharingRule struct {
+	ID          uuid.UUID            `json:"id,omitempty"`
+	OrgID       uuid.UUID            `json:"org_id,omitempty"`
+	Module      ACLModule            `json:"module,omitempty"`
+	SourceType  SharingPrincipalType `json:"source_type"`
+	SourceID    *uuid.UUID           `json:"source_id,omitempty"`
+	TargetType  SharingPrincipalType `json:"target_type"`
+	TargetID    uuid.UUID            `json:"target_id"`
+	AccessLevel SharingAccessLevel   `json:"access_level"`
+	CreatedAt   time.Time            `json:"created_at,omitempty"`
+	UpdatedAt   time.Time            `json:"updated_at,omitempty"`
+}
+
 type ACLSharingModuleRule struct {
-	Module ACLModule          `json:"module"`
-	Mode   SharingDefaultMode `json:"mode"`
-	Grants []ACLSharingGrant  `json:"grants"`
+	Module        ACLModule          `json:"module"`
+	Mode          SharingDefaultMode `json:"mode"`
+	AdvancedRules []ACLSharingRule   `json:"advanced_rules"`
+	Grants        []ACLSharingGrant  `json:"grants,omitempty"`
 }
 
 type ACLSharingRules struct {
