@@ -26,7 +26,8 @@ Thumbs.db
 # Docker volumes (if bind-mounted locally)
 .postgres-data/
 omnir-refactor/
-agents/heimdall/.github-token
+docs/agents/roster/heimdall/.github-token
+docs/workspace/local-trash/
 
 # Local agent/Codex workspace artifacts
 .codex_tmp/

@@ -14,7 +14,7 @@ Adapted from BMAD Method for Paperclip + our agent roster.
 
 ### Phase 1 — Story (Odin → Völundr)
 **Who:** Odin (CEO)  
-**Input:** `plans/praestos-rewrite-plan.md`  
+**Input:** `docs/plans/praestos-rewrite-plan.md`
 **Output:** A Paperclip issue assigned to Völundr with:
 - Feature name and phase reference
 - User story: "As a [user], I want [feature] so that [value]"
