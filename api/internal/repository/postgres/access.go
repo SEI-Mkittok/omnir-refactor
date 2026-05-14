@@ -893,7 +893,7 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 	}
 	defer tx.Rollback(ctx)
 
-	existingRuleIDs, err := existingSharingRuleIDs(ctx, tx, orgID)
+	existingRules, err := existingSharingRules(ctx, tx, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -922,26 +922,30 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 		if err != nil {
 			return nil, err
 		}
-		for _, advancedRule := range rule.AdvancedRules {
+		for _, advancedRule := range sharingRulesForReplace(rule) {
 			advancedRule.Module = rule.Module
 			advancedRule.OrgID = orgID
-			if advancedRule.ID == uuid.Nil {
-				advancedRule.ID = uuid.New()
-			} else {
-				if _, ok := existingRuleIDs[advancedRule.ID]; !ok {
-					return nil, fmt.Errorf("%w: sharing rule id not found in org", domain.ErrValidation)
-				}
-				if _, ok := seenIDs[advancedRule.ID]; ok {
-					return nil, fmt.Errorf("%w: duplicate sharing rule id", domain.ErrValidation)
-				}
-				seenIDs[advancedRule.ID] = struct{}{}
-			}
-			if err := validateSharingRule(ctx, tx, orgID, advancedRule); err != nil {
-				return nil, err
-			}
 			key := sharingRuleKey(advancedRule)
 			if _, exists := seen[key]; exists {
 				continue
+			}
+			if advancedRule.ID == uuid.Nil {
+				if existingID, ok := existingRules.idsByKey[key]; ok {
+					advancedRule.ID = existingID
+				} else {
+					advancedRule.ID = uuid.New()
+				}
+			} else {
+				if _, ok := existingRules.ids[advancedRule.ID]; !ok {
+					return nil, fmt.Errorf("%w: sharing rule id not found in org", domain.ErrValidation)
+				}
+			}
+			if _, ok := seenIDs[advancedRule.ID]; ok {
+				return nil, fmt.Errorf("%w: duplicate sharing rule id", domain.ErrValidation)
+			}
+			seenIDs[advancedRule.ID] = struct{}{}
+			if err := validateSharingRule(ctx, tx, orgID, advancedRule); err != nil {
+				return nil, err
 			}
 			seen[key] = struct{}{}
 			_, err := tx.Exec(ctx, `
@@ -971,22 +975,65 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 	return r.GetSharingRules(ctx, orgID)
 }
 
-func existingSharingRuleIDs(ctx context.Context, tx pgx.Tx, orgID uuid.UUID) (map[uuid.UUID]struct{}, error) {
-	rows, err := tx.Query(ctx, `SELECT id FROM crm_sharing_rules WHERE org_id = $1`, orgID)
+func sharingRulesForReplace(rule domain.ACLSharingModuleRule) []domain.ACLSharingRule {
+	if len(rule.Grants) == 0 {
+		return rule.AdvancedRules
+	}
+
+	rules := make([]domain.ACLSharingRule, 0, len(rule.AdvancedRules)+len(rule.Grants))
+	rules = append(rules, rule.AdvancedRules...)
+	for _, grant := range rule.Grants {
+		rules = append(rules, domain.ACLSharingRule{
+			OrgID:       grant.OrgID,
+			Module:      rule.Module,
+			SourceType:  domain.SharingPrincipalAll,
+			SourceID:    nil,
+			TargetType:  domain.SharingPrincipalType(grant.GranteeType),
+			TargetID:    grant.GranteeID,
+			AccessLevel: grant.AccessLevel,
+		})
+	}
+
+	return rules
+}
+
+type existingSharingRuleLookup struct {
+	ids      map[uuid.UUID]struct{}
+	idsByKey map[string]uuid.UUID
+}
+
+func existingSharingRules(ctx context.Context, tx pgx.Tx, orgID uuid.UUID) (existingSharingRuleLookup, error) {
+	rows, err := tx.Query(ctx, `
+		SELECT id, module, source_type, source_id, target_type, target_id, access_level
+		FROM crm_sharing_rules
+		WHERE org_id = $1
+	`, orgID)
 	if err != nil {
-		return nil, err
+		return existingSharingRuleLookup{}, err
 	}
 	defer rows.Close()
 
-	ids := map[uuid.UUID]struct{}{}
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids[id] = struct{}{}
+	lookup := existingSharingRuleLookup{
+		ids:      map[uuid.UUID]struct{}{},
+		idsByKey: map[string]uuid.UUID{},
 	}
-	return ids, rows.Err()
+	for rows.Next() {
+		var rule domain.ACLSharingRule
+		if err := rows.Scan(
+			&rule.ID,
+			&rule.Module,
+			&rule.SourceType,
+			&rule.SourceID,
+			&rule.TargetType,
+			&rule.TargetID,
+			&rule.AccessLevel,
+		); err != nil {
+			return existingSharingRuleLookup{}, err
+		}
+		lookup.ids[rule.ID] = struct{}{}
+		lookup.idsByKey[sharingRuleKey(rule)] = rule.ID
+	}
+	return lookup, rows.Err()
 }
 
 type sharingRowQuerier interface {
