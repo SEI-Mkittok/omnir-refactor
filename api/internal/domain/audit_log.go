@@ -21,12 +21,13 @@ const (
 type AuditEntityType string
 
 const (
-	AuditEntityContact AuditEntityType = "contact"
-	AuditEntityAccount AuditEntityType = "account"
-	AuditEntityDeal    AuditEntityType = "deal"
-	AuditEntityLead    AuditEntityType = "lead"
-	AuditEntityUser    AuditEntityType = "user"
-	AuditEntityView    AuditEntityType = "view"
+	AuditEntityContact     AuditEntityType = "contact"
+	AuditEntityAccount     AuditEntityType = "account"
+	AuditEntityDeal        AuditEntityType = "deal"
+	AuditEntityLead        AuditEntityType = "lead"
+	AuditEntitySharingRule AuditEntityType = "sharing_rule"
+	AuditEntityUser        AuditEntityType = "user"
+	AuditEntityView        AuditEntityType = "view"
 )
 
 // FieldChange captures the before/after value for a single field.
@@ -39,22 +40,27 @@ type FieldChange struct {
 type AuditChanges map[string]FieldChange
 
 type AuditLog struct {
-	ID         uuid.UUID       `json:"id"`
-	OrgID      uuid.UUID       `json:"org_id"`
-	UserID     *uuid.UUID      `json:"user_id,omitempty"`
-	AgentID    *string         `json:"agent_id,omitempty"`
-	Action     AuditAction     `json:"action"`
-	EntityType AuditEntityType `json:"entity_type"`
-	EntityID   *uuid.UUID      `json:"entity_id,omitempty"`
-	EntityName *string         `json:"entity_name,omitempty"`
-	Changes    AuditChanges    `json:"changes,omitempty"`
-	IPAddress  *string         `json:"ip_address,omitempty"`
-	UserAgent  *string         `json:"user_agent,omitempty"`
-	CreatedAt  time.Time       `json:"created_at"`
+	ID           uuid.UUID       `json:"id"`
+	OrgID        uuid.UUID       `json:"org_id"`
+	UserID       *uuid.UUID      `json:"user_id,omitempty"`
+	AgentID      *string         `json:"agent_id,omitempty"`
+	ActorType    string          `json:"actor_type"`
+	ActorName    *string         `json:"actor_name,omitempty"`
+	ActorEmail   *string         `json:"actor_email,omitempty"`
+	ActorDisplay string          `json:"actor_display"`
+	Action       AuditAction     `json:"action"`
+	EntityType   AuditEntityType `json:"entity_type"`
+	EntityID     *uuid.UUID      `json:"entity_id,omitempty"`
+	EntityName   *string         `json:"entity_name,omitempty"`
+	Changes      AuditChanges    `json:"changes,omitempty"`
+	IPAddress    *string         `json:"ip_address,omitempty"`
+	UserAgent    *string         `json:"user_agent,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
 }
 
 type AuditLogFilter struct {
 	OrgID      uuid.UUID
+	Q          string
 	EntityType *AuditEntityType
 	EntityID   *uuid.UUID
 	UserID     *uuid.UUID

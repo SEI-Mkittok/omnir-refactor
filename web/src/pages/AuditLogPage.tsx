@@ -50,6 +50,7 @@ export function AuditLogPage() {
   const action = searchParams.get('action') ?? ''
   const from = searchParams.get('from') ?? ''
   const to = searchParams.get('to') ?? ''
+  const q = searchParams.get('q') ?? ''
 
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('created_at:desc')
@@ -74,6 +75,7 @@ export function AuditLogPage() {
   )
 
   const { data, isLoading } = useAuditLog({
+    q: q || undefined,
     entityType: (entityType as AuditEntityType) || undefined,
     action: (action as AuditAction) || undefined,
     from: from || undefined,
@@ -135,9 +137,12 @@ export function AuditLogPage() {
       key: 'actor',
       header: 'Actor',
       render: (e) => (
-        <span className="text-sm text-slate-600 font-mono text-xs">
-          {e.user_id ?? e.agent_id ?? <span className="italic text-slate-400">System</span>}
-        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm text-slate-700">{e.actor_display}</p>
+          {(e.user_id ?? e.agent_id) && (
+            <p className="truncate font-mono text-xs text-slate-400">{e.user_id ?? e.agent_id}</p>
+          )}
+        </div>
       ),
     },
     {
@@ -165,6 +170,7 @@ export function AuditLogPage() {
           size="sm"
           onClick={() =>
             downloadAuditLogCsv({
+              q: q || undefined,
               entityType: (entityType as AuditEntityType) || undefined,
               action: (action as AuditAction) || undefined,
               from: from || undefined,
@@ -183,7 +189,7 @@ export function AuditLogPage() {
           <label className="text-sm text-slate-600 whitespace-nowrap">From</label>
           <input
             type="date"
-            value={from}
+            value={from ? from.slice(0, 10) : ''}
             onChange={(e) => setParam('from', e.target.value ? `${e.target.value}T00:00:00Z` : '')}
             className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)] text-slate-700"
           />
@@ -201,8 +207,8 @@ export function AuditLogPage() {
 
       {/* Entity type + action filters */}
       <FilterBar
-        searchValue=""
-        onSearchChange={() => {}}
+        searchValue={q}
+        onSearchChange={(value) => setParam('q', value)}
         searchPlaceholder="Search…"
         filters={[
           {

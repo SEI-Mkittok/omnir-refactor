@@ -28,6 +28,7 @@ func (h *AuditLogHandler) Router() chi.Router {
 	r.Use(middleware.RequireRole(domain.UserRoleAdmin))
 	r.Get("/", h.List)
 	r.Get("/export", h.Export)
+	r.Get("/{id}", h.Get)
 	return r
 }
 
@@ -38,10 +39,23 @@ func (h *AuditLogHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	filter := auditLogFilterFromRequest(r, claims.OrgID, 50)
+
+	entries, total, err := h.repo.List(r.Context(), filter)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, paginated(entries, total, filter.Page, filter.Limit))
+}
+
+func auditLogFilterFromRequest(r *http.Request, orgID uuid.UUID, defaultLimit int) domain.AuditLogFilter {
 	filter := domain.AuditLogFilter{
-		OrgID: claims.OrgID,
+		OrgID: orgID,
+		Q:     r.URL.Query().Get("q"),
 		Page:  1,
-		Limit: 50,
+		Limit: defaultLimit,
 	}
 
 	if v := r.URL.Query().Get("entityType"); v != "" {
@@ -82,14 +96,26 @@ func (h *AuditLogHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.Limit = n
 		}
 	}
+	return filter
+}
 
-	entries, total, err := h.repo.List(r.Context(), filter)
+func (h *AuditLogHandler) Get(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid id")
+		return
+	}
+	entry, err := h.repo.GetByID(r.Context(), claims.OrgID, id)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
-
-	writeJSON(w, http.StatusOK, paginated(entries, total, filter.Page, filter.Limit))
+	writeJSON(w, http.StatusOK, entry)
 }
 
 func (h *AuditLogHandler) Export(w http.ResponseWriter, r *http.Request) {
@@ -100,11 +126,9 @@ func (h *AuditLogHandler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Export up to 10 000 rows without pagination.
-	filter := domain.AuditLogFilter{
-		OrgID: claims.OrgID,
-		Page:  1,
-		Limit: 10000,
-	}
+	filter := auditLogFilterFromRequest(r, claims.OrgID, 10000)
+	filter.Page = 1
+	filter.Limit = 10000
 
 	entries, _, err := h.repo.List(r.Context(), filter)
 	if err != nil {
@@ -117,7 +141,7 @@ func (h *AuditLogHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"id", "action", "entity_type", "entity_id", "entity_name", "user_id", "ip_address", "created_at"})
+	_ = cw.Write([]string{"id", "action", "entity_type", "entity_id", "entity_name", "actor_type", "actor_display", "actor_name", "actor_email", "user_id", "agent_id", "ip_address", "created_at"})
 	for _, e := range entries {
 		row := []string{
 			e.ID.String(),
@@ -125,7 +149,12 @@ func (h *AuditLogHandler) Export(w http.ResponseWriter, r *http.Request) {
 			string(e.EntityType),
 			uuidStr(e.EntityID),
 			strStr(e.EntityName),
+			e.ActorType,
+			e.ActorDisplay,
+			strStr(e.ActorName),
+			strStr(e.ActorEmail),
 			uuidStr(e.UserID),
+			strStr(e.AgentID),
 			strStr(e.IPAddress),
 			e.CreatedAt.Format(time.RFC3339),
 		}

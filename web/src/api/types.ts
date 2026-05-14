@@ -131,6 +131,7 @@ export type ACLPermissionMap = Partial<Record<ACLModule, Partial<Record<ACLActio
 export type SharingDefaultMode = 'private' | 'public_read' | 'public_rw'
 export type SharingAccessLevel = 'read' | 'write'
 export type SharingGranteeType = 'role' | 'group'
+export type SharingPrincipalType = 'all' | 'user' | 'role' | 'role_subordinates' | 'group'
 
 export interface ACLRole {
   id: string
@@ -182,10 +183,24 @@ export interface ACLSharingGrant {
   access_level: SharingAccessLevel
 }
 
+export interface ACLSharingRule {
+  id?: string
+  org_id?: string
+  module?: ACLModule
+  source_type: SharingPrincipalType
+  source_id?: string
+  target_type: Exclude<SharingPrincipalType, 'all'>
+  target_id: string
+  access_level: SharingAccessLevel
+  created_at?: string
+  updated_at?: string
+}
+
 export interface ACLSharingModuleRule {
   module: ACLModule
   mode: SharingDefaultMode
-  grants: ACLSharingGrant[]
+  advanced_rules: ACLSharingRule[]
+  grants?: ACLSharingGrant[]
 }
 
 export interface ACLSharingRules {
@@ -1124,7 +1139,7 @@ export interface ViewListParams {
 
 export type AuditAction = 'created' | 'updated' | 'deleted' | 'converted' | 'login' | 'export'
 
-export type AuditEntityType = 'contact' | 'account' | 'deal' | 'lead' | 'user' | 'view'
+export type AuditEntityType = 'contact' | 'account' | 'deal' | 'lead' | 'sharing_rule' | 'user' | 'view'
 
 export interface AuditFieldChange {
   from: unknown
@@ -1138,6 +1153,10 @@ export interface AuditLog {
   org_id: string
   user_id?: string
   agent_id?: string
+  actor_type: 'user' | 'agent' | 'system'
+  actor_name?: string
+  actor_email?: string
+  actor_display: string
   action: AuditAction
   entity_type: AuditEntityType
   entity_id?: string
@@ -1149,6 +1168,7 @@ export interface AuditLog {
 }
 
 export interface AuditLogListParams {
+  q?: string
   entityType?: AuditEntityType
   entityId?: string
   userId?: string

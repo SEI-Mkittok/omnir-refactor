@@ -183,18 +183,33 @@ func (r *AccessRepo) ResolveAccess(ctx context.Context, userID, orgID uuid.UUID,
 	}
 
 	roleGrantIDs := []uuid.UUID{}
+	var roleParam any
 	if access.RoleID != nil {
 		roleGrantIDs = append(roleGrantIDs, *access.RoleID)
+		roleParam = *access.RoleID
 	}
 	rows, err = r.db.Query(ctx, `
 		SELECT module, access_level
-		FROM crm_sharing_grants
+		FROM crm_sharing_rules sr
 		WHERE org_id = $1
+		  AND source_type = 'all'
 		  AND (
-			(grantee_type = 'role' AND grantee_id = ANY($2))
-			OR (grantee_type = 'group' AND grantee_id = ANY($3))
+			(target_type = 'user' AND target_id = $2)
+			OR (target_type = 'role' AND target_id = ANY($3))
+			OR (
+				target_type = 'role_subordinates'
+				AND $4::uuid IS NOT NULL
+				AND EXISTS (
+					SELECT 1
+					FROM crm_role_closure target_closure
+					WHERE target_closure.org_id = sr.org_id
+					  AND target_closure.ancestor_id = sr.target_id
+					  AND target_closure.descendant_id = $4
+				)
+			)
+			OR (target_type = 'group' AND target_id = ANY($5))
 		  )
-	`, orgID, roleGrantIDs, access.GroupIDs)
+	`, orgID, access.UserID, roleGrantIDs, roleParam, access.GroupIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +332,7 @@ func (r *AccessRepo) ListRoles(ctx context.Context, orgID uuid.UUID) ([]*domain.
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*domain.ACLRole
+	out := []*domain.ACLRole{}
 	for rows.Next() {
 		role, err := scanACLRole(rows)
 		if err != nil {
@@ -411,6 +426,16 @@ func (r *AccessRepo) DeleteRole(ctx context.Context, id uuid.UUID) error {
 	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE org_id = $1 AND grantee_type = 'role' AND grantee_id = $2`, orgID, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM crm_sharing_rules
+		WHERE org_id = $1
+		  AND (
+			(source_type IN ('role', 'role_subordinates') AND source_id = $2)
+			OR (target_type IN ('role', 'role_subordinates') AND target_id = $2)
+		  )
+	`, orgID, id); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
@@ -448,7 +473,7 @@ func (r *AccessRepo) ListProfiles(ctx context.Context, orgID uuid.UUID) ([]*doma
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*domain.ACLProfile
+	out := []*domain.ACLProfile{}
 	for rows.Next() {
 		profile, err := scanACLProfile(rows)
 		if err != nil {
@@ -626,7 +651,7 @@ func (r *AccessRepo) ListGroups(ctx context.Context, orgID uuid.UUID) ([]*domain
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*domain.ACLGroup
+	out := []*domain.ACLGroup{}
 	for rows.Next() {
 		group, err := scanACLGroup(rows)
 		if err != nil {
@@ -725,6 +750,16 @@ func (r *AccessRepo) DeleteGroup(ctx context.Context, id uuid.UUID) error {
 	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE org_id = $1 AND grantee_type = 'group' AND grantee_id = $2`, orgID, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM crm_sharing_rules
+		WHERE org_id = $1
+		  AND (
+			(source_type = 'group' AND source_id = $2)
+			OR (target_type = 'group' AND target_id = $2)
+		  )
+	`, orgID, id); err != nil {
+		return err
+	}
 	return tx.Commit(ctx)
 }
 
@@ -796,7 +831,7 @@ func (r *AccessRepo) GetSharingRules(ctx context.Context, orgID uuid.UUID) (*dom
 			rows.Close()
 			return nil, err
 		}
-		rulesByModule[module] = &domain.ACLSharingModuleRule{Module: module, Mode: mode, Grants: []domain.ACLSharingGrant{}}
+		rulesByModule[module] = &domain.ACLSharingModuleRule{Module: module, Mode: mode, AdvancedRules: []domain.ACLSharingRule{}}
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -804,26 +839,37 @@ func (r *AccessRepo) GetSharingRules(ctx context.Context, orgID uuid.UUID) (*dom
 	}
 
 	rows, err = r.db.Query(ctx, `
-		SELECT id, org_id, module, grantee_type, grantee_id, access_level
-		FROM crm_sharing_grants
+		SELECT id, org_id, module, source_type, source_id, target_type, target_id, access_level, created_at, updated_at
+		FROM crm_sharing_rules
 		WHERE org_id = $1
-		ORDER BY module, grantee_type, grantee_id
+		ORDER BY module, source_type, source_id, target_type, target_id, access_level
 	`, orgID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var grant domain.ACLSharingGrant
-		if err := rows.Scan(&grant.ID, &grant.OrgID, &grant.Module, &grant.GranteeType, &grant.GranteeID, &grant.AccessLevel); err != nil {
+		var advancedRule domain.ACLSharingRule
+		if err := rows.Scan(
+			&advancedRule.ID,
+			&advancedRule.OrgID,
+			&advancedRule.Module,
+			&advancedRule.SourceType,
+			&advancedRule.SourceID,
+			&advancedRule.TargetType,
+			&advancedRule.TargetID,
+			&advancedRule.AccessLevel,
+			&advancedRule.CreatedAt,
+			&advancedRule.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
-		rule := rulesByModule[grant.Module]
+		rule := rulesByModule[advancedRule.Module]
 		if rule == nil {
-			rule = &domain.ACLSharingModuleRule{Module: grant.Module, Mode: domain.SharingDefaultPrivate, Grants: []domain.ACLSharingGrant{}}
-			rulesByModule[grant.Module] = rule
+			rule = &domain.ACLSharingModuleRule{Module: advancedRule.Module, Mode: domain.SharingDefaultPrivate, AdvancedRules: []domain.ACLSharingRule{}}
+			rulesByModule[advancedRule.Module] = rule
 		}
-		rule.Grants = append(rule.Grants, grant)
+		rule.AdvancedRules = append(rule.AdvancedRules, advancedRule)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -831,6 +877,9 @@ func (r *AccessRepo) GetSharingRules(ctx context.Context, orgID uuid.UUID) (*dom
 	out := &domain.ACLSharingRules{Rules: []domain.ACLSharingModuleRule{}}
 	for _, module := range domain.SharingModules {
 		if rule := rulesByModule[module]; rule != nil {
+			if rule.AdvancedRules == nil {
+				rule.AdvancedRules = []domain.ACLSharingRule{}
+			}
 			out.Rules = append(out.Rules, *rule)
 		}
 	}
@@ -846,7 +895,17 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE org_id = $1`, orgID); err != nil {
 		return nil, err
 	}
+	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_rules WHERE org_id = $1`, orgID); err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
 	for _, rule := range rules.Rules {
+		if !validSharingModule(rule.Module) {
+			return nil, fmt.Errorf("%w: invalid sharing module", domain.ErrValidation)
+		}
+		if !validSharingDefaultMode(rule.Mode) {
+			return nil, fmt.Errorf("%w: invalid sharing default mode", domain.ErrValidation)
+		}
 		_, err := tx.Exec(ctx, `
 			INSERT INTO crm_sharing_defaults (org_id, module, mode, updated_at)
 			VALUES ($1, $2, $3, NOW())
@@ -856,13 +915,39 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 		if err != nil {
 			return nil, err
 		}
-		for _, grant := range rule.Grants {
+		for _, advancedRule := range rule.AdvancedRules {
+			advancedRule.Module = rule.Module
+			advancedRule.OrgID = orgID
+			if advancedRule.ID == uuid.Nil {
+				advancedRule.ID = uuid.New()
+			}
+			if err := validateSharingRule(ctx, tx, orgID, advancedRule); err != nil {
+				return nil, err
+			}
+			key := sharingRuleKey(advancedRule)
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
 			_, err := tx.Exec(ctx, `
-				INSERT INTO crm_sharing_grants (org_id, module, grantee_type, grantee_id, access_level)
-				VALUES ($1, $2, $3, $4, $5)
-			`, orgID, rule.Module, grant.GranteeType, grant.GranteeID, grant.AccessLevel)
+				INSERT INTO crm_sharing_rules
+					(id, org_id, module, source_type, source_id, target_type, target_id, access_level, created_at, updated_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+				ON CONFLICT DO NOTHING
+			`, advancedRule.ID, orgID, advancedRule.Module, advancedRule.SourceType, advancedRule.SourceID, advancedRule.TargetType, advancedRule.TargetID, advancedRule.AccessLevel)
 			if err != nil {
 				return nil, err
+			}
+			if advancedRule.SourceType == domain.SharingPrincipalAll &&
+				(advancedRule.TargetType == domain.SharingPrincipalRole || advancedRule.TargetType == domain.SharingPrincipalGroup) {
+				_, err := tx.Exec(ctx, `
+					INSERT INTO crm_sharing_grants (org_id, module, grantee_type, grantee_id, access_level)
+					VALUES ($1, $2, $3, $4, $5)
+					ON CONFLICT DO NOTHING
+				`, orgID, rule.Module, advancedRule.TargetType, advancedRule.TargetID, advancedRule.AccessLevel)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -870,6 +955,104 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 		return nil, err
 	}
 	return r.GetSharingRules(ctx, orgID)
+}
+
+type sharingRowQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func validSharingModule(module domain.ACLModule) bool {
+	for _, candidate := range domain.SharingModules {
+		if candidate == module {
+			return true
+		}
+	}
+	return false
+}
+
+func validSharingDefaultMode(mode domain.SharingDefaultMode) bool {
+	switch mode {
+	case domain.SharingDefaultPrivate, domain.SharingDefaultPublicRO, domain.SharingDefaultPublicRW:
+		return true
+	default:
+		return false
+	}
+}
+
+func validSharingAccessLevel(level domain.SharingAccessLevel) bool {
+	switch level {
+	case domain.SharingAccessRead, domain.SharingAccessWrite:
+		return true
+	default:
+		return false
+	}
+}
+
+func sharingRuleKey(rule domain.ACLSharingRule) string {
+	sourceID := ""
+	if rule.SourceID != nil {
+		sourceID = rule.SourceID.String()
+	}
+	return strings.Join([]string{
+		string(rule.Module),
+		string(rule.SourceType),
+		sourceID,
+		string(rule.TargetType),
+		rule.TargetID.String(),
+		string(rule.AccessLevel),
+	}, "|")
+}
+
+func validateSharingRule(ctx context.Context, q sharingRowQuerier, orgID uuid.UUID, rule domain.ACLSharingRule) error {
+	if !validSharingModule(rule.Module) {
+		return fmt.Errorf("%w: invalid sharing module", domain.ErrValidation)
+	}
+	if !validSharingAccessLevel(rule.AccessLevel) {
+		return fmt.Errorf("%w: invalid sharing access level", domain.ErrValidation)
+	}
+	if rule.SourceType == domain.SharingPrincipalAll {
+		if rule.SourceID != nil {
+			return fmt.Errorf("%w: all-source sharing rules cannot include source_id", domain.ErrValidation)
+		}
+	} else {
+		if rule.SourceID == nil || *rule.SourceID == uuid.Nil {
+			return fmt.Errorf("%w: source_id is required", domain.ErrValidation)
+		}
+		if err := ensureSharingPrincipalInOrg(ctx, q, orgID, rule.SourceType, *rule.SourceID, true); err != nil {
+			return err
+		}
+	}
+	if rule.TargetID == uuid.Nil {
+		return fmt.Errorf("%w: target_id is required", domain.ErrValidation)
+	}
+	return ensureSharingPrincipalInOrg(ctx, q, orgID, rule.TargetType, rule.TargetID, false)
+}
+
+func ensureSharingPrincipalInOrg(ctx context.Context, q sharingRowQuerier, orgID uuid.UUID, principalType domain.SharingPrincipalType, id uuid.UUID, allowAll bool) error {
+	var query string
+	switch principalType {
+	case domain.SharingPrincipalAll:
+		if allowAll {
+			return nil
+		}
+		return fmt.Errorf("%w: all is not a valid target", domain.ErrValidation)
+	case domain.SharingPrincipalUser:
+		query = `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL)`
+	case domain.SharingPrincipalRole, domain.SharingPrincipalRoleSubordinates:
+		query = `SELECT EXISTS(SELECT 1 FROM crm_roles WHERE id = $1 AND org_id = $2)`
+	case domain.SharingPrincipalGroup:
+		query = `SELECT EXISTS(SELECT 1 FROM crm_groups WHERE id = $1 AND org_id = $2)`
+	default:
+		return fmt.Errorf("%w: invalid sharing principal type", domain.ErrValidation)
+	}
+	var exists bool
+	if err := q.QueryRow(ctx, query, id, orgID).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return domain.ErrNotFound
+	}
+	return nil
 }
 
 func scanACLRole(row pgx.Row) (*domain.ACLRole, error) {

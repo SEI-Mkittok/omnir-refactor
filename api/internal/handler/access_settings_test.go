@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"github.com/omnir/crm-api/internal/auth"
 	"github.com/omnir/crm-api/internal/domain"
 	"github.com/omnir/crm-api/internal/middleware"
+	"github.com/omnir/crm-api/internal/repository"
 	"github.com/omnir/crm-api/internal/testutil/mocks"
 )
 
@@ -113,4 +115,34 @@ func TestAccessSettingsGroupsMemberCandidatesUseSettingsAdmin(t *testing.T) {
 	require.Len(t, resp.Data, 1)
 	require.Equal(t, memberID, resp.Data[0].ID)
 	users.AssertExpectations(t)
+}
+
+type nilGroupsAccessRepo struct {
+	repository.AccessRepository
+}
+
+func (nilGroupsAccessRepo) ListGroups(context.Context, uuid.UUID) ([]*domain.ACLGroup, error) {
+	return nil, nil
+}
+
+func TestAccessSettingsGroupsListNormalizesNilSlice(t *testing.T) {
+	handler := NewAccessSettingsHandler(nilGroupsAccessRepo{}).GroupsRouter()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(middleware.WithClaims(req.Context(), &auth.Claims{
+		UserID: uuid.New(),
+		OrgID:  domain.DefaultOrgID,
+		Role:   string(domain.UserRoleAdmin),
+	}))
+	req = req.WithContext(domain.WithOrgID(req.Context(), domain.DefaultOrgID))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		Data []domain.ACLGroup `json:"data"`
+	}
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	require.NotNil(t, resp.Data)
+	require.Len(t, resp.Data, 0)
 }

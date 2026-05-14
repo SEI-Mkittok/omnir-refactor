@@ -13,6 +13,8 @@ import (
 type AuditLogRepository interface {
 	// Append writes a new audit entry. It is intentionally fire-and-forget.
 	Append(ctx context.Context, entry domain.AuditEntry) error
+	// GetByID returns one audit log entry scoped by org.
+	GetByID(ctx context.Context, orgID, id uuid.UUID) (*domain.AuditLog, error)
 	// List returns audit log entries matching the filter along with total count.
 	List(ctx context.Context, filter domain.AuditLogFilter) ([]*domain.AuditLog, int, error)
 }

@@ -113,6 +113,82 @@ func TestAccessRepoCanAccessRecordUsesSharingVisibility(t *testing.T) {
 	assert.True(t, canAccess)
 }
 
+func TestAccessRepoCanAccessRecordUsesAdvancedSharingRules(t *testing.T) {
+	pool, ctx := setupDB(t)
+	accessRepo := postgres.NewAccessRepo(pool)
+	contactRepo := postgres.NewContactRepo(pool)
+
+	sourceParent, err := accessRepo.CreateRole(ctx, &domain.ACLRole{Name: "Source Leadership"})
+	require.NoError(t, err)
+	sourceChild, err := accessRepo.CreateRole(ctx, &domain.ACLRole{Name: "Source Team", ParentID: &sourceParent.ID})
+	require.NoError(t, err)
+	targetRole, err := accessRepo.CreateRole(ctx, &domain.ACLRole{Name: "Target Auditor"})
+	require.NoError(t, err)
+	siblingRole, err := accessRepo.CreateRole(ctx, &domain.ACLRole{Name: "Sibling Auditor"})
+	require.NoError(t, err)
+
+	ownerID := uuid.New()
+	targetID := uuid.New()
+	siblingID := uuid.New()
+	for _, user := range []struct {
+		id     uuid.UUID
+		name   string
+		roleID uuid.UUID
+	}{
+		{ownerID, "Source Owner", sourceChild.ID},
+		{targetID, "Target User", targetRole.ID},
+		{siblingID, "Sibling User", siblingRole.ID},
+	} {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO users (id, org_id, email, name, role, role_id)
+			VALUES ($1, $2, $3, $4, 'agent', $5)
+		`, user.id, defaultOrgID, user.id.String()+"@omnir.test", user.name, user.roleID)
+		require.NoError(t, err)
+	}
+
+	owned, err := contactRepo.Create(ctx, &domain.Contact{
+		FirstName: "Shared",
+		LastName:  "Contact",
+		OwnerID:   ownerID,
+		Stage:     domain.ContactStageLead,
+	})
+	require.NoError(t, err)
+
+	_, err = accessRepo.ReplaceSharingRules(ctx, defaultOrgID, &domain.ACLSharingRules{Rules: []domain.ACLSharingModuleRule{
+		{
+			Module: domain.ACLModuleContacts,
+			Mode:   domain.SharingDefaultPrivate,
+			AdvancedRules: []domain.ACLSharingRule{
+				{
+					SourceType:  domain.SharingPrincipalRoleSubordinates,
+					SourceID:    &sourceParent.ID,
+					TargetType:  domain.SharingPrincipalUser,
+					TargetID:    targetID,
+					AccessLevel: domain.SharingAccessRead,
+				},
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	targetAccess, err := accessRepo.ResolveAccess(ctx, targetID, defaultOrgID, string(domain.UserRoleAgent))
+	require.NoError(t, err)
+	targetCtx := domain.WithAccessContext(ctx, targetAccess)
+	canAccess, err := accessRepo.CanAccessRecord(targetCtx, domain.ACLModuleContacts, owned.ID, domain.SharingAccessRead)
+	require.NoError(t, err)
+	assert.True(t, canAccess)
+	canAccess, err = accessRepo.CanAccessRecord(targetCtx, domain.ACLModuleContacts, owned.ID, domain.SharingAccessWrite)
+	require.NoError(t, err)
+	assert.False(t, canAccess)
+
+	siblingAccess, err := accessRepo.ResolveAccess(ctx, siblingID, defaultOrgID, string(domain.UserRoleAgent))
+	require.NoError(t, err)
+	siblingCtx := domain.WithAccessContext(ctx, siblingAccess)
+	canAccess, err = accessRepo.CanAccessRecord(siblingCtx, domain.ACLModuleContacts, owned.ID, domain.SharingAccessRead)
+	require.NoError(t, err)
+	assert.False(t, canAccess)
+}
+
 func TestAccessRepoCanAccessAccountRelationshipRequiresLinkedAccountVisibility(t *testing.T) {
 	pool, ctx := setupDB(t)
 	accessRepo := postgres.NewAccessRepo(pool)

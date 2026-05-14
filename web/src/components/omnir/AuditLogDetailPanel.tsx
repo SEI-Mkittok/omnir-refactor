@@ -68,6 +68,12 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+function RawActor({ userId, agentId }: { userId?: string; agentId?: string }) {
+  const raw = userId ?? agentId
+  if (!raw) return <span className="italic text-slate-400">—</span>
+  return <span className="font-mono text-xs text-slate-600 break-all">{raw}</span>
+}
+
 export function AuditLogDetailPanel({ entryId, onClose }: AuditLogDetailPanelProps) {
   const { data: entry, isLoading } = useAuditLogEntry(entryId)
 
@@ -95,7 +101,10 @@ export function AuditLogDetailPanel({ entryId, onClose }: AuditLogDetailPanelPro
             } />
             <Field label="Entity ID" value={entry.entity_id ?? '—'} />
             <Field label="Entity Name" value={entry.entity_name} />
-            <Field label="Actor" value={entry.user_id ?? entry.agent_id ?? 'System'} />
+            <Field label="Actor" value={entry.actor_display} />
+            <Field label="Actor Email" value={entry.actor_email} />
+            <Field label="Actor Type" value={<span className="capitalize">{entry.actor_type}</span>} />
+            <Field label="Raw Actor ID" value={<RawActor userId={entry.user_id} agentId={entry.agent_id} />} />
             <Field label="IP Address" value={entry.ip_address} />
           </dl>
 
