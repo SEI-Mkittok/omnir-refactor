@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { X, BookOpen, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCreateTicket } from '@/hooks/useTickets'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
 import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
 import { useKbSuggest } from '@/hooks/useKB'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useAuthStore } from '@/stores/auth'
@@ -32,6 +34,11 @@ const PRIORITY_OPTIONS: { label: string; value: TicketPriority }[] = [
 export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProps) {
   const { mutateAsync: createTicket, isPending } = useCreateTicket()
   const { data: customFields = [] } = useCustomFieldDefinitions('ticket', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('ticket')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'quick_create'),
+    [customFields, layout]
+  )
   const activeOrg = useAuthStore((s) => s.activeOrg)
   const user = useAuthStore((s) => s.user)
   const orgSlug = activeOrg?.slug ?? user?.email?.split('@')[1] ?? ''
@@ -46,6 +53,7 @@ export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProp
   const debouncedSubject = useDebounce(subject, 300)
   const { data: suggestions = [] } = useKbSuggest(debouncedSubject)
   const showDeflection = !deflectionDismissed && suggestions.length > 0 && subject.length >= 3
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'quick_create')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,7 +96,7 @@ export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProp
           {/* Subject */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-slate-700" htmlFor="ticket-subject">
-              Subject <span className="text-red-500">*</span>
+              {layoutFieldLabel(layout, 'standard', 'subject', 'Subject')} <span className="text-red-500">*</span>
             </label>
             <input
               id="ticket-subject"
@@ -142,8 +150,8 @@ export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProp
           )}
 
           {/* Status + Priority (side by side) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
+          {(visible('status') || visible('priority')) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {visible('status') && <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="ticket-status">
                 Status
               </label>
@@ -159,9 +167,9 @@ export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProp
                   </option>
                 ))}
               </select>
-            </div>
+            </div>}
 
-            <div className="space-y-1">
+            {visible('priority') && <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="ticket-priority">
                 Priority
               </label>
@@ -177,11 +185,11 @@ export function TicketForm({ onClose, initialValues, onCreated }: TicketFormProp
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
+            </div>}
+          </div>}
 
           <CustomFieldFormSection
-            fields={customFields}
+            fields={layoutCustomFields}
             values={customFieldValues}
             onChange={setCustomFieldValues}
           />

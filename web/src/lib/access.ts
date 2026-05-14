@@ -7,6 +7,8 @@ export const adminRouteModules: Record<string, ACLModule> = {
   '/settings/sharing-rules': 'settings',
   '/settings/groups': 'settings',
   '/settings/custom-fields': 'custom_fields',
+  '/settings/module-layouts': 'settings',
+  '/settings/module-relationships': 'settings',
   '/settings/numbering': 'settings',
   '/settings/company': 'settings',
   '/settings/portal': 'settings',

@@ -15,8 +15,9 @@ import (
 )
 
 type AccountHandler struct {
-	repo   repository.AccountRepository
-	cfDefs repository.CustomFieldDefinitionRepository
+	repo    repository.AccountRepository
+	cfDefs  repository.CustomFieldDefinitionRepository
+	layouts repository.ModuleLayoutRepository
 }
 
 func NewAccountHandler(repo repository.AccountRepository) *AccountHandler {
@@ -25,6 +26,11 @@ func NewAccountHandler(repo repository.AccountRepository) *AccountHandler {
 
 func (h *AccountHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *AccountHandler {
 	h.cfDefs = r
+	return h
+}
+
+func (h *AccountHandler) WithModuleLayouts(r repository.ModuleLayoutRepository) *AccountHandler {
+	h.layouts = r
 	return h
 }
 
@@ -104,6 +110,10 @@ func (h *AccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if err := validateModuleLayoutCreate(r.Context(), h.layouts, h.cfDefs, domain.CustomFieldEntityAccount, &a); err != nil {
 		handleDomainErr(w, err)
 		return
 	}

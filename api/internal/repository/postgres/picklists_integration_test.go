@@ -46,7 +46,7 @@ func TestPicklistRepo_RemapAndDeleteValue_SelectScalarValue(t *testing.T) {
 		LastName:     "Select",
 		Email:        &email,
 		Status:       domain.LeadStatusNew,
-		CustomFields: &customFields,
+		CustomFields: json.RawMessage(customFields),
 	})
 	require.NoError(t, err)
 
@@ -56,10 +56,10 @@ func TestPicklistRepo_RemapAndDeleteValue_SelectScalarValue(t *testing.T) {
 
 	updatedLead, err := leadRepo.GetByID(ctx, lead.ID)
 	require.NoError(t, err)
-	require.NotNil(t, updatedLead.CustomFields)
+	require.NotEmpty(t, updatedLead.CustomFields)
 
 	var got map[string]any
-	require.NoError(t, json.Unmarshal(*updatedLead.CustomFields, &got))
+	require.NoError(t, json.Unmarshal(updatedLead.CustomFields, &got))
 	assert.Equal(t, "South", got[fieldName])
 }
 

@@ -71,6 +71,9 @@ func main() {
 	reportsRepo := postgres.NewReportsRepo(db)
 	ticketRepo := postgres.NewTicketRepo(db)
 	customFieldRepo := postgres.NewCustomFieldDefinitionRepo(db)
+	moduleLayoutRepo := postgres.NewModuleLayoutRepo(db)
+	moduleRelationshipDefinitionRepo := postgres.NewModuleRelationshipDefinitionRepo(db)
+	crmEntityLinkRepo := postgres.NewCRMEntityLinkRepo(db)
 	ticketCommentRepo := postgres.NewTicketCommentRepo(db)
 	ticketAttachmentRepo := postgres.NewTicketAttachmentRepo(db)
 	slaPolicyRepo := postgres.NewSLAPolicyRepo(db)
@@ -178,10 +181,10 @@ func main() {
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo).WithOrgs(orgRepo)
 	userHandler := handler.NewUserHandler(userRepo, accessRepo)
-	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
-	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo)
+	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
+	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo)
 	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)
-	dealHandler := handler.NewDealHandler(dealRepo).WithContacts(contactRepo).WithCustomFields(customFieldRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
+	dealHandler := handler.NewDealHandler(dealRepo).WithContacts(contactRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
 	activityHandler := handler.NewActivityHandler(activityRepo).WithContacts(contactRepo)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
@@ -215,6 +218,8 @@ func main() {
 
 	ticketHandler := handler.NewTicketHandler(ticketRepo, ticketCommentRepo, ticketAttachmentRepo, storageBackend).
 		WithContacts(contactRepo).
+		WithCustomFields(customFieldRepo).
+		WithModuleLayouts(moduleLayoutRepo).
 		WithEmailNotifier(emailNotifier, userRepo, contactRepo, logger).
 		WithTeamsNotifier(teamsNotifier).
 		WithPushNotifier(pushNotifier)
@@ -232,8 +237,9 @@ func main() {
 	timelineHandler := handler.NewTimelineHandler(timelineRepo)
 	reportsHandler := handler.NewReportsHandler(reportsRepo)
 	exportHandler := handler.NewExportHandler(contactRepo, accountRepo, dealRepo, reportsRepo).WithAuditLog(auditLogRepo)
-	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo, accountRepo, dealRepo, leadConversionMappingRepo, customFieldRepo)
+	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo, accountRepo, dealRepo, leadConversionMappingRepo, customFieldRepo).WithModuleLayouts(moduleLayoutRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo).WithPicklistValueReader(picklistRepo)
+	moduleConfigurationHandler := handler.NewModuleConfigurationHandler(moduleLayoutRepo, moduleRelationshipDefinitionRepo, customFieldRepo, crmEntityLinkRepo, accessRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
 	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, contactRepo, dealRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
@@ -382,6 +388,9 @@ func main() {
 		r.Mount("/dashboards", dashboardHandler.Router())
 		r.Mount("/export", exportHandler.Router())
 		r.Mount("/custom-fields", customFieldHandler.Router())
+		r.Mount("/module-layouts", moduleConfigurationHandler.RuntimeLayoutRouter())
+		r.Mount("/module-relationships", moduleConfigurationHandler.RuntimeRelationshipRouter())
+		r.Mount("/entity-links", moduleConfigurationHandler.EntityLinksRouter())
 		r.Mount("/api-keys", apiKeyHandler.Router())
 		r.Route("/emails", func(r chi.Router) {
 			r.Mount("/", emailHandler.Router())
@@ -417,6 +426,8 @@ func main() {
 		r.Mount("/settings/picklists", picklistSettingsHandler.Router())
 		r.Mount("/settings/picklist-dependencies", picklistDependencySettingsHandler.Router())
 		r.Mount("/settings/lead-conversion-mapping", leadConversionMappingSettingsHandler.Router())
+		r.Mount("/settings/module-layouts", moduleConfigurationHandler.LayoutSettingsRouter())
+		r.Mount("/settings/module-relationships", moduleConfigurationHandler.RelationshipSettingsRouter())
 		r.Mount("/settings/roles", accessSettingsHandler.RolesRouter())
 		r.Mount("/settings/profiles", accessSettingsHandler.ProfilesRouter())
 		r.Mount("/settings/groups", accessSettingsHandler.GroupsRouter())

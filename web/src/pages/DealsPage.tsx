@@ -9,6 +9,8 @@ import { KanbanBoard } from '@/components/omnir/KanbanBoard'
 import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
 import { SidePanel } from '@/components/ui/SidePanel'
 import { Badge, badgeVariants } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +18,7 @@ import { Input } from '@/components/ui/Input'
 import { Spinner } from '@/components/ui/Spinner'
 import { Table, type Column } from '@/components/ui/Table'
 import { AttachmentsPanel } from '@/components/omnir/AttachmentsPanel'
+import { CustomRelationshipsPanel } from '@/components/omnir/CustomRelationshipsPanel'
 import { DealForm } from '@/components/omnir/DealForm'
 import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
@@ -194,6 +197,13 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
   const deleteDeal = useDeleteDeal()
   const updateDeal = useUpdateDeal()
   const { data: customFields = [] } = useCustomFieldDefinitions('deal', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('deal')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'detail'),
+    [customFields, layout]
+  )
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'detail')
+  const label = (fieldKey: string, fallback: string) => layoutFieldLabel(layout, 'standard', fieldKey, fallback)
 
   if (isLoading) {
     return (
@@ -230,32 +240,32 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
     >
       <div className="space-y-5">
         <div className="flex items-center gap-3">
-          <StageBadgeSelect
+          {visible('stage') && <StageBadgeSelect
             stage={deal.stage}
             onChange={(newStage) => updateDeal.mutate({ id: dealId, payload: { stage: newStage } })}
-          />
-          <DealValueEditor
+          />}
+          {visible('value_cents') && <DealValueEditor
             deal={deal}
             onSave={async (cents) => { await updateDeal.mutateAsync({ id: dealId, payload: { value_cents: cents } }) }}
-          />
+          />}
         </div>
 
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          {deal.probability !== undefined && (
+          {visible('probability') && deal.probability !== undefined && (
             <>
-              <dt className="font-medium text-[#6B7280]">Probability</dt>
+              <dt className="font-medium text-[#6B7280]">{label('probability', 'Probability')}</dt>
               <dd className="text-[#1A1D23]">{deal.probability}%</dd>
             </>
           )}
-          {deal.expected_close_date && (
+          {visible('expected_close_date') && deal.expected_close_date && (
             <>
-              <dt className="font-medium text-[#6B7280]">Close Date</dt>
+              <dt className="font-medium text-[#6B7280]">{label('expected_close_date', 'Close Date')}</dt>
               <dd className="text-[#1A1D23]">{formatDate(deal.expected_close_date)}</dd>
             </>
           )}
-          {deal.account?.name && (
+          {visible('account_id') && deal.account?.name && (
             <>
-              <dt className="font-medium text-[#6B7280]">Account</dt>
+              <dt className="font-medium text-[#6B7280]">{label('account_id', 'Account')}</dt>
               <dd>
                 <Link to={`/accounts/${deal.account.id}`} className="text-[#1A1D23] hover:underline hover:text-[#1B3A4B]">
                   {deal.account.name}
@@ -263,9 +273,9 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
               </dd>
             </>
           )}
-          {deal.contact && (
+          {visible('contact_id') && deal.contact && (
             <>
-              <dt className="font-medium text-[#6B7280]">Contact</dt>
+              <dt className="font-medium text-[#6B7280]">{label('contact_id', 'Contact')}</dt>
               <dd>
                 <Link to={`/contacts/${deal.contact.id}`} className="text-[#1A1D23] hover:underline hover:text-[#1B3A4B]">
                   {deal.contact.first_name} {deal.contact.last_name}
@@ -289,7 +299,7 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
         )}
 
         <CustomFieldEditableSection
-          fields={customFields}
+          fields={layoutCustomFields}
           values={deal.custom_fields as CustomFieldValues | undefined}
           onSave={async (cf) => {
             await updateDeal.mutateAsync({ id: dealId, payload: { custom_fields: cf as Record<string, unknown> } })
@@ -307,6 +317,7 @@ function DealDetail({ dealId, onClose }: { dealId: string; onClose: () => void }
           accountId={deal.account_id ?? deal.account?.id}
           accountName={deal.account?.name}
         />
+        <CustomRelationshipsPanel entityType="deal" entityId={deal.id} />
         <AttachmentsPanel entityType="deal" entityId={deal.id} />
       </div>
     </SidePanel>

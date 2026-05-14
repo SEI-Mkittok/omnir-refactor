@@ -21,8 +21,11 @@ import { useLead, useUpdateLead, useDeleteLead } from '@/hooks/useLeads'
 import { useUsers } from '@/hooks/useUsers'
 import { LeadConvertModal } from '@/components/omnir/LeadConvertModal'
 import { LeadScoreBadge } from '@/components/omnir/LeadScoreBadge'
+import { CustomRelationshipsPanel } from '@/components/omnir/CustomRelationshipsPanel'
 import { CustomFieldEditableSection } from '@/components/omnir/CustomFieldRenderer'
 import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
 import { useToast } from '@/components/ui/Toast'
 import type { LeadStatus, UpdateLeadRequest, CustomFieldValues, User } from '@/api/types'
 
@@ -298,6 +301,13 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
   const deleteLead = useDeleteLead()
   const { toast } = useToast()
   const { data: customFields = [] } = useCustomFieldDefinitions('lead', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('lead')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'detail'),
+    [customFields, layout]
+  )
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'detail')
+  const label = (fieldKey: string, fallback: string) => layoutFieldLabel(layout, 'standard', fieldKey, fallback)
   const [showConvert, setShowConvert] = useState(false)
 
   const patch = useCallback(
@@ -378,10 +388,10 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
             </div>
             <div className="min-w-0 space-y-1.5">
               <p className="text-lg font-semibold text-slate-900 truncate">{fullName}</p>
-              <StatusSelector
+              {visible('status') && <StatusSelector
                 current={lead.status}
                 onSave={(status) => patch({ status })}
-              />
+              />}
             </div>
           </div>
 
@@ -400,11 +410,11 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
               Details
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-              <EditableField label="First Name" value={lead.first_name} onSave={(v) => patch({ first_name: v })} />
-              <EditableField label="Last Name" value={lead.last_name} onSave={(v) => patch({ last_name: v })} />
-              <EditableField label="Company" value={lead.company} onSave={(v) => patch({ company: v })} placeholder="No company" />
-              <div className="py-1">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Source</p>
+              {visible('first_name') && <EditableField label={label('first_name', 'First Name')} value={lead.first_name} onSave={(v) => patch({ first_name: v })} />}
+              {visible('last_name') && <EditableField label={label('last_name', 'Last Name')} value={lead.last_name} onSave={(v) => patch({ last_name: v })} />}
+              {visible('company') && <EditableField label={label('company', 'Company')} value={lead.company} onSave={(v) => patch({ company: v })} placeholder="No company" />}
+              {visible('lead_source') && <div className="py-1">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label('lead_source', 'Source')}</p>
                 <div className="mt-0.5">
                   {lead.lead_source ? (
                     <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
@@ -414,7 +424,7 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
                     <EditableField label="" value={lead.lead_source} onSave={(v) => patch({ lead_source: v })} placeholder="No source" />
                   )}
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
 
@@ -425,8 +435,8 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
               Contact
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-              <EditableField label="Email" value={lead.email} onSave={(v) => patch({ email: v })} type="email" />
-              <EditableField label="Phone" value={lead.phone} onSave={(v) => patch({ phone: v })} placeholder="No phone" type="tel" />
+              {visible('email') && <EditableField label={label('email', 'Email')} value={lead.email} onSave={(v) => patch({ email: v })} type="email" />}
+              {visible('phone') && <EditableField label={label('phone', 'Phone')} value={lead.phone} onSave={(v) => patch({ phone: v })} placeholder="No phone" type="tel" />}
             </div>
           </div>
 
@@ -455,10 +465,12 @@ export function LeadDetailPanel({ leadId, onClose }: LeadDetailPanelProps) {
 
           {/* Custom fields */}
           <CustomFieldEditableSection
-            fields={customFields}
+            fields={layoutCustomFields}
             values={lead.custom_fields as CustomFieldValues | undefined}
             onSave={async (cf) => { await patch({ custom_fields: cf as Record<string, unknown> }) }}
           />
+
+          <CustomRelationshipsPanel entityType="lead" entityId={lead.id} />
 
           {/* Metadata */}
           <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-400">

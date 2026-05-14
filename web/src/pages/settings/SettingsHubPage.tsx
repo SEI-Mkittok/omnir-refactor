@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   User, Shield, Users, SlidersHorizontal, KeyRound, Clock,
   ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook, Building2,
-  Send, PanelTopOpen, MenuSquare, GitBranch, Share2,
+  Send, PanelTopOpen, MenuSquare, GitBranch, Share2, LayoutTemplate, Waypoints,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 import { usersApi } from '@/api/users'
@@ -87,6 +87,18 @@ const ADMIN_CARDS: SettingsCard[] = [
     title: 'Custom Fields',
     description: 'Define custom fields for contacts, deals, tickets, and more.',
     href: '/settings/custom-fields',
+  },
+  {
+    icon: LayoutTemplate,
+    title: 'Module Layouts',
+    description: 'Configure layout sections, field visibility, required flags, and quick-create metadata.',
+    href: '/settings/module-layouts',
+  },
+  {
+    icon: Waypoints,
+    title: 'Module Relationships',
+    description: 'Manage native relationship metadata and define safe custom entity links.',
+    href: '/settings/module-relationships',
   },
   {
     icon: Hash,
