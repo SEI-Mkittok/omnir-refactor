@@ -99,7 +99,6 @@ omnir-refactor/
 ├── web/                  # React + TypeScript + Vite app
 ├── infra/                # Docker Compose, Dockerfiles, nginx
 ├── scripts/              # Utility scripts and validation helpers
-├── zapier/               # Zapier integration app
 ├── docs/                 # Architecture, plans, QA, agent notes, workspace docs
 ├── AGENTS.md             # Pointer to docs/agents/current/AGENTS.md
 ├── HEARTBEAT.md          # Pointer to docs/agents/current/HEARTBEAT.md
@@ -124,7 +123,7 @@ docs/
 └── workspace/            # Preserved local workspace metadata
 ```
 
-Product/app functionality belongs in `api/`, `web/`, `infra/`, `scripts/`, `zapier/`, and `.github/`. Everything else should be documented under `docs/`.
+Product/app functionality belongs in `api/`, `web/`, `infra/`, `scripts/`, and `.github/`. Everything else should be documented under `docs/`.
 
 ## Local Development
 
