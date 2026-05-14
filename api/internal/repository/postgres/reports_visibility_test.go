@@ -28,8 +28,11 @@ func TestAppendReportReadVisibilityAddsPrivateOwnerPredicate(t *testing.T) {
 	if !strings.Contains(query, "d.owner_id = $3") {
 		t.Fatalf("expected owner visibility predicate to use next placeholder, got query: %s", query)
 	}
-	if len(args) != 3 {
-		t.Fatalf("expected one visibility arg, got %d", len(args))
+	if !strings.Contains(query, "FROM crm_sharing_rules sr") {
+		t.Fatalf("expected advanced sharing predicate, got query: %s", query)
+	}
+	if len(args) != 7 {
+		t.Fatalf("expected owner and advanced sharing args, got %d", len(args))
 	}
 	if got, ok := args[2].(uuid.UUID); !ok || got != userID {
 		t.Fatalf("expected visibility arg to be user id %s, got %#v", userID, args[2])

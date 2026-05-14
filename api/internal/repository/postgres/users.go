@@ -270,12 +270,41 @@ func (r *UserRepo) Delete(ctx context.Context, id uuid.UUID) error {
 		q += ` AND org_id=$2`
 		args = append(args, orgID)
 	}
+	q += ` RETURNING org_id`
 
-	result, err := r.db.Exec(ctx, q, args...)
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	if result.RowsAffected() == 0 {
+	defer tx.Rollback(ctx)
+
+	var deletedOrgID uuid.UUID
+	if err := tx.QueryRow(ctx, q, args...).Scan(&deletedOrgID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrNotFound
+		}
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM crm_sharing_rules
+		WHERE org_id = $1
+		  AND (
+			(source_type = 'user' AND source_id = $2)
+			OR (target_type = 'user' AND target_id = $2)
+		  )
+	`, deletedOrgID, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM crm_sharing_grants
+		WHERE org_id = $1 AND grantee_type = 'user' AND grantee_id = $2
+	`, deletedOrgID, id); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	if deletedOrgID == uuid.Nil {
 		return domain.ErrNotFound
 	}
 	return nil

@@ -160,8 +160,8 @@ function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps
               <label className="text-sm font-medium text-slate-700">Response time (hours)</label>
               <Input
                 type="number"
-                min={0.1}
-                step={0.5}
+                min={0}
+                step="any"
                 value={form.response_time_hours}
                 onChange={(e) => setForm((f) => ({ ...f, response_time_hours: Number(e.target.value) }))}
               />
@@ -170,8 +170,8 @@ function SLAPolicyFormDialog({ open, policy, onClose }: SLAPolicyFormDialogProps
               <label className="text-sm font-medium text-slate-700">Resolution time (hours)</label>
               <Input
                 type="number"
-                min={0.1}
-                step={0.5}
+                min={0}
+                step="any"
                 value={form.resolution_time_hours}
                 onChange={(e) => setForm((f) => ({ ...f, resolution_time_hours: Number(e.target.value) }))}
               />

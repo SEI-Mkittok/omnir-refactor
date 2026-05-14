@@ -34,6 +34,7 @@ var orgScopedTables = []string{
 	"crm_group_members",
 	"crm_sharing_defaults",
 	"crm_sharing_grants",
+	"crm_sharing_rules",
 	"module_layouts",
 	"module_relationship_definitions",
 }

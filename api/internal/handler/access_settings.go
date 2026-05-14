@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -9,12 +11,14 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/omnir/crm-api/internal/domain"
+	"github.com/omnir/crm-api/internal/middleware"
 	"github.com/omnir/crm-api/internal/repository"
 )
 
 type AccessSettingsHandler struct {
 	repo  repository.AccessRepository
 	users repository.UserRepository
+	audit Auditor
 }
 
 func NewAccessSettingsHandler(repo repository.AccessRepository, users ...repository.UserRepository) *AccessSettingsHandler {
@@ -22,6 +26,11 @@ func NewAccessSettingsHandler(repo repository.AccessRepository, users ...reposit
 	if len(users) > 0 {
 		h.users = users[0]
 	}
+	return h
+}
+
+func (h *AccessSettingsHandler) WithAuditLog(r repository.AuditLogRepository) *AccessSettingsHandler {
+	h.audit = newAuditor(r)
 	return h
 }
 
@@ -93,6 +102,9 @@ func (h *AccessSettingsHandler) ListRoles(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if roles == nil {
+		roles = []*domain.ACLRole{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": roles})
 }
@@ -182,6 +194,9 @@ func (h *AccessSettingsHandler) ListProfiles(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if profiles == nil {
+		profiles = []*domain.ACLProfile{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": profiles})
 }
@@ -294,6 +309,9 @@ func (h *AccessSettingsHandler) ListGroups(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		handleDomainErr(w, err)
 		return
+	}
+	if groups == nil {
+		groups = []*domain.ACLGroup{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": groups})
 }
@@ -415,12 +433,168 @@ func (h *AccessSettingsHandler) ReplaceSharingRules(w http.ResponseWriter, r *ht
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	before, err := h.repo.GetSharingRules(r.Context(), orgID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
 	rules, err := h.repo.ReplaceSharingRules(r.Context(), orgID, &req)
 	if err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.logSharingRuleChanges(r, before, rules)
 	writeJSON(w, http.StatusOK, rules)
+}
+
+func (h *AccessSettingsHandler) logSharingRuleChanges(r *http.Request, before, after *domain.ACLSharingRules) {
+	if h.audit.repo == nil {
+		return
+	}
+	entries := sharingRuleAuditEntries(before, after)
+	if len(entries) == 0 {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	var userID *uuid.UUID
+	if claims, ok := middleware.ClaimsFromContext(r); ok {
+		id := claims.UserID
+		userID = &id
+	}
+	ip := realClientIP(r)
+	ua := r.UserAgent()
+	for _, entry := range entries {
+		entry.OrgID = orgID
+		entry.UserID = userID
+		if ip != "" {
+			entry.IPAddress = &ip
+		}
+		if ua != "" {
+			entry.UserAgent = &ua
+		}
+		go func(entry domain.AuditEntry) {
+			if err := h.audit.repo.Append(context.Background(), entry); err != nil {
+				slog.Error("audit log write failed", "entity", "sharing_rule", "error", err)
+			}
+		}(entry)
+	}
+}
+
+func sharingRuleAuditEntries(before, after *domain.ACLSharingRules) []domain.AuditEntry {
+	entries := []domain.AuditEntry{}
+	beforeDefaults := map[domain.ACLModule]domain.SharingDefaultMode{}
+	afterDefaults := map[domain.ACLModule]domain.SharingDefaultMode{}
+	beforeRules := map[string]domain.ACLSharingRule{}
+	afterRules := map[string]domain.ACLSharingRule{}
+
+	for _, moduleRule := range safeSharingModuleRules(before) {
+		beforeDefaults[moduleRule.Module] = moduleRule.Mode
+		for _, rule := range moduleRule.AdvancedRules {
+			beforeRules[sharingAuditRuleID(rule)] = rule
+		}
+	}
+	for _, moduleRule := range safeSharingModuleRules(after) {
+		afterDefaults[moduleRule.Module] = moduleRule.Mode
+		for _, rule := range moduleRule.AdvancedRules {
+			afterRules[sharingAuditRuleID(rule)] = rule
+		}
+	}
+	for module, beforeMode := range beforeDefaults {
+		if afterMode, ok := afterDefaults[module]; ok && afterMode != beforeMode {
+			name := string(module) + " default"
+			entries = append(entries, domain.AuditEntry{
+				Action:     domain.AuditActionUpdated,
+				EntityType: domain.AuditEntitySharingRule,
+				EntityName: &name,
+				Changes: domain.AuditChanges{
+					"mode": {From: beforeMode, To: afterMode},
+				},
+			})
+		}
+	}
+	for key, afterRule := range afterRules {
+		beforeRule, existed := beforeRules[key]
+		name := string(afterRule.Module) + " sharing rule"
+		entityID := afterRule.ID
+		entry := domain.AuditEntry{
+			EntityType: domain.AuditEntitySharingRule,
+			EntityName: &name,
+		}
+		if entityID != uuid.Nil {
+			entry.EntityID = &entityID
+		}
+		if !existed {
+			entry.Action = domain.AuditActionCreated
+			entry.Changes = domain.AuditChanges{"rule": {From: nil, To: sharingAuditRuleValue(afterRule)}}
+			entries = append(entries, entry)
+			continue
+		}
+		if sharingAuditRuleID(beforeRule) != sharingAuditRuleID(afterRule) || sharingAuditRuleValue(beforeRule) != sharingAuditRuleValue(afterRule) {
+			entry.Action = domain.AuditActionUpdated
+			entry.Changes = domain.AuditChanges{"rule": {From: sharingAuditRuleValue(beforeRule), To: sharingAuditRuleValue(afterRule)}}
+			entries = append(entries, entry)
+		}
+	}
+	for key, beforeRule := range beforeRules {
+		if _, ok := afterRules[key]; ok {
+			continue
+		}
+		name := string(beforeRule.Module) + " sharing rule"
+		entityID := beforeRule.ID
+		entry := domain.AuditEntry{
+			Action:     domain.AuditActionDeleted,
+			EntityType: domain.AuditEntitySharingRule,
+			EntityName: &name,
+			Changes: domain.AuditChanges{
+				"rule": {From: sharingAuditRuleValue(beforeRule), To: nil},
+			},
+		}
+		if entityID != uuid.Nil {
+			entry.EntityID = &entityID
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+func safeSharingModuleRules(rules *domain.ACLSharingRules) []domain.ACLSharingModuleRule {
+	if rules == nil {
+		return nil
+	}
+	return rules.Rules
+}
+
+func sharingAuditRuleID(rule domain.ACLSharingRule) string {
+	if rule.ID != uuid.Nil {
+		return rule.ID.String()
+	}
+	sourceID := ""
+	if rule.SourceID != nil {
+		sourceID = rule.SourceID.String()
+	}
+	return strings.Join([]string{
+		string(rule.Module),
+		string(rule.SourceType),
+		sourceID,
+		string(rule.TargetType),
+		rule.TargetID.String(),
+		string(rule.AccessLevel),
+	}, "|")
+}
+
+func sharingAuditRuleValue(rule domain.ACLSharingRule) string {
+	sourceID := ""
+	if rule.SourceID != nil {
+		sourceID = rule.SourceID.String()
+	}
+	return strings.Join([]string{
+		string(rule.Module),
+		string(rule.SourceType),
+		sourceID,
+		string(rule.TargetType),
+		rule.TargetID.String(),
+		string(rule.AccessLevel),
+	}, "|")
 }
 
 func parseACLID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {

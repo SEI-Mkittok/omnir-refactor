@@ -16,7 +16,7 @@ function selectedOptions(select: HTMLSelectElement): string[] {
 }
 
 export function GroupsPage() {
-  const { data: groups = [], isLoading } = useACLGroups()
+  const { data: rawGroups, isLoading } = useACLGroups()
   const { data: usersData } = useGroupMemberCandidates()
   const createGroup = useCreateACLGroup()
   const saveMembers = useSaveGroupMembers()
@@ -25,6 +25,7 @@ export function GroupsPage() {
   const [description, setDescription] = useState('')
   const [draftMembers, setDraftMembers] = useState<Record<string, string[]>>({})
 
+  const groups = rawGroups ?? []
   const users = usersData?.data ?? []
 
   function memberIDs(group: ACLGroup) {
@@ -46,7 +47,7 @@ export function GroupsPage() {
   }
 
   function handleDelete(group: ACLGroup) {
-    if (!confirm(`Delete group "${group.name}"? Sharing grants for this group will also be removed.`)) return
+    if (!confirm(`Delete group "${group.name}"? Sharing rules for this group will also be removed.`)) return
     deleteGroup.mutate(group.id)
   }
 
