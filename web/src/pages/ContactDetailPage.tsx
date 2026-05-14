@@ -52,6 +52,7 @@ import { AccountForm } from '@/components/omnir/AccountForm'
 import { ComposeEmailModal } from '@/components/omnir/ComposeEmailModal'
 import { DealForm } from '@/components/omnir/DealForm'
 import { EntityLinkModal } from '@/components/omnir/EntityLinkModal'
+import { CustomRelationshipsPanel } from '@/components/omnir/CustomRelationshipsPanel'
 import { UnifiedTimeline } from '@/components/omnir/UnifiedTimeline'
 import {
   RelationshipEditor,
@@ -1682,6 +1683,7 @@ export function ContactDetailPage() {
             addLabel="Add account role"
           />
           <LinkedEntitiesSection contact={contactRecord} contactId={id!} contactName={fullName} />
+          <CustomRelationshipsPanel entityType="contact" entityId={id!} />
           <PrivateNotesPanel contactId={id!} contactName={fullName} />
           <EnrichmentPanel contactId={id!} />
         </div>
@@ -1702,6 +1704,7 @@ export function ContactDetailPage() {
             addLabel="Add account role"
           />
           <LinkedEntitiesSection contact={contactRecord} contactId={id!} contactName={fullName} />
+          <CustomRelationshipsPanel entityType="contact" entityId={id!} />
           <PrivateNotesPanel contactId={id!} contactName={fullName} />
           <EnrichmentPanel contactId={id!} />
         </div>

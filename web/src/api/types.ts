@@ -237,6 +237,7 @@ export interface CreateContactRequest {
   account_id?: string | null
   owner_id?: string
   tags?: string[]
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateContactRequest extends Partial<CreateContactRequest> {
@@ -286,6 +287,7 @@ export interface CreateAccountRequest {
   address?: string
   website?: string
   owner_id?: string
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateAccountRequest extends Partial<CreateAccountRequest> {
@@ -349,6 +351,7 @@ export interface CreateDealRequest {
   pipeline_id?: string
   owner_id?: string
   tags?: string[]
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateDealRequest extends Partial<CreateDealRequest> {
@@ -596,7 +599,7 @@ export interface Ticket {
   account?: TicketAccountSummary
   source?: string
   tags?: string[]
-  custom_fields?: string
+  custom_fields?: Record<string, unknown>
   sla?: TicketSLA
   created_at: string
   updated_at: string
@@ -627,6 +630,7 @@ export interface CreateTicketRequest {
   assignee_id?: string
   contact_id?: string
   account_id?: string
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateTicketRequest {
@@ -636,6 +640,7 @@ export interface UpdateTicketRequest {
   assignee_id?: string
   account_id?: string | null
   tags?: string[]
+  custom_fields?: Record<string, unknown>
 }
 
 export interface TicketListParams {
@@ -734,6 +739,7 @@ export interface CreateLeadRequest {
   lead_score?: number
   status?: LeadStatus
   owner_id?: string
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateLeadRequest extends Partial<CreateLeadRequest> {
@@ -778,6 +784,7 @@ export interface CustomFieldDefinition {
   field_type: CustomFieldType
   options?: string[]   // for select / multiselect
   required?: boolean
+  order_idx?: number
   created_at: string
   updated_at: string
 }
@@ -814,6 +821,73 @@ export interface UpdateCustomFieldDefinitionRequest {
 }
 
 export type CustomFieldValues = Record<string, string | number | boolean | string[] | null>
+
+// ---- Module Configuration ----
+
+export type ModuleLayoutFieldSource = 'standard' | 'custom'
+
+export interface ModuleLayoutField {
+  source: ModuleLayoutFieldSource
+  field_key: string
+  label: string
+  visible: boolean
+  required: boolean
+  order: number
+  quick_create: boolean
+  mass_edit: boolean
+  header: boolean
+  key_field: boolean
+}
+
+export interface ModuleLayoutBlock {
+  id: string
+  label: string
+  order: number
+  fields: ModuleLayoutField[]
+}
+
+export interface ModuleLayout {
+  id?: string
+  org_id?: string
+  entity_type: CustomFieldEntityType
+  blocks: ModuleLayoutBlock[]
+  created_at?: string
+  updated_at?: string
+}
+
+export type RelationshipCardinality = 'one_to_one' | 'many_to_one' | 'one_to_many' | 'many_to_many'
+export type RelationshipStorageStrategy = 'native' | 'crm_entity_links'
+
+export interface ModuleRelationshipDefinition {
+  id?: string
+  org_id?: string
+  relationship_key: string
+  from_entity_type: CustomFieldEntityType
+  to_entity_type: CustomFieldEntityType
+  label: string
+  cardinality: RelationshipCardinality
+  storage_strategy: RelationshipStorageStrategy
+  is_enabled: boolean
+  system_locked: boolean
+  order_idx: number
+  metadata?: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CRMEntityLink {
+  id: string
+  org_id: string
+  relationship_definition_id?: string
+  from_entity_type: CustomFieldEntityType
+  from_entity_id: string
+  to_entity_type: CustomFieldEntityType
+  to_entity_id: string
+  link_type: string
+  metadata?: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
 
 // ---- API Keys ----
 

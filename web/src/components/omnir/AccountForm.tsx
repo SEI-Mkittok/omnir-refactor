@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCreateAccount } from '@/hooks/useAccounts'
-import type { Account, CreateAccountRequest } from '@/api/types'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { useModuleLayout } from '@/hooks/useModuleConfiguration'
+import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import { applyLayoutToCustomFields, isLayoutFieldVisible, layoutFieldLabel } from '@/lib/moduleConfiguration'
+import type { Account, CreateAccountRequest, CustomFieldValues } from '@/api/types'
 
 const INDUSTRY_OPTIONS = [
   'Technology', 'Finance', 'Healthcare', 'Retail', 'Manufacturing',
@@ -21,6 +25,12 @@ interface AccountFormProps {
 
 export function AccountForm({ onClose, initialValues, onCreated }: AccountFormProps) {
   const { mutateAsync: createAccount, isPending } = useCreateAccount()
+  const { data: customFields = [] } = useCustomFieldDefinitions('account', { activeOptionsOnly: true })
+  const { data: layout } = useModuleLayout('account')
+  const layoutCustomFields = useMemo(
+    () => applyLayoutToCustomFields(customFields, layout, 'quick_create'),
+    [customFields, layout]
+  )
   const [form, setForm] = useState<CreateAccountRequest>({
     name: initialValues?.name ?? '',
     domain: initialValues?.domain,
@@ -31,6 +41,7 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
     website: initialValues?.website,
     owner_id: initialValues?.owner_id,
   })
+  const [customFieldValues, setCustomFieldValues] = useState<CustomFieldValues>({})
   const [nameError, setNameError] = useState('')
 
   const set = (field: keyof CreateAccountRequest) =>
@@ -44,10 +55,15 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
       return
     }
     setNameError('')
-    const account = await createAccount({ ...form, name: form.name.trim() })
+    const account = await createAccount({
+      ...form,
+      name: form.name.trim(),
+      ...(Object.keys(customFieldValues).length ? { custom_fields: customFieldValues } : {}),
+    })
     onCreated?.(account)
     onClose()
   }
+  const visible = (fieldKey: string) => isLayoutFieldVisible(layout, 'standard', fieldKey, 'quick_create')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -63,7 +79,7 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
         <form onSubmit={handleSubmit} className="space-y-4 p-4 sm:p-6">
           <div className="space-y-1">
             <label className="block text-sm font-medium text-slate-700" htmlFor="account-name">
-              Company name <span className="text-red-500">*</span>
+              {layoutFieldLabel(layout, 'standard', 'name', 'Company name')} <span className="text-red-500">*</span>
             </label>
             <input
               id="account-name"
@@ -76,8 +92,8 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
             {nameError && <p className="text-xs text-red-600">{nameError}</p>}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
+          {(visible('industry') || visible('size')) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {visible('industry') && <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="account-industry">
                 Industry
               </label>
@@ -92,9 +108,9 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
                   <option key={o} value={o}>{o}</option>
                 ))}
               </select>
-            </div>
+            </div>}
 
-            <div className="space-y-1">
+            {visible('size') && <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="account-size">
                 Company size
               </label>
@@ -109,11 +125,11 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
                   <option key={o} value={o}>{o}</option>
                 ))}
               </select>
-            </div>
-          </div>
+            </div>}
+          </div>}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
+          {(visible('domain') || visible('phone')) && <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {visible('domain') && <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="account-domain">
                 Domain
               </label>
@@ -125,9 +141,9 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
                 placeholder="acme.com"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
-            </div>
+            </div>}
 
-            <div className="space-y-1">
+            {visible('phone') && <div className="space-y-1">
               <label className="block text-sm font-medium text-slate-700" htmlFor="account-phone">
                 Phone
               </label>
@@ -139,10 +155,10 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
                 placeholder="+1 555 000 0000"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
               />
-            </div>
-          </div>
+            </div>}
+          </div>}
 
-          <div className="space-y-1">
+          {visible('website') && <div className="space-y-1">
             <label className="block text-sm font-medium text-slate-700" htmlFor="account-website">
               Website
             </label>
@@ -154,7 +170,13 @@ export function AccountForm({ onClose, initialValues, onCreated }: AccountFormPr
               placeholder="https://acme.com"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
             />
-          </div>
+          </div>}
+
+          <CustomFieldFormSection
+            fields={layoutCustomFields}
+            values={customFieldValues}
+            onChange={setCustomFieldValues}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>

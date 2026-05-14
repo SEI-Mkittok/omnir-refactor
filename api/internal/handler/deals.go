@@ -21,6 +21,7 @@ type DealHandler struct {
 	repo          repository.DealRepository
 	contacts      repository.ContactRepository
 	cfDefs        repository.CustomFieldDefinitionRepository
+	layouts       repository.ModuleLayoutRepository
 	dispatcher    chan<- worker.WebhookEvent
 	automations   chan<- worker.AutomationEvent
 	notifications repository.NotificationRepository
@@ -41,6 +42,11 @@ func (h *DealHandler) WithContacts(r repository.ContactRepository) *DealHandler 
 
 func (h *DealHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *DealHandler {
 	h.cfDefs = r
+	return h
+}
+
+func (h *DealHandler) WithModuleLayouts(r repository.ModuleLayoutRepository) *DealHandler {
+	h.layouts = r
 	return h
 }
 
@@ -189,6 +195,10 @@ func (h *DealHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := d.Validate(); err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if err := validateModuleLayoutCreate(r.Context(), h.layouts, h.cfDefs, domain.CustomFieldEntityDeal, &d); err != nil {
 		handleDomainErr(w, err)
 		return
 	}

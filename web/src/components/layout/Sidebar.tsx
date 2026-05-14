@@ -5,7 +5,7 @@ import {
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
   BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X, Hash, Send, PanelTopOpen, MenuSquare,
-  GitBranch, Share2,
+  GitBranch, Share2, LayoutTemplate, Waypoints,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -71,6 +71,8 @@ const ADMIN_GROUP = {
     { to: '/settings/sharing-rules', icon: Share2, label: 'Sharing Rules' },
     { to: '/settings/groups', icon: Users, label: 'Groups' },
     { to: '/settings/custom-fields', icon: SlidersHorizontal, label: 'Custom Fields' },
+    { to: '/settings/module-layouts', icon: LayoutTemplate, label: 'Module Layouts' },
+    { to: '/settings/module-relationships', icon: Waypoints, label: 'Relationships' },
     { to: '/settings/numbering', icon: Hash, label: 'Numbering' },
     { to: '/settings/company', icon: Building2, label: 'Company Profile' },
     { to: '/settings/portal', icon: PanelTopOpen, label: 'Portal Config' },

@@ -13,6 +13,7 @@ import { inboxApi } from './inbox'
 import { integrationsApi } from './integrations'
 import { kbApi } from './kb'
 import { leadConversionMappingApi } from './leadConversionMapping'
+import { moduleConfigurationApi } from './moduleConfiguration'
 import { numberingApi } from './numbering'
 import { picklistsApi } from './picklists'
 import { preferencesApi } from './preferences'
@@ -38,6 +39,63 @@ describe('CRM API contract mapping', () => {
     expect(options.roles[0].id).toBe('role-1')
     expect(options.profiles[0].id).toBe('profile-1')
     expect(seen).toEqual(['GET /api/v1/users/assignment-options'])
+  })
+
+  it('maps Bundle 5 module configuration APIs to settings and runtime endpoints', async () => {
+    const seen: string[] = []
+    server.use(
+      http.get('/api/v1/module-layouts/contact', () => {
+        seen.push('GET /api/v1/module-layouts/contact')
+        return HttpResponse.json({ entity_type: 'contact', blocks: [] })
+      }),
+      http.put('/api/v1/settings/module-layouts/contact', async ({ request }) => {
+        seen.push('PUT /api/v1/settings/module-layouts/contact')
+        const body = await request.json()
+        return HttpResponse.json({ entity_type: 'contact', ...(body as object) })
+      }),
+      http.get('/api/v1/settings/module-relationships', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`GET ${url.pathname}?entity_type=${url.searchParams.get('entity_type')}`)
+        return HttpResponse.json([])
+      }),
+      http.get('/api/v1/module-relationships', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`GET ${url.pathname}?entity_type=${url.searchParams.get('entity_type')}`)
+        return HttpResponse.json([])
+      }),
+      http.get('/api/v1/entity-links/contact/contact-1', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`GET ${url.pathname}?relationship_definition_id=${url.searchParams.get('relationship_definition_id')}`)
+        return HttpResponse.json([])
+      }),
+      http.post('/api/v1/entity-links', async ({ request }) => {
+        seen.push('POST /api/v1/entity-links')
+        const body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ id: 'link-1', ...body }, { status: 201 })
+      })
+    )
+
+    await moduleConfigurationApi.getLayout('contact')
+    await moduleConfigurationApi.saveLayout('contact', { blocks: [] })
+    await moduleConfigurationApi.listRelationships('contact')
+    await moduleConfigurationApi.listRuntimeRelationships('contact')
+    await moduleConfigurationApi.listEntityLinks('contact', 'contact-1', 'rel-1')
+    await moduleConfigurationApi.createEntityLink({
+      relationship_definition_id: 'rel-1',
+      from_entity_type: 'contact',
+      from_entity_id: 'contact-1',
+      to_entity_type: 'account',
+      to_entity_id: 'account-1',
+    })
+
+    expect(seen).toEqual([
+      'GET /api/v1/module-layouts/contact',
+      'PUT /api/v1/settings/module-layouts/contact',
+      'GET /api/v1/settings/module-relationships?entity_type=contact',
+      'GET /api/v1/module-relationships?entity_type=contact',
+      'GET /api/v1/entity-links/contact/contact-1?relationship_definition_id=rel-1',
+      'POST /api/v1/entity-links',
+    ])
   })
 
   it('keeps activity creation restricted to backend-supported types', () => {

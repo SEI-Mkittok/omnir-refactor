@@ -46,27 +46,27 @@ func (p TicketPriority) IsValid() bool {
 
 // Ticket represents a help-desk support ticket.
 type Ticket struct {
-	ID                uuid.UUID      `json:"id"`
-	OrgID             uuid.UUID      `json:"org_id"`
-	Subject           string         `json:"subject"`
-	Description       *string        `json:"description,omitempty"`
-	Status            TicketStatus   `json:"status"`
-	Priority          TicketPriority `json:"priority"`
-	AssigneeID        *uuid.UUID     `json:"assignee_id,omitempty"`
-	ContactID         *uuid.UUID     `json:"contact_id,omitempty"`
-	AccountID         *uuid.UUID     `json:"account_id,omitempty"`
-	Source            *string        `json:"source,omitempty"`
-	EmailMessageID    *string        `json:"email_message_id,omitempty"`
-	Tags              []string       `json:"tags"`
-	CustomFields      []byte         `json:"custom_fields,omitempty"`
-	SLAPolicyID       *uuid.UUID     `json:"sla_policy_id,omitempty"`
-	FirstRespondedAt  *time.Time     `json:"first_responded_at,omitempty"`
-	SubmittedByUserID *uuid.UUID     `json:"submitted_by_user_id,omitempty"`
-	Number            *int64         `json:"number,omitempty"`
-	NumberPrefix      string         `json:"number_prefix,omitempty"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	DeletedAt         *time.Time     `json:"deleted_at,omitempty"`
+	ID                uuid.UUID       `json:"id"`
+	OrgID             uuid.UUID       `json:"org_id"`
+	Subject           string          `json:"subject"`
+	Description       *string         `json:"description,omitempty"`
+	Status            TicketStatus    `json:"status"`
+	Priority          TicketPriority  `json:"priority"`
+	AssigneeID        *uuid.UUID      `json:"assignee_id,omitempty"`
+	ContactID         *uuid.UUID      `json:"contact_id,omitempty"`
+	AccountID         *uuid.UUID      `json:"account_id,omitempty"`
+	Source            *string         `json:"source,omitempty"`
+	EmailMessageID    *string         `json:"email_message_id,omitempty"`
+	Tags              []string        `json:"tags"`
+	CustomFields      json.RawMessage `json:"custom_fields,omitempty"`
+	SLAPolicyID       *uuid.UUID      `json:"sla_policy_id,omitempty"`
+	FirstRespondedAt  *time.Time      `json:"first_responded_at,omitempty"`
+	SubmittedByUserID *uuid.UUID      `json:"submitted_by_user_id,omitempty"`
+	Number            *int64          `json:"number,omitempty"`
+	NumberPrefix      string          `json:"number_prefix,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+	DeletedAt         *time.Time      `json:"deleted_at,omitempty"`
 }
 
 // TicketPatch holds optional fields for partial ticket updates.
