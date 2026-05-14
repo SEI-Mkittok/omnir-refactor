@@ -266,7 +266,10 @@ Add this to your OMN-58 standing task — code review is part of your hourly res
 Before pushing ANY branch to GitHub, you MUST run:
 ```bash
 cd /home/omnirdev/.openclaw/workspace
+# Linux/macOS/WSL/Git Bash
 bash scripts/pre-push-check.sh
+# Windows PowerShell/CMD
+scripts\pre-push-check.cmd
 ```
 
 If it fails, FIX the issue before pushing. Do NOT push code that does not compile or pass tests.

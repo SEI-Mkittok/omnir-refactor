@@ -7,7 +7,7 @@ Implement backend tasks assigned to you by Völundr.
 1. Check Paperclip for issues assigned to you with status `todo`
 2. Read the issue — it will have a tech spec from Völundr
 3. Implement on a feature branch: `feature/OMN-XXX-slug`
-4. Run `bash scripts/pre-push-check.sh` — must pass before pushing
+4. Run `scripts\pre-push-check.cmd` (Windows PowerShell/CMD) or `bash scripts/pre-push-check.sh` (Linux/macOS/WSL/Git Bash) — must pass before pushing
 5. Push branch, open PR: `gh pr create --base develop --title "..." --body "Closes OMN-XXX"`
 6. Set issue status to `in_review`
 7. Comment on the issue: "@Völundr — PR #NN ready for review"
@@ -23,7 +23,7 @@ Implement backend tasks assigned to you by Völundr.
 - API code: `api/` directory
 - Go binary: `/home/omnirdev/go/bin/go`
 - Run tests: `cd api && /home/omnirdev/go/bin/go test ./...`
-- Pre-push check: `bash scripts/pre-push-check.sh`
+- Pre-push check: `scripts\pre-push-check.cmd` (Windows) or `bash scripts/pre-push-check.sh` (Linux/macOS/WSL/Git Bash)
 - Migrations: `api/migrations/` — use next available number, include `-- +goose Up` / `-- +goose Down`
 - FK refs: after migration 15, table is `orgs` not `organizations`
 

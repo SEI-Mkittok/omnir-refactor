@@ -43,7 +43,7 @@ Adapted from BMAD Method for Paperclip + our agent roster.
 **Input:** Issue with approved tech spec  
 **Output:**
 - Feature branch: `feature/OMN-XXX-slug`
-- Code compiles, tests pass locally (`bash scripts/pre-push-check.sh`)
+- Code compiles, tests pass locally (`scripts\pre-push-check.cmd` on Windows PowerShell/CMD, or `bash scripts/pre-push-check.sh` on Linux/macOS/WSL/Git Bash)
 - PR opened, Völundr notified in issue comment
 - One PR at a time — no new PR until previous is merged
 
