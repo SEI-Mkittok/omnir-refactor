@@ -189,6 +189,31 @@ func TestAccessRepoCanAccessRecordUsesAdvancedSharingRules(t *testing.T) {
 	assert.False(t, canAccess)
 }
 
+func TestAccessRepoReplaceSharingRulesRejectsUnknownRuleID(t *testing.T) {
+	pool, ctx := setupDB(t)
+	accessRepo := postgres.NewAccessRepo(pool)
+
+	targetRole, err := accessRepo.CreateRole(ctx, &domain.ACLRole{Name: "Target Auditor"})
+	require.NoError(t, err)
+
+	_, err = accessRepo.ReplaceSharingRules(ctx, defaultOrgID, &domain.ACLSharingRules{Rules: []domain.ACLSharingModuleRule{
+		{
+			Module: domain.ACLModuleContacts,
+			Mode:   domain.SharingDefaultPrivate,
+			AdvancedRules: []domain.ACLSharingRule{
+				{
+					ID:          uuid.New(),
+					SourceType:  domain.SharingPrincipalAll,
+					TargetType:  domain.SharingPrincipalRole,
+					TargetID:    targetRole.ID,
+					AccessLevel: domain.SharingAccessRead,
+				},
+			},
+		},
+	}})
+	require.ErrorIs(t, err, domain.ErrValidation)
+}
+
 func TestAccessRepoCanAccessAccountRelationshipRequiresLinkedAccountVisibility(t *testing.T) {
 	pool, ctx := setupDB(t)
 	accessRepo := postgres.NewAccessRepo(pool)

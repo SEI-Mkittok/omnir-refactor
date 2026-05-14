@@ -15,6 +15,7 @@ const ENTITY_TYPE_OPTIONS = [
   { label: 'Account', value: 'account' },
   { label: 'Deal', value: 'deal' },
   { label: 'Lead', value: 'lead' },
+  { label: 'Sharing Rule', value: 'sharing_rule' },
   { label: 'User', value: 'user' },
   { label: 'View', value: 'view' },
 ]

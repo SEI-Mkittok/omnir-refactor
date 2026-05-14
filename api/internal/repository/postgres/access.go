@@ -892,6 +892,12 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+
+	existingRuleIDs, err := existingSharingRuleIDs(ctx, tx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
 	if _, err := tx.Exec(ctx, `DELETE FROM crm_sharing_grants WHERE org_id = $1`, orgID); err != nil {
 		return nil, err
 	}
@@ -899,6 +905,7 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 		return nil, err
 	}
 	seen := map[string]struct{}{}
+	seenIDs := map[uuid.UUID]struct{}{}
 	for _, rule := range rules.Rules {
 		if !validSharingModule(rule.Module) {
 			return nil, fmt.Errorf("%w: invalid sharing module", domain.ErrValidation)
@@ -920,6 +927,14 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 			advancedRule.OrgID = orgID
 			if advancedRule.ID == uuid.Nil {
 				advancedRule.ID = uuid.New()
+			} else {
+				if _, ok := existingRuleIDs[advancedRule.ID]; !ok {
+					return nil, fmt.Errorf("%w: sharing rule id not found in org", domain.ErrValidation)
+				}
+				if _, ok := seenIDs[advancedRule.ID]; ok {
+					return nil, fmt.Errorf("%w: duplicate sharing rule id", domain.ErrValidation)
+				}
+				seenIDs[advancedRule.ID] = struct{}{}
 			}
 			if err := validateSharingRule(ctx, tx, orgID, advancedRule); err != nil {
 				return nil, err
@@ -933,7 +948,6 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 				INSERT INTO crm_sharing_rules
 					(id, org_id, module, source_type, source_id, target_type, target_id, access_level, created_at, updated_at)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-				ON CONFLICT DO NOTHING
 			`, advancedRule.ID, orgID, advancedRule.Module, advancedRule.SourceType, advancedRule.SourceID, advancedRule.TargetType, advancedRule.TargetID, advancedRule.AccessLevel)
 			if err != nil {
 				return nil, err
@@ -955,6 +969,24 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 		return nil, err
 	}
 	return r.GetSharingRules(ctx, orgID)
+}
+
+func existingSharingRuleIDs(ctx context.Context, tx pgx.Tx, orgID uuid.UUID) (map[uuid.UUID]struct{}, error) {
+	rows, err := tx.Query(ctx, `SELECT id FROM crm_sharing_rules WHERE org_id = $1`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := map[uuid.UUID]struct{}{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = struct{}{}
+	}
+	return ids, rows.Err()
 }
 
 type sharingRowQuerier interface {

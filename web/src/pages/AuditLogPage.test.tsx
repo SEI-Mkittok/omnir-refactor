@@ -44,4 +44,19 @@ describe('AuditLogPage', () => {
     expect(input).toHaveValue('Ada')
     await waitFor(() => expect(seenQueries).toContain('Ada'))
   })
+
+  it('allows filtering for sharing rule audit entries', async () => {
+    server.use(
+      http.get('/api/v1/admin/audit-log', () =>
+        HttpResponse.json({
+          data: [auditEntry],
+          meta: { page: 1, per_page: 50, total: 1, total_pages: 1 },
+        })
+      )
+    )
+
+    render(<AuditLogPage />, { initialRoute: '/admin/audit' })
+
+    expect(await screen.findByRole('option', { name: 'Sharing Rule' })).toHaveValue('sharing_rule')
+  })
 })

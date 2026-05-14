@@ -67,7 +67,7 @@ func (r *AuditLogRepo) GetByID(ctx context.Context, orgID, id uuid.UUID) (*domai
 	e, err := scanAuditLog(r.db.QueryRow(ctx, `
 		SELECT `+auditLogSelect+`
 		FROM audit_log a
-		LEFT JOIN users u ON u.id = a.user_id AND u.org_id = a.org_id
+		LEFT JOIN users u ON u.id = a.user_id AND u.org_id = a.org_id AND u.deleted_at IS NULL
 		WHERE a.id = $1 AND a.org_id = $2
 	`, id, orgID))
 	if err != nil {
@@ -136,7 +136,7 @@ func (r *AuditLogRepo) List(ctx context.Context, filter domain.AuditLogFilter) (
 	if err := r.db.QueryRow(ctx, `
 		SELECT COUNT(*)
 		FROM audit_log a
-		LEFT JOIN users u ON u.id = a.user_id AND u.org_id = a.org_id
+		LEFT JOIN users u ON u.id = a.user_id AND u.org_id = a.org_id AND u.deleted_at IS NULL
 		WHERE `+clause, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -152,7 +152,7 @@ func (r *AuditLogRepo) List(ctx context.Context, filter domain.AuditLogFilter) (
 	query := fmt.Sprintf(`
 		SELECT %s
 		FROM audit_log a
-		LEFT JOIN users u ON u.id = a.user_id AND u.org_id = a.org_id
+		LEFT JOIN users u ON u.id = a.user_id AND u.org_id = a.org_id AND u.deleted_at IS NULL
 		WHERE %s
 		ORDER BY a.created_at DESC
 		LIMIT $%d OFFSET $%d`, auditLogSelect, clause, idx, idx+1)
