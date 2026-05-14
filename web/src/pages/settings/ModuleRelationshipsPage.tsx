@@ -40,6 +40,14 @@ function relationshipDraftKey(relationship: ModuleRelationshipDefinition): strin
   return persistedRelationshipID(relationship) ?? relationship.relationship_key
 }
 
+function locksNativeEnabledState(relationship: ModuleRelationshipDefinition): boolean {
+  return relationship.system_locked && relationship.storage_strategy === 'native'
+}
+
+function relationshipForUI(relationship: ModuleRelationshipDefinition): ModuleRelationshipDefinition {
+  return locksNativeEnabledState(relationship) ? { ...relationship, is_enabled: true } : relationship
+}
+
 export function ModuleRelationshipsPage() {
   const [entityType, setEntityType] = useState<CustomFieldEntityType>('account')
   const { data: relationships = [], isLoading } = useModuleRelationships(entityType)
@@ -54,18 +62,21 @@ export function ModuleRelationshipsPage() {
     [entityType]
   )
 
-  const rows = relationships.map((relationship) => drafts[relationshipDraftKey(relationship)] ?? relationship)
+  const rows = relationships.map((relationship) => relationshipForUI(drafts[relationshipDraftKey(relationship)] ?? relationship))
   const systemCount = rows.filter((row) => row.system_locked).length
   const customCount = rows.length - systemCount
 
   const setDraft = (relationship: ModuleRelationshipDefinition, patch: Partial<ModuleRelationshipDefinition>) => {
     const key = relationshipDraftKey(relationship)
-    setDrafts((current) => ({ ...current, [key]: { ...relationship, ...current[key], ...patch } }))
+    setDrafts((current) => ({
+      ...current,
+      [key]: relationshipForUI({ ...relationship, ...current[key], ...patch }),
+    }))
   }
 
   const saveDraft = async (relationship: ModuleRelationshipDefinition) => {
     try {
-      const saved = await saveRelationship.mutateAsync(relationship)
+      const saved = await saveRelationship.mutateAsync(relationshipForUI(relationship))
       setDrafts((current) => {
         const next = { ...current }
         delete next[relationshipDraftKey(relationship)]
@@ -144,7 +155,7 @@ export function ModuleRelationshipsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Waypoints className="h-4 w-4" /> {selectedEntity.label} Relationships</CardTitle>
-            <CardDescription>System rows are locked to existing storage. Custom rows use generic CRM entity links.</CardDescription>
+            <CardDescription>System rows are locked to existing storage. Native system links stay enabled until their legacy flows enforce this flag.</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -184,10 +195,17 @@ export function ModuleRelationshipsPage() {
                             <input
                               type="checkbox"
                               checked={relationship.is_enabled}
+                              disabled={locksNativeEnabledState(relationship)}
+                              aria-label={`${relationship.relationship_key} enabled`}
                               onChange={(e) => setDraft(relationship, { is_enabled: e.target.checked })}
                             />
                             Enabled
                           </label>
+                          {locksNativeEnabledState(relationship) && (
+                            <span className="text-xs font-medium text-amber-700">
+                              Locked on until native relationship flows enforce this setting.
+                            </span>
+                          )}
                           <label className="flex items-center gap-2 text-sm text-slate-600">
                             Order
                             <input

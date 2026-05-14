@@ -52,9 +52,49 @@ describe('ModuleRelationshipsPage', () => {
     expect(await screen.findByDisplayValue('Deal account')).toBeInTheDocument()
     expect(screen.getAllByText('System').length).toBeGreaterThan(0)
     expect(screen.getByDisplayValue('Implementation partner')).toBeInTheDocument()
+    expect(screen.getByLabelText('deal_account enabled')).toBeDisabled()
+    expect(screen.getByLabelText('custom_account_contact enabled')).not.toBeDisabled()
 
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
     await waitFor(() => expect(deletedId).toBe('rel-custom'))
+  })
+
+  it('keeps native system relationships enabled while their native flows ignore the flag', async () => {
+    const savedRequests: Record<string, unknown>[] = []
+    server.use(
+      http.get('/api/v1/settings/module-relationships', () => HttpResponse.json([
+        {
+          id: 'rel-native',
+          relationship_key: 'account_contacts',
+          from_entity_type: 'account',
+          to_entity_type: 'contact',
+          label: 'Account contacts',
+          cardinality: 'one_to_many',
+          storage_strategy: 'native',
+          is_enabled: false,
+          system_locked: true,
+          order_idx: 10,
+          metadata: {},
+        },
+      ])),
+      http.put('/api/v1/settings/module-relationships', async ({ request }) => {
+        const saved = await request.json() as Record<string, unknown>
+        savedRequests.push(saved)
+        return HttpResponse.json(saved)
+      })
+    )
+
+    render(<ModuleRelationshipsPage />)
+
+    const enabledToggle = await screen.findByLabelText('account_contacts enabled')
+    expect(enabledToggle).toBeDisabled()
+    expect(enabledToggle).toBeChecked()
+    expect(screen.getByText(/locked on until native relationship flows enforce/i)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }))
+
+    await waitFor(() => expect(savedRequests[0]?.relationship_key).toBe('account_contacts'))
+    expect(savedRequests[0]?.is_enabled).toBe(true)
   })
 
   it('keeps unsaved system defaults keyed by relationship key instead of zero UUID', async () => {
