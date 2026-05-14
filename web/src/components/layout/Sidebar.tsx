@@ -262,6 +262,7 @@ export function Sidebar({ mobileOpen, open, onClose, onMobileClose }: SidebarPro
               )}
             </div>
           )}
+          <NavItem to="/product-help" icon={BookOpen} label="Help" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
           <button
             onClick={async () => { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {}); useAuthStore.getState().logout(); navigate('/login') }}

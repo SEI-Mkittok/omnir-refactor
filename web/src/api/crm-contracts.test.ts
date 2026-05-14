@@ -17,6 +17,7 @@ import { moduleConfigurationApi } from './moduleConfiguration'
 import { numberingApi } from './numbering'
 import { picklistsApi } from './picklists'
 import { preferencesApi } from './preferences'
+import { productHelpApi } from './productHelp'
 import { slaApi } from './sla'
 import { usersApi } from './users'
 import { server } from '@/test/mocks/server'
@@ -348,6 +349,46 @@ describe('CRM API contract mapping', () => {
     ])
     await expect(kbApi.suggestArticles('reset')).resolves.toEqual([
       { id: 'kb-1', title: 'Reset password', slug: 'reset-password' },
+    ])
+  })
+
+  it('keeps product help on separate public and admin endpoints', async () => {
+    const seen: string[] = []
+    server.use(
+      http.get('/api/product-help/categories', () => {
+        seen.push('GET /api/product-help/categories')
+        return HttpResponse.json([{ id: 'cat-1', name: 'Getting Started', slug: 'getting-started', sort_order: 10 }])
+      }),
+      http.get('/api/product-help/articles', () => {
+        seen.push('GET /api/product-help/articles')
+        return HttpResponse.json([{ id: 'art-1', title: 'Welcome', slug: 'welcome', tags: [] }])
+      }),
+      http.get('/api/product-help/articles/welcome', () => {
+        seen.push('GET /api/product-help/articles/welcome')
+        return HttpResponse.json({ id: 'art-1', title: 'Welcome', slug: 'welcome', body: '# Welcome', tags: [] })
+      }),
+      http.get('/api/v1/product-help/sync', () => {
+        seen.push('GET /api/v1/product-help/sync')
+        return HttpResponse.json({ latest: null })
+      }),
+      http.post('/api/v1/product-help/sync', () => {
+        seen.push('POST /api/v1/product-help/sync')
+        return HttpResponse.json({ latest: { id: 'sync-1', status: 'succeeded', categories_count: 1, articles_count: 1, started_at: '2026-05-14T00:00:00Z' } })
+      })
+    )
+
+    await productHelpApi.listCategories()
+    await productHelpApi.listArticles()
+    await productHelpApi.getArticle('welcome')
+    await productHelpApi.getSyncStatus()
+    await productHelpApi.syncNow()
+
+    expect(seen).toEqual([
+      'GET /api/product-help/categories',
+      'GET /api/product-help/articles',
+      'GET /api/product-help/articles/welcome',
+      'GET /api/v1/product-help/sync',
+      'POST /api/v1/product-help/sync',
     ])
   })
 

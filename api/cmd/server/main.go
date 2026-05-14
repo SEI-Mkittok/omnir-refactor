@@ -23,6 +23,7 @@ import (
 	enrichmentpkg "github.com/omnir/crm-api/internal/enrichment"
 	"github.com/omnir/crm-api/internal/handler"
 	"github.com/omnir/crm-api/internal/middleware"
+	producthelppkg "github.com/omnir/crm-api/internal/producthelp"
 	"github.com/omnir/crm-api/internal/repository/postgres"
 	"github.com/omnir/crm-api/internal/storage"
 	"github.com/omnir/crm-api/internal/worker"
@@ -102,6 +103,7 @@ func main() {
 	enrichmentCacheRepo := postgres.NewEnrichmentCacheRepo(db)
 	kbArticleRepo := postgres.NewKBArticleRepo(db)
 	kbCategoryRepo := postgres.NewKBCategoryRepo(db)
+	productHelpRepo := postgres.NewProductHelpRepo(db)
 	teamsConnectionRepo := postgres.NewTeamsConnectionRepo(db)
 	billingRepo := postgres.NewBillingRepo(db)
 	dashboardRepo := postgres.NewDashboardRepo(db)
@@ -277,6 +279,16 @@ func main() {
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
 	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo).WithOrgs(orgRepo)
+	productHelpSyncer := producthelppkg.NewService(productHelpRepo, producthelppkg.Config{
+		RawBaseURL:   cfg.ProductHelpWiki.RawBaseURL,
+		WikiBaseURL:  cfg.ProductHelpWiki.WikiBaseURL,
+		ManifestPath: cfg.ProductHelpWiki.ManifestPath,
+	})
+	if cfg.ProductHelpWiki.Enabled {
+		productHelpSyncer.Start(workerCtx, cfg.ProductHelpWiki.SyncInterval, logger)
+		logger.Info("product help wiki sync enabled", "interval", cfg.ProductHelpWiki.SyncInterval.String())
+	}
+	productHelpHandler := handler.NewProductHelpHandler(productHelpRepo, productHelpSyncer)
 	billingHandler := handler.NewBillingHandler(billingRepo, cfg.Stripe, appURL)
 	emailTemplateHandler := handler.NewEmailTemplateHandler(emailTemplateRepo)
 	opsFinanceHandler := handler.NewOperationsFinanceHandler(opsFinanceRepo)
@@ -334,6 +346,7 @@ func main() {
 	r.With(publicRateLimit).Mount("/api/portal", dealPortalLinksHandler.PublicRouter())
 	r.Mount("/api/portal/help", kbHandler.PublicRouter())
 	r.Mount("/api/public", kbHandler.PublicCompatibilityRouter())
+	r.With(publicRateLimit).Mount("/api/product-help", productHelpHandler.PublicRouter())
 	// Public sequence tracking — HMAC-signed tokens, no JWT required.
 	r.Mount("/track", sequenceTrackingHandler.TrackRouter())
 	r.Mount("/unsubscribe", sequenceTrackingHandler.UnsubscribeRouter())
@@ -376,6 +389,7 @@ func main() {
 		r.Mount("/notifications", notificationHandler.Router())
 		r.Mount("/tickets", ticketHandler.Router())
 		r.Mount("/portal", portalHandler.Router())
+		r.Mount("/product-help", productHelpHandler.AdminRouter())
 		r.Mount("/sla-policies", slaPolicyHandler.Router())
 		r.Mount("/sla-instances", slaInstanceHandler.Router())
 		r.Mount("/sla-dashboard", slaInstanceHandler.DashboardRouter())

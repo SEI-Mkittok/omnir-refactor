@@ -23,6 +23,16 @@ All environment variables used by the Omnir CRM stack.
 | `S3_ACCESS_KEY` | no | `omnir` | S3 access key |
 | `S3_SECRET_KEY` | no | `minioadmin-staging` | S3 secret key |
 
+## Product Help Wiki
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PRODUCT_HELP_WIKI_ENABLED` | no | `false` | Enables periodic background sync for global Omnir product help. Manual sync remains available from Settings > Product Help. |
+| `PRODUCT_HELP_WIKI_RAW_BASE_URL` | no | `https://raw.githubusercontent.com/wiki/SEI-Mkittok/omnir-refactor` | Raw GitHub Wiki base URL used to fetch the manifest and Markdown pages. |
+| `PRODUCT_HELP_WIKI_BASE_URL` | no | `https://github.com/SEI-Mkittok/omnir-refactor/wiki` | Human GitHub Wiki base URL used for article view/edit links. |
+| `PRODUCT_HELP_WIKI_MANIFEST_PATH` | no | `omnir-product-help-manifest.json` | Manifest filename in the GitHub Wiki. |
+| `PRODUCT_HELP_WIKI_SYNC_INTERVAL` | no | `1h` | Background sync interval when product-help wiki sync is enabled. |
+
 ## Container Images
 
 | Variable | Required | Default | Description |

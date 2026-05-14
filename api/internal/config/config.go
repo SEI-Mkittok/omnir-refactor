@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 // StorageBackend selects the file storage implementation.
@@ -71,6 +72,15 @@ type StripeConfig struct {
 	EnterprisePriceID string
 }
 
+// ProductHelpWikiConfig holds GitHub Wiki sync settings for global Omnir product help.
+type ProductHelpWikiConfig struct {
+	Enabled      bool
+	RawBaseURL   string
+	WikiBaseURL  string
+	ManifestPath string
+	SyncInterval time.Duration
+}
+
 // Config holds all runtime configuration loaded from environment variables.
 type Config struct {
 	Env                          string
@@ -92,6 +102,7 @@ type Config struct {
 	SSOAPICallbackURL            string
 	ClearbitAPIKey               string
 	Stripe                       StripeConfig
+	ProductHelpWiki              ProductHelpWikiConfig
 	VAPIDPublicKey               string
 	VAPIDPrivateKey              string
 }
@@ -166,6 +177,13 @@ func Load() *Config {
 			ProPriceID:        getEnv("STRIPE_PRO_PRICE_ID", ""),
 			EnterprisePriceID: getEnv("STRIPE_ENTERPRISE_PRICE_ID", ""),
 		},
+		ProductHelpWiki: ProductHelpWikiConfig{
+			Enabled:      getEnv("PRODUCT_HELP_WIKI_ENABLED", "false") == "true",
+			RawBaseURL:   getEnv("PRODUCT_HELP_WIKI_RAW_BASE_URL", "https://raw.githubusercontent.com/wiki/SEI-Mkittok/omnir-refactor"),
+			WikiBaseURL:  getEnv("PRODUCT_HELP_WIKI_BASE_URL", "https://github.com/SEI-Mkittok/omnir-refactor/wiki"),
+			ManifestPath: getEnv("PRODUCT_HELP_WIKI_MANIFEST_PATH", "omnir-product-help-manifest.json"),
+			SyncInterval: parseDuration(getEnv("PRODUCT_HELP_WIKI_SYNC_INTERVAL", "1h"), time.Hour),
+		},
 		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
 		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
 	}
@@ -215,4 +233,12 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
+}
+
+func parseDuration(value string, fallback time.Duration) time.Duration {
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return fallback
+	}
+	return d
 }

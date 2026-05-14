@@ -1606,6 +1606,59 @@ export interface KbPublicArticle extends KbArticle {
   category?: KbCategory
 }
 
+// ---- Omnir Product Help (global, GitHub Wiki-backed) ----
+
+export type ProductHelpArticleStatus = 'draft' | 'published'
+export type ProductHelpSyncStatus = 'succeeded' | 'failed'
+
+export interface ProductHelpCategory {
+  id: string
+  name: string
+  slug: string
+  sort_order: number
+  article_count?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductHelpArticleSummary {
+  id: string
+  category_id?: string | null
+  category_slug?: string
+  category_name?: string
+  title: string
+  slug: string
+  excerpt?: string
+  tags: string[]
+  status: ProductHelpArticleStatus
+  source_path: string
+  wiki_url: string
+  edit_url: string
+  sort_order: number
+  view_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductHelpArticle extends ProductHelpArticleSummary {
+  body: string
+}
+
+export interface ProductHelpSyncRun {
+  id: string
+  status: ProductHelpSyncStatus
+  message?: string
+  categories_count: number
+  articles_count: number
+  started_at: string
+  finished_at?: string
+}
+
+export interface ProductHelpSyncStatusResponse {
+  latest: ProductHelpSyncRun | null
+  error?: string
+}
+
 // ---- Email Inbox (OMN-529) ----
 
 export type EmailAccountProvider = 'gmail' | 'outlook'

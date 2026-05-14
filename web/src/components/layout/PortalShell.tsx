@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Outlet, Navigate, Link, useNavigate } from 'react-router-dom'
-import { LifeBuoy, LogOut } from 'lucide-react'
+import { BookOpen, LifeBuoy, LogOut } from 'lucide-react'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { getOnboardingState } from '@/api/onboarding'
@@ -51,6 +51,13 @@ export function PortalShell() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/product-help"
+              className="hidden items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 sm:inline-flex"
+            >
+              <BookOpen className="h-4 w-4" />
+              Help
+            </Link>
             <span className="hidden text-sm text-slate-500 sm:block">{user.name || user.email}</span>
             <button
               type="button"
