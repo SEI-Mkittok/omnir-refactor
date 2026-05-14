@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-20T23:15:00Z
 **QA Engineer:** Skadi
-**Previous Report:** `qa/OMN-411-quotes-qa.md`
+**Previous Report:** `docs/qa/OMN-411-quotes-qa.md`
 **Status:** ⚠️ **1 remaining bug, otherwise ready for testing**
 
 ## Bug Fix Summary
@@ -250,5 +250,5 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 
 **QA Engineer:** Skadi
 **Updated:** 2026-03-20T23:15:00Z
-**Previous Report:** [qa/OMN-411-quotes-qa.md](qa/OMN-411-quotes-qa.md)
+**Previous Report:** [docs/qa/OMN-411-quotes-qa.md](OMN-411-quotes-qa.md)
 **Issue:** [OMN-411](/OMN/issues/OMN-411)

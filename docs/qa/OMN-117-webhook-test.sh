@@ -1,6 +1,6 @@
 #!/bin/bash
 # QA Test Script for OMN-117: Inbound Email Webhook
-# Usage: ./qa/OMN-117-webhook-test.sh [base_url]
+# Usage: ./docs/qa/OMN-117-webhook-test.sh [base_url]
 #
 # Prerequisites:
 # - API server running (make up-d)

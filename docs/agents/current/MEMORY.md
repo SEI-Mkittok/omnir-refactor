@@ -7,7 +7,7 @@ _Last updated: 2026-03-17_
 - **Branch:** `develop` (active), `main` (legacy vtiger)
 - Goal: Replace vtiger CE with modern Go + React CRM
 - Stack: Go 1.22, Chi, pgx/v5, goose, PostgreSQL 16 / React 18, TypeScript, Vite, shadcn/ui, TanStack Query+Router, Zustand
-- Docs: `docs/`, `plans/`, `omnir-go-backend/ARCHITECTURE.md`, `docs/frontend-architecture.md`
+- Docs: `docs/`, `docs/plans/`, `api/ARCHITECTURE.md`, `docs/frontend-architecture.md`
 
 ## Data Model (current)
 8 migrations, all committed:
@@ -36,7 +36,7 @@ My agent ID: `8fd0b89e-218e-48eb-a5b6-6347fc2ae85b`
 Goal ID: `5c93e45b-32b8-44a3-a09a-0e11814abd3d`
 Project ID: `224df1f1-39f9-4f1c-b08c-e963fb819349`
 
-Individual agent API keys stored at `agents/<name>/paperclip-api-key.json`
+Individual agent API keys stored at `docs/agents/roster/<name>/paperclip-api-key.json`
 Paperclip comment API uses `body` field (not `content`)
 
 ## Agent Roster (Paperclip)
@@ -95,9 +95,9 @@ Paperclip comment API uses `body` field (not `content`)
 - `paperclip-monitor` (id: 550c4373): every 30min, checks Paperclip health, restarts if down
 
 ## PARA Memory
-CEO agent PARA structure: `~/.openclaw/workspace/agents/ceo/life/`
-Plans: `~/.openclaw/workspace/plans/`
-Roadmap: `plans/2026-03-17-omnir-crm-roadmap.md`
+CEO agent PARA structure: `docs/agents/roster/ceo/life/`
+Plans: `docs/plans/`
+Roadmap: `docs/plans/2026-03-17-omnir-crm-roadmap.md`
 
 ## About Matthias
 - Co-founder, Omnir CRM

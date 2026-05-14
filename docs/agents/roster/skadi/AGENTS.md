@@ -25,7 +25,7 @@ ssh -i ~/.ssh/omnir_deploy omnirdev@100.73.134.90
 - One QA task at a time
 
 ## Credentials
-- API key: `cat /home/omnirdev/.openclaw/workspace/agents/skadi/paperclip-api-key.json` → `token`
+- API key: `cat /home/omnirdev/.openclaw/workspace/docs/agents/roster/skadi/paperclip-api-key.json` → `token`
 - Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 - API: `http://127.0.0.1:3100`
 - Staging: http://100.73.134.90

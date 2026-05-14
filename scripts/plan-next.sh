@@ -7,7 +7,7 @@
 set -e
 
 WORKSPACE="/home/omnirdev/.openclaw/workspace"
-SPEC="$WORKSPACE/plans/praestos-rewrite-plan.md"
+SPEC="$WORKSPACE/docs/plans/praestos-rewrite-plan.md"
 API_KEY="pcp_8053e847af2c9ac2175b9537296381221a50949befe2a310"
 COMPANY_ID="3adbd3b9-1581-461b-a070-8ae4576d56cf"
 
@@ -44,7 +44,7 @@ echo ""
 python3 << 'PYEOF'
 import re
 
-spec = open("/home/omnirdev/.openclaw/workspace/plans/praestos-rewrite-plan.md").read()
+spec = open("/home/omnirdev/.openclaw/workspace/docs/plans/praestos-rewrite-plan.md").read()
 
 # Find Phase 2 section
 phase2_match = re.search(r'## Phase 2.*?(?=## Phase 3|\Z)', spec, re.DOTALL)

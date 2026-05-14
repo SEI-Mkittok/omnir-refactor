@@ -31,7 +31,7 @@ Ship a fast, maintainable, self-hostable CRM v1 that solves the core CRM workflo
 - Backend: `omnir-go-backend/`
 - Frontend: `omnir-frontend/`
 - Docs: `docs/`
-- Plans: `plans/`
+- Plans: `docs/plans/`
 
 ## Key Docs
 - `docs/data-model-map.md` — Entity map and gap analysis

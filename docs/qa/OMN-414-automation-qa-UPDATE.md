@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-20T23:30:00Z
 **QA Engineer:** Skadi
-**Previous Report:** `qa/OMN-414-automation-qa.md`
+**Previous Report:** `docs/qa/OMN-414-automation-qa.md`
 **Status:** ✅ **APPROVED - Both critical issues resolved**
 
 ---

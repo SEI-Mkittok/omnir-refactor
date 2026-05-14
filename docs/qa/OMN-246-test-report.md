@@ -303,7 +303,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_email_message_id
 
 A comprehensive test script has been created at:
 ```
-qa/OMN-117-webhook-test.sh
+docs/qa/OMN-117-webhook-test.sh
 ```
 
 **Usage**:
@@ -312,7 +312,7 @@ qa/OMN-117-webhook-test.sh
 make up-d
 
 # Run the test script
-./qa/OMN-117-webhook-test.sh http://localhost:8080
+./docs/qa/OMN-117-webhook-test.sh http://localhost:8080
 ```
 
 **Test Cases**:
@@ -399,7 +399,7 @@ The core feature (email → ticket) **works correctly** and is production-ready 
 ---
 
 **Test Artifacts**:
-- Test script: `qa/OMN-117-webhook-test.sh`
-- Test report: `OMN-246-test-report.md`
+- Test script: `docs/qa/OMN-117-webhook-test.sh`
+- Test report: `docs/qa/OMN-246-test-report.md`
 - Branch: `feature/OMN-117-inbound-email-webhook`
 - Commit: `0aa9cd0`

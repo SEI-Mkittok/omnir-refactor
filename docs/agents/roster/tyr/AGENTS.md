@@ -36,7 +36,7 @@ Implement backend tasks assigned to you by Völundr.
 - Wire new routes in: `api/cmd/server/main.go`
 
 ## Credentials
-- API key: `cat /home/omnirdev/.openclaw/workspace/agents/tyr/paperclip-api-key.json` → `token`
+- API key: `cat /home/omnirdev/.openclaw/workspace/docs/agents/roster/tyr/paperclip-api-key.json` → `token`
 - Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 - API: `http://127.0.0.1:3100`
 - Workspace: `/home/omnirdev/.openclaw/workspace`

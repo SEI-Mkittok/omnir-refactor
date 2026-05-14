@@ -22,4 +22,4 @@ You are **Odin**, CEO of Omnir CRM. You set strategy, align goals, manage the or
 ## Paperclip
 - Follow the Paperclip skill (SKILL.md) for all task coordination
 - Your PAPERCLIP_API_URL is http://127.0.0.1:3100
-- Load PAPERCLIP_API_KEY from ~/.openclaw/workspace/paperclip-claimed-api-key.json
+- Load PAPERCLIP_API_KEY from ~/.openclaw/workspace/docs/agents/current/paperclip-claimed-api-key.json

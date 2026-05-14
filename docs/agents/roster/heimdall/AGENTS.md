@@ -38,6 +38,6 @@ On every startup, immediately:
 3. OMN-84 is NEVER done. It is always in_progress.
 
 ## Credentials
-- API key: `cat /home/omnirdev/.openclaw/workspace/agents/heimdall/paperclip-api-key.json` → `token`
+- API key: `cat /home/omnirdev/.openclaw/workspace/docs/agents/roster/heimdall/paperclip-api-key.json` → `token`
 - Company ID: `3adbd3b9-1581-461b-a070-8ae4576d56cf`
 - API: `http://127.0.0.1:3100`

@@ -99,7 +99,7 @@ omnir-refactor/
 ├── web/                  # React + TypeScript + Vite frontend
 ├── infra/                # Docker Compose + Dockerfiles
 ├── scripts/              # Utility scripts and DB init
-├── docs/                 # Architecture and operations docs
+├── docs/                 # Architecture, planning, QA, agent notes, and workspace docs
 ├── .github/workflows/    # CI/CD workflows
 └── Makefile              # Local development shortcuts
 ```

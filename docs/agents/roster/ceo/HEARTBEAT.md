@@ -37,8 +37,8 @@ If `PAPERCLIP_APPROVAL_ID` is set:
 
 ## 6. Delegation (CRITICAL — read carefully)
 
-- **Only plan from `plans/praestos-rewrite-plan.md`** — no other roadmap exists.
-- The old file `plans/2026-03-17-omnir-crm-roadmap.md` has been deleted. Do not reference it.
+- **Only plan from `docs/plans/praestos-rewrite-plan.md`** — no other roadmap exists.
+- The old file `docs/plans/2026-03-17-omnir-crm-roadmap.md` has been deleted. Do not reference it.
 - Create new issues assigned to **Völundr (CTO) only** for review before engineer assignment.
 - Do NOT assign directly to Tyr, Freya, Heimdall, or Skadi.
 
