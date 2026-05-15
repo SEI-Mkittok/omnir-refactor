@@ -26,6 +26,78 @@ func NewPicklistRepo(db *pgxpool.Pool) *PicklistRepo {
 const picklistCols = `id, org_id, custom_field_id, value, display_label, order_idx, is_active, created_at, updated_at`
 const picklistDepCols = `id, org_id, entity_type, source_field_id, target_field_id, mapping, is_active, created_at, updated_at`
 
+type picklistEntityStorage struct {
+	table        string
+	hasDeletedAt bool
+}
+
+func picklistStorageFor(entityType domain.CustomFieldEntityType) (picklistEntityStorage, bool) {
+	switch entityType {
+	case domain.CustomFieldEntityContact:
+		return picklistEntityStorage{table: "contacts", hasDeletedAt: true}, true
+	case domain.CustomFieldEntityAccount:
+		return picklistEntityStorage{table: "accounts", hasDeletedAt: true}, true
+	case domain.CustomFieldEntityLead:
+		return picklistEntityStorage{table: "leads", hasDeletedAt: true}, true
+	case domain.CustomFieldEntityDeal:
+		return picklistEntityStorage{table: "deals", hasDeletedAt: true}, true
+	case domain.CustomFieldEntityTicket:
+		return picklistEntityStorage{table: "tickets", hasDeletedAt: true}, true
+	case domain.CustomFieldEntityQuote:
+		return picklistEntityStorage{table: "quotes"}, true
+	case domain.CustomFieldEntityKBArticle:
+		return picklistEntityStorage{table: "articles", hasDeletedAt: true}, true
+	default:
+		return picklistEntityStorage{}, false
+	}
+}
+
+func softDeleteClause(storage picklistEntityStorage) string {
+	if !storage.hasDeletedAt {
+		return ""
+	}
+	return `
+		  AND deleted_at IS NULL`
+}
+
+func picklistUsageCountSQL(storage picklistEntityStorage) string {
+	return fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM %s
+		WHERE org_id = $1%s
+		  AND (
+			custom_fields ->> $2 = $3
+			OR (
+				jsonb_typeof(custom_fields -> $2) = 'array'
+				AND EXISTS (
+					SELECT 1
+					FROM jsonb_array_elements_text(custom_fields -> $2) AS elem
+					WHERE elem = $3
+			)
+			)
+		  )
+	`, storage.table, softDeleteClause(storage))
+}
+
+func picklistRemapSelectSQL(storage picklistEntityStorage) string {
+	return fmt.Sprintf(`
+		SELECT id, custom_fields
+		FROM %s
+		WHERE org_id = $1%s
+		  AND (
+			custom_fields ->> $2 = $3
+			OR (
+				jsonb_typeof(custom_fields -> $2) = 'array'
+				AND EXISTS (
+					SELECT 1
+					FROM jsonb_array_elements_text(custom_fields -> $2) AS elem
+					WHERE elem = $3
+			)
+			)
+		  )
+	`, storage.table, softDeleteClause(storage))
+}
+
 func scanPicklistValue(row pgx.Row) (*domain.PicklistValue, error) {
 	var p domain.PicklistValue
 	err := row.Scan(
@@ -293,44 +365,13 @@ func (r *PicklistRepo) UpsertValues(ctx context.Context, orgID, customFieldID uu
 }
 
 func (r *PicklistRepo) usageCount(ctx context.Context, tx pgx.Tx, entityType domain.CustomFieldEntityType, orgID uuid.UUID, fieldName, value string) (int, error) {
-	table := ""
-	switch entityType {
-	case domain.CustomFieldEntityContact:
-		table = "contacts"
-	case domain.CustomFieldEntityAccount:
-		table = "accounts"
-	case domain.CustomFieldEntityLead:
-		table = "leads"
-	case domain.CustomFieldEntityDeal:
-		table = "deals"
-	case domain.CustomFieldEntityTicket:
-		table = "tickets"
-	case domain.CustomFieldEntityQuote:
-		table = "quotes"
-	case domain.CustomFieldEntityKBArticle:
-		table = "articles"
-	default:
+	storage, ok := picklistStorageFor(entityType)
+	if !ok {
 		return 0, nil
 	}
 
 	var count int
-	q := fmt.Sprintf(`
-		SELECT COUNT(*)
-		FROM %s
-		WHERE org_id = $1
-		  AND deleted_at IS NULL
-		  AND (
-			custom_fields ->> $2 = $3
-			OR (
-				jsonb_typeof(custom_fields -> $2) = 'array'
-				AND EXISTS (
-					SELECT 1
-					FROM jsonb_array_elements_text(custom_fields -> $2) AS elem
-					WHERE elem = $3
-			)
-			)
-		  )
-	`, table)
+	q := picklistUsageCountSQL(storage)
 	if err := tx.QueryRow(ctx, q, orgID, fieldName, value).Scan(&count); err != nil {
 		return 0, err
 	}
@@ -394,24 +435,8 @@ func replaceValueInJSON(raw json.RawMessage, fieldName, fromValue string, toValu
 	return updated
 }
 
-func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, table string, orgID uuid.UUID, fieldName, fromValue string, toValue *string) error {
-	selectSQL := fmt.Sprintf(`
-		SELECT id, custom_fields
-		FROM %s
-		WHERE org_id = $1
-		  AND deleted_at IS NULL
-		  AND (
-			custom_fields ->> $2 = $3
-			OR (
-				jsonb_typeof(custom_fields -> $2) = 'array'
-				AND EXISTS (
-					SELECT 1
-					FROM jsonb_array_elements_text(custom_fields -> $2) AS elem
-					WHERE elem = $3
-			)
-			)
-		  )
-	`, table)
+func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, storage picklistEntityStorage, orgID uuid.UUID, fieldName, fromValue string, toValue *string) error {
+	selectSQL := picklistRemapSelectSQL(storage)
 	rows, err := tx.Query(ctx, selectSQL, orgID, fieldName, fromValue)
 	if err != nil {
 		return err
@@ -434,7 +459,7 @@ func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, table stri
 		return err
 	}
 
-	updateSQL := fmt.Sprintf(`UPDATE %s SET custom_fields = $2::jsonb, updated_at = NOW() WHERE id = $1 AND org_id = $3`, table)
+	updateSQL := fmt.Sprintf(`UPDATE %s SET custom_fields = $2::jsonb, updated_at = NOW() WHERE id = $1 AND org_id = $3`, storage.table)
 	for _, it := range items {
 		next := replaceValueInJSON(it.JSON, fieldName, fromValue, toValue)
 		_, err := tx.Exec(ctx, updateSQL, it.ID, string(next), orgID)
@@ -476,17 +501,9 @@ func (r *PicklistRepo) RemapAndDeleteValue(ctx context.Context, orgID, customFie
 		return fmt.Errorf("%w: value is currently in use and must be remapped before delete", domain.ErrValidation)
 	}
 
-	table := map[domain.CustomFieldEntityType]string{
-		domain.CustomFieldEntityContact:   "contacts",
-		domain.CustomFieldEntityAccount:   "accounts",
-		domain.CustomFieldEntityLead:      "leads",
-		domain.CustomFieldEntityDeal:      "deals",
-		domain.CustomFieldEntityTicket:    "tickets",
-		domain.CustomFieldEntityQuote:     "quotes",
-		domain.CustomFieldEntityKBArticle: "articles",
-	}[def.EntityType]
-	if table != "" {
-		if err := r.remapTableRows(ctx, tx, table, orgID, def.Name, fromValue, toValue); err != nil {
+	storage, ok := picklistStorageFor(def.EntityType)
+	if ok {
+		if err := r.remapTableRows(ctx, tx, storage, orgID, def.Name, fromValue, toValue); err != nil {
 			return err
 		}
 	}
