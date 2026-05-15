@@ -1,4 +1,8 @@
-$headers = @{"Authorization" = "Bearer REDACTED_PAPERCLIP_API_KEY"; "Content-Type" = "application/json"}
+if (-not $env:PAPERCLIP_API_KEY) {
+    throw "PAPERCLIP_API_KEY must be set in the local environment."
+}
+
+$headers = @{"Authorization" = "Bearer $env:PAPERCLIP_API_KEY"; "Content-Type" = "application/json"}
 $baseUrl = "http://100.109.245.95:3100/api/issues"
 
 function Update-Issue($id, $assignee, $spec) {

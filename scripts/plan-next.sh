@@ -8,7 +8,7 @@ set -e
 
 WORKSPACE="/home/omnirdev/.openclaw/workspace"
 SPEC="$WORKSPACE/docs/plans/praestos-rewrite-plan.md"
-API_KEY="REDACTED_PAPERCLIP_API_KEY"
+API_KEY="${PAPERCLIP_API_KEY:?PAPERCLIP_API_KEY must be set}"
 COMPANY_ID="3adbd3b9-1581-461b-a070-8ae4576d56cf"
 
 echo "=== PraestOS Planning Session ==="

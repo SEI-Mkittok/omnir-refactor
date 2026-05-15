@@ -48,9 +48,15 @@ docs/workspace/local-trash/
 AGENTS.md
 AGENTS.local.md
 AGENTS.override.md
+MEMORY.md
+paperclip-claimed-api-key.json
+agents/
 docs/agents/
 docs/memory/
 docs/workspace/
+**/paperclip-api-key.json
+**/paperclip-claimed-api-key.json
+scripts/claude-wrapper.local.sh
 
 # Locally generated source dumps
 docs/original-crm-feature-issues.md
