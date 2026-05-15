@@ -6,6 +6,18 @@ api/.env
 web/.env.local
 docs/screenshots_original_UIUX/
 
+# Local Cloudflare Access credentials
+.cloudflared/
+praesto-dev2-access.ps1
+
+# Local SSH key material
+.ssh/
+*.pem
+*.ppk
+id_*
+praesto-dev2
+praesto-dev2.pub
+
 # Go
 api/tmp/
 api/*.out
@@ -30,8 +42,15 @@ docs/agents/roster/heimdall/.github-token
 docs/workspace/local-trash/
 
 # Local agent/Codex workspace artifacts
+.codex/
 .codex_tmp/
 .openclaw/
+AGENTS.md
+AGENTS.local.md
+AGENTS.override.md
+docs/agents/
+docs/memory/
+docs/workspace/
 
 # Locally generated source dumps
 docs/original-crm-feature-issues.md
