@@ -292,7 +292,7 @@ func (r *PicklistRepo) UpsertValues(ctx context.Context, orgID, customFieldID uu
 	return out, nil
 }
 
-func (r *PicklistRepo) usageCount(ctx context.Context, tx pgx.Tx, entityType domain.CustomFieldEntityType, fieldName, value string) (int, error) {
+func (r *PicklistRepo) usageCount(ctx context.Context, tx pgx.Tx, entityType domain.CustomFieldEntityType, orgID uuid.UUID, fieldName, value string) (int, error) {
 	table := ""
 	switch entityType {
 	case domain.CustomFieldEntityContact:
@@ -305,6 +305,10 @@ func (r *PicklistRepo) usageCount(ctx context.Context, tx pgx.Tx, entityType dom
 		table = "deals"
 	case domain.CustomFieldEntityTicket:
 		table = "tickets"
+	case domain.CustomFieldEntityQuote:
+		table = "quotes"
+	case domain.CustomFieldEntityKBArticle:
+		table = "articles"
 	default:
 		return 0, nil
 	}
@@ -313,20 +317,21 @@ func (r *PicklistRepo) usageCount(ctx context.Context, tx pgx.Tx, entityType dom
 	q := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM %s
-		WHERE deleted_at IS NULL
+		WHERE org_id = $1
+		  AND deleted_at IS NULL
 		  AND (
-			custom_fields ->> $1 = $2
+			custom_fields ->> $2 = $3
 			OR (
-				jsonb_typeof(custom_fields -> $1) = 'array'
+				jsonb_typeof(custom_fields -> $2) = 'array'
 				AND EXISTS (
-				SELECT 1
-				FROM jsonb_array_elements_text(custom_fields -> $1) AS elem
-				WHERE elem = $2
+					SELECT 1
+					FROM jsonb_array_elements_text(custom_fields -> $2) AS elem
+					WHERE elem = $3
 			)
 			)
 		  )
 	`, table)
-	if err := tx.QueryRow(ctx, q, fieldName, value).Scan(&count); err != nil {
+	if err := tx.QueryRow(ctx, q, orgID, fieldName, value).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
@@ -389,24 +394,25 @@ func replaceValueInJSON(raw json.RawMessage, fieldName, fromValue string, toValu
 	return updated
 }
 
-func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, table, fieldName, fromValue string, toValue *string) error {
+func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, table string, orgID uuid.UUID, fieldName, fromValue string, toValue *string) error {
 	selectSQL := fmt.Sprintf(`
 		SELECT id, custom_fields
 		FROM %s
-		WHERE deleted_at IS NULL
+		WHERE org_id = $1
+		  AND deleted_at IS NULL
 		  AND (
-			custom_fields ->> $1 = $2
+			custom_fields ->> $2 = $3
 			OR (
-				jsonb_typeof(custom_fields -> $1) = 'array'
+				jsonb_typeof(custom_fields -> $2) = 'array'
 				AND EXISTS (
-				SELECT 1
-				FROM jsonb_array_elements_text(custom_fields -> $1) AS elem
-				WHERE elem = $2
+					SELECT 1
+					FROM jsonb_array_elements_text(custom_fields -> $2) AS elem
+					WHERE elem = $3
 			)
 			)
 		  )
 	`, table)
-	rows, err := tx.Query(ctx, selectSQL, fieldName, fromValue)
+	rows, err := tx.Query(ctx, selectSQL, orgID, fieldName, fromValue)
 	if err != nil {
 		return err
 	}
@@ -428,10 +434,10 @@ func (r *PicklistRepo) remapTableRows(ctx context.Context, tx pgx.Tx, table, fie
 		return err
 	}
 
-	updateSQL := fmt.Sprintf(`UPDATE %s SET custom_fields = $2::jsonb, updated_at = NOW() WHERE id = $1`, table)
+	updateSQL := fmt.Sprintf(`UPDATE %s SET custom_fields = $2::jsonb, updated_at = NOW() WHERE id = $1 AND org_id = $3`, table)
 	for _, it := range items {
 		next := replaceValueInJSON(it.JSON, fieldName, fromValue, toValue)
-		_, err := tx.Exec(ctx, updateSQL, it.ID, string(next))
+		_, err := tx.Exec(ctx, updateSQL, it.ID, string(next), orgID)
 		if err != nil {
 			return err
 		}
@@ -462,7 +468,7 @@ func (r *PicklistRepo) RemapAndDeleteValue(ctx context.Context, orgID, customFie
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	used, err := r.usageCount(ctx, tx, def.EntityType, def.Name, fromValue)
+	used, err := r.usageCount(ctx, tx, def.EntityType, orgID, def.Name, fromValue)
 	if err != nil {
 		return err
 	}
@@ -471,14 +477,16 @@ func (r *PicklistRepo) RemapAndDeleteValue(ctx context.Context, orgID, customFie
 	}
 
 	table := map[domain.CustomFieldEntityType]string{
-		domain.CustomFieldEntityContact: "contacts",
-		domain.CustomFieldEntityAccount: "accounts",
-		domain.CustomFieldEntityLead:    "leads",
-		domain.CustomFieldEntityDeal:    "deals",
-		domain.CustomFieldEntityTicket:  "tickets",
+		domain.CustomFieldEntityContact:   "contacts",
+		domain.CustomFieldEntityAccount:   "accounts",
+		domain.CustomFieldEntityLead:      "leads",
+		domain.CustomFieldEntityDeal:      "deals",
+		domain.CustomFieldEntityTicket:    "tickets",
+		domain.CustomFieldEntityQuote:     "quotes",
+		domain.CustomFieldEntityKBArticle: "articles",
 	}[def.EntityType]
 	if table != "" {
-		if err := r.remapTableRows(ctx, tx, table, def.Name, fromValue, toValue); err != nil {
+		if err := r.remapTableRows(ctx, tx, table, orgID, def.Name, fromValue, toValue); err != nil {
 			return err
 		}
 	}

@@ -179,8 +179,8 @@ func (r *SLAInstanceRepo) MarkResolved(ctx context.Context, entityID uuid.UUID, 
 // ScanBreaches marks open instances as breached where response_due_at or resolution_due_at < now.
 // Uses a superuser/background context (no RLS org filter), so this must only be called
 // from background workers that have admin-level DB access.
-func (r *SLAInstanceRepo) ScanBreaches(ctx context.Context) (int, error) {
-	result, err := r.db.Exec(ctx, `
+func (r *SLAInstanceRepo) ScanBreaches(ctx context.Context) ([]*domain.SLAInstance, error) {
+	rows, err := r.db.Query(ctx, `
 		UPDATE sla_instances SET
 			breached    = TRUE,
 			breach_type = CASE
@@ -193,11 +193,86 @@ func (r *SLAInstanceRepo) ScanBreaches(ctx context.Context) (int, error) {
 			(responded_at IS NULL AND response_due_at < NOW())
 			OR resolution_due_at < NOW()
 		  )
-	`)
+		RETURNING `+slaInstanceCols)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return int(result.RowsAffected()), nil
+	defer rows.Close()
+
+	var instances []*domain.SLAInstance
+	for rows.Next() {
+		inst, err := scanSLAInstance(rows)
+		if err != nil {
+			return nil, err
+		}
+		instances = append(instances, inst)
+	}
+	return instances, rows.Err()
+}
+
+// NotificationRecipients returns users who should receive SLA notifications for
+// the instance's entity. It intentionally stays org-scoped and deduplicated.
+func (r *SLAInstanceRepo) NotificationRecipients(ctx context.Context, inst *domain.SLAInstance) ([]uuid.UUID, error) {
+	if inst == nil {
+		return nil, nil
+	}
+
+	var query string
+	switch inst.EntityType {
+	case domain.SLAEntityTypeTicket:
+		query = `
+			SELECT DISTINCT user_id
+			FROM (
+				SELECT assignee_id AS user_id
+				FROM tickets
+				WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL AND assignee_id IS NOT NULL
+				UNION
+				SELECT submitted_by_user_id AS user_id
+				FROM tickets
+				WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL AND submitted_by_user_id IS NOT NULL
+			) recipients`
+	case domain.SLAEntityTypeDeal:
+		query = `
+			SELECT DISTINCT owner_id AS user_id
+			FROM deals
+			WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`
+	case domain.SLAEntityTypeContact:
+		query = `
+			SELECT DISTINCT owner_id AS user_id
+			FROM contacts
+			WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`
+	case domain.SLAEntityTypeActivity:
+		query = `
+			SELECT DISTINCT owner_id AS user_id
+			FROM activities
+			WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`
+	default:
+		return nil, nil
+	}
+
+	rows, err := r.db.Query(ctx, query, inst.EntityID, inst.OrgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	recipients := []uuid.UUID{}
+	seen := map[uuid.UUID]struct{}{}
+	for rows.Next() {
+		var userID uuid.UUID
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		if userID == uuid.Nil {
+			continue
+		}
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		recipients = append(recipients, userID)
+	}
+	return recipients, rows.Err()
 }
 
 // ScanWarnings returns open instances where 80% of the resolution window has elapsed and no warning sent yet.

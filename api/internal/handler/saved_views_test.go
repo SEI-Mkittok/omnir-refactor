@@ -359,6 +359,7 @@ func TestSavedViewHandler_Pin(t *testing.T) {
 		name       string
 		viewID     string
 		claims     *auth.Claims
+		body       map[string]any
 		setupMock  func(*mocks.MockSavedViewRepository)
 		wantStatus int
 	}{
@@ -372,6 +373,22 @@ func TestSavedViewHandler_Pin(t *testing.T) {
 				pinned.IsPinned = true
 				m.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(v, nil)
 				m.On("Pin", mock.Anything, mock.AnythingOfType("uuid.UUID"), true).Return(pinned, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:   "owner can set explicit pin order without toggling",
+			viewID: uuid.New().String(),
+			claims: userClaims(ownerID),
+			body:   map[string]any{"pin_order": 2},
+			setupMock: func(m *mocks.MockSavedViewRepository) {
+				v := newSavedView(ownerID)
+				v.IsPinned = true
+				order := 2
+				m.On("GetByID", mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(v, nil)
+				m.On("Update", mock.Anything, mock.AnythingOfType("uuid.UUID"), mock.MatchedBy(func(p domain.SavedViewPatch) bool {
+					return p.IsPinned != nil && *p.IsPinned && p.PinnedOrder != nil && *p.PinnedOrder == order
+				})).Return(v, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -407,7 +424,13 @@ func TestSavedViewHandler_Pin(t *testing.T) {
 
 			h := handler.NewSavedViewHandler(mockRepo)
 
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+tt.viewID+"/pin", nil)
+			var bodyBytes []byte
+			if tt.body != nil {
+				var err error
+				bodyBytes, err = json.Marshal(tt.body)
+				require.NoError(t, err)
+			}
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/views/"+tt.viewID+"/pin", bytes.NewReader(bodyBytes))
 			req = withClaims(req, tt.claims)
 			req = withURLParam(req, "id", tt.viewID)
 			w := httptest.NewRecorder()

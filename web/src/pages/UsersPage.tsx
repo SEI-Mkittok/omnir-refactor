@@ -92,6 +92,10 @@ function CreateUserDialog({ open, onClose, aclRoles, profiles, canManageACLAssig
       setError('Name, email, and password are required.')
       return
     }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
     createUser(form, {
       onSuccess: () => {
         setForm({ name: '', email: '', password: '', role: 'agent' })

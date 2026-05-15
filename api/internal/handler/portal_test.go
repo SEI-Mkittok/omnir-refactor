@@ -267,6 +267,67 @@ func TestPortal_GetTicket_NoSubmitterReturns404(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
+func TestPortal_ListComments_ReturnsPublicCommentsForOwnedTicket(t *testing.T) {
+	userID := uuid.New()
+	ticketID := uuid.New()
+	commentID := uuid.New()
+
+	ticketMock := new(mocks.MockTicketRepository)
+	commentMock := new(mocks.MockTicketCommentRepository)
+
+	ticketMock.On("GetByID", mock.Anything, ticketID).
+		Return(&domain.Ticket{ID: ticketID, SubmittedByUserID: &userID}, nil)
+
+	isInternal := false
+	commentMock.On("List", mock.Anything, domain.TicketCommentFilter{
+		TicketID:   ticketID,
+		IsInternal: &isInternal,
+	}).Return([]*domain.TicketComment{
+		{ID: commentID, TicketID: ticketID, Body: "Public update", IsInternal: false},
+	}, nil)
+
+	h := newTestPortalHandler(ticketMock, commentMock)
+
+	req := httptest.NewRequest(http.MethodGet, "/tickets/"+ticketID.String()+"/comments", nil)
+	req = withURLParam(req, "id", ticketID.String())
+	req = withClaims(req, clientClaims(userID))
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp []map[string]any
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	require.Len(t, resp, 1)
+	assert.Equal(t, "Public update", resp[0]["body"])
+	ticketMock.AssertExpectations(t)
+	commentMock.AssertExpectations(t)
+}
+
+func TestPortal_ListComments_OtherUserTicketReturns404(t *testing.T) {
+	userID := uuid.New()
+	otherUserID := uuid.New()
+	ticketID := uuid.New()
+
+	ticketMock := new(mocks.MockTicketRepository)
+	commentMock := new(mocks.MockTicketCommentRepository)
+
+	ticketMock.On("GetByID", mock.Anything, ticketID).
+		Return(&domain.Ticket{ID: ticketID, SubmittedByUserID: &otherUserID}, nil)
+
+	h := newTestPortalHandler(ticketMock, commentMock)
+
+	req := httptest.NewRequest(http.MethodGet, "/tickets/"+ticketID.String()+"/comments", nil)
+	req = withURLParam(req, "id", ticketID.String())
+	req = withClaims(req, clientClaims(userID))
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	commentMock.AssertNotCalled(t, "List", mock.Anything, mock.Anything)
+}
+
 // ───────────────────────── POST /portal/tickets/{id}/comments ─────────────────────────
 
 func TestPortal_CreateComment_Success(t *testing.T) {

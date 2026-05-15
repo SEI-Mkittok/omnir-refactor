@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -19,6 +20,7 @@ type QuoteHandler struct {
 	repo     repository.QuoteRepository
 	contacts repository.ContactRepository
 	deals    repository.DealRepository
+	cfDefs   repository.CustomFieldDefinitionRepository
 	mailer   *email.Mailer
 	from     string
 }
@@ -30,6 +32,11 @@ func NewQuoteHandler(repo repository.QuoteRepository) *QuoteHandler {
 func (h *QuoteHandler) WithRelations(contacts repository.ContactRepository, deals repository.DealRepository) *QuoteHandler {
 	h.contacts = contacts
 	h.deals = deals
+	return h
+}
+
+func (h *QuoteHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *QuoteHandler {
+	h.cfDefs = r
 	return h
 }
 
@@ -55,6 +62,15 @@ func (h *QuoteHandler) Router() chi.Router {
 	return r
 }
 
+func quoteOrgContext(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	orgID, ok := domain.OrgIDFromContext(r.Context())
+	if !ok {
+		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
+		return uuid.Nil, false
+	}
+	return orgID, true
+}
+
 // DealQuotesRouter returns sub-routes mounted under /deals/{dealId}/quotes.
 func (h *QuoteHandler) DealQuotesRouter() chi.Router {
 	r := chi.NewRouter()
@@ -63,9 +79,8 @@ func (h *QuoteHandler) DealQuotesRouter() chi.Router {
 }
 
 func (h *QuoteHandler) List(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := domain.OrgIDFromContext(r.Context())
+	orgID, ok := quoteOrgContext(w, r)
 	if !ok {
-		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
 		return
 	}
 
@@ -111,6 +126,10 @@ func (h *QuoteHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if err := h.expandQuoteCustomFields(r.Context(), quotes); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": quotes, "total": total})
 }
 
@@ -120,14 +139,17 @@ func (h *QuoteHandler) ListByDeal(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid deal id")
 		return
 	}
-	orgID, ok := domain.OrgIDFromContext(r.Context())
+	orgID, ok := quoteOrgContext(w, r)
 	if !ok {
-		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
 		return
 	}
 	filter := domain.QuoteFilter{OrgID: orgID, DealID: &dealID, Limit: 50}
 	quotes, total, err := h.repo.List(r.Context(), filter)
 	if err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
+	if err := h.expandQuoteCustomFields(r.Context(), quotes); err != nil {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
@@ -140,6 +162,9 @@ func (h *QuoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid quote id")
 		return
 	}
+	if _, ok := quoteOrgContext(w, r); !ok {
+		return
+	}
 	quote, err := h.repo.GetByID(r.Context(), id)
 	if err != nil {
 		if err == domain.ErrNotFound {
@@ -149,13 +174,16 @@ func (h *QuoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if err := h.expandQuoteCustomFields(r.Context(), []*domain.Quote{quote}); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, quote)
 }
 
 func (h *QuoteHandler) Create(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := domain.OrgIDFromContext(r.Context())
+	orgID, ok := quoteOrgContext(w, r)
 	if !ok {
-		writeProblem(w, http.StatusUnauthorized, "Unauthorized", "missing org context")
 		return
 	}
 	var q domain.Quote
@@ -168,6 +196,10 @@ func (h *QuoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		q.CreatedBy = &claims.UserID
 	}
 	if err := q.Validate(); err != nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
+		return
+	}
+	if err := h.validateQuoteCustomFields(r.Context(), q.CustomFields, true); err != nil {
 		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 		return
 	}
@@ -185,6 +217,10 @@ func (h *QuoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if err := h.expandQuoteCustomFields(r.Context(), []*domain.Quote{created}); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -194,9 +230,16 @@ func (h *QuoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid quote id")
 		return
 	}
+	if _, ok := quoteOrgContext(w, r); !ok {
+		return
+	}
 	var patch domain.QuotePatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
+		return
+	}
+	if err := h.validateQuoteCustomFields(r.Context(), patch.CustomFields, false); err != nil {
+		writeProblem(w, http.StatusUnprocessableEntity, "Validation Error", err.Error())
 		return
 	}
 	if h.contacts != nil && h.deals != nil && (patch.ContactID != nil || patch.DealID != nil) {
@@ -231,6 +274,10 @@ func (h *QuoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if err := h.expandQuoteCustomFields(r.Context(), []*domain.Quote{updated}); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -238,6 +285,9 @@ func (h *QuoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid quote id")
+		return
+	}
+	if _, ok := quoteOrgContext(w, r); !ok {
 		return
 	}
 	if err := h.repo.Delete(r.Context(), id); err != nil {
@@ -256,6 +306,9 @@ func (h *QuoteHandler) Send(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid quote id")
+		return
+	}
+	if _, ok := quoteOrgContext(w, r); !ok {
 		return
 	}
 
@@ -287,6 +340,10 @@ func (h *QuoteHandler) Send(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if err := h.expandQuoteCustomFields(r.Context(), []*domain.Quote{quote}); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, quote)
 }
 
@@ -297,12 +354,19 @@ func (h *QuoteHandler) Approve(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid quote id")
 		return
 	}
+	if _, ok := quoteOrgContext(w, r); !ok {
+		return
+	}
 	quote, err := h.repo.MarkApproved(r.Context(), id)
 	if err != nil {
 		if err == domain.ErrNotFound {
 			writeProblem(w, http.StatusNotFound, "Not Found", "quote not found")
 			return
 		}
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
+	if err := h.expandQuoteCustomFields(r.Context(), []*domain.Quote{quote}); err != nil {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
@@ -316,6 +380,9 @@ func (h *QuoteHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid quote id")
 		return
 	}
+	if _, ok := quoteOrgContext(w, r); !ok {
+		return
+	}
 	quote, err := h.repo.MarkRejected(r.Context(), id)
 	if err != nil {
 		if err == domain.ErrNotFound {
@@ -325,5 +392,48 @@ func (h *QuoteHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
 		return
 	}
+	if err := h.expandQuoteCustomFields(r.Context(), []*domain.Quote{quote}); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "Internal Error", err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, quote)
+}
+
+func (h *QuoteHandler) quoteCustomFieldDefinitions(ctx context.Context) ([]*domain.CustomFieldDefinition, error) {
+	if h.cfDefs == nil {
+		return nil, nil
+	}
+	et := domain.CustomFieldEntityQuote
+	return h.cfDefs.List(ctx, domain.CustomFieldDefinitionFilter{EntityType: &et})
+}
+
+func (h *QuoteHandler) validateQuoteCustomFields(ctx context.Context, raw json.RawMessage, enforceRequired bool) error {
+	if h.cfDefs == nil {
+		return nil
+	}
+	if !enforceRequired && len(raw) == 0 {
+		return nil
+	}
+	defs, err := h.quoteCustomFieldDefinitions(ctx)
+	if err != nil {
+		return err
+	}
+	return domain.ValidateCustomFields(raw, defs)
+}
+
+func (h *QuoteHandler) expandQuoteCustomFields(ctx context.Context, quotes []*domain.Quote) error {
+	if h.cfDefs == nil || len(quotes) == 0 {
+		return nil
+	}
+	defs, err := h.quoteCustomFieldDefinitions(ctx)
+	if err != nil {
+		return err
+	}
+	for _, quote := range quotes {
+		if quote == nil {
+			continue
+		}
+		quote.CustomFields = domain.ExpandCustomFields(quote.CustomFields, defs)
+	}
+	return nil
 }

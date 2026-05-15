@@ -71,6 +71,17 @@ func cloneReportArgs(args []interface{}) []interface{} {
 	return cloned
 }
 
+func scopedReportOrgID(ctx context.Context, filter domain.ReportFilter) (uuid.UUID, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		return uuid.Nil, domain.ErrNotFound
+	}
+	if filter.OrgID != nil {
+		orgID = *filter.OrgID
+	}
+	return orgID, nil
+}
+
 // DealsByStage returns deal count and total value_cents grouped by stage, scoped to the org.
 func (r *ReportsRepo) DealsByStage(ctx context.Context) ([]domain.DealStageMetric, error) {
 	orgID, ok := domain.OrgIDFromContext(ctx)
@@ -538,17 +549,16 @@ func (r *ReportsRepo) LeadMetrics(ctx context.Context, filter domain.ReportFilte
 }
 
 func (r *ReportsRepo) PipelineFunnel(ctx context.Context, pipelineID *uuid.UUID, filter domain.ReportFilter) (*domain.PipelineFunnelReport, error) {
+	orgID, err := scopedReportOrgID(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
 	stages := []string{"lead", "qualified", "proposal", "negotiation"}
 
-	where := []string{"deleted_at IS NULL", "stage NOT IN ('closed_won','closed_lost')"}
-	args := []any{}
-	i := 1
+	where := []string{"deleted_at IS NULL", "stage NOT IN ('closed_won','closed_lost')", "org_id = $1"}
+	args := []any{orgID}
+	i := 2
 
-	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		where = append(where, fmt.Sprintf("org_id = $%d", i))
-		args = append(args, orgID)
-		i++
-	}
 	if pipelineID != nil {
 		where = append(where, fmt.Sprintf("pipeline_id = $%d", i))
 		args = append(args, *pipelineID)
@@ -600,21 +610,20 @@ func (r *ReportsRepo) PipelineFunnel(ctx context.Context, pipelineID *uuid.UUID,
 }
 
 func (r *ReportsRepo) ConversionRates(ctx context.Context, filter domain.ReportFilter) (*domain.ConversionRatesReport, error) {
+	orgID, err := scopedReportOrgID(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
 	pairs := []struct{ from, to string }{
 		{"lead", "qualified"},
 		{"qualified", "proposal"},
 		{"proposal", "negotiation"},
 	}
 
-	where := []string{"deleted_at IS NULL"}
-	args := []any{}
-	i := 1
+	where := []string{"deleted_at IS NULL", "org_id = $1"}
+	args := []any{orgID}
+	i := 2
 
-	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		where = append(where, fmt.Sprintf("org_id = $%d", i))
-		args = append(args, orgID)
-		i++
-	}
 	if filter.From != nil {
 		where = append(where, fmt.Sprintf("created_at >= $%d", i))
 		args = append(args, *filter.From)
@@ -662,6 +671,10 @@ func (r *ReportsRepo) ConversionRates(ctx context.Context, filter domain.ReportF
 }
 
 func (r *ReportsRepo) RevenueProjection(ctx context.Context, months int) (*domain.RevenueProjectionReport, error) {
+	orgID, ok := domain.OrgIDFromContext(ctx)
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
 	if months <= 0 || months > 12 {
 		months = 3
 	}
@@ -675,18 +688,14 @@ func (r *ReportsRepo) RevenueProjection(ctx context.Context, months int) (*domai
 
 	where := []string{
 		"deleted_at IS NULL",
+		"org_id = $1",
 		"stage NOT IN ('closed_won','closed_lost')",
 		"expected_close_date IS NOT NULL",
 		fmt.Sprintf("expected_close_date <= NOW() + ('%d months')::interval", months),
 	}
-	args := []any{}
-	i := 1
+	args := []any{orgID}
+	i := 2
 
-	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		where = append(where, fmt.Sprintf("org_id = $%d", i))
-		args = append(args, orgID)
-		i++
-	}
 	addAccessVisibilityWhere(ctx, &where, &args, &i, domain.ACLModuleDeals, domain.SharingAccessRead, "owner_id")
 	_ = i
 
@@ -741,15 +750,14 @@ func (r *ReportsRepo) RevenueProjection(ctx context.Context, months int) (*domai
 }
 
 func (r *ReportsRepo) ActivitySummary(ctx context.Context, filter domain.ReportFilter) (*domain.ActivitySummaryReport, error) {
-	where := []string{"a.deleted_at IS NULL"}
-	args := []any{}
-	i := 1
-
-	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
-		where = append(where, fmt.Sprintf("a.org_id = $%d", i))
-		args = append(args, orgID)
-		i++
+	orgID, err := scopedReportOrgID(ctx, filter)
+	if err != nil {
+		return nil, err
 	}
+	where := []string{"a.deleted_at IS NULL", "a.org_id = $1"}
+	args := []any{orgID}
+	i := 2
+
 	if filter.From != nil {
 		where = append(where, fmt.Sprintf("a.created_at >= $%d", i))
 		args = append(args, *filter.From)

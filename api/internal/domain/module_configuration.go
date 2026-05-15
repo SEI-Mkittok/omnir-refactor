@@ -557,8 +557,11 @@ func ValidateModuleRelationshipDefinition(def *ModuleRelationshipDefinition) err
 	if def.Label == "" {
 		return fmt.Errorf("%w: label is required", ErrValidation)
 	}
-	if !def.FromEntityType.IsValid() || !def.ToEntityType.IsValid() {
-		return fmt.Errorf("%w: relationship entity types must be account, contact, lead, deal, or ticket", ErrValidation)
+	if _, ok := CRMEntityTypeForCustomFieldEntity(def.FromEntityType); !ok {
+		return fmt.Errorf("%w: relationship entity types must be account, contact, lead, deal, ticket, or quote", ErrValidation)
+	}
+	if _, ok := CRMEntityTypeForCustomFieldEntity(def.ToEntityType); !ok {
+		return fmt.Errorf("%w: relationship entity types must be account, contact, lead, deal, ticket, or quote", ErrValidation)
 	}
 	if !def.Cardinality.IsValid() {
 		return fmt.Errorf("%w: cardinality is invalid", ErrValidation)
@@ -590,6 +593,10 @@ func ACLModuleForCustomFieldEntity(entityType CustomFieldEntityType) (ACLModule,
 		return ACLModuleDeals, true
 	case CustomFieldEntityTicket:
 		return ACLModuleTickets, true
+	case CustomFieldEntityQuote:
+		return ACLModuleQuotes, true
+	case CustomFieldEntityKBArticle:
+		return ACLModuleKB, true
 	default:
 		return "", false
 	}
@@ -607,6 +614,8 @@ func CRMEntityTypeForCustomFieldEntity(entityType CustomFieldEntityType) (CRMEnt
 		return CRMEntityTypeDeal, true
 	case CustomFieldEntityTicket:
 		return CRMEntityTypeTicket, true
+	case CustomFieldEntityQuote:
+		return CRMEntityTypeQuote, true
 	default:
 		return "", false
 	}

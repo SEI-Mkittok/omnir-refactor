@@ -39,6 +39,32 @@ func TestAppendReportReadVisibilityAddsPrivateOwnerPredicate(t *testing.T) {
 	}
 }
 
+func TestScopedReportOrgID(t *testing.T) {
+	baseOrg := uuid.New()
+	overrideOrg := uuid.New()
+	ctx := domain.WithOrgID(context.Background(), baseOrg)
+
+	got, err := scopedReportOrgID(ctx, domain.ReportFilter{})
+	if err != nil {
+		t.Fatalf("expected org id from context, got error: %v", err)
+	}
+	if got != baseOrg {
+		t.Fatalf("expected context org %s, got %s", baseOrg, got)
+	}
+
+	got, err = scopedReportOrgID(ctx, domain.ReportFilter{OrgID: &overrideOrg})
+	if err != nil {
+		t.Fatalf("expected override org id, got error: %v", err)
+	}
+	if got != overrideOrg {
+		t.Fatalf("expected override org %s, got %s", overrideOrg, got)
+	}
+
+	if _, err := scopedReportOrgID(context.Background(), domain.ReportFilter{}); err != domain.ErrNotFound {
+		t.Fatalf("expected missing org context to fail with ErrNotFound, got %v", err)
+	}
+}
+
 func TestAppendReportReadVisibilitySkipsAllRecordAccess(t *testing.T) {
 	ctx := domain.WithAccessContext(context.Background(), &domain.AccessContext{
 		UserID: uuid.New(),

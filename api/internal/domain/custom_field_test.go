@@ -140,6 +140,8 @@ func TestCustomFieldEntityType_IsValid(t *testing.T) {
 	assert.True(t, domain.CustomFieldEntityLead.IsValid())
 	assert.True(t, domain.CustomFieldEntityType("deal").IsValid())
 	assert.True(t, domain.CustomFieldEntityType("account").IsValid())
+	assert.True(t, domain.CustomFieldEntityQuote.IsValid())
+	assert.True(t, domain.CustomFieldEntityKBArticle.IsValid())
 	assert.False(t, domain.CustomFieldEntityType("invoice").IsValid())
 }
 

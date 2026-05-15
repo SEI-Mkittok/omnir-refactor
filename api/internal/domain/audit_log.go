@@ -28,6 +28,7 @@ const (
 	AuditEntitySharingRule AuditEntityType = "sharing_rule"
 	AuditEntityUser        AuditEntityType = "user"
 	AuditEntityView        AuditEntityType = "view"
+	AuditEntityAPIKey      AuditEntityType = "api_key"
 )
 
 // FieldChange captures the before/after value for a single field.

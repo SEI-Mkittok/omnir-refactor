@@ -19,6 +19,7 @@ import (
 type KBHandler struct {
 	articles   repository.KBArticleRepository
 	categories repository.KBCategoryRepository
+	cfDefs     repository.CustomFieldDefinitionRepository
 	orgs       repository.OrgRepository
 }
 
@@ -30,6 +31,11 @@ func NewKBHandler(articles repository.KBArticleRepository, categories repository
 // WithOrgs enables public slug routes to resolve tenant slugs before querying KB data.
 func (h *KBHandler) WithOrgs(orgs repository.OrgRepository) *KBHandler {
 	h.orgs = orgs
+	return h
+}
+
+func (h *KBHandler) WithCustomFields(r repository.CustomFieldDefinitionRepository) *KBHandler {
+	h.cfDefs = r
 	return h
 }
 
@@ -161,6 +167,10 @@ func (h *KBHandler) ListArticles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to list articles")
 		return
 	}
+	if err := h.expandKBArticleCustomFields(r.Context(), articles); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list articles")
+		return
+	}
 	writeJSON(w, http.StatusOK, paginated(articles, total, filter.Page, filter.Limit))
 }
 
@@ -177,6 +187,10 @@ func (h *KBHandler) GetArticle(w http.ResponseWriter, r *http.Request) {
 	}
 	// Best-effort view count increment (fire-and-forget, ignore error).
 	_ = h.articles.IncrementViewCount(r.Context(), id)
+	if err := h.expandKBArticleCustomFields(r.Context(), []*domain.KBArticle{article}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load article")
+		return
+	}
 	writeJSON(w, http.StatusOK, article)
 }
 
@@ -195,8 +209,16 @@ func (h *KBHandler) CreateArticle(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
+	if err := h.validateKBArticleCustomFields(r.Context(), a.CustomFields, true); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 	created, err := h.articles.Create(r.Context(), &a)
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create article")
+		return
+	}
+	if err := h.expandKBArticleCustomFields(r.Context(), []*domain.KBArticle{created}); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create article")
 		return
 	}
@@ -214,9 +236,17 @@ func (h *KBHandler) UpdateArticle(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
+	if err := h.validateKBArticleCustomFields(r.Context(), patch.CustomFields, false); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
 	updated, err := h.articles.Update(r.Context(), id, patch)
 	if err != nil {
 		handleDomainErr(w, err)
+		return
+	}
+	if err := h.expandKBArticleCustomFields(r.Context(), []*domain.KBArticle{updated}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update article")
 		return
 	}
 	writeJSON(w, http.StatusOK, updated)
@@ -245,6 +275,10 @@ func (h *KBHandler) Search(w http.ResponseWriter, r *http.Request) {
 	filter.Query = q
 	articles, total, err := h.articles.List(r.Context(), filter)
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "search failed")
+		return
+	}
+	if err := h.expandKBArticleCustomFields(r.Context(), articles); err != nil {
 		writeError(w, http.StatusInternalServerError, "search failed")
 		return
 	}
@@ -336,7 +370,7 @@ func (h *KBHandler) PublicListArticles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to list articles")
 		return
 	}
-	writeJSON(w, http.StatusOK, paginated(articles, total, filter.Page, filter.Limit))
+	writeJSON(w, http.StatusOK, paginated(publicKBArticles(articles, true), total, filter.Page, filter.Limit))
 }
 
 func (h *KBHandler) PublicListArticlesFlat(w http.ResponseWriter, r *http.Request) {
@@ -415,7 +449,7 @@ func (h *KBHandler) PublicGetArticle(w http.ResponseWriter, r *http.Request) {
 			handleDomainErr(w, domain.ErrNotFound)
 			return
 		}
-		writeJSON(w, http.StatusOK, article)
+		writeJSON(w, http.StatusOK, publicKBArticle(article, true))
 		return
 	}
 
@@ -427,7 +461,7 @@ func (h *KBHandler) PublicGetArticle(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, article := range articles {
 		if articleSlug(article) == slug {
-			writeJSON(w, http.StatusOK, article)
+			writeJSON(w, http.StatusOK, publicKBArticle(article, true))
 			return
 		}
 	}
@@ -458,7 +492,7 @@ func (h *KBHandler) PublicSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "search failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, paginated(articles, total, filter.Page, filter.Limit))
+	writeJSON(w, http.StatusOK, paginated(publicKBArticles(articles, true), total, filter.Page, filter.Limit))
 }
 
 // ---------------------------------------------------------------------------
@@ -552,6 +586,35 @@ func publicKBArticleSummaries(articles []*domain.KBArticle) []map[string]any {
 	return resp
 }
 
+func publicKBArticles(articles []*domain.KBArticle, includeBody bool) []map[string]any {
+	resp := make([]map[string]any, 0, len(articles))
+	for _, article := range articles {
+		resp = append(resp, publicKBArticle(article, includeBody))
+	}
+	return resp
+}
+
+func publicKBArticle(article *domain.KBArticle, includeBody bool) map[string]any {
+	resp := map[string]any{
+		"id":            article.ID,
+		"org_id":        article.OrgID,
+		"category_id":   article.CategoryID,
+		"title":         article.Title,
+		"slug":          articleSlug(article),
+		"tags":          article.Tags,
+		"status":        article.Status,
+		"view_count":    article.ViewCount,
+		"number":        article.Number,
+		"number_prefix": article.NumberPrefix,
+		"created_at":    article.CreatedAt,
+		"updated_at":    article.UpdatedAt,
+	}
+	if includeBody {
+		resp["body"] = article.Body
+	}
+	return resp
+}
+
 func (h *KBHandler) publicKBArticleCountsByCategory(ctx context.Context, orgID uuid.UUID, cats []*domain.KBCategory) (map[uuid.UUID]int, error) {
 	counts := make(map[uuid.UUID]int, len(cats))
 	published := domain.KBArticleStatusPublished
@@ -584,4 +647,43 @@ func (h *KBHandler) hydrateKBSuggestSlugs(ctx context.Context, results []*domain
 		result.Slug = articleSlug(article)
 	}
 	return results, nil
+}
+
+func (h *KBHandler) kbArticleCustomFieldDefinitions(ctx context.Context) ([]*domain.CustomFieldDefinition, error) {
+	if h.cfDefs == nil {
+		return nil, nil
+	}
+	et := domain.CustomFieldEntityKBArticle
+	return h.cfDefs.List(ctx, domain.CustomFieldDefinitionFilter{EntityType: &et})
+}
+
+func (h *KBHandler) validateKBArticleCustomFields(ctx context.Context, raw json.RawMessage, enforceRequired bool) error {
+	if h.cfDefs == nil {
+		return nil
+	}
+	if !enforceRequired && len(raw) == 0 {
+		return nil
+	}
+	defs, err := h.kbArticleCustomFieldDefinitions(ctx)
+	if err != nil {
+		return err
+	}
+	return domain.ValidateCustomFields(raw, defs)
+}
+
+func (h *KBHandler) expandKBArticleCustomFields(ctx context.Context, articles []*domain.KBArticle) error {
+	if h.cfDefs == nil || len(articles) == 0 {
+		return nil
+	}
+	defs, err := h.kbArticleCustomFieldDefinitions(ctx)
+	if err != nil {
+		return err
+	}
+	for _, article := range articles {
+		if article == nil {
+			continue
+		}
+		article.CustomFields = domain.ExpandCustomFields(article.CustomFields, defs)
+	}
+	return nil
 }

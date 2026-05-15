@@ -297,7 +297,7 @@ function QuickActionsCard() {
     {
       icon: <Mail className="h-5 w-5" />,
       label: 'Email',
-      onClick: () => navigate('/tickets'),
+      onClick: () => navigate('/inbox'),
     },
     {
       icon: <FileText className="h-5 w-5" />,
@@ -344,6 +344,7 @@ function QuickActionsCard() {
 // ─── Tasks Checklist ──────────────────────────────────────────────────────────
 
 function TasksCard() {
+  const navigate = useNavigate()
   const { data, isLoading, isError, refetch, isFetching } = useActivities({
     type: 'task',
     per_page: 8,
@@ -362,7 +363,10 @@ function TasksCard() {
       )}
       <CardHeader className="flex-row items-center justify-between pb-2">
         <CardTitle>My Tasks</CardTitle>
-        <button className="text-[13px] text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded">
+        <button
+          onClick={() => navigate('/calendar')}
+          className="text-[13px] text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded"
+        >
           + Add task
         </button>
       </CardHeader>
@@ -441,7 +445,10 @@ function TasksCard() {
         )}
         {!isLoading && !isError && data != null && data.meta.total > 8 && (
           <div className="mt-3 text-center">
-            <button className="text-[13px] text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded">
+            <button
+              onClick={() => navigate('/calendar')}
+              className="text-[13px] text-[var(--color-primary)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] rounded"
+            >
               View all tasks →
             </button>
           </div>

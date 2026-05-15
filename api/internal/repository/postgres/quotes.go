@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -24,7 +25,7 @@ func NewQuoteRepo(db *pgxpool.Pool) *QuoteRepo {
 const quoteCols = `
 	id, org_id, deal_id, account_id, contact_id, title, status, currency,
 	valid_until, notes, sent_at, approved_at, rejected_at,
-	total_cents, created_by, number, number_prefix, created_at, updated_at
+	total_cents, custom_fields, created_by, number, number_prefix, created_at, updated_at
 `
 
 func scanQuote(row pgx.Row) (*domain.Quote, error) {
@@ -34,7 +35,7 @@ func scanQuote(row pgx.Row) (*domain.Quote, error) {
 		&q.ID, &q.OrgID, &q.DealID, &q.AccountID, &q.ContactID,
 		&q.Title, &q.Status, &q.Currency,
 		&q.ValidUntil, &notes, &q.SentAt, &q.ApprovedAt, &q.RejectedAt,
-		&q.TotalCents, &q.CreatedBy, &q.Number, &q.NumberPrefix, &q.CreatedAt, &q.UpdatedAt,
+		&q.TotalCents, &q.CustomFields, &q.CreatedBy, &q.Number, &q.NumberPrefix, &q.CreatedAt, &q.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -45,12 +46,18 @@ func scanQuote(row pgx.Row) (*domain.Quote, error) {
 	if notes != nil {
 		q.Notes = *notes
 	}
+	if len(q.CustomFields) == 0 {
+		q.CustomFields = json.RawMessage(`{}`)
+	}
 	return &q, nil
 }
 
 func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote, error) {
 	if q.ID == uuid.Nil {
 		q.ID = uuid.New()
+	}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		q.OrgID = orgID
 	}
 	if q.Status == "" {
 		q.Status = domain.QuoteStatusDraft
@@ -61,6 +68,9 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 			return nil, err
 		}
 		q.Currency = cur
+	}
+	if len(q.CustomFields) == 0 {
+		q.CustomFields = json.RawMessage(`{}`)
 	}
 	if err := r.validateDealAccountContext(ctx, q.DealID, q.AccountID, q.OrgID); err != nil {
 		return nil, err
@@ -75,12 +85,12 @@ func (r *QuoteRepo) Create(ctx context.Context, q *domain.Quote) (*domain.Quote,
 	}
 	row := r.db.QueryRow(ctx,
 		`INSERT INTO quotes
-		 (id, org_id, deal_id, account_id, contact_id, title, status, currency, valid_until, notes, created_by, number, number_prefix)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		 (id, org_id, deal_id, account_id, contact_id, title, status, currency, valid_until, notes, custom_fields, created_by, number, number_prefix)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		 RETURNING `+quoteCols,
 		q.ID, q.OrgID, q.DealID, q.AccountID, q.ContactID,
 		q.Title, q.Status, q.Currency,
-		q.ValidUntil, nilIfEmpty(q.Notes), q.CreatedBy, num, prefix,
+		q.ValidUntil, nilIfEmpty(q.Notes), q.CustomFields, q.CreatedBy, num, prefix,
 	)
 	created, err := scanQuote(row)
 	if err != nil {
@@ -121,9 +131,13 @@ func (r *QuoteRepo) persistTotal(ctx context.Context, id uuid.UUID, total int64)
 }
 
 func (r *QuoteRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Quote, error) {
-	row := r.db.QueryRow(ctx,
-		`SELECT `+quoteCols+` FROM quotes WHERE id=$1`, id,
-	)
+	query := `SELECT ` + quoteCols + ` FROM quotes WHERE id=$1`
+	args := []any{id}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		query += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+	row := r.db.QueryRow(ctx, query, args...)
 	q, err := scanQuote(row)
 	if err != nil {
 		return nil, err
@@ -199,14 +213,29 @@ func (r *QuoteRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Quote
 		args = append(args, *patch.DealID)
 		i++
 	}
+	if len(patch.CustomFields) > 0 {
+		setClauses = append(setClauses, "custom_fields=$"+itoa(i))
+		args = append(args, patch.CustomFields)
+		i++
+	}
 
 	if len(setClauses) > 0 {
 		setClauses = append(setClauses, "updated_at=NOW()")
 		args = append(args, id)
+		where := ` WHERE id=$` + itoa(i)
+		if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+			i++
+			args = append(args, orgID)
+			where += ` AND org_id=$` + itoa(i)
+		}
 		q := `UPDATE quotes SET ` + strings.Join(setClauses, ",") +
-			` WHERE id=$` + itoa(i)
-		if _, err := r.db.Exec(ctx, q, args...); err != nil {
+			where
+		res, err := r.db.Exec(ctx, q, args...)
+		if err != nil {
 			return nil, err
+		}
+		if res.RowsAffected() == 0 {
+			return nil, domain.ErrNotFound
 		}
 	}
 
@@ -229,7 +258,13 @@ func (r *QuoteRepo) Update(ctx context.Context, id uuid.UUID, patch domain.Quote
 }
 
 func (r *QuoteRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	res, err := r.db.Exec(ctx, `DELETE FROM quotes WHERE id=$1`, id)
+	query := `DELETE FROM quotes WHERE id=$1`
+	args := []any{id}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		query += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+	res, err := r.db.Exec(ctx, query, args...)
 	if err != nil {
 		return err
 	}
@@ -419,19 +454,30 @@ func (r *QuoteRepo) ReplaceLineItems(ctx context.Context, quoteID uuid.UUID, inp
 }
 
 func (r *QuoteRepo) MarkSent(ctx context.Context, id uuid.UUID) (*domain.Quote, error) {
-	_, err := r.db.Exec(ctx,
-		`UPDATE quotes SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=$1`, id,
-	)
+	query := `UPDATE quotes SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=$1`
+	args := []any{id}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		query += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+	res, err := r.db.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
+	}
+	if res.RowsAffected() == 0 {
+		return nil, domain.ErrNotFound
 	}
 	return r.GetByID(ctx, id)
 }
 
 func (r *QuoteRepo) MarkApproved(ctx context.Context, id uuid.UUID) (*domain.Quote, error) {
-	res, err := r.db.Exec(ctx,
-		`UPDATE quotes SET status='approved', approved_at=NOW(), updated_at=NOW() WHERE id=$1`, id,
-	)
+	query := `UPDATE quotes SET status='approved', approved_at=NOW(), updated_at=NOW() WHERE id=$1`
+	args := []any{id}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		query += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+	res, err := r.db.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -442,9 +488,13 @@ func (r *QuoteRepo) MarkApproved(ctx context.Context, id uuid.UUID) (*domain.Quo
 }
 
 func (r *QuoteRepo) MarkRejected(ctx context.Context, id uuid.UUID) (*domain.Quote, error) {
-	res, err := r.db.Exec(ctx,
-		`UPDATE quotes SET status='rejected', rejected_at=NOW(), updated_at=NOW() WHERE id=$1`, id,
-	)
+	query := `UPDATE quotes SET status='rejected', rejected_at=NOW(), updated_at=NOW() WHERE id=$1`
+	args := []any{id}
+	if orgID, ok := domain.OrgIDFromContext(ctx); ok {
+		query += ` AND org_id=$2`
+		args = append(args, orgID)
+	}
+	res, err := r.db.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

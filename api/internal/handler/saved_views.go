@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -94,6 +96,11 @@ func (h *SavedViewHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SavedViewHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid id")
@@ -107,7 +114,6 @@ func (h *SavedViewHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Access: own view, shared view, or admin
-	claims, _ := middleware.ClaimsFromContext(r)
 	if !v.IsShared && v.CreatedBy != claims.UserID && !domain.IsAdminRole(claims.Role) {
 		writeError(w, http.StatusForbidden, "forbidden")
 		return
@@ -214,7 +220,28 @@ func (h *SavedViewHandler) Pin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Toggle the pinned state.
+	var req struct {
+		PinOrder *int `json:"pin_order"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if req.PinOrder != nil {
+		pinned := true
+		updated, err := h.repo.Update(r.Context(), id, domain.SavedViewPatch{
+			IsPinned:    &pinned,
+			PinnedOrder: req.PinOrder,
+		})
+		if err != nil {
+			handleDomainErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, updated)
+		return
+	}
+
+	// Toggle the pinned state when no explicit order is supplied.
 	updated, err := h.repo.Pin(r.Context(), id, !existing.IsPinned)
 	if err != nil {
 		handleDomainErr(w, err)

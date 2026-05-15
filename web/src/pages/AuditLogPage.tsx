@@ -18,6 +18,7 @@ const ENTITY_TYPE_OPTIONS = [
   { label: 'Sharing Rule', value: 'sharing_rule' },
   { label: 'User', value: 'user' },
   { label: 'View', value: 'view' },
+  { label: 'API Key', value: 'api_key' },
 ]
 
 const ACTION_OPTIONS = [

@@ -19,6 +19,10 @@ export interface TOTPVerifyResult {
   backup_codes: string[]
 }
 
+export interface TOTPStatus {
+  enabled: boolean
+}
+
 export const ssoApi = {
   getConfig: async (orgSlug: string): Promise<SSOConfig> => {
     const res = await axios.get(`${AUTH_BASE}/auth/sso/config`, {
@@ -40,6 +44,12 @@ export const ssoApi = {
 }
 
 export const totpApi = {
+  /** Returns whether TOTP 2FA is enabled for the current user. */
+  status: async (): Promise<TOTPStatus> => {
+    const { data } = await apiClient.get('/users/me/2fa')
+    return data
+  },
+
   /** Starts TOTP setup: returns QR data URL + otpauth URI. */
   setup: async (): Promise<TOTPSetupResult> => {
     const { data } = await apiClient.post('/users/me/2fa/setup')

@@ -242,7 +242,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo, accountRepo, dealRepo, leadConversionMappingRepo, customFieldRepo).WithModuleLayouts(moduleLayoutRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo).WithPicklistValueReader(picklistRepo)
 	moduleConfigurationHandler := handler.NewModuleConfigurationHandler(moduleLayoutRepo, moduleRelationshipDefinitionRepo, customFieldRepo, crmEntityLinkRepo, accessRepo)
-	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo).WithAuditLog(auditLogRepo)
 	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, contactRepo, dealRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
@@ -261,7 +261,7 @@ func main() {
 	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	productHandler := handler.NewProductHandler(productRepo)
-	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithRelations(contactRepo, dealRepo).WithMailer(mailer, cfg.SMTP.From)
+	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithRelations(contactRepo, dealRepo).WithCustomFields(customFieldRepo).WithMailer(mailer, cfg.SMTP.From)
 	automationHandler := handler.NewAutomationHandler(automationRepo)
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	emailInboxHandler := handler.NewEmailInboxHandler(emailConnectionRepo, emailInboxRepo, cfg.EmailInbox)
@@ -278,7 +278,7 @@ func main() {
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey).WithAuditLog(auditLogRepo)
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
-	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo).WithOrgs(orgRepo)
+	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo).WithOrgs(orgRepo).WithCustomFields(customFieldRepo)
 	productHelpSyncer := producthelppkg.NewService(productHelpRepo, producthelppkg.Config{
 		RawBaseURL:   cfg.ProductHelpWiki.RawBaseURL,
 		WikiBaseURL:  cfg.ProductHelpWiki.WikiBaseURL,
