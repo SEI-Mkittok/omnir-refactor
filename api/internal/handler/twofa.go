@@ -46,6 +46,7 @@ func (h *TwoFAHandler) WithAuditLog(r repository.AuditLogRepository) *TwoFAHandl
 // Router returns routes for authenticated user 2FA management.
 func (h *TwoFAHandler) Router() chi.Router {
 	r := chi.NewRouter()
+	r.Get("/", h.Status)
 	r.Post("/setup", h.Setup)
 	r.Post("/verify", h.Verify)
 	r.Post("/disable", h.Disable)
@@ -57,6 +58,19 @@ func (h *TwoFAHandler) LoginRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/verify", h.VerifyLogin)
 	return r
+}
+
+// Status reports whether TOTP 2FA is enabled for the current user.
+// GET /api/v1/users/me/2fa
+func (h *TwoFAHandler) Status(w http.ResponseWriter, r *http.Request) {
+	claims := mustClaims(r)
+
+	enabled, err := h.totpRepo.IsEnabled(r.Context(), claims.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"enabled": enabled})
 }
 
 // Setup generates a TOTP secret and returns the otpauth:// URI + QR PNG data URL.

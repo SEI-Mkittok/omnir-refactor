@@ -4,6 +4,7 @@ import { BookOpen, LifeBuoy, LogOut } from 'lucide-react'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { getOnboardingState } from '@/api/onboarding'
+import { usersApi } from '@/api/users'
 
 const AUTH_BASE = import.meta.env.VITE_AUTH_URL || '/api'
 
@@ -11,9 +12,10 @@ const AUTH_BASE = import.meta.env.VITE_AUTH_URL || '/api'
 export const PORTAL_SESSION_EXPIRED = 'portal:session-expired'
 
 export function PortalShell() {
-  const { isAuthenticated, user, logout } = useAuthStore()
+  const { isAuthenticated, user, setUser, logout } = useAuthStore()
   const navigate = useNavigate()
   const [orgName, setOrgName] = useState<string | null>(null)
+  const [checkingSession, setCheckingSession] = useState(!isAuthenticated)
 
   useEffect(() => {
     function onExpired() {
@@ -25,10 +27,36 @@ export function PortalShell() {
   }, [logout, navigate])
 
   useEffect(() => {
+    if (isAuthenticated) {
+      setCheckingSession(false)
+      return
+    }
+
+    let cancelled = false
+    setCheckingSession(true)
+    usersApi.me()
+      .then((currentUser) => {
+        if (!cancelled && currentUser.role === 'client') {
+          setUser(currentUser)
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCheckingSession(false)
+      })
+
+    return () => { cancelled = true }
+  }, [isAuthenticated, setUser])
+
+  useEffect(() => {
     getOnboardingState()
       .then((state) => { if (state.orgName) setOrgName(state.orgName) })
       .catch(() => {})
   }, [])
+
+  if (checkingSession) {
+    return null
+  }
 
   if (!isAuthenticated || user?.role !== 'client') {
     return <Navigate to="/portal/login" replace />

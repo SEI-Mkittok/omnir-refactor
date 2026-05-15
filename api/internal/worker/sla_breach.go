@@ -21,6 +21,10 @@ type SLABreachWorker struct {
 	stop          chan struct{}
 }
 
+type slaNotificationRecipientResolver interface {
+	NotificationRecipients(ctx context.Context, inst *domain.SLAInstance) ([]uuid.UUID, error)
+}
+
 func NewSLABreachWorker(
 	instances repository.SLAInstanceRepository,
 	notifications repository.NotificationRepository,
@@ -65,9 +69,11 @@ func (w *SLABreachWorker) tick(ctx context.Context) {
 	breached, err := w.instances.ScanBreaches(ctx)
 	if err != nil {
 		w.logger.Error("sla breach scan failed", "err", err)
-	} else if breached > 0 {
-		w.logger.Info("sla breaches detected", "count", breached)
-		w.notifyBreaches(ctx)
+	} else if len(breached) > 0 {
+		w.logger.Info("sla breaches detected", "count", len(breached))
+		for _, inst := range breached {
+			w.emitBreach(ctx, inst)
+		}
 	}
 
 	// Scan and emit 80% warnings
@@ -81,37 +87,6 @@ func (w *SLABreachWorker) tick(ctx context.Context) {
 	}
 }
 
-func (w *SLABreachWorker) notifyBreaches(ctx context.Context) {
-	breachedTrue := true
-	instances, err := w.instances.List(ctx, domain.SLAInstanceFilter{Breached: &breachedTrue, Limit: 500})
-	if err != nil {
-		w.logger.Error("listing breached sla instances", "err", err)
-		return
-	}
-	for _, inst := range instances {
-		entityType := string(inst.EntityType)
-		entityID := inst.EntityID
-		title := "SLA breached"
-		body := "An SLA deadline has been missed."
-
-		// We don't have easy access to owner here without joining —
-		// use org_id placeholder user. Notifications are scoped by org.
-		// A real implementation would join to get the deal owner.
-		_, err := w.notifications.Create(ctx, &domain.Notification{
-			OrgID:      inst.OrgID,
-			UserID:     uuid.Nil, // broadcast to org; frontend filters by org
-			Kind:       domain.NotificationKindSLABreached,
-			EntityType: &entityType,
-			EntityID:   &entityID,
-			Title:      title,
-			Body:       &body,
-		})
-		if err != nil {
-			w.logger.Error("failed to create breach notification", "instance_id", inst.ID, "err", err)
-		}
-	}
-}
-
 func (w *SLABreachWorker) emitWarning(ctx context.Context, inst *domain.SLAInstance) {
 	now := time.Now().UTC()
 	entityType := string(inst.EntityType)
@@ -119,21 +94,55 @@ func (w *SLABreachWorker) emitWarning(ctx context.Context, inst *domain.SLAInsta
 	title := "SLA at risk — 80% elapsed"
 	body := "An SLA is approaching its deadline."
 
-	_, err := w.notifications.Create(ctx, &domain.Notification{
-		OrgID:      inst.OrgID,
-		UserID:     uuid.Nil,
-		Kind:       domain.NotificationKindSLAWarning,
-		EntityType: &entityType,
-		EntityID:   &entityID,
-		Title:      title,
-		Body:       &body,
-	})
-	if err != nil {
-		w.logger.Error("failed to create sla warning notification", "instance_id", inst.ID, "err", err)
+	if !w.emitToRecipients(ctx, inst, domain.NotificationKindSLAWarning, entityType, entityID, title, body) {
 		return
 	}
 
 	if err := w.instances.MarkWarned(ctx, inst.ID, now); err != nil {
 		w.logger.Error("failed to mark sla instance warned", "instance_id", inst.ID, "err", err)
 	}
+}
+
+func (w *SLABreachWorker) emitBreach(ctx context.Context, inst *domain.SLAInstance) {
+	entityType := string(inst.EntityType)
+	entityID := inst.EntityID
+	title := "SLA breached"
+	body := "An SLA deadline has been missed."
+
+	w.emitToRecipients(ctx, inst, domain.NotificationKindSLABreached, entityType, entityID, title, body)
+}
+
+func (w *SLABreachWorker) emitToRecipients(ctx context.Context, inst *domain.SLAInstance, kind domain.NotificationKind, entityType string, entityID uuid.UUID, title, body string) bool {
+	resolver, ok := w.instances.(slaNotificationRecipientResolver)
+	if !ok {
+		w.logger.Warn("sla notification recipients unavailable", "instance_id", inst.ID)
+		return false
+	}
+	recipients, err := resolver.NotificationRecipients(ctx, inst)
+	if err != nil {
+		w.logger.Error("failed to resolve sla notification recipients", "instance_id", inst.ID, "err", err)
+		return false
+	}
+	if len(recipients) == 0 {
+		w.logger.Warn("sla notification skipped with no recipients", "instance_id", inst.ID, "entity_type", entityType)
+		return false
+	}
+
+	ok = true
+	for _, userID := range recipients {
+		_, err := w.notifications.Create(ctx, &domain.Notification{
+			OrgID:      inst.OrgID,
+			UserID:     userID,
+			Kind:       kind,
+			EntityType: &entityType,
+			EntityID:   &entityID,
+			Title:      title,
+			Body:       &body,
+		})
+		if err != nil {
+			ok = false
+			w.logger.Error("failed to create sla notification", "instance_id", inst.ID, "user_id", userID, "err", err)
+		}
+	}
+	return ok
 }

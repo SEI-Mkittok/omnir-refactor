@@ -281,6 +281,13 @@ func (h *DashboardHandler) CreateSchedule(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "at least one recipient is required")
 		return
 	}
+	if _, err := h.repo.GetDashboardByID(r.Context(), req.DashboardID); errors.Is(err, domain.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "dashboard not found")
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load dashboard")
+		return
+	}
 
 	s := &domain.ScheduledReport{
 		ID:          uuid.New(),
@@ -325,6 +332,15 @@ func (h *DashboardHandler) UpdateSchedule(w http.ResponseWriter, r *http.Request
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
+	}
+	if patch.DashboardID != nil {
+		if _, err := h.repo.GetDashboardByID(r.Context(), *patch.DashboardID); errors.Is(err, domain.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "dashboard not found")
+			return
+		} else if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to load dashboard")
+			return
+		}
 	}
 	updated, err := h.repo.UpdateSchedule(r.Context(), id, patch)
 	if errors.Is(err, domain.ErrNotFound) {

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -65,6 +66,7 @@ type KBArticle struct {
 	Status       KBArticleStatus `json:"status"`
 	AuthorID     uuid.UUID       `json:"author_id"`
 	ViewCount    int             `json:"view_count"`
+	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
 	Number       *int64          `json:"number,omitempty"`
 	NumberPrefix string          `json:"number_prefix,omitempty"`
 	CreatedAt    time.Time       `json:"created_at"`
@@ -87,11 +89,12 @@ func (a *KBArticle) Validate() error {
 
 // KBArticlePatch holds optional update fields for an article.
 type KBArticlePatch struct {
-	Title      *string          `json:"title"`
-	Body       *string          `json:"body"`
-	CategoryID *uuid.UUID       `json:"category_id"`
-	Tags       []string         `json:"tags"`
-	Status     *KBArticleStatus `json:"status"`
+	Title        *string          `json:"title"`
+	Body         *string          `json:"body"`
+	CategoryID   *uuid.UUID       `json:"category_id"`
+	Tags         []string         `json:"tags"`
+	Status       *KBArticleStatus `json:"status"`
+	CustomFields json.RawMessage  `json:"custom_fields,omitempty"`
 }
 
 // KBArticleFilter holds query parameters for listing/searching articles.

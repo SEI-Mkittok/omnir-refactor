@@ -253,6 +253,13 @@ func TestUserHandler_Create(t *testing.T) {
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
+			name:       "returns 422 for short password",
+			claims:     adminClaims(adminID),
+			body:       map[string]any{"name": "Alice", "email": "alice@example.com", "password": "short"},
+			setupMock:  func(_ *mocks.MockUserRepository) {},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
 			name:       "returns 400 for invalid JSON",
 			claims:     adminClaims(adminID),
 			body:       nil,

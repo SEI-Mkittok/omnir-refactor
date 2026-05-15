@@ -6,14 +6,16 @@ import { Badge } from '@/components/ui/Badge'
 import { Spinner } from '@/components/ui/Spinner'
 import { Table, type Column } from '@/components/ui/Table'
 import { SidePanel } from '@/components/ui/SidePanel'
+import { CustomFieldDisplaySection } from '@/components/omnir/CustomFieldRenderer'
 import { QuoteBuilder, QuoteStatusBadge } from '@/components/omnir/QuoteBuilder'
 import { ViewPinBar } from '@/components/omnir/ViewPinBar'
 import { useAccounts } from '@/hooks/useAccounts'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
 import { useQuotes, useDeleteQuote } from '@/hooks/useQuotes'
 import { useUpdateView } from '@/hooks/useViews'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { cleanCurrentFilters, pickViewFilters, sortKeyFromFilters, stringFilter } from '@/lib/savedViewFilters'
-import type { Quote, QuoteStatus, SavedView } from '@/api/types'
+import type { Quote, QuoteStatus, SavedView, CustomFieldValues } from '@/api/types'
 
 const STATUS_OPTIONS: { label: string; value: QuoteStatus | '' }[] = [
   { label: 'All statuses', value: '' },
@@ -54,6 +56,7 @@ function QuoteDetail({
 }) {
   const deleteQuote = useDeleteQuote()
   const [showEdit, setShowEdit] = useState(false)
+  const { data: customFieldDefs = [] } = useCustomFieldDefinitions('quote', { activeOptionsOnly: true })
   const displayAccountName = quote.account?.name ?? accountName
 
   return (
@@ -165,6 +168,11 @@ function QuoteDetail({
               <p className="text-sm text-slate-900 whitespace-pre-line">{quote.notes}</p>
             </div>
           )}
+
+          <CustomFieldDisplaySection
+            fields={customFieldDefs}
+            values={quote.custom_fields as CustomFieldValues | undefined}
+          />
         </div>
       </SidePanel>
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -174,8 +175,14 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid JSON body")
 		return
 	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(req.Email)
 	if req.Name == "" || req.Email == "" || req.Password == "" {
 		writeError(w, http.StatusUnprocessableEntity, "name, email, and password are required")
+		return
+	}
+	if len(req.Password) < 8 {
+		writeError(w, http.StatusUnprocessableEntity, "password must be at least 8 characters")
 		return
 	}
 	if req.Role == "" {

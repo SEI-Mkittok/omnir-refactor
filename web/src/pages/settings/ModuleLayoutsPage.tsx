@@ -38,7 +38,7 @@ function normalizeOrders(blocks: ModuleLayoutBlock[]): ModuleLayoutBlock[] {
   }))
 }
 
-const HARD_REQUIRED_FIELDS: Record<CustomFieldEntityType, Set<string>> = {
+const HARD_REQUIRED_FIELDS: Partial<Record<CustomFieldEntityType, Set<string>>> = {
   account: new Set(['name']),
   contact: new Set(['first_name', 'last_name']),
   lead: new Set(['first_name', 'last_name']),
@@ -46,7 +46,7 @@ const HARD_REQUIRED_FIELDS: Record<CustomFieldEntityType, Set<string>> = {
   ticket: new Set(['subject']),
 }
 
-const CREATE_FORM_REQUIRED_STANDARD_FIELDS: Record<CustomFieldEntityType, Set<string>> = {
+const CREATE_FORM_REQUIRED_STANDARD_FIELDS: Partial<Record<CustomFieldEntityType, Set<string>>> = {
   account: new Set(['name', 'domain', 'industry', 'size']),
   contact: new Set(['first_name', 'last_name', 'email', 'phone', 'account_id', 'stage']),
   lead: new Set(['first_name', 'last_name', 'email', 'phone', 'company', 'lead_source', 'status']),

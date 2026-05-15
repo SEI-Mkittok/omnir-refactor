@@ -301,9 +301,9 @@ type SLAInstanceRepository interface {
 	MarkResponded(ctx context.Context, entityID uuid.UUID, entityType domain.SLAEntityType, t time.Time) error
 	// MarkResolved sets resolved_at for the instance associated with the entity.
 	MarkResolved(ctx context.Context, entityID uuid.UUID, entityType domain.SLAEntityType, t time.Time) error
-	// ScanBreaches marks instances as breached where due_at has passed.
-	// Returns number of newly breached instances.
-	ScanBreaches(ctx context.Context) (int, error)
+	// ScanBreaches marks instances as breached where due_at has passed and
+	// returns the instances newly transitioned by this scan.
+	ScanBreaches(ctx context.Context) ([]*domain.SLAInstance, error)
 	// ScanWarnings returns instances that have hit 80% of their SLA window and haven't been warned yet.
 	ScanWarnings(ctx context.Context) ([]*domain.SLAInstance, error)
 	// MarkWarned records that a warning notification was sent for the given instance.

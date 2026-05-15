@@ -8,6 +8,7 @@ import { adminSettingsApi } from './adminSettings'
 import { billingApi } from './billing'
 import { calendarApi } from './calendar'
 import { currenciesApi } from './currencies'
+import { customFieldsApi } from './customFields'
 import { dealsApi } from './deals'
 import { inboxApi } from './inbox'
 import { integrationsApi } from './integrations'
@@ -18,7 +19,14 @@ import { numberingApi } from './numbering'
 import { picklistsApi } from './picklists'
 import { preferencesApi } from './preferences'
 import { productHelpApi } from './productHelp'
+import { quotesApi } from './quotes'
+import {
+  getConversionRatesReport,
+  getManagerDashboardReport,
+  getRevenueProjectionReport,
+} from './reports'
 import { slaApi } from './sla'
+import { totpApi } from './sso'
 import { usersApi } from './users'
 import { server } from '@/test/mocks/server'
 
@@ -29,6 +37,51 @@ describe('CRM API contract mapping', () => {
     )
 
     await expect(accessSettingsApi.listGroups()).resolves.toEqual([])
+  })
+
+  it('uses the authenticated TOTP status endpoint for security settings', async () => {
+    server.use(
+      http.get('/api/v1/users/me/2fa', () => HttpResponse.json({ enabled: true }))
+    )
+
+    await expect(totpApi.status()).resolves.toEqual({ enabled: true })
+  })
+
+  it('maps the full report endpoint surface used by dashboards', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.get('/api/v1/reports/conversion-rates', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`conversion:${url.searchParams.get('from')}`)
+        return HttpResponse.json({ rates: [{ from: 'lead', to: 'qualified', rate: 0.5 }] })
+      }),
+      http.get('/api/v1/reports/revenue-projection', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`revenue:${url.searchParams.get('months')}`)
+        return HttpResponse.json({ months: [{ month: '2026-05', projected_cents: 12345, deal_count: 1 }] })
+      }),
+      http.get('/api/v1/reports/manager-dashboard', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`manager:${url.searchParams.get('to')}`)
+        return HttpResponse.json({
+          crm: { pipeline_value_cents: 0, won_count: 0, lost_count: 0, stage_distribution: [] },
+          help_desk: { open_count: 0, backlog_count: 0, status_distribution: [], volume_trend: [], resolution_trend: [] },
+          team_activity: { by_user: [], created_over_time: [], completed_over_time: [] },
+        })
+      })
+    )
+
+    await expect(getConversionRatesReport({ from: '2026-05-01' })).resolves.toEqual({
+      rates: [{ from: 'lead', to: 'qualified', rate: 0.5 }],
+    })
+    await expect(getRevenueProjectionReport(6)).resolves.toEqual({
+      months: [{ month: '2026-05', projected_cents: 12345, deal_count: 1 }],
+    })
+    await expect(getManagerDashboardReport({ to: '2026-05-14' })).resolves.toMatchObject({
+      crm: { pipeline_value_cents: 0 },
+    })
+    expect(seen).toEqual(['conversion:2026-05-01', 'revenue:6', 'manager:2026-05-14'])
   })
 
   it('loads user ACL assignment options from the users admin endpoint', async () => {
@@ -349,6 +402,62 @@ describe('CRM API contract mapping', () => {
     ])
     await expect(kbApi.suggestArticles('reset')).resolves.toEqual([
       { id: 'kb-1', title: 'Reset password', slug: 'reset-password' },
+    ])
+  })
+
+  it('uses Bundle 6 quote and KB custom-field contracts', async () => {
+    const seen: string[] = []
+
+    server.use(
+      http.get('/api/v1/custom-fields', ({ request }) => {
+        const url = new URL(request.url)
+        seen.push(`GET /api/v1/custom-fields?entity_type=${url.searchParams.get('entity_type')}`)
+        return HttpResponse.json([])
+      }),
+      http.post('/api/v1/quotes', async ({ request }) => {
+        seen.push('POST /api/v1/quotes')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.custom_fields).toEqual({ contract_type: 'MSA' })
+        return HttpResponse.json({
+          id: 'quote-1',
+          org_id: 'org-1',
+          status: 'draft',
+          currency: 'USD',
+          line_items: [],
+          total_cents: 0,
+          created_at: '2026-05-14T00:00:00Z',
+          updated_at: '2026-05-14T00:00:00Z',
+          ...body,
+        }, { status: 201 })
+      }),
+      http.patch('/api/v1/kb/articles/kb-1', async ({ request }) => {
+        seen.push('PATCH /api/v1/kb/articles/kb-1')
+        const body = (await request.json()) as Record<string, unknown>
+        expect(body.custom_fields).toEqual({ audience: 'admins' })
+        return HttpResponse.json({
+          id: 'kb-1',
+          title: 'Admin Guide',
+          body: 'Body',
+          status: 'published',
+          category_id: null,
+          view_count: 0,
+          created_at: '2026-05-14T00:00:00Z',
+          updated_at: '2026-05-14T00:00:00Z',
+          ...body,
+        })
+      })
+    )
+
+    await customFieldsApi.list('quote')
+    await customFieldsApi.list('kb_article')
+    await quotesApi.create({ title: 'Enterprise quote', custom_fields: { contract_type: 'MSA' } })
+    await kbApi.updateArticle('kb-1', { custom_fields: { audience: 'admins' } })
+
+    expect(seen).toEqual([
+      'GET /api/v1/custom-fields?entity_type=quote',
+      'GET /api/v1/custom-fields?entity_type=kb_article',
+      'POST /api/v1/quotes',
+      'PATCH /api/v1/kb/articles/kb-1',
     ])
   })
 

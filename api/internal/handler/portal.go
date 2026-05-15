@@ -37,6 +37,7 @@ func (h *PortalHandler) Router() chi.Router {
 	r.Get("/tickets", h.ListTickets)
 	r.Post("/tickets", h.CreateTicket)
 	r.Get("/tickets/{id}", h.GetTicket)
+	r.Get("/tickets/{id}/comments", h.ListComments)
 	r.Post("/tickets/{id}/comments", h.CreateComment)
 
 	return r
@@ -182,6 +183,47 @@ func (h *PortalHandler) GetTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, portalTicketDetail{Ticket: t, Comments: comments})
+}
+
+// ListComments handles GET /portal/tickets/{id}/comments.
+// Returns only public comments for a ticket owned by the authenticated client user.
+func (h *PortalHandler) ListComments(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	ticketID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeProblem(w, http.StatusBadRequest, "Bad Request", "invalid ticket id")
+		return
+	}
+
+	t, err := h.tickets.GetByID(r.Context(), ticketID)
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if t.SubmittedByUserID == nil || *t.SubmittedByUserID != claims.UserID {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	isInternal := false
+	comments, err := h.comments.List(r.Context(), domain.TicketCommentFilter{
+		TicketID:   ticketID,
+		IsInternal: &isInternal,
+	})
+	if err != nil {
+		handleDomainErr(w, err)
+		return
+	}
+	if comments == nil {
+		comments = []*domain.TicketComment{}
+	}
+
+	writeJSON(w, http.StatusOK, comments)
 }
 
 // CreateComment handles POST /portal/tickets/{id}/comments.

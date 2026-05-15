@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/Badge'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useProducts } from '@/hooks/useProducts'
 import { useCreateQuote, useUpdateQuote, useSendQuote } from '@/hooks/useQuotes'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
 import { formatCurrency } from '@/lib/utils'
-import type { Quote, QuoteLineItemInput, CreateQuoteRequest, UpdateQuoteRequest, Product } from '@/api/types'
+import type { Quote, QuoteLineItemInput, CreateQuoteRequest, UpdateQuoteRequest, Product, CustomFieldValues } from '@/api/types'
 
 interface LineItemRow extends QuoteLineItemInput {
   _key: number
@@ -78,6 +80,9 @@ export function QuoteBuilder({
   const [currency, setCurrency] = useState(quote?.currency ?? 'USD')
   const [validUntil, setValidUntil] = useState(quote?.valid_until?.slice(0, 10) ?? '')
   const [notes, setNotes] = useState(quote?.notes ?? '')
+  const [customFields, setCustomFields] = useState<CustomFieldValues>(() => ({
+    ...((quote?.custom_fields ?? {}) as CustomFieldValues),
+  }))
   const [lineItems, setLineItems] = useState<LineItemRow[]>(() => {
     if (quote?.line_items?.length) {
       return quote.line_items.map((li) => ({
@@ -104,6 +109,7 @@ export function QuoteBuilder({
 
   const { data: productsResult } = useProducts({ active: true, limit: 200 })
   const { data: accountsResult, isLoading: accountsLoading } = useAccounts({ per_page: 200 })
+  const { data: customFieldDefs = [] } = useCustomFieldDefinitions('quote', { activeOptionsOnly: true })
   const products = productsResult?.data ?? []
   const accounts = accountsResult?.data ?? []
   const selectedAccountName =
@@ -169,6 +175,7 @@ export function QuoteBuilder({
       ...(selectedAccountId ? { account_id: selectedAccountId } : {}),
       ...(dealId ? { deal_id: dealId } : {}),
       ...(contactId ? { contact_id: contactId } : {}),
+      custom_fields: customFields,
       line_items: lineItems.map((li, idx) => ({
         product_id: li.product_id,
         product_name: li.product_name,
@@ -321,6 +328,16 @@ export function QuoteBuilder({
               />
             </div>
           </div>
+
+          {customFieldDefs.length > 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <CustomFieldFormSection
+                fields={customFieldDefs}
+                values={customFields}
+                onChange={setCustomFields}
+              />
+            </div>
+          )}
 
           {/* Line items */}
           <div>

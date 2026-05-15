@@ -6,7 +6,10 @@ import {
   getContactReport,
   getDealReport,
   getPipelineFunnelReport,
+  getConversionRatesReport,
+  getRevenueProjectionReport,
   getActivitySummaryReport,
+  getManagerDashboardReport,
   type ReportsParams,
 } from '@/api/reports'
 import type {
@@ -16,7 +19,10 @@ import type {
   ContactReport,
   DealReport,
   PipelineFunnelReport,
+  ConversionRatesReport,
+  RevenueProjectionReport,
   ActivitySummaryReport,
+  ManagerDashboardReport,
 } from '@/api/types'
 
 export type { ReportsParams }
@@ -28,7 +34,10 @@ export const reportKeys = {
   contacts: (params: ReportsParams) => ['reports', 'contacts', params] as const,
   deals: (params: ReportsParams) => ['reports', 'deals', params] as const,
   pipelineFunnel: (params: ReportsParams) => ['reports', 'pipeline-funnel', params] as const,
+  conversionRates: (params: ReportsParams) => ['reports', 'conversion-rates', params] as const,
+  revenueProjection: (months: number) => ['reports', 'revenue-projection', months] as const,
   activitySummary: (params: ReportsParams) => ['reports', 'activity-summary', params] as const,
+  managerDashboard: (params: ReportsParams) => ['reports', 'manager-dashboard', params] as const,
 }
 
 // ---- Hooks ----
@@ -81,10 +90,34 @@ export function usePipelineFunnelReport(params: ReportsParams = {}) {
   })
 }
 
+export function useConversionRatesReport(params: ReportsParams = {}) {
+  return useQuery<ConversionRatesReport>({
+    queryKey: reportKeys.conversionRates(params),
+    queryFn: () => getConversionRatesReport(params),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useRevenueProjectionReport(months = 3) {
+  return useQuery<RevenueProjectionReport>({
+    queryKey: reportKeys.revenueProjection(months),
+    queryFn: () => getRevenueProjectionReport(months),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
 export function useActivitySummaryReport(params: ReportsParams = {}) {
   return useQuery<ActivitySummaryReport>({
     queryKey: reportKeys.activitySummary(params),
     queryFn: () => getActivitySummaryReport(params),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useManagerDashboardReport(params: ReportsParams = {}) {
+  return useQuery<ManagerDashboardReport>({
+    queryKey: reportKeys.managerDashboard(params),
+    queryFn: () => getManagerDashboardReport(params),
     staleTime: 5 * 60 * 1000,
   })
 }

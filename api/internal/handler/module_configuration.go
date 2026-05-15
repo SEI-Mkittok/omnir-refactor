@@ -587,6 +587,8 @@ func customFieldEntityForCRMEntityType(entityType domain.CRMEntityType) (domain.
 		return domain.CustomFieldEntityDeal, true
 	case domain.CRMEntityTypeTicket:
 		return domain.CustomFieldEntityTicket, true
+	case domain.CRMEntityTypeQuote:
+		return domain.CustomFieldEntityQuote, true
 	default:
 		return "", false
 	}
@@ -673,7 +675,7 @@ func moduleActionForSharing(accessLevel domain.SharingAccessLevel) domain.ACLAct
 func parseLayoutEntityParam(w http.ResponseWriter, r *http.Request) (domain.CustomFieldEntityType, bool) {
 	entityType := domain.CustomFieldEntityType(chi.URLParam(r, "entityType"))
 	if !entityType.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, or account")
+		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, account, quote, or kb_article")
 		return "", false
 	}
 	return entityType, true
@@ -682,7 +684,7 @@ func parseLayoutEntityParam(w http.ResponseWriter, r *http.Request) (domain.Cust
 func parseQueryEntityType(w http.ResponseWriter, r *http.Request) (domain.CustomFieldEntityType, bool) {
 	entityType := domain.CustomFieldEntityType(r.URL.Query().Get("entity_type"))
 	if !entityType.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "entity_type is required and must be ticket, contact, lead, deal, or account")
+		writeError(w, http.StatusUnprocessableEntity, "entity_type is required and must be ticket, contact, lead, deal, account, quote, or kb_article")
 		return "", false
 	}
 	return entityType, true

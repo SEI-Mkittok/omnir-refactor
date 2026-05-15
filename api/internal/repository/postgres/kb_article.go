@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -23,14 +24,14 @@ func NewKBArticleRepo(db *pgxpool.Pool) *KBArticleRepo {
 	return &KBArticleRepo{db: db}
 }
 
-const kbArtCols = `id, org_id, title, body, category_id, tags, status, author_id, view_count, number, number_prefix, created_at, updated_at, deleted_at`
+const kbArtCols = `id, org_id, title, body, category_id, tags, status, author_id, view_count, custom_fields, number, number_prefix, created_at, updated_at, deleted_at`
 
 func scanKBArticle(row pgx.Row) (*domain.KBArticle, error) {
 	var a domain.KBArticle
 	err := row.Scan(
 		&a.ID, &a.OrgID, &a.Title, &a.Body, &a.CategoryID,
 		&a.Tags, &a.Status, &a.AuthorID, &a.ViewCount,
-		&a.Number, &a.NumberPrefix, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
+		&a.CustomFields, &a.Number, &a.NumberPrefix, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -40,6 +41,9 @@ func scanKBArticle(row pgx.Row) (*domain.KBArticle, error) {
 	}
 	if a.Tags == nil {
 		a.Tags = []string{}
+	}
+	if len(a.CustomFields) == 0 {
+		a.CustomFields = json.RawMessage(`{}`)
 	}
 	return &a, nil
 }
@@ -58,6 +62,9 @@ func (r *KBArticleRepo) Create(ctx context.Context, a *domain.KBArticle) (*domai
 	if a.Tags == nil {
 		a.Tags = []string{}
 	}
+	if len(a.CustomFields) == 0 {
+		a.CustomFields = json.RawMessage(`{}`)
+	}
 	now := time.Now().UTC()
 	a.CreatedAt = now
 	a.UpdatedAt = now
@@ -72,10 +79,10 @@ func (r *KBArticleRepo) Create(ctx context.Context, a *domain.KBArticle) (*domai
 	}
 
 	row := r.db.QueryRow(ctx, `
-		INSERT INTO articles (id, org_id, title, body, category_id, tags, status, author_id, number, number_prefix, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO articles (id, org_id, title, body, category_id, tags, status, author_id, custom_fields, number, number_prefix, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING `+kbArtCols,
-		a.ID, a.OrgID, a.Title, a.Body, a.CategoryID, a.Tags, string(a.Status), a.AuthorID, num, prefix, a.CreatedAt, a.UpdatedAt,
+		a.ID, a.OrgID, a.Title, a.Body, a.CategoryID, a.Tags, string(a.Status), a.AuthorID, a.CustomFields, num, prefix, a.CreatedAt, a.UpdatedAt,
 	)
 	return scanKBArticle(row)
 }
@@ -117,6 +124,9 @@ func (r *KBArticleRepo) Update(ctx context.Context, id uuid.UUID, patch domain.K
 	}
 	if patch.Status != nil {
 		addArg("status", string(*patch.Status))
+	}
+	if len(patch.CustomFields) > 0 {
+		addArg("custom_fields", patch.CustomFields)
 	}
 
 	n++
@@ -228,7 +238,7 @@ func (r *KBArticleRepo) List(ctx context.Context, f domain.KBArticleFilter) ([]*
 		dest := []any{
 			&a.ID, &a.OrgID, &a.Title, &a.Body, &a.CategoryID,
 			&a.Tags, &a.Status, &a.AuthorID, &a.ViewCount,
-			&a.Number, &a.NumberPrefix, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
+			&a.CustomFields, &a.Number, &a.NumberPrefix, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 		}
 		if f.Query != "" {
 			var rank float64
@@ -239,6 +249,9 @@ func (r *KBArticleRepo) List(ctx context.Context, f domain.KBArticleFilter) ([]*
 		}
 		if a.Tags == nil {
 			a.Tags = []string{}
+		}
+		if len(a.CustomFields) == 0 {
+			a.CustomFields = json.RawMessage(`{}`)
 		}
 		out = append(out, &a)
 	}

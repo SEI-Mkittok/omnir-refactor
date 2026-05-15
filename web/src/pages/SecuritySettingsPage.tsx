@@ -4,17 +4,37 @@ import { Shield, ShieldCheck, ShieldOff, AlertCircle, Check, Rocket } from 'luci
 import { totpApi } from '@/api/sso'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Spinner } from '@/components/ui/Spinner'
 
 export function SecuritySettingsPage() {
   const location = useLocation()
   const [toast, setToast] = useState<string | null>(null)
   const [totpEnabled, setTotpEnabled] = useState(false)
+  const [totpStatusLoading, setTotpStatusLoading] = useState(true)
 
   // Disable flow
   const [disablePassword, setDisablePassword] = useState('')
   const [disableError, setDisableError] = useState<string | null>(null)
   const [disableLoading, setDisableLoading] = useState(false)
   const [disableOpen, setDisableOpen] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    setTotpStatusLoading(true)
+    totpApi.status()
+      .then((status) => {
+        if (active) setTotpEnabled(status.enabled)
+      })
+      .catch(() => {
+        if (active) setTotpEnabled(false)
+      })
+      .finally(() => {
+        if (active) setTotpStatusLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   // Pick up success toast from TotpEnrollPage navigation state
   useEffect(() => {
@@ -108,7 +128,12 @@ export function SecuritySettingsPage() {
           </div>
         </div>
 
-        {totpEnabled ? (
+        {totpStatusLoading ? (
+          <div className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">
+            <Spinner className="h-4 w-4" />
+            Checking 2FA status...
+          </div>
+        ) : totpEnabled ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
               <ShieldCheck className="h-4 w-4 shrink-0" />

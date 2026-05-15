@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -65,6 +66,7 @@ type Quote struct {
 	CreatedBy    *uuid.UUID      `json:"created_by,omitempty"`
 	LineItems    []QuoteLineItem `json:"line_items,omitempty"`
 	TotalCents   int64           `json:"total_cents"`
+	CustomFields json.RawMessage `json:"custom_fields,omitempty"`
 	Number       *int64          `json:"number,omitempty"`
 	NumberPrefix string          `json:"number_prefix,omitempty"`
 	CreatedAt    time.Time       `json:"created_at"`
@@ -108,15 +110,16 @@ type QuoteLineItemInput struct {
 
 // QuotePatch holds optional fields for partial quote updates.
 type QuotePatch struct {
-	Title      *string              `json:"title,omitempty"`
-	Status     *QuoteStatus         `json:"status,omitempty"`
-	Currency   *string              `json:"currency,omitempty"`
-	ValidUntil *time.Time           `json:"valid_until,omitempty"`
-	Notes      *string              `json:"notes,omitempty"`
-	AccountID  *uuid.UUID           `json:"account_id,omitempty"`
-	ContactID  *uuid.UUID           `json:"contact_id,omitempty"`
-	DealID     *uuid.UUID           `json:"deal_id,omitempty"`
-	LineItems  []QuoteLineItemInput `json:"line_items,omitempty"`
+	Title        *string              `json:"title,omitempty"`
+	Status       *QuoteStatus         `json:"status,omitempty"`
+	Currency     *string              `json:"currency,omitempty"`
+	ValidUntil   *time.Time           `json:"valid_until,omitempty"`
+	Notes        *string              `json:"notes,omitempty"`
+	AccountID    *uuid.UUID           `json:"account_id,omitempty"`
+	ContactID    *uuid.UUID           `json:"contact_id,omitempty"`
+	DealID       *uuid.UUID           `json:"deal_id,omitempty"`
+	LineItems    []QuoteLineItemInput `json:"line_items,omitempty"`
+	CustomFields json.RawMessage      `json:"custom_fields,omitempty"`
 }
 
 // QuoteFilter holds query params for listing quotes.

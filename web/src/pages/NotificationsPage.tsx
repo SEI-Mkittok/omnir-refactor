@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Activity, TrendingUp, AtSign, UserPlus, CheckCheck } from 'lucide-react'
+import { Bell, Activity, TrendingUp, AtSign, UserPlus, CheckCheck, Clock, AlertTriangle } from 'lucide-react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsApi } from '@/api/notifications'
 import { formatRelativeTime } from '@/lib/utils'
@@ -15,6 +15,8 @@ function kindIcon(kind: NotificationKind) {
     case 'deal_stage_changed': return TrendingUp
     case 'mention': return AtSign
     case 'assignment': return UserPlus
+    case 'sla_warning': return Clock
+    case 'sla_breached': return AlertTriangle
   }
 }
 
@@ -24,6 +26,8 @@ function kindLabel(kind: NotificationKind): string {
     case 'deal_stage_changed': return 'Deal Update'
     case 'mention': return 'Mention'
     case 'assignment': return 'Assignment'
+    case 'sla_warning': return 'SLA Warning'
+    case 'sla_breached': return 'SLA Breached'
   }
 }
 
@@ -32,6 +36,7 @@ function entityPath(n: Notification): string | null {
   switch (n.entity_type) {
     case 'deal': return `/deals?openId=${n.entity_id}`
     case 'contact': return `/contacts?openId=${n.entity_id}`
+    case 'ticket': return `/tickets/${n.entity_id}`
     default: return null
   }
 }
@@ -167,7 +172,7 @@ export function NotificationsPage() {
                   <p className="mt-1 text-xs text-slate-400">{formatRelativeTime(n.created_at)}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  {isUnread && <span className="h-2 w-2 rounded-full bg-[var(--color-primary-light)]0" />}
+                  {isUnread && <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />}
                   {path && (
                     <span className="text-xs text-[var(--color-primary)] hover:underline">View →</span>
                   )}

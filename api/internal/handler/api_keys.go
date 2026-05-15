@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -19,11 +22,17 @@ import (
 
 // APIKeyHandler handles CRUD for API keys.
 type APIKeyHandler struct {
-	repo repository.APIKeyRepository
+	repo  repository.APIKeyRepository
+	audit Auditor
 }
 
 func NewAPIKeyHandler(repo repository.APIKeyRepository) *APIKeyHandler {
 	return &APIKeyHandler{repo: repo}
+}
+
+func (h *APIKeyHandler) WithAuditLog(r repository.AuditLogRepository) *APIKeyHandler {
+	h.audit = newAuditor(r)
+	return h
 }
 
 func (h *APIKeyHandler) Router() chi.Router {
@@ -47,7 +56,11 @@ func (h *APIKeyHandler) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 // List returns all API keys for the org (prefix, name, last_used only — no hashes).
 // GET /api/v1/api-keys
 func (h *APIKeyHandler) List(w http.ResponseWriter, r *http.Request) {
-	claims, _ := middleware.ClaimsFromContext(r)
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 	keys, err := h.repo.List(r.Context(), claims.OrgID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
@@ -79,12 +92,17 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
 		writeError(w, http.StatusUnprocessableEntity, "name is required")
 		return
 	}
 
-	claims, _ := middleware.ClaimsFromContext(r)
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	plaintext, keyHash, keyPrefix, err := generateAPIKey()
 	if err != nil {
@@ -119,6 +137,12 @@ func (h *APIKeyHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logAPIKeyMutation(r, domain.AuditActionCreated, created, domain.AuditChanges{
+		"name":       {From: nil, To: created.Name},
+		"key_prefix": {From: nil, To: created.KeyPrefix},
+		"scopes":     {From: nil, To: created.Scopes},
+		"expires_at": {From: nil, To: created.ExpiresAt},
+	})
 	writeJSON(w, http.StatusCreated, createAPIKeyResponse{APIKey: created, Key: plaintext})
 }
 
@@ -131,12 +155,54 @@ func (h *APIKeyHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, _ := middleware.ClaimsFromContext(r)
+	claims, ok := middleware.ClaimsFromContext(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 	if err := h.repo.Revoke(r.Context(), id, claims.OrgID); err != nil {
 		handleDomainErr(w, err)
 		return
 	}
+	h.logAPIKeyMutation(r, domain.AuditActionDeleted, &domain.APIKey{ID: id, OrgID: claims.OrgID}, domain.AuditChanges{
+		"revoked_at": {From: nil, To: time.Now().UTC()},
+	})
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *APIKeyHandler) logAPIKeyMutation(r *http.Request, action domain.AuditAction, key *domain.APIKey, changes domain.AuditChanges) {
+	if h.audit.repo == nil || key == nil {
+		return
+	}
+	entry := domain.AuditEntry{
+		OrgID:      key.OrgID,
+		Action:     action,
+		EntityType: domain.AuditEntityAPIKey,
+		EntityID:   &key.ID,
+		Changes:    changes,
+	}
+	if key.Name != "" {
+		name := key.Name
+		entry.EntityName = &name
+	}
+	if claims, ok := middleware.ClaimsFromContext(r); ok {
+		userID := claims.UserID
+		entry.UserID = &userID
+		if entry.OrgID == uuid.Nil {
+			entry.OrgID = claims.OrgID
+		}
+	}
+	if ip := realClientIP(r); ip != "" {
+		entry.IPAddress = &ip
+	}
+	if ua := r.UserAgent(); ua != "" {
+		entry.UserAgent = &ua
+	}
+	go func() {
+		if err := h.audit.repo.Append(context.Background(), entry); err != nil {
+			slog.Error("audit log write failed", "entity", "api_key", "error", err)
+		}
+	}()
 }
 
 // generateAPIKey produces a cryptographically random API key.

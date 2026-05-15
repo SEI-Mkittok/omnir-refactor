@@ -40,7 +40,9 @@ import {
   useDeleteKbArticle,
   useKbArticle,
 } from '@/hooks/useKB'
-import type { KbCategory, KbArticle, KbArticleSummary, KbArticleStatus } from '@/api/types'
+import { useCustomFieldDefinitions } from '@/hooks/useCustomFields'
+import { CustomFieldFormSection } from '@/components/omnir/CustomFieldRenderer'
+import type { KbCategory, KbArticle, KbArticleSummary, KbArticleStatus, CustomFieldValues } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 
 // ── Sortable Category Row ─────────────────────────────────────────────────────
@@ -155,6 +157,9 @@ function ArticleEditor({
   const [body, setBody] = useState(article?.body ?? '')
   const [categoryId, setCategoryId] = useState<string>(article?.category_id ?? '')
   const [status, setStatus] = useState<KbArticleStatus>(article?.status ?? 'draft')
+  const [customFields, setCustomFields] = useState<CustomFieldValues>(() => ({
+    ...((article?.custom_fields ?? {}) as CustomFieldValues),
+  }))
   const [error, setError] = useState('')
 
   // ── Creatable category combobox state ──
@@ -201,7 +206,16 @@ function ArticleEditor({
 
   const { mutateAsync: createArticle, isPending: creating } = useCreateKbArticle()
   const { mutateAsync: updateArticle, isPending: updating } = useUpdateKbArticle()
+  const { data: customFieldDefs = [] } = useCustomFieldDefinitions('kb_article', { activeOptionsOnly: true })
   const isPending = creating || updating || creatingCat
+
+  useEffect(() => {
+    setTitle(article?.title ?? '')
+    setBody(article?.body ?? '')
+    setCategoryId(article?.category_id ?? '')
+    setStatus(article?.status ?? 'draft')
+    setCustomFields({ ...((article?.custom_fields ?? {}) as CustomFieldValues) })
+  }, [article?.id, article?.title, article?.body, article?.category_id, article?.status, article?.custom_fields])
 
   const handleSave = async () => {
     if (!title.trim()) { setError('Title is required.'); return }
@@ -211,6 +225,7 @@ function ArticleEditor({
       body,
       status,
       category_id: categoryId || null,
+      custom_fields: customFields,
     }
     if (article) {
       await updateArticle({ id: article.id, payload })
@@ -305,6 +320,16 @@ function ArticleEditor({
             </select>
           </div>
         </div>
+
+        {customFieldDefs.length > 0 && (
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <CustomFieldFormSection
+              fields={customFieldDefs}
+              values={customFields}
+              onChange={setCustomFields}
+            />
+          </div>
+        )}
 
         {/* Markdown Editor */}
         <div className="space-y-1">
@@ -466,7 +491,7 @@ export function KnowledgeBasePage() {
   const [editingCategory, setEditingCategory] = useState<KbCategory | null>(null)
   const [editingArticle, setEditingArticle] = useState<KbArticleSummary | 'new' | null>(null)
 
-  const { data: editingArticleData } = useKbArticle(
+  const { data: editingArticleData, isLoading: editingArticleLoading } = useKbArticle(
     typeof editingArticle === 'object' && editingArticle !== null && 'id' in editingArticle
       ? (editingArticle as KbArticleSummary).id
       : ''
@@ -534,6 +559,13 @@ export function KnowledgeBasePage() {
 
   // If editing, show full-screen editor
   if (editingArticle !== null) {
+    if (editingArticle !== 'new' && editingArticleLoading) {
+      return (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#F7F8FA] text-sm text-slate-500">
+          Loading article…
+        </div>
+      )
+    }
     return (
       <div className="fixed inset-0 z-40 bg-[#F7F8FA] flex flex-col">
         <ArticleEditor

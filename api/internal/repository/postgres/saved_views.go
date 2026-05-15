@@ -56,6 +56,13 @@ func (r *SavedViewRepo) Create(ctx context.Context, v *domain.SavedView) (*domai
 	v.CreatedAt = now
 	v.UpdatedAt = now
 	v.Filters = domain.NormalizeSavedViewFilters(v.Filters)
+	if v.IsPinned && v.PinnedOrder == nil {
+		nextOrder, err := r.nextPinnedOrder(ctx, v.OrgID, v.EntityType, uuid.Nil)
+		if err != nil {
+			return nil, err
+		}
+		v.PinnedOrder = &nextOrder
+	}
 
 	row := r.db.QueryRow(ctx, `
 		INSERT INTO saved_views
@@ -86,6 +93,26 @@ func (r *SavedViewRepo) Update(ctx context.Context, id uuid.UUID, patch domain.S
 	sets := []string{"updated_at = NOW()"}
 	args := []any{}
 	i := 1
+	clearPinnedOrder := false
+
+	if patch.IsPinned != nil {
+		if *patch.IsPinned {
+			if patch.PinnedOrder == nil {
+				current, err := r.GetByID(ctx, id)
+				if err != nil {
+					return nil, err
+				}
+				nextOrder, err := r.nextPinnedOrder(ctx, current.OrgID, current.EntityType, id)
+				if err != nil {
+					return nil, err
+				}
+				patch.PinnedOrder = &nextOrder
+			}
+		} else {
+			clearPinnedOrder = true
+			patch.PinnedOrder = nil
+		}
+	}
 
 	addArg := func(col string, val any) {
 		sets = append(sets, fmt.Sprintf("%s = $%d", col, i))
@@ -111,7 +138,9 @@ func (r *SavedViewRepo) Update(ctx context.Context, id uuid.UUID, patch domain.S
 	if patch.IsPinned != nil {
 		addArg("is_pinned", *patch.IsPinned)
 	}
-	if patch.PinnedOrder != nil {
+	if clearPinnedOrder {
+		sets = append(sets, "pinned_order = NULL")
+	} else if patch.PinnedOrder != nil {
 		addArg("pinned_order", *patch.PinnedOrder)
 	}
 
@@ -192,18 +221,11 @@ func (r *SavedViewRepo) Pin(ctx context.Context, id uuid.UUID, isPinned bool) (*
 	}
 
 	// Pin: assign next pinned_order within org+entity_type
-	var nextOrder int
 	current, err := r.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-
-	err = r.db.QueryRow(ctx, `
-		SELECT COALESCE(MAX(pinned_order), 0) + 1
-		FROM saved_views
-		WHERE org_id=$1 AND entity_type=$2 AND is_pinned=true AND deleted_at IS NULL`,
-		current.OrgID, current.EntityType,
-	).Scan(&nextOrder)
+	nextOrder, err := r.nextPinnedOrder(ctx, current.OrgID, current.EntityType, id)
 	if err != nil {
 		return nil, err
 	}
@@ -217,4 +239,19 @@ func (r *SavedViewRepo) Pin(ctx context.Context, id uuid.UUID, isPinned bool) (*
 		args = append(args, orgID)
 	}
 	return scanSavedView(r.db.QueryRow(ctx, q, args...))
+}
+
+func (r *SavedViewRepo) nextPinnedOrder(ctx context.Context, orgID uuid.UUID, entityType domain.SavedViewEntityType, excludeID uuid.UUID) (int, error) {
+	q := `
+		SELECT COALESCE(MAX(pinned_order), -1) + 1
+		FROM saved_views
+		WHERE org_id=$1 AND entity_type=$2 AND is_pinned=true AND deleted_at IS NULL`
+	args := []any{orgID, entityType}
+	if excludeID != uuid.Nil {
+		q += ` AND id<>$3`
+		args = append(args, excludeID)
+	}
+	var nextOrder int
+	err := r.db.QueryRow(ctx, q, args...).Scan(&nextOrder)
+	return nextOrder, err
 }

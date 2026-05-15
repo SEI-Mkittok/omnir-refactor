@@ -12,18 +12,21 @@ import (
 type CustomFieldEntityType string
 
 const (
-	CustomFieldEntityTicket  CustomFieldEntityType = "ticket"
-	CustomFieldEntityContact CustomFieldEntityType = "contact"
-	CustomFieldEntityLead    CustomFieldEntityType = "lead"
-	CustomFieldEntityDeal    CustomFieldEntityType = "deal"
-	CustomFieldEntityAccount CustomFieldEntityType = "account"
+	CustomFieldEntityTicket    CustomFieldEntityType = "ticket"
+	CustomFieldEntityContact   CustomFieldEntityType = "contact"
+	CustomFieldEntityLead      CustomFieldEntityType = "lead"
+	CustomFieldEntityDeal      CustomFieldEntityType = "deal"
+	CustomFieldEntityAccount   CustomFieldEntityType = "account"
+	CustomFieldEntityQuote     CustomFieldEntityType = "quote"
+	CustomFieldEntityKBArticle CustomFieldEntityType = "kb_article"
 )
 
 // IsValid returns true if the entity type is recognised.
 func (e CustomFieldEntityType) IsValid() bool {
 	switch e {
 	case CustomFieldEntityTicket, CustomFieldEntityContact, CustomFieldEntityLead,
-		CustomFieldEntityDeal, CustomFieldEntityAccount:
+		CustomFieldEntityDeal, CustomFieldEntityAccount, CustomFieldEntityQuote,
+		CustomFieldEntityKBArticle:
 		return true
 	}
 	return false

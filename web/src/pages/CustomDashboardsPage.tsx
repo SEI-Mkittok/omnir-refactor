@@ -74,6 +74,7 @@ const WIDGET_CATALOGUE: WidgetMeta[] = [
 
 const PIE_COLORS = ['#1B3A4B', '#2E5068', '#446585', '#5D7FA0', '#7C8DB0', '#A0B3C0']
 const WIDGET_CHART_MIN_HEIGHT = 160
+type ChartRow = Record<string, unknown>
 
 function widgetMeta(type: string): WidgetMeta {
   return WIDGET_CATALOGUE.find((w) => w.type === type) ?? {
@@ -99,12 +100,68 @@ function cronLabel(cron: string): string {
 
 // ── Widget data renderer ──────────────────────────────────────────────────────
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function asRows(value: unknown): ChartRow[] {
+  return Array.isArray(value) ? value.filter((row): row is ChartRow => !!asRecord(row)) : []
+}
+
+function numericValue(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+export function widgetChartRows(type: string, data: unknown): ChartRow[] {
+  const record = asRecord(data)
+
+  if (type === 'pipeline_funnel') {
+    return asRows(record?.stages).map((stage) => ({
+      ...stage,
+      stage: String(stage.name ?? stage.stage ?? ''),
+    }))
+  }
+
+  if (type === 'conversion_rates') {
+    return asRows(record?.rates).map((rate) => ({
+      ...rate,
+      type: `${String(rate.from ?? '')} → ${String(rate.to ?? '')}`,
+      count: Math.round(numericValue(rate.rate) * 100),
+    }))
+  }
+
+  if (type === 'revenue_projection') {
+    return asRows(record?.months).map((month) => ({
+      ...month,
+      projected: numericValue(month.projected_cents) / 100,
+    }))
+  }
+
+  if (type === 'activity_summary') {
+    return asRows(record?.by_kind).map((kind) => ({
+      ...kind,
+      type: String(kind.kind ?? ''),
+    }))
+  }
+
+  return asRows(data)
+}
+
+function formatWidgetMetricValue(value: unknown): string {
+  if (Array.isArray(value)) return String(value.length)
+  if (value == null) return '—'
+  if (typeof value === 'object') return String(Object.keys(value).length)
+  return String(value)
+}
+
 function WidgetChart({ type, data }: { type: string; data: unknown }) {
   if (!data || typeof data !== 'object') {
     return <div className="text-xs text-gray-400 flex items-center justify-center h-full">No data</div>
   }
 
-  const arr = Array.isArray(data) ? data : []
+  const arr = widgetChartRows(type, data)
 
   if (type === 'deals_by_stage' || type === 'pipeline_funnel') {
     return (
@@ -134,7 +191,7 @@ function WidgetChart({ type, data }: { type: string; data: unknown }) {
     )
   }
 
-  if (type === 'activities_by_type' || type === 'conversion_rates') {
+  if (type === 'activities_by_type' || type === 'conversion_rates' || type === 'activity_summary') {
     return (
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={WIDGET_CHART_MIN_HEIGHT}>
         <RPieChart>
@@ -171,7 +228,7 @@ function WidgetChart({ type, data }: { type: string; data: unknown }) {
         {entries.map(([k, v]) => (
           <div key={k} className="rounded-md border border-[#E5E7EB] bg-[#F7F8FA] px-3 py-2">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7C8DB0] truncate">{k.replace(/_/g, ' ')}</p>
-            <p className="text-lg font-bold text-[#1A1D23] truncate">{String(v)}</p>
+            <p className="text-lg font-bold text-[#1A1D23] truncate">{formatWidgetMetricValue(v)}</p>
           </div>
         ))}
       </div>

@@ -128,6 +128,43 @@ func TestPublicKBUUIDArticleLookupRejectsCrossOrgArticle(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, rr.Code)
 }
 
+func TestPublicKBArticleResponsesOmitCustomFields(t *testing.T) {
+	orgID := uuid.New()
+	articleID := uuid.New()
+	articles := &fakeKBArticleRepo{
+		byID: map[uuid.UUID]*domain.KBArticle{
+			articleID: {
+				ID:           articleID,
+				OrgID:        orgID,
+				Title:        "Deployment Guide",
+				Body:         "Keep this public.",
+				Status:       domain.KBArticleStatusPublished,
+				CustomFields: json.RawMessage(`{"internal_owner":"support-ops"}`),
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			},
+		},
+	}
+	h := NewKBHandler(articles, &fakeKBCategoryRepo{}).WithOrgs(&fakeOrgRepo{
+		bySlug: map[string]*domain.Organization{
+			"acme": {ID: orgID, Slug: "acme", Name: "Acme"},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/kb/acme/articles/"+articleID.String(), nil)
+	rr := httptest.NewRecorder()
+
+	h.PublicCompatibilityRouter().ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &body))
+	require.Equal(t, "Deployment Guide", body["title"])
+	require.Equal(t, "Keep this public.", body["body"])
+	_, leaked := body["custom_fields"]
+	require.False(t, leaked)
+}
+
 func TestPublicKBCategoriesIncludePublishedArticleCounts(t *testing.T) {
 	orgID := uuid.New()
 	categoryID := uuid.New()

@@ -33,6 +33,8 @@ const ENTITY_TABS: { value: CustomFieldEntityType; label: string }[] = [
   { value: 'lead', label: 'Leads' },
   { value: 'deal', label: 'Deals' },
   { value: 'account', label: 'Accounts' },
+  { value: 'quote', label: 'Quotes' },
+  { value: 'kb_article', label: 'KB Articles' },
 ]
 
 const FIELD_TYPE_OPTIONS: { value: CustomFieldType; label: string }[] = [
@@ -360,7 +362,7 @@ export function CustomFieldsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Custom Fields</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            Define extra fields for tickets, contacts, leads, deals, and accounts.
+            Define extra fields for tickets, contacts, leads, deals, accounts, quotes, and KB articles.
           </p>
         </div>
         <Button onClick={() => setShowCreate(true)}>

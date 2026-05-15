@@ -116,7 +116,7 @@ func (h *CustomFieldHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	et := domain.CustomFieldEntityType(req.EntityType)
 	if !et.IsValid() {
-		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, or account")
+		writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, account, quote, or kb_article")
 		return
 	}
 	ft := domain.CustomFieldType(req.FieldType)
@@ -166,6 +166,10 @@ func (h *CustomFieldHandler) List(w http.ResponseWriter, r *http.Request) {
 	filter := domain.CustomFieldDefinitionFilter{}
 	if v := r.URL.Query().Get("entity_type"); v != "" {
 		et := domain.CustomFieldEntityType(v)
+		if !et.IsValid() {
+			writeError(w, http.StatusUnprocessableEntity, "invalid entity_type: must be ticket, contact, lead, deal, account, quote, or kb_article")
+			return
+		}
 		filter.EntityType = &et
 	}
 	defs, err := h.defs.List(r.Context(), filter)
