@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle, Clock, RefreshCw, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -20,7 +20,7 @@ export function SchedulerPage() {
   const [selected, setSelected] = useState<string>('')
   const jobs = useSchedulerJobs()
   const runs = useSchedulerRuns(selected)
-  const rows = jobs.data?.data ?? []
+  const rows = useMemo(() => jobs.data?.data ?? [], [jobs.data?.data])
   const selectedJob = rows.find((job) => job.key === selected) ?? rows[0]
 
   useEffect(() => {

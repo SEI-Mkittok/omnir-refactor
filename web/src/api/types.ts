@@ -530,6 +530,59 @@ export interface PipelineFunnelReport {
   stages: PipelineFunnelStage[]
 }
 
+export interface ConversionRate {
+  from_stage: string
+  to_stage: string
+  rate: number
+}
+
+export interface ConversionRatesReport {
+  rates: ConversionRate[]
+}
+
+export interface RevenueProjectionMonth {
+  month: string
+  projected_cents: number
+  deal_count: number
+}
+
+export interface RevenueProjectionReport {
+  months: RevenueProjectionMonth[]
+}
+
+export interface DashboardCRMMetrics {
+  pipeline_value_cents: number
+  won_count: number
+  lost_count: number
+  stage_distribution: DealStageMetric[]
+}
+
+export interface DashboardHelpDeskMetrics {
+  open_count: number
+  backlog_count: number
+  status_distribution: TicketStatusMetric[]
+  volume_trend: TicketTimeMetric[]
+  resolution_trend: TicketTimeMetric[]
+}
+
+export interface TeamActivityByUserMetric {
+  owner_id: string
+  created_count: number
+  completed_count: number
+}
+
+export interface DashboardTeamActivityMetrics {
+  by_user: TeamActivityByUserMetric[]
+  created_over_time: TicketTimeMetric[]
+  completed_over_time: TicketTimeMetric[]
+}
+
+export interface ManagerDashboardReport {
+  crm: DashboardCRMMetrics
+  help_desk: DashboardHelpDeskMetrics
+  team_activity: DashboardTeamActivityMetrics
+}
+
 export interface ActivityKindCount {
   kind: ActivityType
   count: number
@@ -787,7 +840,7 @@ export interface ConvertLeadResponse {
 
 // ---- Custom Fields ----
 
-export type CustomFieldEntityType = 'ticket' | 'contact' | 'lead' | 'deal' | 'account'
+export type CustomFieldEntityType = 'ticket' | 'contact' | 'lead' | 'deal' | 'account' | 'quote' | 'kb_article'
 export type CustomFieldType = 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'checkbox' | 'url'
 
 export interface CustomFieldDefinition {
@@ -1064,6 +1117,8 @@ export type NotificationKind =
   | 'deal_stage_changed'
   | 'mention'
   | 'assignment'
+  | 'sla_warning'
+  | 'sla_breached'
 
 export interface Notification {
   id: string
@@ -1634,6 +1689,7 @@ export interface Quote {
   rejected_at?: string
   created_by?: string
   line_items: QuoteLineItem[]
+  custom_fields?: Record<string, unknown>
   total_cents: number
   created_at: string
   updated_at: string
@@ -1651,6 +1707,7 @@ export interface CreateQuoteRequest {
   valid_until?: string
   notes?: string
   line_items?: QuoteLineItemInput[]
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateQuoteRequest {
@@ -1663,6 +1720,7 @@ export interface UpdateQuoteRequest {
   contact_id?: string
   deal_id?: string
   line_items?: QuoteLineItemInput[]
+  custom_fields?: Record<string, unknown>
 }
 
 export interface QuoteListParams {
@@ -1704,6 +1762,7 @@ export interface KbArticle {
   body: string
   status: KbArticleStatus
   view_count: number
+  custom_fields?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -1715,6 +1774,7 @@ export interface KbArticleSummary {
   slug: string
   status: KbArticleStatus
   view_count: number
+  custom_fields?: Record<string, unknown>
   excerpt?: string
   created_at: string
   updated_at: string
@@ -1745,6 +1805,7 @@ export interface CreateKbArticleRequest {
   body: string
   status?: KbArticleStatus
   category_id?: string | null
+  custom_fields?: Record<string, unknown>
 }
 
 export interface UpdateKbArticleRequest {
@@ -1753,6 +1814,7 @@ export interface UpdateKbArticleRequest {
   body?: string
   status?: KbArticleStatus
   category_id?: string | null
+  custom_fields?: Record<string, unknown>
 }
 
 export interface KbArticleListParams {

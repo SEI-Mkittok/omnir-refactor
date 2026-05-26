@@ -37,7 +37,7 @@ export function WebformsPage() {
   const updateForm = useUpdateWebform()
   const deleteForm = useDeleteWebform()
   const preview = usePreviewWebform()
-  const rows = forms.data?.data ?? []
+  const rows = useMemo(() => forms.data?.data ?? [], [forms.data?.data])
   const activeCount = useMemo(() => rows.filter((f) => f.status === 'active').length, [rows])
 
   function addField() {
