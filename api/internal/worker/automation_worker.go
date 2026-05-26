@@ -36,6 +36,7 @@ type AutomationWorker struct {
 	activities repository.ActivityRepository
 	contacts   repository.ContactRepository
 	deals      repository.DealRepository
+	tickets    repository.TicketRepository
 	sequences  repository.SequenceRepository
 	mailer     *email.Mailer
 	interval   time.Duration
@@ -52,6 +53,7 @@ func NewAutomationWorker(
 	activities repository.ActivityRepository,
 	contacts repository.ContactRepository,
 	deals repository.DealRepository,
+	tickets repository.TicketRepository,
 	sequences repository.SequenceRepository,
 	mailer *email.Mailer,
 	interval time.Duration,
@@ -62,6 +64,7 @@ func NewAutomationWorker(
 		activities: activities,
 		contacts:   contacts,
 		deals:      deals,
+		tickets:    tickets,
 		sequences:  sequences,
 		mailer:     mailer,
 		interval:   interval,
@@ -104,7 +107,9 @@ func (w *AutomationWorker) processEvent(evt AutomationEvent) {
 		if !EvaluateConditions(a.Conditions, evt.Data) {
 			continue
 		}
-		w.executeAutomation(bgCtx, a, evt)
+		if _, err := w.ExecuteAutomation(bgCtx, a, evt); err != nil {
+			w.log.Warn("automation worker: execution failed", "automation_id", a.ID, "err", err)
+		}
 	}
 }
 
@@ -129,8 +134,17 @@ func (w *AutomationWorker) tickOverdue(ctx context.Context) {
 	}
 }
 
-// executeAutomation creates a run record, executes all actions, then updates run status.
-func (w *AutomationWorker) executeAutomation(ctx context.Context, a *domain.Automation, evt AutomationEvent) {
+// ExecuteAutomation creates a run record, executes all actions, then updates run status.
+func (w *AutomationWorker) ExecuteAutomation(ctx context.Context, a *domain.Automation, evt AutomationEvent) (*domain.AutomationRun, error) {
+	if evt.OrgID == uuid.Nil {
+		evt.OrgID = a.OrgID
+	}
+	if evt.TriggerType == "" {
+		evt.TriggerType = domain.TriggerManual
+	}
+	if evt.EntityType == "" {
+		evt.EntityType = "manual"
+	}
 	entityID := evt.EntityID
 	run := &domain.AutomationRun{
 		AutomationID: a.ID,
@@ -142,7 +156,7 @@ func (w *AutomationWorker) executeAutomation(ctx context.Context, a *domain.Auto
 	if err != nil {
 		w.log.Error("automation worker: create run failed",
 			"automation_id", a.ID, "err", err)
-		return
+		return nil, err
 	}
 
 	var firstErr error
@@ -165,7 +179,13 @@ func (w *AutomationWorker) executeAutomation(ctx context.Context, a *domain.Auto
 	if err := w.repo.UpdateRun(ctx, created.ID, status, errMsg); err != nil {
 		w.log.Error("automation worker: update run failed",
 			"run_id", created.ID, "err", err)
+		return created, err
 	}
+	created.Status = status
+	created.ErrorMessage = errMsg
+	now := time.Now().UTC()
+	created.FinishedAt = &now
+	return created, firstErr
 }
 
 // executeAction dispatches a single action.
@@ -211,6 +231,8 @@ func (w *AutomationWorker) execAssignOwner(ctx context.Context, cfg map[string]i
 		_, err = w.deals.Update(ctx, evt.EntityID, domain.DealPatch{OwnerID: &ownerID})
 	case "contact":
 		_, err = w.contacts.Update(ctx, evt.EntityID, domain.ContactPatch{OwnerID: &ownerID})
+	case "ticket":
+		_, err = w.tickets.Update(ctx, evt.EntityID, domain.TicketPatch{AssigneeID: &ownerID})
 	default:
 		return fmt.Errorf("assign_owner: unsupported entity type %q", evt.EntityType)
 	}
@@ -288,6 +310,9 @@ func (w *AutomationWorker) execCreateActivity(ctx context.Context, cfg map[strin
 		actType = domain.ActivityType(t)
 	}
 	subject, _ := cfg["subject"].(string)
+	if subject == "" {
+		subject, _ = cfg["title"].(string)
+	}
 	if subject == "" {
 		return fmt.Errorf("create_activity: subject required in config")
 	}

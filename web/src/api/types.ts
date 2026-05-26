@@ -531,8 +531,8 @@ export interface PipelineFunnelReport {
 }
 
 export interface ConversionRate {
-  from: string
-  to: string
+  from_stage: string
+  to_stage: string
   rate: number
 }
 
@@ -548,21 +548,6 @@ export interface RevenueProjectionMonth {
 
 export interface RevenueProjectionReport {
   months: RevenueProjectionMonth[]
-}
-
-export interface ActivityKindCount {
-  kind: ActivityType
-  count: number
-}
-
-export interface ActivityOwnerCount {
-  owner_id: string
-  count: number
-}
-
-export interface ActivitySummaryReport {
-  by_kind: ActivityKindCount[]
-  by_owner: ActivityOwnerCount[]
 }
 
 export interface DashboardCRMMetrics {
@@ -596,6 +581,21 @@ export interface ManagerDashboardReport {
   crm: DashboardCRMMetrics
   help_desk: DashboardHelpDeskMetrics
   team_activity: DashboardTeamActivityMetrics
+}
+
+export interface ActivityKindCount {
+  kind: ActivityType
+  count: number
+}
+
+export interface ActivityOwnerCount {
+  owner_id: string
+  count: number
+}
+
+export interface ActivitySummaryReport {
+  by_kind: ActivityKindCount[]
+  by_owner: ActivityOwnerCount[]
 }
 
 // ---- Search ----
@@ -1194,7 +1194,7 @@ export interface ViewListParams {
 
 export type AuditAction = 'created' | 'updated' | 'deleted' | 'converted' | 'login' | 'export'
 
-export type AuditEntityType = 'contact' | 'account' | 'deal' | 'lead' | 'sharing_rule' | 'user' | 'view' | 'api_key'
+export type AuditEntityType = 'contact' | 'account' | 'deal' | 'lead' | 'sharing_rule' | 'user' | 'view'
 
 export interface AuditFieldChange {
   from: unknown
@@ -1441,6 +1441,171 @@ export interface AutomationListParams {
   status?: AutomationStatus
 }
 
+export interface AutomationMetadata {
+  triggers: Array<{ type: TriggerType; label: string }>
+  operators: ConditionOperator[]
+  actions: Array<{ type: ActionType; label: string }>
+  fields: Record<string, string[]>
+}
+
+export interface ExecuteAutomationRequest {
+  entity_type?: string
+  entity_id?: string
+  data?: Record<string, unknown>
+}
+
+// ---- Intake, scheduler, and campaigns ----
+
+export type SchedulerJobResult = 'succeeded' | 'failed' | 'running'
+
+export interface SchedulerJob {
+  key: string
+  name: string
+  interval: string
+  enabled: boolean
+  last_started_at?: string
+  last_finished_at?: string
+  last_result?: SchedulerJobResult
+  error_text?: string
+  next_run_at?: string
+}
+
+export interface SchedulerJobRun {
+  id: string
+  job_key: string
+  status: SchedulerJobResult
+  started_at: string
+  finished_at?: string
+  error_text?: string
+}
+
+export type WebformTargetModule = 'lead' | 'contact' | 'ticket'
+export type WebformStatus = 'active' | 'inactive'
+
+export interface WebformField {
+  key: string
+  label: string
+  type: string
+  required?: boolean
+  target_field?: string
+  options?: string[]
+}
+
+export interface Webform {
+  id: string
+  org_id: string
+  name: string
+  public_id: string
+  status: WebformStatus
+  target_module: WebformTargetModule
+  campaign_id?: string
+  return_url?: string
+  success_message: string
+  spam_trap_field: string
+  fields: WebformField[]
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WebformSubmission {
+  id: string
+  org_id: string
+  webform_id: string
+  campaign_id?: string
+  target_module: WebformTargetModule
+  payload: Record<string, unknown>
+  created_record_type?: string
+  created_record_id?: string
+  ip_address?: string
+  user_agent?: string
+  created_at: string
+}
+
+export interface WebformPreviewResponse {
+  target_module: WebformTargetModule
+  mapped_fields: Record<string, unknown>
+  missing_fields: string[]
+}
+
+export type MailConverterRuleStatus = 'active' | 'inactive'
+
+export interface MailConverterCondition {
+  field: string
+  operator: 'contains' | 'not_contains' | 'equals' | 'starts_with' | 'ends_with' | 'is_set' | 'is_not_set'
+  value?: string
+}
+
+export interface MailConverterAction {
+  type: 'create_lead' | 'create_contact' | 'update_contact' | 'create_ticket' | 'create_activity'
+  config: Record<string, unknown>
+}
+
+export interface MailConverterRule {
+  id: string
+  org_id: string
+  name: string
+  status: MailConverterRuleStatus
+  conditions: MailConverterCondition[]
+  actions: MailConverterAction[]
+  created_by?: string
+  last_run_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MailConverterRun {
+  id: string
+  org_id: string
+  rule_id: string
+  status: 'running' | 'succeeded' | 'failed'
+  matched_count: number
+  processed_count: number
+  skipped_count: number
+  error_text?: string
+  started_at: string
+  finished_at?: string
+}
+
+export interface MailConverterPreview {
+  rule_id: string
+  matches: InboxMessage[]
+  total: number
+}
+
+export type CampaignStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived'
+
+export interface Campaign {
+  id: string
+  org_id: string
+  name: string
+  type: string
+  status: CampaignStatus
+  description: string
+  sequence_id?: string
+  automation_id?: string
+  metadata?: Record<string, unknown>
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignMember {
+  id: string
+  org_id: string
+  campaign_id: string
+  member_type: 'lead' | 'contact' | 'account'
+  member_id: string
+  source: string
+  created_at: string
+}
+
+export interface CampaignMemberInput {
+  member_type: 'lead' | 'contact' | 'account'
+  member_id: string
+  source?: string
+}
+
 // ---- Products ----
 
 export interface Product {
@@ -1524,8 +1689,8 @@ export interface Quote {
   rejected_at?: string
   created_by?: string
   line_items: QuoteLineItem[]
-  total_cents: number
   custom_fields?: Record<string, unknown>
+  total_cents: number
   created_at: string
   updated_at: string
   account?: Account
@@ -1609,8 +1774,8 @@ export interface KbArticleSummary {
   slug: string
   status: KbArticleStatus
   view_count: number
-  excerpt?: string
   custom_fields?: Record<string, unknown>
+  excerpt?: string
   created_at: string
   updated_at: string
 }

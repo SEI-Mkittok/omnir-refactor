@@ -44,6 +44,7 @@ docs/workspace/local-trash/
 # Local agent/Codex workspace artifacts
 .codex/
 .codex_tmp/
+.cache/
 .openclaw/
 AGENTS.md
 AGENTS.local.md

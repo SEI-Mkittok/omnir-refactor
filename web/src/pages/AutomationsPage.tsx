@@ -23,6 +23,7 @@ import {
   useCreateAutomation,
   useUpdateAutomation,
   useDeleteAutomation,
+  useExecuteAutomation,
 } from '@/hooks/useAutomations'
 import type {
   Automation,
@@ -531,9 +532,9 @@ function ActionConfigFields({
         <input
           type="text"
           className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
-          placeholder="Activity title"
-          value={cfg.title ?? ''}
-          onChange={(e) => setConfig('title', e.target.value)}
+          placeholder="Activity subject"
+          value={cfg.subject ?? cfg.title ?? ''}
+          onChange={(e) => setConfig('subject', e.target.value)}
         />
         <input
           type="number"
@@ -852,11 +853,16 @@ function AutomationDetailPanel({
   onEdit: () => void
 }) {
   const update = useUpdateAutomation()
+  const execute = useExecuteAutomation()
 
   function toggleStatus() {
     const next: Record<string, 'active' | 'paused'> = { active: 'paused', paused: 'active', draft: 'active' }
     const newStatus = next[automation.status] ?? 'active'
     update.mutate({ id: automation.id, payload: { status: newStatus } })
+  }
+
+  function runManual() {
+    execute.mutate({ id: automation.id, payload: { entity_type: 'manual', data: {} } })
   }
 
   return (
@@ -882,6 +888,9 @@ function AutomationDetailPanel({
           {statusBadge(automation.status)}
           <span className="text-sm text-slate-500">{automation.run_count} runs total</span>
           <div className="ml-auto flex gap-2">
+            <Button size="sm" variant="outline" onClick={runManual} disabled={execute.isPending}>
+              <Play className="mr-1 h-3 w-3" /> Run
+            </Button>
             <Button size="sm" variant="outline" onClick={toggleStatus} disabled={update.isPending}>
               {automation.status === 'active' ? (
                 <>

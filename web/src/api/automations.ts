@@ -2,6 +2,8 @@ import apiClient from './client'
 import type {
   Automation,
   AutomationRun,
+  AutomationMetadata,
+  ExecuteAutomationRequest,
   CreateAutomationRequest,
   UpdateAutomationRequest,
   AutomationListParams,
@@ -30,5 +32,13 @@ export const automationsApi = {
 
   listRuns(id: string, params?: { page?: number }): Promise<{ data: AutomationRun[]; total: number }> {
     return apiClient.get(`/automations/${id}/runs`, { params }).then((r) => r.data)
+  },
+
+  metadata(): Promise<AutomationMetadata> {
+    return apiClient.get('/automations/metadata').then((r) => r.data)
+  },
+
+  execute(id: string, req: ExecuteAutomationRequest): Promise<AutomationRun> {
+    return apiClient.post(`/automations/${id}/execute`, req).then((r) => r.data)
   },
 }

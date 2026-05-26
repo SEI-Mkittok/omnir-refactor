@@ -4,6 +4,7 @@ import type {
   AutomationListParams,
   CreateAutomationRequest,
   UpdateAutomationRequest,
+  ExecuteAutomationRequest,
 } from '@/api/types'
 
 const automationKeys = {
@@ -40,6 +41,14 @@ export function useAutomationRuns(automationId: string) {
   })
 }
 
+export function useAutomationMetadata() {
+  return useQuery({
+    queryKey: [...automationKeys.all, 'metadata'],
+    queryFn: () => automationsApi.metadata(),
+    staleTime: 10 * 60_000,
+  })
+}
+
 export function useCreateAutomation() {
   const qc = useQueryClient()
   return useMutation({
@@ -67,6 +76,19 @@ export function useDeleteAutomation() {
   return useMutation({
     mutationFn: (id: string) => automationsApi.delete(id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: automationKeys.lists() })
+    },
+  })
+}
+
+export function useExecuteAutomation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: ExecuteAutomationRequest }) =>
+      automationsApi.execute(id, payload),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: automationKeys.runs(id) })
+      qc.invalidateQueries({ queryKey: automationKeys.detail(id) })
       qc.invalidateQueries({ queryKey: automationKeys.lists() })
     },
   })
