@@ -415,7 +415,7 @@ func (r *AccessRepo) DeleteRole(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	result, err := tx.Exec(ctx, `DELETE FROM crm_roles WHERE id = $1 AND org_id = $2 AND system_key IS NULL`, id, orgID)
 	if err != nil {
 		return err
@@ -602,7 +602,7 @@ func (r *AccessRepo) ReplaceProfilePermissions(ctx context.Context, profileID uu
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := tx.QueryRow(ctx, `SELECT org_id FROM crm_profiles WHERE id = $1 AND org_id = $2`, profileID, orgID).Scan(&orgID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -675,7 +675,7 @@ func (r *AccessRepo) CreateGroup(ctx context.Context, group *domain.ACLGroup) (*
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	created, err := scanACLGroup(tx.QueryRow(ctx, `
 		INSERT INTO crm_groups (id, org_id, name, description)
@@ -739,7 +739,7 @@ func (r *AccessRepo) DeleteGroup(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	result, err := tx.Exec(ctx, `DELETE FROM crm_groups WHERE id = $1 AND org_id = $2`, id, orgID)
 	if err != nil {
 		return err
@@ -772,7 +772,7 @@ func (r *AccessRepo) ReplaceGroupMembers(ctx context.Context, groupID uuid.UUID,
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := replaceGroupMembersTx(ctx, tx, orgID, groupID, userIDs); err != nil {
 		return err
 	}
@@ -891,7 +891,7 @@ func (r *AccessRepo) ReplaceSharingRules(ctx context.Context, orgID uuid.UUID, r
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	existingRules, err := existingSharingRules(ctx, tx, orgID)
 	if err != nil {
@@ -1228,7 +1228,7 @@ func (r *AccessRepo) rebuildRoleClosure(ctx context.Context, orgID uuid.UUID) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	if _, err := tx.Exec(ctx, `DELETE FROM crm_role_closure WHERE org_id = $1`, orgID); err != nil {
 		return err
 	}

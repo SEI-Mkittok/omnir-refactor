@@ -217,7 +217,7 @@ function OwnerSelector({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { data: usersResult } = useUsers({ limit: 100 })
-  const users = usersResult?.data ?? []
+  const users = useMemo(() => usersResult?.data ?? [], [usersResult?.data])
   const selectedUser = useMemo(
     () => current ?? users.find((u) => u.id === currentOwnerId),
     [current, users, currentOwnerId]

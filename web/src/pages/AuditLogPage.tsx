@@ -54,6 +54,7 @@ export function AuditLogPage() {
   const to = searchParams.get('to') ?? ''
   const q = searchParams.get('q') ?? ''
 
+  const [searchInput, setSearchInput] = useState(q)
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -74,6 +75,14 @@ export function AuditLogPage() {
       setPage(1)
     },
     [setSearchParams]
+  )
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchInput(value)
+      setParam('q', value)
+    },
+    [setParam]
   )
 
   const { data, isLoading } = useAuditLog({
@@ -209,8 +218,8 @@ export function AuditLogPage() {
 
       {/* Entity type + action filters */}
       <FilterBar
-        searchValue={q}
-        onSearchChange={(value) => setParam('q', value)}
+        searchValue={searchInput}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search…"
         filters={[
           {

@@ -69,7 +69,7 @@ describe('CustomDashboardsPage scheduled reports QA', () => {
     await user.type(screen.getByPlaceholderText('alice@example.com, bob@example.com'), 'qa@example.com')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByText('Scheduled: Daily at 8 AM -> qa@example.com')).toBeInTheDocument()
+    expect(await screen.findByText(/Scheduled:\s*Daily at 8 AM\s*→\s*qa@example\.com/)).toBeInTheDocument()
     expect(schedules).toHaveLength(1)
 
     await user.click(screen.getByRole('button', { name: 'Edit Schedule' }))
@@ -78,7 +78,7 @@ describe('CustomDashboardsPage scheduled reports QA', () => {
     await user.type(recipients, 'qa-updated@example.com')
     await user.click(screen.getByRole('button', { name: 'Update' }))
 
-    expect(await screen.findByText('Scheduled: Daily at 8 AM -> qa-updated@example.com')).toBeInTheDocument()
+    expect(await screen.findByText(/Scheduled:\s*Daily at 8 AM\s*→\s*qa-updated@example\.com/)).toBeInTheDocument()
     expect(schedules[0].recipients).toEqual(['qa-updated@example.com'])
 
     await user.click(screen.getByRole('button', { name: 'Edit Schedule' }))

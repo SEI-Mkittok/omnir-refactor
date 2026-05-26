@@ -77,11 +77,7 @@ func RequireModulePermission() func(http.Handler) http.Handler {
 					return
 				}
 			}
-			targetModules, err := conversionCreateModulesFromRequest(r)
-			if err != nil {
-				http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
-				return
-			}
+			targetModules := conversionCreateModulesFromRequest(r)
 			for _, targetModule := range targetModules {
 				if !access.HasPermission(targetModule, domain.ACLActionCreate) {
 					http.Error(w, `{"error":"forbidden","code":"permission_denied"}`, http.StatusForbidden)
@@ -238,11 +234,7 @@ func RequireNestedParentRecordAccess(repo repository.RecordAccessRepository) fun
 				return
 			}
 
-			module, id, accessLevel, ok, err := nestedParentRecordFromRequest(r)
-			if err != nil {
-				http.Error(w, `{"error":"bad_request","code":"invalid_parent_id"}`, http.StatusBadRequest)
-				return
-			}
+			module, id, accessLevel, ok := nestedParentRecordFromRequest(r)
 			if !ok || repo == nil {
 				next.ServeHTTP(w, r)
 				return
@@ -337,18 +329,18 @@ func childModuleActionFromRequest(r *http.Request) (domain.ACLModule, domain.ACL
 	return module, actionFromMethod(r.Method), true
 }
 
-func conversionCreateModulesFromRequest(r *http.Request) ([]domain.ACLModule, error) {
+func conversionCreateModulesFromRequest(r *http.Request) []domain.ACLModule {
 	if r.Method != http.MethodPost {
-		return nil, nil
+		return nil
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
 	path = strings.Trim(path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) != 3 || parts[2] != "convert" {
-		return nil, nil
+		return nil
 	}
 	if _, err := uuid.Parse(parts[1]); err != nil {
-		return nil, nil
+		return nil
 	}
 
 	switch parts[0] {
@@ -357,14 +349,14 @@ func conversionCreateModulesFromRequest(r *http.Request) ([]domain.ACLModule, er
 			domain.ACLModuleContacts,
 			domain.ACLModuleAccounts,
 			domain.ACLModuleDeals,
-		}, nil
+		}
 	case "contacts":
 		if !contactConversionCreatesDeal(r) {
-			return nil, nil
+			return nil
 		}
-		return []domain.ACLModule{domain.ACLModuleDeals}, nil
+		return []domain.ACLModule{domain.ACLModuleDeals}
 	default:
-		return nil, nil
+		return nil
 	}
 }
 
@@ -420,29 +412,29 @@ func isNestedRecordSubroute(path string) bool {
 	return err == nil
 }
 
-func nestedParentRecordFromRequest(r *http.Request) (domain.ACLModule, uuid.UUID, domain.SharingAccessLevel, bool, error) {
+func nestedParentRecordFromRequest(r *http.Request) (domain.ACLModule, uuid.UUID, domain.SharingAccessLevel, bool) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/")
 	path = strings.Trim(path, "/")
 	if path == "" {
-		return "", uuid.Nil, "", false, nil
+		return "", uuid.Nil, "", false
 	}
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
-		return "", uuid.Nil, "", false, nil
+		return "", uuid.Nil, "", false
 	}
 
 	module, ok := parentRecordModule(parts[0])
 	if !ok {
-		return "", uuid.Nil, "", false, nil
+		return "", uuid.Nil, "", false
 	}
 	id, err := uuid.Parse(parts[1])
 	if err != nil {
 		// Some routers expose collection subroutes under a record module prefix,
 		// e.g. /accounts/relationships/{relationshipID}; those are not parent
 		// record child routes and should be left to their handlers.
-		return "", uuid.Nil, "", false, nil
+		return "", uuid.Nil, "", false
 	}
-	return module, id, sharingAccessFromMethod(r.Method), true, nil
+	return module, id, sharingAccessFromMethod(r.Method), true
 }
 
 func parentRecordModule(segment string) (domain.ACLModule, bool) {

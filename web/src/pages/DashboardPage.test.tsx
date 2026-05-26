@@ -91,13 +91,13 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.getByLabelText('location')).toHaveTextContent('/dashboard'))
 
     await user.click(screen.getByRole('button', { name: /add lead/i }))
-    expect(screen.getByLabelText('location')).toHaveTextContent('/leads')
+    await waitFor(() => expect(screen.getByLabelText('location')).toHaveTextContent('/leads'))
 
     await user.click(screen.getByRole('button', { name: /schedule/i }))
-    expect(screen.getByLabelText('location')).toHaveTextContent('/calendar')
+    await waitFor(() => expect(screen.getByLabelText('location')).toHaveTextContent('/calendar'))
 
     await user.click(screen.getByRole('button', { name: /^email$/i }))
-    expect(screen.getByLabelText('location')).toHaveTextContent('/inbox')
+    await waitFor(() => expect(screen.getByLabelText('location')).toHaveTextContent('/inbox'))
   })
 
   it('task shortcuts navigate to the calendar workflow', async () => {

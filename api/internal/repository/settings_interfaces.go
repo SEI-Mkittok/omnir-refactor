@@ -32,4 +32,3 @@ type LeadConversionMappingRepository interface {
 	List(ctx context.Context, orgID uuid.UUID) ([]*domain.LeadConversionMapping, error)
 	Replace(ctx context.Context, orgID uuid.UUID, rows []domain.LeadConversionMapping) ([]*domain.LeadConversionMapping, error)
 }
-
