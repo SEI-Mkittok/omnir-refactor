@@ -24,7 +24,7 @@ type stubLeadStore struct {
 	convertToContactFn  func(ctx context.Context, leadID, contactID uuid.UUID) (*domain.Lead, error)
 }
 
-func (s *stubLeadStore) Create(ctx context.Context, l *domain.Lead) (*domain.Lead, error) {
+func (s *stubLeadStore) Create(_ context.Context, _ *domain.Lead) (*domain.Lead, error) {
 	panic("unexpected Create call")
 }
 
@@ -35,19 +35,19 @@ func (s *stubLeadStore) GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead
 	return s.getByIDFn(ctx, id)
 }
 
-func (s *stubLeadStore) Update(ctx context.Context, id uuid.UUID, patch domain.LeadPatch) (*domain.Lead, error) {
+func (s *stubLeadStore) Update(_ context.Context, _ uuid.UUID, _ domain.LeadPatch) (*domain.Lead, error) {
 	panic("unexpected Update call")
 }
 
-func (s *stubLeadStore) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *stubLeadStore) Delete(_ context.Context, _ uuid.UUID) error {
 	panic("unexpected Delete call")
 }
 
-func (s *stubLeadStore) List(ctx context.Context, filter domain.LeadFilter) ([]*domain.Lead, int, error) {
+func (s *stubLeadStore) List(_ context.Context, _ domain.LeadFilter) ([]*domain.Lead, int, error) {
 	panic("unexpected List call")
 }
 
-func (s *stubLeadStore) ListSources(ctx context.Context) ([]string, error) {
+func (s *stubLeadStore) ListSources(_ context.Context) ([]string, error) {
 	panic("unexpected ListSources call")
 }
 

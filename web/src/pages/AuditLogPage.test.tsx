@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { useNavigate } from 'react-router-dom'
 import { AuditLogPage } from './AuditLogPage'
 import { render, screen, waitFor } from '@/test/utils'
 import { server } from '@/test/mocks/server'
@@ -19,6 +20,16 @@ const auditEntry = {
   entity_name: 'Acme Corp',
   ip_address: '127.0.0.1',
   created_at: '2026-05-13T12:00:00Z',
+}
+
+function AuditLogQuerySetter({ value }: { value: string }) {
+  const navigate = useNavigate()
+
+  return (
+    <button type="button" onClick={() => navigate(`/admin/audit?q=${encodeURIComponent(value)}`)}>
+      Set {value}
+    </button>
+  )
 }
 
 describe('AuditLogPage', () => {
@@ -43,6 +54,37 @@ describe('AuditLogPage', () => {
 
     expect(input).toHaveValue('Ada')
     await waitFor(() => expect(seenQueries).toContain('Ada'))
+  })
+
+  it('syncs search input when q changes through navigation', async () => {
+    const seenQueries: string[] = []
+    server.use(
+      http.get('/api/v1/admin/audit-log', ({ request }) => {
+        const url = new URL(request.url)
+        seenQueries.push(url.searchParams.get('q') ?? '')
+        return HttpResponse.json({
+          data: [auditEntry],
+          meta: { page: 1, per_page: 50, total: 1, total_pages: 1 },
+        })
+      })
+    )
+
+    render(
+      <>
+        <AuditLogPage />
+        <AuditLogQuerySetter value="Grace" />
+      </>,
+      { initialRoute: '/admin/audit?q=Ada' }
+    )
+
+    const input = await screen.findByPlaceholderText(/search/i)
+    expect(input).toHaveValue('Ada')
+    await waitFor(() => expect(seenQueries).toContain('Ada'))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Set Grace' }))
+
+    await waitFor(() => expect(input).toHaveValue('Grace'))
+    await waitFor(() => expect(seenQueries).toContain('Grace'))
   })
 
   it('allows filtering for sharing rule audit entries', async () => {

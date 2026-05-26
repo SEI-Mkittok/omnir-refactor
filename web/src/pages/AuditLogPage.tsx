@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download, ShieldCheck, LogIn, FileOutput } from 'lucide-react'
 import { useAuditLog } from '@/hooks/useAuditLog'
@@ -54,11 +54,21 @@ export function AuditLogPage() {
   const to = searchParams.get('to') ?? ''
   const q = searchParams.get('q') ?? ''
 
+  const [searchInput, setSearchInput] = useState(q)
+  const lastSearchParamValueRef = useRef(q)
   const [page, setPage] = useState(1)
   const [sortKey, setSortKey] = useState('created_at:desc')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const [sortBy, sortDir] = sortKey.split(':') as [string, 'asc' | 'desc']
+
+  useEffect(() => {
+    if (q === lastSearchParamValueRef.current) {
+      return
+    }
+    lastSearchParamValueRef.current = q
+    setSearchInput(q)
+  }, [q])
 
   const setParam = useCallback(
     (key: string, value: string) => {
@@ -74,6 +84,15 @@ export function AuditLogPage() {
       setPage(1)
     },
     [setSearchParams]
+  )
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      lastSearchParamValueRef.current = value
+      setSearchInput(value)
+      setParam('q', value)
+    },
+    [setParam]
   )
 
   const { data, isLoading } = useAuditLog({
@@ -209,8 +228,8 @@ export function AuditLogPage() {
 
       {/* Entity type + action filters */}
       <FilterBar
-        searchValue={q}
-        onSearchChange={(value) => setParam('q', value)}
+        searchValue={searchInput}
+        onSearchChange={handleSearchChange}
         searchPlaceholder="Search…"
         filters={[
           {
