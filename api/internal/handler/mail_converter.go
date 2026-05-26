@@ -438,13 +438,15 @@ func (h *MailConverterHandler) executeAction(ctx context.Context, rule *domain.M
 			description = *msg.BodyText
 		}
 		ticket := &domain.Ticket{
-			Subject:        defaultString(msg.Subject, "Inbound email"),
-			Description:    stringPtrNonEmpty(description),
-			Status:         domain.TicketStatusOpen,
-			Priority:       domain.TicketPriorityMedium,
-			Source:         &source,
-			EmailMessageID: &msg.MessageID,
-			ContactID:      msg.ContactID,
+			Subject:     defaultString(msg.Subject, "Inbound email"),
+			Description: stringPtrNonEmpty(description),
+			Status:      domain.TicketStatusOpen,
+			Priority:    domain.TicketPriorityMedium,
+			Source:      &source,
+			ContactID:   msg.ContactID,
+		}
+		if msg.MessageID != "" {
+			ticket.EmailMessageID = &msg.MessageID
 		}
 		created, err := h.tickets.Create(ctx, ticket)
 		if err != nil {

@@ -19,6 +19,8 @@ type SLABreachWorker struct {
 	interval      time.Duration
 	logger        *slog.Logger
 	stop          chan struct{}
+	scheduler     *SchedulerRegistry
+	schedulerKey  string
 }
 
 type slaNotificationRecipientResolver interface {
@@ -40,6 +42,12 @@ func NewSLABreachWorker(
 	}
 }
 
+func (w *SLABreachWorker) WithScheduler(registry *SchedulerRegistry, key string) *SLABreachWorker {
+	w.scheduler = registry
+	w.schedulerKey = key
+	return w
+}
+
 func (w *SLABreachWorker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
 	go func() {
@@ -48,7 +56,11 @@ func (w *SLABreachWorker) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				w.tick(ctx)
+				if err := w.scheduler.TrackRun(w.schedulerKey, w.interval, func() error {
+					return w.tick(ctx)
+				}); err != nil {
+					w.logger.Error("sla breach worker tick failed", "err", err)
+				}
 			case <-w.stop:
 				w.logger.Info("sla breach worker stopped")
 				return
@@ -64,11 +76,14 @@ func (w *SLABreachWorker) Stop() {
 	close(w.stop)
 }
 
-func (w *SLABreachWorker) tick(ctx context.Context) {
+func (w *SLABreachWorker) tick(ctx context.Context) error {
+	var firstErr error
+
 	// Scan and mark breached instances
 	breached, err := w.instances.ScanBreaches(ctx)
 	if err != nil {
 		w.logger.Error("sla breach scan failed", "err", err)
+		firstErr = err
 	} else if len(breached) > 0 {
 		w.logger.Info("sla breaches detected", "count", len(breached))
 		for _, inst := range breached {
@@ -80,11 +95,12 @@ func (w *SLABreachWorker) tick(ctx context.Context) {
 	warnings, err := w.instances.ScanWarnings(ctx)
 	if err != nil {
 		w.logger.Error("sla warning scan failed", "err", err)
-		return
+		return err
 	}
 	for _, inst := range warnings {
 		w.emitWarning(ctx, inst)
 	}
+	return firstErr
 }
 
 func (w *SLABreachWorker) emitWarning(ctx context.Context, inst *domain.SLAInstance) {

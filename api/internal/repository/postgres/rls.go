@@ -37,6 +37,7 @@ var orgScopedTables = []string{
 	"crm_sharing_rules",
 	"module_layouts",
 	"module_relationship_definitions",
+	"webforms",
 	"webform_submissions",
 	"mail_converter_rules",
 	"mail_converter_runs",
