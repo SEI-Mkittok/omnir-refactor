@@ -51,6 +51,8 @@ import { GroupsPage } from '@/pages/settings/GroupsPage'
 import { SequencesPage } from '@/pages/SequencesPage'
 import { QuotesPage } from '@/pages/QuotesPage'
 import { AutomationsPage } from '@/pages/AutomationsPage'
+import { CampaignsPage } from '@/pages/CampaignsPage'
+import { SubmissionsPage } from '@/pages/SubmissionsPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { KnowledgeBasePage } from '@/pages/KnowledgeBasePage'
 import { InboxPage } from '@/pages/InboxPage'
@@ -70,6 +72,9 @@ import { ContactDetailPage } from '@/pages/ContactDetailPage'
 import { AccountDetailPage } from '@/pages/AccountDetailPage'
 import { TicketDetailPage } from '@/pages/TicketDetailPage'
 import { ProductHelpSettingsPage } from '@/pages/settings/ProductHelpSettingsPage'
+import { SchedulerPage } from '@/pages/settings/SchedulerPage'
+import { WebformsPage } from '@/pages/settings/WebformsPage'
+import { MailConverterPage } from '@/pages/settings/MailConverterPage'
 import { getSetupStatus } from '@/api/setup'
 import { useAuthStore } from '@/stores/auth'
 import { canAccessAdminModule } from '@/lib/access'
@@ -164,6 +169,8 @@ function AppRoutes() {
         <Route path="/sequences" element={<SequencesPage />} />
         <Route path="/quotes" element={<QuotesPage />} />
         <Route path="/automations" element={<AutomationsPage />} />
+        <Route path="/campaigns" element={<CampaignsPage />} />
+        <Route path="/submissions" element={<SubmissionsPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/inbox" element={<InboxPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
@@ -336,6 +343,30 @@ function AppRoutes() {
           element={
             <AdminRoute module="webhooks">
               <WebhooksPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/scheduler"
+          element={
+            <AdminRoute module="settings">
+              <SchedulerPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/webforms"
+          element={
+            <AdminRoute module="settings">
+              <WebformsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/settings/mail-converter"
+          element={
+            <AdminRoute module="settings">
+              <MailConverterPage />
             </AdminRoute>
           }
         />

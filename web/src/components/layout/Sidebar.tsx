@@ -5,7 +5,7 @@ import {
   BarChart3, Settings, LogOut, ChevronLeft, ChevronRight, Plus,
   UserCog, SlidersHorizontal, KeyRound, Clock, ShieldCheck, CreditCard,
   BookOpen, FileText, Mail, Zap, CalendarDays, Rocket, Inbox, Plug, X, Hash, Send, PanelTopOpen, MenuSquare,
-  GitBranch, Share2, LayoutTemplate, Waypoints,
+  GitBranch, Share2, LayoutTemplate, Waypoints, Megaphone, ClipboardList, MailCheck, FormInput,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -36,6 +36,8 @@ const NAV_GROUPS = [
       { to: '/leads', icon: UserPlus, label: 'Leads' },
       { to: '/quotes', icon: FileText, label: 'Quotes' },
       { to: '/sequences', icon: Mail, label: 'Sequences' },
+      { to: '/campaigns', icon: Megaphone, label: 'Campaigns' },
+      { to: '/submissions', icon: ClipboardList, label: 'Submissions' },
       { to: '/inbox', icon: Inbox, label: 'Email' },
     ],
   },
@@ -77,6 +79,9 @@ const ADMIN_GROUP = {
     { to: '/settings/company', icon: Building2, label: 'Company Profile' },
     { to: '/settings/portal', icon: PanelTopOpen, label: 'Portal Config' },
     { to: '/settings/outgoing-server', icon: Send, label: 'Outgoing Server' },
+    { to: '/settings/scheduler', icon: Clock, label: 'Scheduler' },
+    { to: '/settings/webforms', icon: FormInput, label: 'Webforms' },
+    { to: '/settings/mail-converter', icon: MailCheck, label: 'Mail Converter' },
     { to: '/settings/config-editor', icon: SlidersHorizontal, label: 'Config Editor' },
     { to: '/settings/menu', icon: MenuSquare, label: 'Menu Config' },
     { to: '/api-keys', icon: KeyRound, label: 'API Keys' },
@@ -95,6 +100,8 @@ const ROUTE_MENU_KEYS: Record<string, string> = {
   '/leads': 'leads',
   '/quotes': 'quotes',
   '/sequences': 'sequences',
+  '/campaigns': 'campaigns',
+  '/submissions': 'submissions',
   '/inbox': 'inbox',
   '/tickets': 'tickets',
   '/kb': 'kb',

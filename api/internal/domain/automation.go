@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -128,13 +129,10 @@ func (r *CreateAutomationRequest) Validate() error {
 	if r.Name == "" {
 		return fmt.Errorf("%w: name is required", ErrValidation)
 	}
-	if r.Trigger.Type == "" {
-		return fmt.Errorf("%w: trigger type is required", ErrValidation)
-	}
 	if len(r.Actions) == 0 {
 		return fmt.Errorf("%w: at least one action is required", ErrValidation)
 	}
-	return nil
+	return ValidateAutomationConfig(&r.Trigger, r.Conditions, r.Actions)
 }
 
 // UpdateAutomationRequest is the payload to update an existing automation.
@@ -159,4 +157,96 @@ type AutomationRunFilter struct {
 	AutomationID uuid.UUID
 	Page         int
 	Limit        int
+}
+
+func (s AutomationStatus) IsValid() bool {
+	return s == AutomationStatusDraft || s == AutomationStatusActive || s == AutomationStatusPaused
+}
+
+func (t TriggerType) IsValid() bool {
+	switch t {
+	case TriggerContactCreated, TriggerContactUpdated, TriggerDealCreated, TriggerDealStageChanged, TriggerActivityOverdue, TriggerTicketCreated, TriggerManual:
+		return true
+	default:
+		return false
+	}
+}
+
+func (op ConditionOperator) IsValid() bool {
+	switch op {
+	case ConditionOpEquals, ConditionOpNotEquals, ConditionOpContains, ConditionOpNotContains, ConditionOpGreaterThan, ConditionOpLessThan, ConditionOpIsSet, ConditionOpIsNotSet:
+		return true
+	default:
+		return false
+	}
+}
+
+func (a ActionType) IsValid() bool {
+	switch a {
+	case ActionAssignOwner, ActionSendEmail, ActionEnrollInSequence, ActionCreateActivity, ActionWebhook:
+		return true
+	default:
+		return false
+	}
+}
+
+func ValidateAutomationConfig(trigger *AutomationTrigger, conditions []AutomationCondition, actions []AutomationAction) error {
+	if trigger == nil || !trigger.Type.IsValid() {
+		return fmt.Errorf("%w: trigger type is invalid", ErrValidation)
+	}
+	for _, condition := range conditions {
+		if strings.TrimSpace(condition.Field) == "" {
+			return fmt.Errorf("%w: condition field is required", ErrValidation)
+		}
+		if !condition.Operator.IsValid() {
+			return fmt.Errorf("%w: condition operator is invalid", ErrValidation)
+		}
+	}
+	for _, action := range actions {
+		if !action.Type.IsValid() {
+			return fmt.Errorf("%w: action type is invalid", ErrValidation)
+		}
+		if err := ValidateAutomationAction(action); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateAutomationAction(action AutomationAction) error {
+	cfg := action.Config
+	if cfg == nil {
+		cfg = map[string]interface{}{}
+	}
+	switch action.Type {
+	case ActionAssignOwner:
+		if strings.TrimSpace(configStringValue(cfg, "owner_id")) == "" {
+			return fmt.Errorf("%w: assign_owner.owner_id is required", ErrValidation)
+		}
+	case ActionSendEmail:
+		if strings.TrimSpace(configStringValue(cfg, "subject")) == "" {
+			return fmt.Errorf("%w: send_email.subject is required", ErrValidation)
+		}
+	case ActionEnrollInSequence:
+		if strings.TrimSpace(configStringValue(cfg, "sequence_id")) == "" {
+			return fmt.Errorf("%w: enroll_in_sequence.sequence_id is required", ErrValidation)
+		}
+	case ActionCreateActivity:
+		if strings.TrimSpace(configStringValue(cfg, "subject")) == "" && strings.TrimSpace(configStringValue(cfg, "title")) == "" {
+			return fmt.Errorf("%w: create_activity.subject is required", ErrValidation)
+		}
+	case ActionWebhook:
+		if strings.TrimSpace(configStringValue(cfg, "url")) == "" {
+			return fmt.Errorf("%w: webhook.url is required", ErrValidation)
+		}
+	}
+	return nil
+}
+
+func configStringValue(cfg map[string]interface{}, key string) string {
+	v, ok := cfg[key]
+	if !ok || v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
 }

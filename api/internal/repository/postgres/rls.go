@@ -37,6 +37,12 @@ var orgScopedTables = []string{
 	"crm_sharing_rules",
 	"module_layouts",
 	"module_relationship_definitions",
+	"webform_submissions",
+	"mail_converter_rules",
+	"mail_converter_runs",
+	"mail_converter_logs",
+	"campaigns",
+	"campaign_members",
 }
 
 // EnableRLS activates FORCE ROW LEVEL SECURITY on every org-scoped table so

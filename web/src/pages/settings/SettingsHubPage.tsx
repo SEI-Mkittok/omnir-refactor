@@ -4,6 +4,7 @@ import {
   User, Shield, Users, SlidersHorizontal, KeyRound, Clock,
   ShieldCheck, CreditCard, Plug, Hash, Rocket, Webhook, Building2,
   Send, PanelTopOpen, MenuSquare, GitBranch, Share2, LayoutTemplate, Waypoints,
+  FormInput, MailCheck,
   BookOpen,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
@@ -197,6 +198,24 @@ const ADMIN_CARDS: SettingsCard[] = [
     title: 'Webhooks',
     description: 'Send real-time event notifications to external endpoints.',
     href: '/settings/webhooks',
+  },
+  {
+    icon: Clock,
+    title: 'Scheduler',
+    description: 'Inspect background worker cadence, last result, and recent job runs.',
+    href: '/settings/scheduler',
+  },
+  {
+    icon: FormInput,
+    title: 'Webforms',
+    description: 'Build active public forms that create leads, contacts, and tickets.',
+    href: '/settings/webforms',
+  },
+  {
+    icon: MailCheck,
+    title: 'Mail Converter',
+    description: 'Scan synced inbox messages and convert matching mail into CRM records.',
+    href: '/settings/mail-converter',
   },
   {
     icon: ShieldCheck,

@@ -42,6 +42,9 @@ type TicketHandler struct {
 
 	// optional — set via WithPushNotifier
 	pushNotifier *worker.PushNotifier
+
+	dispatcher  chan<- worker.WebhookEvent
+	automations chan<- worker.AutomationEvent
 }
 
 func NewTicketHandler(
@@ -88,6 +91,64 @@ func (h *TicketHandler) WithTeamsNotifier(n *worker.TeamsNotifier) *TicketHandle
 func (h *TicketHandler) WithPushNotifier(n *worker.PushNotifier) *TicketHandler {
 	h.pushNotifier = n
 	return h
+}
+
+func (h *TicketHandler) WithDispatcher(d chan<- worker.WebhookEvent) *TicketHandler {
+	h.dispatcher = d
+	return h
+}
+
+func (h *TicketHandler) WithAutomationEvents(ch chan<- worker.AutomationEvent) *TicketHandler {
+	h.automations = ch
+	return h
+}
+
+func (h *TicketHandler) emitWebhook(r *http.Request, event domain.WebhookEvent, entityID uuid.UUID, data any) {
+	if h.dispatcher == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.WebhookEvent{OrgID: orgID, EntityID: entityID, Event: event, Data: data}
+	select {
+	case h.dispatcher <- evt:
+	default:
+	}
+}
+
+func (h *TicketHandler) emitAutomation(r *http.Request, trigger domain.TriggerType, entityID uuid.UUID, data map[string]interface{}) {
+	if h.automations == nil {
+		return
+	}
+	orgID, _ := domain.OrgIDFromContext(r.Context())
+	evt := worker.AutomationEvent{OrgID: orgID, TriggerType: trigger, EntityID: entityID, EntityType: "ticket", Data: data}
+	select {
+	case h.automations <- evt:
+	default:
+	}
+}
+
+func ticketToData(t *domain.Ticket) map[string]interface{} {
+	data := map[string]interface{}{
+		"id":       t.ID.String(),
+		"org_id":   t.OrgID.String(),
+		"subject":  t.Subject,
+		"status":   string(t.Status),
+		"priority": string(t.Priority),
+	}
+	if t.AssigneeID != nil {
+		data["assignee_id"] = t.AssigneeID.String()
+		data["owner_id"] = t.AssigneeID.String()
+	}
+	if t.ContactID != nil {
+		data["contact_id"] = t.ContactID.String()
+	}
+	if t.AccountID != nil {
+		data["account_id"] = t.AccountID.String()
+	}
+	if t.Source != nil {
+		data["source"] = *t.Source
+	}
+	return data
 }
 
 func (h *TicketHandler) Router() chi.Router {
@@ -206,6 +267,8 @@ func (h *TicketHandler) Create(w http.ResponseWriter, r *http.Request) {
 		handleDomainErr(w, err)
 		return
 	}
+	h.emitWebhook(r, domain.WebhookEventTicketCreated, created.ID, created)
+	h.emitAutomation(r, domain.TriggerTicketCreated, created.ID, ticketToData(created))
 	writeJSON(w, http.StatusCreated, created)
 }
 

@@ -111,6 +111,9 @@ func main() {
 	emailTemplateRepo := postgres.NewEmailTemplateRepo(db)
 	opsFinanceRepo := postgres.NewOperationsFinanceRepo(db)
 	accessRepo := postgres.NewAccessRepo(db)
+	webformRepo := postgres.NewWebformRepo(db)
+	mailConverterRepo := postgres.NewMailConverterRepo(db)
+	campaignRepo := postgres.NewCampaignRepo(db)
 
 	smtpSender := email.NewSender(cfg.SMTP)
 	appURL := getEnv("APP_URL", "http://localhost:5173")
@@ -118,23 +121,28 @@ func main() {
 
 	workerCtx, cancelWorker := context.WithCancel(context.Background())
 	defer cancelWorker()
+	schedulerRegistry := worker.NewSchedulerRegistry()
 
 	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
+	schedulerRegistry.Register("activity-reminders", "Activity reminders", time.Minute, true)
 	reminderWorker.Start(workerCtx)
 
 	emailNotifier := worker.NewEmailNotifier(mailer, logger)
 	emailNotifier.Start(workerCtx, 3)
 
 	webhookDispatcher := worker.NewWebhookDispatcher(outboundWebhookRepo, 30*time.Second, logger)
+	schedulerRegistry.Register("outbound-webhooks", "Outbound webhook dispatcher", 30*time.Second, true)
 	webhookDispatcher.Start(workerCtx)
 
 	slaBreachWorker := worker.NewSLABreachWorker(slaInstanceRepo, notificationRepo, 5*time.Minute, logger)
+	schedulerRegistry.Register("sla-breaches", "SLA breach scanner", 5*time.Minute, true)
 	slaBreachWorker.Start(workerCtx)
 
 	automationWorker := worker.NewAutomationWorker(
-		automationRepo, activityRepo, contactRepo, dealRepo, sequenceRepo,
+		automationRepo, activityRepo, contactRepo, dealRepo, ticketRepo, sequenceRepo,
 		mailer, time.Minute, logger,
 	)
+	schedulerRegistry.Register("workflow-automations", "Workflow automation worker", time.Minute, true)
 	automationWorker.Start(workerCtx)
 
 	calendarSyncWorker := worker.NewCalendarSyncWorker(
@@ -143,6 +151,7 @@ func main() {
 		cfg.Calendar.GoogleClientID, cfg.Calendar.GoogleClientSecret,
 		cfg.Calendar.MicrosoftClientID, cfg.Calendar.MicrosoftClientSecret, cfg.Calendar.MicrosoftTenantID,
 	)
+	schedulerRegistry.Register("calendar-sync", "Calendar sync", 5*time.Minute, true)
 	calendarSyncWorker.Start(workerCtx)
 
 	emailInboxSyncWorker := worker.NewEmailInboxSyncWorker(
@@ -152,6 +161,7 @@ func main() {
 		cfg.EmailInbox.GoogleClientID, cfg.EmailInbox.GoogleClientSecret,
 		cfg.EmailInbox.MicrosoftClientID, cfg.EmailInbox.MicrosoftClientSecret, cfg.EmailInbox.MicrosoftTenantID,
 	)
+	schedulerRegistry.Register("email-inbox-sync", "Email inbox sync", 5*time.Minute, true)
 	emailInboxSyncWorker.Start(workerCtx)
 
 	if cfg.SMTP.Enabled {
@@ -183,11 +193,11 @@ func main() {
 	orgHandler := handler.NewOrgHandler(orgRepo, userRepo, jwtSvc, cfg.OrgMode)
 	authHandler := handler.NewAuthHandler(userRepo, jwtSvc).WithAuditLog(auditLogRepo).WithTOTP(totpRepo).WithOrgs(orgRepo)
 	userHandler := handler.NewUserHandler(userRepo, accessRepo)
-	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo).WithDeals(dealRepo).WithAutomationEvents(automationWorker.Events)
+	contactHandler := handler.NewContactHandler(contactRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo).WithDeals(dealRepo).WithDispatcher(webhookDispatcher.Dispatch).WithAutomationEvents(automationWorker.Events)
 	accountHandler := handler.NewAccountHandler(accountRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo)
 	slaInstanceHandler := handler.NewSLAInstanceHandler(slaInstanceRepo)
-	dealHandler := handler.NewDealHandler(dealRepo).WithContacts(contactRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
-	activityHandler := handler.NewActivityHandler(activityRepo).WithContacts(contactRepo)
+	dealHandler := handler.NewDealHandler(dealRepo).WithContacts(contactRepo).WithCustomFields(customFieldRepo).WithModuleLayouts(moduleLayoutRepo).WithDispatcher(webhookDispatcher.Dispatch).WithNotifications(notificationRepo).WithSLA(slaPolicyRepo, slaInstanceRepo).WithAutomationEvents(automationWorker.Events).WithTeamsNotifier(teamsNotifier).WithPushNotifier(pushNotifier)
+	activityHandler := handler.NewActivityHandler(activityRepo).WithContacts(contactRepo).WithDispatcher(webhookDispatcher.Dispatch)
 	notificationHandler := handler.NewNotificationHandler(notificationRepo)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefRepo)
 	// Initialize file storage backend (S3-compatible or local fallback)
@@ -224,7 +234,9 @@ func main() {
 		WithModuleLayouts(moduleLayoutRepo).
 		WithEmailNotifier(emailNotifier, userRepo, contactRepo, logger).
 		WithTeamsNotifier(teamsNotifier).
-		WithPushNotifier(pushNotifier)
+		WithPushNotifier(pushNotifier).
+		WithDispatcher(webhookDispatcher.Dispatch).
+		WithAutomationEvents(automationWorker.Events)
 	portalHandler := handler.NewPortalHandler(ticketRepo, ticketCommentRepo)
 	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicyRepo)
 	inboundWebhookHandler := handler.NewWebhookHandler(ticketRepo, ticketCommentRepo, contactRepo, userRepo, cfg.WebhookSecret, cfg.OrgMode, logger).
@@ -242,7 +254,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo, accountRepo, dealRepo, leadConversionMappingRepo, customFieldRepo).WithModuleLayouts(moduleLayoutRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo).WithPicklistValueReader(picklistRepo)
 	moduleConfigurationHandler := handler.NewModuleConfigurationHandler(moduleLayoutRepo, moduleRelationshipDefinitionRepo, customFieldRepo, crmEntityLinkRepo, accessRepo)
-	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo).WithAuditLog(auditLogRepo)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
 	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, contactRepo, dealRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
@@ -261,10 +273,14 @@ func main() {
 	sequenceTrackingHandler := handler.NewSequenceTrackingHandler(sequenceRepo, contactRepo, cfg.SequenceTokenSecret)
 	auditLogHandler := handler.NewAuditLogHandler(auditLogRepo)
 	productHandler := handler.NewProductHandler(productRepo)
-	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithRelations(contactRepo, dealRepo).WithCustomFields(customFieldRepo).WithMailer(mailer, cfg.SMTP.From)
-	automationHandler := handler.NewAutomationHandler(automationRepo)
+	quoteHandler := handler.NewQuoteHandler(quoteRepo).WithRelations(contactRepo, dealRepo).WithMailer(mailer, cfg.SMTP.From)
+	automationHandler := handler.NewAutomationHandler(automationRepo).WithWorker(automationWorker)
 	calendarHandler := handler.NewCalendarHandler(calendarConnectionRepo, cfg.Calendar)
 	emailInboxHandler := handler.NewEmailInboxHandler(emailConnectionRepo, emailInboxRepo, cfg.EmailInbox)
+	webformHandler := handler.NewWebformHandler(webformRepo, leadRepo, contactRepo, ticketRepo)
+	mailConverterHandler := handler.NewMailConverterHandler(mailConverterRepo, leadRepo, contactRepo, ticketRepo, activityRepo)
+	campaignHandler := handler.NewCampaignHandler(campaignRepo, webformRepo)
+	schedulerHandler := handler.NewSchedulerHandler(schedulerRegistry)
 	integrationsHandler := handler.NewIntegrationsHandler(integrationCredRepo, emailConnectionRepo, cfg.IntegrationCredentialsEncKey)
 	orgSettingsHandler := handler.NewOrgSettingsHandler(orgSettingsRepo, cfg.IntegrationCredentialsEncKey).WithAuditLog(auditLogRepo)
 	preferenceSettingsHandler := handler.NewPreferenceSettingsHandler(userPrefRepo)
@@ -278,7 +294,7 @@ func main() {
 	twoFAHandler := handler.NewTwoFAHandler(totpRepo, userRepo, jwtSvc, cfg.SSOEncryptionKey).WithAuditLog(auditLogRepo)
 	enrichmentSvc := enrichmentpkg.New(enrichmentCacheRepo, cfg.ClearbitAPIKey)
 	enrichmentHandler := handler.NewEnrichmentHandler(enrichmentSvc, contactRepo)
-	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo).WithOrgs(orgRepo).WithCustomFields(customFieldRepo)
+	kbHandler := handler.NewKBHandler(kbArticleRepo, kbCategoryRepo).WithOrgs(orgRepo)
 	productHelpSyncer := producthelppkg.NewService(productHelpRepo, producthelppkg.Config{
 		RawBaseURL:   cfg.ProductHelpWiki.RawBaseURL,
 		WikiBaseURL:  cfg.ProductHelpWiki.WikiBaseURL,
@@ -294,10 +310,12 @@ func main() {
 	opsFinanceHandler := handler.NewOperationsFinanceHandler(opsFinanceRepo)
 	accessSettingsHandler := handler.NewAccessSettingsHandler(accessRepo, userRepo).WithAuditLog(auditLogRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, emailTemplateRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
+	schedulerRegistry.Register("sequences", "Email sequence worker", time.Minute, true)
 	sequenceWorker.Start(workerCtx)
 
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo, reportsRepo)
 	reportSchedulerWorker := worker.NewReportSchedulerWorker(dashboardRepo, reportsRepo, mailer, time.Minute, logger)
+	schedulerRegistry.Register("report-schedules", "Report scheduler", time.Minute, true)
 	reportSchedulerWorker.Start(workerCtx)
 
 	r := chi.NewRouter()
@@ -347,6 +365,7 @@ func main() {
 	r.Mount("/api/portal/help", kbHandler.PublicRouter())
 	r.Mount("/api/public", kbHandler.PublicCompatibilityRouter())
 	r.With(publicRateLimit).Mount("/api/product-help", productHelpHandler.PublicRouter())
+	r.With(publicRateLimit).Mount("/api/webforms", webformHandler.PublicRouter())
 	// Public sequence tracking — HMAC-signed tokens, no JWT required.
 	r.Mount("/track", sequenceTrackingHandler.TrackRouter())
 	r.Mount("/unsubscribe", sequenceTrackingHandler.UnsubscribeRouter())
@@ -412,6 +431,10 @@ func main() {
 		})
 		r.Mount("/webhooks", outboundWebhookHandler.Router())
 		r.Mount("/sequences", sequenceHandler.Router())
+		r.Mount("/webforms", webformHandler.Router())
+		r.Mount("/mail-converter", mailConverterHandler.Router())
+		r.Mount("/campaigns", campaignHandler.Router())
+		r.Mount("/submissions", campaignHandler.SubmissionsRouter())
 		r.Route("/contacts/{id}/attachments", func(r chi.Router) { r.Mount("/", contactAttachmentHandler.Router()) })
 		r.Route("/accounts/{id}/attachments", func(r chi.Router) { r.Mount("/", accountAttachmentHandler.Router()) })
 		r.Route("/deals/{id}/attachments", func(r chi.Router) { r.Mount("/", dealAttachmentHandler.Router()) })
@@ -451,6 +474,7 @@ func main() {
 		r.Mount("/settings/outgoing-server", orgSettingsHandler.OutgoingServerRouter())
 		r.Mount("/settings/config-editor", orgSettingsHandler.ConfigEditorRouter())
 		r.Mount("/settings/menu", orgSettingsHandler.MenuConfigRouter())
+		r.Mount("/settings/scheduler", schedulerHandler.Router())
 		r.Mount("/billing", billingHandler.Router())
 		r.Mount("/ops-finance", opsFinanceHandler.Router())
 		r.Mount("/onboarding", onboardingHandler.Router())
