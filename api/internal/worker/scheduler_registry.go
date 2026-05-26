@@ -86,6 +86,16 @@ func (r *SchedulerRegistry) Finish(key string, runID uuid.UUID, err error, inter
 	}
 }
 
+func (r *SchedulerRegistry) TrackRun(key string, interval time.Duration, fn func() error) error {
+	if r == nil || key == "" {
+		return fn()
+	}
+	runID := r.Start(key)
+	err := fn()
+	r.Finish(key, runID, err, interval)
+	return err
+}
+
 func (r *SchedulerRegistry) Jobs() []domain.SchedulerJobStatus {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -42,6 +42,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Check migration versions
+        working-directory: .
+        run: |
+          dupes=$(find api/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | sed 's/_.*//' | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "Duplicate migration versions detected:"
+            echo "$dupes"
+            exit 1
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:

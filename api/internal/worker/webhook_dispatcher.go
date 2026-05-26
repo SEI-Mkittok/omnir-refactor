@@ -32,10 +32,12 @@ const deliveryTimeout = 10 * time.Second
 
 // WebhookDispatcher polls for pending webhook deliveries and dispatches them.
 type WebhookDispatcher struct {
-	repo     repository.OutboundWebhookRepository
-	client   *http.Client
-	interval time.Duration
-	logger   *slog.Logger
+	repo         repository.OutboundWebhookRepository
+	client       *http.Client
+	interval     time.Duration
+	logger       *slog.Logger
+	scheduler    *SchedulerRegistry
+	schedulerKey string
 
 	// Dispatch is the channel for submitting new events from CRM handlers.
 	Dispatch chan WebhookEvent
@@ -66,6 +68,12 @@ func NewWebhookDispatcher(repo repository.OutboundWebhookRepository, interval ti
 	}
 }
 
+func (d *WebhookDispatcher) WithScheduler(registry *SchedulerRegistry, key string) *WebhookDispatcher {
+	d.scheduler = registry
+	d.schedulerKey = key
+	return d
+}
+
 // Start launches the dispatch loop. It processes the Dispatch channel and polls for retries.
 func (d *WebhookDispatcher) Start(ctx context.Context) {
 	ticker := time.NewTicker(d.interval)
@@ -77,7 +85,11 @@ func (d *WebhookDispatcher) Start(ctx context.Context) {
 			case evt := <-d.Dispatch:
 				d.fanOut(ctx, evt)
 			case <-ticker.C:
-				d.processRetries(ctx)
+				if err := d.scheduler.TrackRun(d.schedulerKey, d.interval, func() error {
+					return d.processRetries(ctx)
+				}); err != nil {
+					d.logger.Error("webhook: retry processing failed", "err", err)
+				}
 			case <-ctx.Done():
 				d.logger.Info("webhook dispatcher stopped")
 				return
@@ -126,11 +138,10 @@ func (d *WebhookDispatcher) fanOut(_ context.Context, evt WebhookEvent) {
 }
 
 // processRetries picks up pending deliveries with elapsed next_retry_at.
-func (d *WebhookDispatcher) processRetries(ctx context.Context) {
+func (d *WebhookDispatcher) processRetries(ctx context.Context) error {
 	deliveries, err := d.repo.PendingDeliveries(ctx)
 	if err != nil {
-		d.logger.Error("webhook: failed to fetch pending deliveries", "err", err)
-		return
+		return fmt.Errorf("fetch pending deliveries: %w", err)
 	}
 	for _, del := range deliveries {
 		wh, err := d.repo.GetByID(ctx, del.WebhookID)
@@ -140,6 +151,7 @@ func (d *WebhookDispatcher) processRetries(ctx context.Context) {
 		}
 		go d.deliver(ctx, wh, del)
 	}
+	return nil
 }
 
 // deliver sends a single delivery attempt to the webhook URL.

@@ -11,10 +11,12 @@ import (
 // ReminderWorker checks for upcoming and overdue activities on a ticker and
 // generates notification records for activity owners.
 type ReminderWorker struct {
-	repo     repository.NotificationRepository
-	interval time.Duration
-	logger   *slog.Logger
-	stop     chan struct{}
+	repo         repository.NotificationRepository
+	interval     time.Duration
+	logger       *slog.Logger
+	stop         chan struct{}
+	scheduler    *SchedulerRegistry
+	schedulerKey string
 }
 
 // NewReminderWorker creates a worker that runs every interval.
@@ -27,6 +29,12 @@ func NewReminderWorker(repo repository.NotificationRepository, interval time.Dur
 	}
 }
 
+func (w *ReminderWorker) WithScheduler(registry *SchedulerRegistry, key string) *ReminderWorker {
+	w.scheduler = registry
+	w.schedulerKey = key
+	return w
+}
+
 // Start runs the worker in a background goroutine until Stop is called or ctx is cancelled.
 func (w *ReminderWorker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
@@ -36,7 +44,9 @@ func (w *ReminderWorker) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				if err := w.repo.GenerateReminders(ctx); err != nil {
+				if err := w.scheduler.TrackRun(w.schedulerKey, w.interval, func() error {
+					return w.repo.GenerateReminders(ctx)
+				}); err != nil {
 					w.logger.Error("reminder generation failed", "err", err)
 				}
 			case <-w.stop:

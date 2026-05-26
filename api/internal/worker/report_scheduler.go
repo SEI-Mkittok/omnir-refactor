@@ -23,6 +23,8 @@ type ReportSchedulerWorker struct {
 	interval      time.Duration
 	logger        *slog.Logger
 	parser        cron.Parser
+	scheduler     *SchedulerRegistry
+	schedulerKey  string
 }
 
 // NewReportSchedulerWorker creates a worker that ticks on interval.
@@ -43,6 +45,12 @@ func NewReportSchedulerWorker(
 	}
 }
 
+func (w *ReportSchedulerWorker) WithScheduler(registry *SchedulerRegistry, key string) *ReportSchedulerWorker {
+	w.scheduler = registry
+	w.schedulerKey = key
+	return w
+}
+
 // Start runs the worker in a background goroutine until ctx is cancelled.
 func (w *ReportSchedulerWorker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
@@ -52,7 +60,11 @@ func (w *ReportSchedulerWorker) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				w.tick(ctx, time.Now().UTC())
+				if err := w.scheduler.TrackRun(w.schedulerKey, w.interval, func() error {
+					return w.tick(ctx, time.Now().UTC())
+				}); err != nil {
+					w.logger.Error("report scheduler worker failed", "err", err)
+				}
 			case <-ctx.Done():
 				w.logger.Info("report scheduler worker stopped")
 				return
@@ -61,13 +73,13 @@ func (w *ReportSchedulerWorker) Start(ctx context.Context) {
 	}()
 }
 
-func (w *ReportSchedulerWorker) tick(ctx context.Context, now time.Time) {
+func (w *ReportSchedulerWorker) tick(ctx context.Context, now time.Time) error {
 	schedules, err := w.dashboardRepo.ListAllDueSchedules(ctx, now)
 	if err != nil {
-		w.logger.Error("report scheduler: failed to load schedules", "err", err)
-		return
+		return fmt.Errorf("load schedules: %w", err)
 	}
 
+	var firstErr error
 	for _, s := range schedules {
 		if !w.isDue(s, now) {
 			continue
@@ -75,13 +87,20 @@ func (w *ReportSchedulerWorker) tick(ctx context.Context, now time.Time) {
 		if err := w.deliver(ctx, s, now); err != nil {
 			w.logger.Error("report scheduler: delivery failed",
 				"schedule_id", s.ID, "dashboard_id", s.DashboardID, "err", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		if err := w.dashboardRepo.MarkScheduleSent(ctx, s.ID, now); err != nil {
 			w.logger.Error("report scheduler: failed to mark sent",
 				"schedule_id", s.ID, "err", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
+	return firstErr
 }
 
 // isDue returns true if the schedule's cron expression fired between

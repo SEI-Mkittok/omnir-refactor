@@ -32,15 +32,17 @@ type AutomationEvent struct {
 
 // AutomationWorker evaluates automation rules on entity events.
 type AutomationWorker struct {
-	repo       repository.AutomationRepository
-	activities repository.ActivityRepository
-	contacts   repository.ContactRepository
-	deals      repository.DealRepository
-	tickets    repository.TicketRepository
-	sequences  repository.SequenceRepository
-	mailer     *email.Mailer
-	interval   time.Duration
-	log        *slog.Logger
+	repo         repository.AutomationRepository
+	activities   repository.ActivityRepository
+	contacts     repository.ContactRepository
+	deals        repository.DealRepository
+	tickets      repository.TicketRepository
+	sequences    repository.SequenceRepository
+	mailer       *email.Mailer
+	interval     time.Duration
+	log          *slog.Logger
+	scheduler    *SchedulerRegistry
+	schedulerKey string
 
 	// Events is the channel through which CRM handlers submit entity events.
 	Events chan AutomationEvent
@@ -73,6 +75,12 @@ func NewAutomationWorker(
 	}
 }
 
+func (w *AutomationWorker) WithScheduler(registry *SchedulerRegistry, key string) *AutomationWorker {
+	w.scheduler = registry
+	w.schedulerKey = key
+	return w
+}
+
 // Start launches the worker in a background goroutine.
 func (w *AutomationWorker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
@@ -84,7 +92,11 @@ func (w *AutomationWorker) Start(ctx context.Context) {
 			case evt := <-w.Events:
 				w.processEvent(evt)
 			case <-ticker.C:
-				w.tickOverdue(ctx)
+				if err := w.scheduler.TrackRun(w.schedulerKey, w.interval, func() error {
+					return w.tickOverdue(ctx)
+				}); err != nil {
+					w.log.Error("automation worker: overdue scan failed", "err", err)
+				}
 			case <-ctx.Done():
 				w.log.Info("automation worker stopped")
 				return
@@ -114,11 +126,10 @@ func (w *AutomationWorker) processEvent(evt AutomationEvent) {
 }
 
 // tickOverdue scans for overdue activities and fires activity_overdue automations.
-func (w *AutomationWorker) tickOverdue(ctx context.Context) {
+func (w *AutomationWorker) tickOverdue(ctx context.Context) error {
 	refs, err := w.repo.OverdueActivityIDs(ctx, time.Now().UTC(), 100)
 	if err != nil {
-		w.log.Error("automation worker: overdue scan failed", "err", err)
-		return
+		return err
 	}
 
 	for _, ref := range refs {
@@ -132,6 +143,7 @@ func (w *AutomationWorker) tickOverdue(ctx context.Context) {
 			},
 		})
 	}
+	return nil
 }
 
 // ExecuteAutomation creates a run record, executes all actions, then updates run status.

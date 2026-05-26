@@ -125,6 +125,7 @@ func main() {
 
 	reminderWorker := worker.NewReminderWorker(notificationRepo, time.Minute, logger)
 	schedulerRegistry.Register("activity-reminders", "Activity reminders", time.Minute, true)
+	reminderWorker.WithScheduler(schedulerRegistry, "activity-reminders")
 	reminderWorker.Start(workerCtx)
 
 	emailNotifier := worker.NewEmailNotifier(mailer, logger)
@@ -132,10 +133,12 @@ func main() {
 
 	webhookDispatcher := worker.NewWebhookDispatcher(outboundWebhookRepo, 30*time.Second, logger)
 	schedulerRegistry.Register("outbound-webhooks", "Outbound webhook dispatcher", 30*time.Second, true)
+	webhookDispatcher.WithScheduler(schedulerRegistry, "outbound-webhooks")
 	webhookDispatcher.Start(workerCtx)
 
 	slaBreachWorker := worker.NewSLABreachWorker(slaInstanceRepo, notificationRepo, 5*time.Minute, logger)
 	schedulerRegistry.Register("sla-breaches", "SLA breach scanner", 5*time.Minute, true)
+	slaBreachWorker.WithScheduler(schedulerRegistry, "sla-breaches")
 	slaBreachWorker.Start(workerCtx)
 
 	automationWorker := worker.NewAutomationWorker(
@@ -143,6 +146,7 @@ func main() {
 		mailer, time.Minute, logger,
 	)
 	schedulerRegistry.Register("workflow-automations", "Workflow automation worker", time.Minute, true)
+	automationWorker.WithScheduler(schedulerRegistry, "workflow-automations")
 	automationWorker.Start(workerCtx)
 
 	calendarSyncWorker := worker.NewCalendarSyncWorker(
@@ -152,6 +156,7 @@ func main() {
 		cfg.Calendar.MicrosoftClientID, cfg.Calendar.MicrosoftClientSecret, cfg.Calendar.MicrosoftTenantID,
 	)
 	schedulerRegistry.Register("calendar-sync", "Calendar sync", 5*time.Minute, true)
+	calendarSyncWorker.WithScheduler(schedulerRegistry, "calendar-sync")
 	calendarSyncWorker.Start(workerCtx)
 
 	emailInboxSyncWorker := worker.NewEmailInboxSyncWorker(
@@ -162,6 +167,7 @@ func main() {
 		cfg.EmailInbox.MicrosoftClientID, cfg.EmailInbox.MicrosoftClientSecret, cfg.EmailInbox.MicrosoftTenantID,
 	)
 	schedulerRegistry.Register("email-inbox-sync", "Email inbox sync", 5*time.Minute, true)
+	emailInboxSyncWorker.WithScheduler(schedulerRegistry, "email-inbox-sync")
 	emailInboxSyncWorker.Start(workerCtx)
 
 	if cfg.SMTP.Enabled {
@@ -254,7 +260,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadRepo, contactRepo, accountRepo, dealRepo, leadConversionMappingRepo, customFieldRepo).WithModuleLayouts(moduleLayoutRepo)
 	customFieldHandler := handler.NewCustomFieldHandler(customFieldRepo).WithPicklistValueReader(picklistRepo)
 	moduleConfigurationHandler := handler.NewModuleConfigurationHandler(moduleLayoutRepo, moduleRelationshipDefinitionRepo, customFieldRepo, crmEntityLinkRepo, accessRepo)
-	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo).WithAuditLog(auditLogRepo)
 	emailHandler := handler.NewEmailHandler(emailRepo, activityRepo, contactRepo, dealRepo, mailer, cfg.SMTP.From)
 	importHandler := handler.NewImportHandler(contactRepo, accountRepo, leadRepo)
 	outboundWebhookHandler := handler.NewOutboundWebhookHandler(outboundWebhookRepo)
@@ -311,11 +317,13 @@ func main() {
 	accessSettingsHandler := handler.NewAccessSettingsHandler(accessRepo, userRepo).WithAuditLog(auditLogRepo)
 	sequenceWorker := worker.NewSequenceWorker(sequenceRepo, emailTemplateRepo, mailer, cfg.SequenceTokenSecret, time.Minute, logger)
 	schedulerRegistry.Register("sequences", "Email sequence worker", time.Minute, true)
+	sequenceWorker.WithScheduler(schedulerRegistry, "sequences")
 	sequenceWorker.Start(workerCtx)
 
 	dashboardHandler := handler.NewDashboardHandler(dashboardRepo, reportsRepo)
 	reportSchedulerWorker := worker.NewReportSchedulerWorker(dashboardRepo, reportsRepo, mailer, time.Minute, logger)
 	schedulerRegistry.Register("report-schedules", "Report scheduler", time.Minute, true)
+	reportSchedulerWorker.WithScheduler(schedulerRegistry, "report-schedules")
 	reportSchedulerWorker.Start(workerCtx)
 
 	r := chi.NewRouter()

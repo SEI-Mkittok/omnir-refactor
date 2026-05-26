@@ -44,6 +44,8 @@ type EmailInboxSyncWorker struct {
 	microsoftClientID     string
 	microsoftClientSecret string
 	microsoftTenantID     string
+	scheduler             *SchedulerRegistry
+	schedulerKey          string
 }
 
 // NewEmailInboxSyncWorker creates a new EmailInboxSyncWorker.
@@ -72,6 +74,12 @@ func NewEmailInboxSyncWorker(
 	}
 }
 
+func (w *EmailInboxSyncWorker) WithScheduler(registry *SchedulerRegistry, key string) *EmailInboxSyncWorker {
+	w.scheduler = registry
+	w.schedulerKey = key
+	return w
+}
+
 // Start launches the sync loop in a background goroutine.
 func (w *EmailInboxSyncWorker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
@@ -81,7 +89,11 @@ func (w *EmailInboxSyncWorker) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				w.runSync(ctx)
+				if err := w.scheduler.TrackRun(w.schedulerKey, w.interval, func() error {
+					return w.runSync(ctx)
+				}); err != nil {
+					w.log.Error("email inbox sync worker failed", "err", err)
+				}
 			case <-ctx.Done():
 				w.log.Info("email inbox sync worker stopped")
 				return
@@ -90,12 +102,12 @@ func (w *EmailInboxSyncWorker) Start(ctx context.Context) {
 	}()
 }
 
-func (w *EmailInboxSyncWorker) runSync(ctx context.Context) {
+func (w *EmailInboxSyncWorker) runSync(ctx context.Context) error {
 	conns, err := w.connections.ListAllActive(ctx)
 	if err != nil {
-		w.log.Error("email inbox sync: failed to list connections", "err", err)
-		return
+		return fmt.Errorf("list connections: %w", err)
 	}
+	var firstErr error
 	for _, conn := range conns {
 		if err := w.syncConnection(ctx, conn); err != nil {
 			w.log.Warn("email inbox sync: connection failed",
@@ -104,8 +116,12 @@ func (w *EmailInboxSyncWorker) runSync(ctx context.Context) {
 				"user_id", conn.UserID,
 				"err", err,
 			)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
+	return firstErr
 }
 
 func (w *EmailInboxSyncWorker) syncConnection(ctx context.Context, conn *domain.EmailConnection) error {

@@ -13,13 +13,15 @@ import (
 
 // SequenceWorker processes pending email sequence enrollments on a ticker.
 type SequenceWorker struct {
-	repo        repository.SequenceRepository
-	tmplRepo    repository.EmailTemplateRepository
-	mailer      *email.Mailer
-	tokenSecret string
-	interval    time.Duration
-	log         *slog.Logger
-	stop        chan struct{}
+	repo         repository.SequenceRepository
+	tmplRepo     repository.EmailTemplateRepository
+	mailer       *email.Mailer
+	tokenSecret  string
+	interval     time.Duration
+	log          *slog.Logger
+	stop         chan struct{}
+	scheduler    *SchedulerRegistry
+	schedulerKey string
 }
 
 // NewSequenceWorker creates a SequenceWorker that runs every interval.
@@ -35,6 +37,12 @@ func NewSequenceWorker(repo repository.SequenceRepository, tmplRepo repository.E
 	}
 }
 
+func (w *SequenceWorker) WithScheduler(registry *SchedulerRegistry, key string) *SequenceWorker {
+	w.scheduler = registry
+	w.schedulerKey = key
+	return w
+}
+
 // Start runs the worker in a background goroutine until Stop is called or ctx is cancelled.
 func (w *SequenceWorker) Start(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
@@ -44,7 +52,11 @@ func (w *SequenceWorker) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				w.tick(ctx)
+				if err := w.scheduler.TrackRun(w.schedulerKey, w.interval, func() error {
+					return w.tick(ctx)
+				}); err != nil {
+					w.log.Error("sequence worker tick failed", "err", err)
+				}
 			case <-w.stop:
 				w.log.Info("sequence worker stopped")
 				return
@@ -61,19 +73,23 @@ func (w *SequenceWorker) Stop() {
 	close(w.stop)
 }
 
-func (w *SequenceWorker) tick(ctx context.Context) {
+func (w *SequenceWorker) tick(ctx context.Context) error {
 	enrollments, err := w.repo.PendingEnrollments(ctx)
 	if err != nil {
-		w.log.Error("sequence worker: failed to fetch pending enrollments", "err", err)
-		return
+		return err
 	}
 
+	var firstErr error
 	for _, enrollment := range enrollments {
 		if err := w.processEnrollment(ctx, enrollment); err != nil {
 			w.log.Error("sequence worker: failed to process enrollment",
 				"enrollment_id", enrollment.ID, "err", err)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
+	return firstErr
 }
 
 func (w *SequenceWorker) processEnrollment(ctx context.Context, enrollment *domain.SequenceEnrollment) error {
